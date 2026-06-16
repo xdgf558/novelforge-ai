@@ -31,7 +31,7 @@ Rules for future phases:
 
 ## 2026-06-16: Repository Setup
 
-Status: in progress.
+Status: completed.
 
 Goal:
 
@@ -43,3 +43,14 @@ Repository name:
 
 - `novelforge-ai`
 
+GitHub repository:
+
+- `https://github.com/xdgf558/novelforge-ai`
+
+What was done:
+
+- Initialized local Git repository on `main`.
+- Added `.gitignore` and `README.md`.
+- Created the private GitHub repository.
+- Added `origin`.
+- Pushed the initial repository state to GitHub.
