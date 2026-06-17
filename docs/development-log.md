@@ -563,3 +563,26 @@ Notes:
 Next recommended step:
 
 - Start Phase 10: basic continuity check reports using project setting, character memory, world rules, foreshadows, timeline events, latest chapter text, and recent summaries.
+
+## 2026-06-17: Phase 9 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Fixed new-character approval from pending updates so non-identity character fields no longer overwrite `identity`.
+- Moved pending-update new-character value construction into a pure helper.
+- Added regression tests for non-identity and explicit identity character pending updates.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test -- lib/pending-updates.test.ts` passed, 1 file and 6 tests.
+- `npm run test` passed, 12 files and 53 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+
+Deferred review items:
+
+- Pending update review UI extraction remains deferred to a future component cleanup pass.
+- Pending update action splitting by target type remains deferred until the flow stabilizes further.

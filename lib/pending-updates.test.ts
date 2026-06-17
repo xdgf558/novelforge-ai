@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   appendMemoryNote,
+  characterValuesForPendingUpdate,
   inferProjectSettingFieldName,
   normalizeRiskLevel,
   normalizeTargetType,
@@ -50,5 +51,31 @@ describe("pending update helpers", () => {
     expect(appendMemoryNote("旧规则\n\n新规则", "新规则")).toBe(
       "旧规则\n\n新规则",
     );
+  });
+
+  it("does not copy non-identity character updates into identity", () => {
+    const values = characterValuesForPendingUpdate({
+      targetName: "林秋",
+      title: "林秋新增行为规则",
+      fieldName: "behaviorRules",
+      proposedContent: "不能主动透露契约代价。",
+    });
+
+    expect(values.name).toBe("林秋");
+    expect(values.status).toBe("active");
+    expect(values.behaviorRules).toBe("不能主动透露契约代价。");
+    expect(values.identity).toBe("");
+  });
+
+  it("keeps explicit identity character updates in identity", () => {
+    const values = characterValuesForPendingUpdate({
+      targetName: "",
+      title: "新增角色：许澜",
+      fieldName: "identity",
+      proposedContent: "地下契约组织的档案管理员。",
+    });
+
+    expect(values.name).toBe("新增角色：许澜");
+    expect(values.identity).toBe("地下契约组织的档案管理员。");
   });
 });

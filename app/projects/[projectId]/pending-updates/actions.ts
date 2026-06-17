@@ -15,11 +15,11 @@ import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
   characterSnapshot,
   characterValuesFromRecord,
-  emptyCharacterValues,
   type CharacterTextFieldName,
 } from "@/lib/character-fields";
 import {
   appendMemoryNote,
+  characterValuesForPendingUpdate,
   inferProjectSettingFieldName,
   isCharacterFieldName,
   isProjectSettingFieldName,
@@ -362,16 +362,14 @@ async function applyCharacterUpdate(
     return;
   }
 
-  const values = emptyCharacterValues();
-  values.name = targetName || pendingUpdate.title;
-  values.status = "active";
-  values[fieldName] = proposedContent;
-
-  if (fieldName !== "identity" && pendingUpdate.updateType === "create") {
-    values.identity = proposedContent;
-  }
-
-  const snapshot = characterSnapshot(values);
+  const snapshot = characterSnapshot(
+    characterValuesForPendingUpdate({
+      targetName,
+      title: pendingUpdate.title,
+      fieldName,
+      proposedContent,
+    }),
+  );
   const createdCharacter = await tx.character.create({
     data: {
       projectId: pendingUpdate.projectId,

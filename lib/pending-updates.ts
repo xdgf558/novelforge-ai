@@ -1,6 +1,8 @@
 import {
   characterFieldNames,
   type CharacterFieldName,
+  emptyCharacterValues,
+  type CharacterValues,
 } from "./character-fields";
 import {
   projectSettingFieldNames,
@@ -212,6 +214,25 @@ export function appendMemoryNote(currentValue: string | null | undefined, note: 
   }
 
   return `${cleanedCurrent}\n\n${cleanedNote}`;
+}
+
+export function characterValuesForPendingUpdate({
+  targetName,
+  title,
+  fieldName,
+  proposedContent,
+}: {
+  targetName?: string | null;
+  title: string;
+  fieldName: CharacterFieldName;
+  proposedContent: string;
+}): CharacterValues {
+  const values = emptyCharacterValues();
+  values.name = clean(targetName) || clean(title);
+  values.status = "active";
+  values[fieldName] = clean(proposedContent);
+
+  return values;
 }
 
 function clean(value?: string | null) {
