@@ -23,6 +23,61 @@ model Project {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  setting         ProjectSetting?
+  settingVersions SettingVersion[]
+
   @@index([status])
   @@map("projects")
+}
+
+model ProjectSetting {
+  id                    String   @id @default(cuid())
+  projectId             String   @unique
+  genre                 String?
+  targetAudience        String?
+  sellingPoint          String?
+  mainConflict          String?
+  worldviewRules        String?
+  protagonistDesire     String?
+  protagonistFlaw       String?
+  villainLogic          String?
+  supportingCharacters  String?
+  factions              String?
+  timeline              String?
+  pleasureMechanism     String?
+  forbiddenItems        String?
+  styleSample           String?
+  wechatPositioning     String?
+  emotionalTone         String?
+  readerExpectation     String?
+  commercialHook        String?
+  longTermForeshadowing String?
+  endingDirection       String?
+  sensitiveContentRules String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions SettingVersion[]
+
+  @@map("project_settings")
+}
+
+model SettingVersion {
+  id              String   @id @default(cuid())
+  projectId       String
+  settingId       String?
+  versionNumber   Int
+  snapshotJson    String
+  changeReason    String?
+  sourceType      String   @default("manual")
+  sourceChapterId String?
+  createdAt       DateTime @default(now())
+
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  setting ProjectSetting? @relation(fields: [settingId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, versionNumber])
+  @@index([settingId])
+  @@map("setting_versions")
 }

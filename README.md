@@ -22,6 +22,7 @@ Default local URL:
 Useful checks:
 
 ```bash
+npm run test
 npm run typecheck
 npm run build
 ```

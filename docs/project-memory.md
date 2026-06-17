@@ -167,6 +167,23 @@ Recommended implementation order:
 11. Continuity check reports.
 12. WeChat publish package and Markdown/JSON export.
 
+## Completed Phases
+
+- Phase 0: Project memory baseline and development notes.
+- Repository setup: local Git repository and private GitHub repository.
+- Phase 1: Next.js, TypeScript, Tailwind CSS, Prisma, SQLite, base layout, and project CRUD.
+- Phase 2: Project setting editor, setting version snapshots, setting history pages, and Vitest baseline tests.
+
+## Next Phase
+
+Phase 3 should focus on character library and character CRUD:
+
+- Add `Character` and `CharacterVersion` tables.
+- Add project character list, create, edit, detail, and delete flows.
+- Track stable character fields such as speaking style, desire, fear, known information, hidden information, ability boundary, behavior rules, and character arc.
+- Create version snapshots for important character profile changes.
+- Keep AI character generation out of scope until the AI service wrapper and prompt template system are introduced.
+
 ## Acceptance Baseline
 
 The MVP is not complete until it can:
@@ -187,4 +204,3 @@ The MVP is not complete until it can:
 - Record every AI call.
 - Preserve data after restart.
 - Export project data as Markdown or JSON.
-

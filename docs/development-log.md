@@ -112,3 +112,48 @@ Deferred review items:
 - Test framework setup is deferred to Phase 2, where setting-version behavior will benefit more from regression tests.
 - Friendly Server Action error handling is deferred until form state handling is introduced.
 - Dependency ranges remain paired with `package-lock.json`; use `npm ci` for reproducible installs.
+
+## 2026-06-17: Phase 2 Project Settings and Version History
+
+Status: completed.
+
+Scope:
+
+- Project setting data model.
+- Setting version snapshot records.
+- Manual setting editor.
+- Setting history and snapshot detail pages.
+- Project detail entry points for settings.
+- Lightweight test baseline.
+
+What was done:
+
+- Added `ProjectSetting` and `SettingVersion` Prisma models.
+- Added a `project_settings` migration with one-to-one project settings and version history.
+- Added shared project setting field descriptors for forms and snapshot rendering.
+- Added save action that upserts the current setting and creates a version snapshot on every save.
+- Added pages for editing project settings, listing setting history, and viewing a version snapshot.
+- Added project detail links to the setting editor and history.
+- Added Vitest and pure logic tests for number/range formatting and project setting snapshot fields.
+- Updated README with `npm run test`.
+
+Verification:
+
+- `npx prisma migrate dev --name project_settings` completed and generated Prisma Client.
+- `npx prisma migrate status` passed.
+- `npm run test` passed, 2 files and 8 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Browser verification passed for creating a project, saving two setting versions, viewing history, viewing v2 snapshot, seeing the project detail version count, and deleting the test project.
+- Browser console had no error or warning entries.
+- Local SQLite counts returned to zero for projects, project settings, and setting versions after test cleanup.
+
+Notes:
+
+- Browser role and CSS click locators were slow on the long settings form in this environment, so DOM node clicks were used for submit buttons during verification.
+- `npm install --save-dev vitest` completed with 0 vulnerabilities.
+- A later standalone `npm audit --omit=dev` returned a registry 503, matching the intermittent npm audit endpoint issue seen in Phase 1.
+
+Next recommended step:
+
+- Start Phase 3: character library, character CRUD, and character version records.
