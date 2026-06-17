@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   BookMarked,
+  Bot,
   FileText,
   History,
   Pencil,
@@ -35,6 +36,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           characterVersions: true,
           chapters: true,
           chapterVersions: true,
+          aiPromptTemplates: true,
+          aiTasks: true,
         },
       },
     },
@@ -89,7 +92,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <InfoTile label="目标读者" value={project.targetAudience || "未设置"} />
         <InfoTile label="连载平台" value={project.platform || "未设置"} />
         <InfoTile label="总字数目标" value={formatNumber(project.totalWordTarget)} />
@@ -171,6 +174,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               </h2>
               <p className="mt-1 text-sm leading-6 text-ink-700">
                 已保存 {project._count.settingVersions} 个设定快照。
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+          href={`/projects/${project.id}/ai`}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
+              <Bot aria-hidden="true" className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-ink-950">
+                AI 任务
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-ink-700">
+                已保存 {project._count.aiPromptTemplates} 个模板，{project._count.aiTasks} 条任务。
               </p>
             </div>
           </div>
