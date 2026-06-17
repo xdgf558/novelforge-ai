@@ -12,6 +12,11 @@ import {
   hasConfirmedChapterBeats,
   type ChapterDraftChapterContext,
 } from "@/lib/ai/chapter-drafts";
+import {
+  buildChapterSummaryContext,
+  hasConfirmedChapterText,
+  type ChapterSummaryChapterContext,
+} from "@/lib/ai/chapter-summaries";
 import { DEFAULT_AI_PROMPT_TEMPLATES } from "@/lib/ai/prompt-templates";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
@@ -65,6 +70,7 @@ const changeReasonSchema = z
 
 const chapterBeatTemplateKey = "chapter_beat_generation";
 const chapterDraftTemplateKey = "chapter_draft_generation";
+const chapterSummaryTemplateKey = "chapter_summary_extraction";
 
 function parseChapterForm(formData: FormData) {
   const parsedValues = chapterSchema.parse(
@@ -299,6 +305,62 @@ export async function generateChapterDraft(projectId: string, chapterId: string)
     {
       systemPrompt: template.systemPrompt,
       developerPrompt: [template.userPrompt, template.contextNotes]
+        .filter(Boolean)
+        .join("\n\n"),
+      input: context.inputText,
+    },
+  );
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/ai`);
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+}
+
+export async function generateChapterSummary(projectId: string, chapterId: string) {
+  const activeTask = await findActiveChapterAiTask(
+    projectId,
+    chapterId,
+    "chapter_summary_extraction",
+  );
+
+  if (activeTask) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
+  const contextInput = await loadChapterSummaryContext(projectId, chapterId);
+
+  if (!hasConfirmedChapterText(contextInput.chapter)) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    chapterSummaryTemplateKey,
+  );
+  const context = buildChapterSummaryContext(contextInput);
+
+  await runLoggedOpenAITextTask(
+    {
+      projectId,
+      chapterId,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    },
+    {
+      systemPrompt: template.systemPrompt,
+      developerPrompt: [
+        template.userPrompt,
+        template.contextNotes,
+        template.responseSchema
+          ? `请严格输出符合以下 JSON Schema 的 JSON：\n${template.responseSchema}`
+          : "",
+      ]
         .filter(Boolean)
         .join("\n\n"),
       input: context.inputText,
@@ -678,6 +740,68 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     previousChapter: previousChapter
       ? pickChapterDraftContext(previousChapter)
       : null,
+  };
+}
+
+async function loadChapterSummaryContext(projectId: string, chapterId: string) {
+  const chapter = await prisma.chapter.findFirst({
+    where: {
+      id: chapterId,
+      projectId,
+    },
+    include: {
+      project: {
+        select: {
+          title: true,
+          genre: true,
+          targetAudience: true,
+          platform: true,
+          description: true,
+          wechatPositioning: true,
+        },
+      },
+    },
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
+  const [setting, characters] = await Promise.all([
+    prisma.projectSetting.findUnique({
+      where: {
+        projectId,
+      },
+    }),
+    prisma.character.findMany({
+      where: {
+        projectId,
+        status: "active",
+      },
+      orderBy: {
+        name: "asc",
+      },
+      take: 12,
+    }),
+  ]);
+
+  return {
+    project: chapter.project,
+    setting,
+    chapter: pickChapterSummaryContext(chapter),
+    characters,
+  };
+}
+
+function pickChapterSummaryContext(chapter: ChapterSummaryChapterContext) {
+  return {
+    chapterNumber: chapter.chapterNumber,
+    title: chapter.title,
+    goal: chapter.goal,
+    beats: chapter.beats,
+    draftText: chapter.draftText,
+    finalText: chapter.finalText,
+    notes: chapter.notes,
   };
 }
 

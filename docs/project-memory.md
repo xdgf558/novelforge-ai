@@ -178,17 +178,19 @@ Recommended implementation order:
 - Phase 5: AI prompt templates, AI task records, server-only OpenAI wrapper, and AI task audit page.
 - Phase 6: AI chapter beat generation, context assembly, AI task records, and explicit author adoption into chapter beats.
 - Phase 7: AI chapter draft generation from confirmed beats, draft task records, and explicit author adoption into chapter draft text.
+- Phase 8: AI chapter summary extraction from author-confirmed final text, structured summary task records, and chapter detail UI review surface.
 
 ## Next Phase
 
-Phase 8 should focus on chapter summary generation:
+Phase 9 should focus on pending update extraction and review flow:
 
 - Use the Phase 5 server-only AI wrapper and task logger for every model call.
-- Use the project-scoped `chapter_summary_extraction` prompt template.
-- Summarize only author-confirmed chapter text; prefer final text and avoid treating draft output as formal canon unless the author confirms it.
-- Extract a short summary, main events, character state changes, new foreshadows, and continuity risks for later memory layers.
-- Save model input summary, output, status, errors, token usage when available, and template version in `ai_tasks`.
-- Store summary output as an AI task first; do not update formal story memory or future pending updates automatically.
+- Use the project-scoped `pending_update_extraction` prompt template.
+- Read author-confirmed final chapter text, current formal project setting, character memory, and the latest completed chapter summary task where useful.
+- Extract proposed setting, character, world rule, timeline, and foreshadow updates into reviewable pending records.
+- Add an author review surface for approving, rejecting, or editing proposed updates.
+- Approved updates should write to formal tables with source chapter and version snapshots; rejected updates must not change formal memory.
+- Keep high-risk updates visible and require explicit author approval.
 
 ## Acceptance Baseline
 
