@@ -35,7 +35,7 @@ export default async function HomePage() {
             小说项目
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-700">
-            本地项目、总设定档、角色库和章节编辑器已接入，后续 AI 任务会沿着这个记忆底座继续扩展。
+            本地项目、总设定档、角色库、章节编辑器和 AI 任务记录已接入，后续生成能力会沿着这个记忆底座继续扩展。
           </p>
         </div>
         <Link

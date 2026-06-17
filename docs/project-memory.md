@@ -175,16 +175,17 @@ Recommended implementation order:
 - Phase 2: Project setting editor, setting version snapshots, setting history pages, and Vitest baseline tests.
 - Phase 3: Character library, character CRUD, character version snapshots, and character field tests.
 - Phase 4: Chapter list, chapter editor, chapter CRUD, chapter version snapshots, and chapter field tests.
+- Phase 5: AI prompt templates, AI task records, server-only OpenAI wrapper, and AI task audit page.
 
 ## Next Phase
 
-Phase 5 should focus on the AI service wrapper, prompt templates, and AI task records:
+Phase 6 should focus on chapter beat generation:
 
-- Add an `AiTask` data model for task type, model, prompt template version, input summary, output, status, error message, token usage, and adoption state.
-- Add an `AiPromptTemplate` model or equivalent local prompt registry with template versions.
-- Add a server-only AI client wrapper so API keys stay off the frontend.
-- Add traceable task logging for future AI operations before any beat or draft generation feature ships.
-- Keep formal setting, character, chapter, timeline, and foreshadow changes behind user review and approval.
+- Use the Phase 5 server-only AI wrapper and task logger for every model call.
+- Use the project-scoped `chapter_beat_generation` prompt template.
+- Assemble only task-relevant context: project setting summary, relevant characters, recent chapter summaries when available, previous chapter ending when needed, current chapter goal, and forbidden items.
+- Save model input summary, output, status, errors, token usage when available, and template version in `ai_tasks`.
+- Write generated beats back to the chapter only after an explicit author action; do not update formal story memory automatically.
 
 ## Acceptance Baseline
 

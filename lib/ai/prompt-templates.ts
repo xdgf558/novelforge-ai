@@ -1,0 +1,163 @@
+export type PromptOutputFormat = "json" | "markdown" | "text";
+
+export type DefaultPromptTemplate = {
+  key: string;
+  name: string;
+  taskType: string;
+  version: number;
+  outputFormat: PromptOutputFormat;
+  systemPrompt: string;
+  userPrompt: string;
+  contextNotes: string;
+  responseSchema?: string;
+};
+
+export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
+  {
+    key: "project_setting_generation",
+    name: "项目总设定生成",
+    taskType: "project_setting_generation",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是长篇连载小说的设定策划助手。只输出可供作者审核的建议，不得宣称已经修改正式设定。",
+    userPrompt:
+      "根据项目基础信息、题材、读者定位和创作灵感，生成一份结构化项目总设定草案。",
+    contextNotes:
+      "输入应包含项目标题、题材、目标读者、平台、字数目标、故事简介和公众号定位。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["genre", "sellingPoint", "mainConflict", "forbiddenItems"],
+      properties: {
+        genre: { type: "string" },
+        sellingPoint: { type: "string" },
+        mainConflict: { type: "string" },
+        worldviewRules: { type: "string" },
+        protagonistDesire: { type: "string" },
+        forbiddenItems: { type: "string" },
+      },
+    }),
+  },
+  {
+    key: "chapter_beat_generation",
+    name: "章节节拍生成",
+    taskType: "chapter_beat_generation",
+    version: 1,
+    outputFormat: "markdown",
+    systemPrompt:
+      "你是长篇连载小说的章节节拍助手。遵守既有设定、角色信息边界和禁写项，不得引入未经作者确认的正式设定。",
+    userPrompt:
+      "根据当前章节目标、项目设定、相关角色和最近章节摘要，生成本章关键事件、情绪转折和结尾钩子。",
+    contextNotes:
+      "输入应限制为任务相关上下文：项目设定摘要、相关角色、最近 3 章摘要、上一章结尾、当前章节目标。",
+  },
+  {
+    key: "chapter_draft_generation",
+    name: "章节草稿生成",
+    taskType: "chapter_draft_generation",
+    version: 1,
+    outputFormat: "text",
+    systemPrompt:
+      "你是长篇连载小说草稿助手。严格按已确认节拍写作，保持人物说话规则和世界观边界。",
+    userPrompt:
+      "根据已确认章节节拍、文风样本、角色说话规则和目标字数，生成章节草稿。",
+    contextNotes:
+      "输入应包含已确认节拍、文风样本、角色说话规则、上一章结尾、目标字数和禁写项。",
+  },
+  {
+    key: "chapter_summary_extraction",
+    name: "章节摘要提取",
+    taskType: "chapter_summary_extraction",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是长篇连载小说的结构化记忆提取助手。只提取文本中明确出现的信息，不推测隐藏设定。",
+    userPrompt:
+      "从最终章节正文中提取短摘要、主要事件、角色状态变化、新设定、伏笔和时间线事件。",
+    contextNotes:
+      "输入应包含章节号、最终正文、当前项目设定摘要和必要的角色名表。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["shortSummary", "mainEvents", "continuityRisks"],
+      properties: {
+        shortSummary: { type: "string" },
+        mainEvents: { type: "array", items: { type: "string" } },
+        characterChanges: { type: "array", items: { type: "string" } },
+        newForeshadows: { type: "array", items: { type: "string" } },
+        continuityRisks: { type: "array", items: { type: "string" } },
+      },
+    }),
+  },
+  {
+    key: "pending_update_extraction",
+    name: "待审核更新提取",
+    taskType: "pending_update_extraction",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是长篇连载小说的记忆更新审计助手。AI 只能提出待审核更新，不能直接修改正式设定、角色、世界规则、时间线或伏笔。",
+    userPrompt:
+      "比较最终章节正文与当前结构化记忆，提取需要作者审核的设定、角色、世界规则、时间线和伏笔更新建议。",
+    contextNotes:
+      "输入应包含最终章节正文、当前正式记忆摘要、章节号和已知禁写项。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["updates"],
+      properties: {
+        updates: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["targetType", "content", "riskLevel", "sourceEvidence"],
+            properties: {
+              targetType: { type: "string" },
+              content: { type: "string" },
+              riskLevel: { type: "string" },
+              sourceEvidence: { type: "string" },
+            },
+          },
+        },
+      },
+    }),
+  },
+  {
+    key: "continuity_check",
+    name: "连续性检查",
+    taskType: "continuity_check",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是长篇连载小说的连续性审稿助手。只报告与既有结构化记忆冲突或高风险漂移的问题。",
+    userPrompt:
+      "检查当前章节正文与项目设定、角色边界、世界规则、时间线和伏笔池之间的连续性问题。",
+    contextNotes:
+      "输入应包含当前章节正文、相关角色、相关世界规则、时间线事件、伏笔池和最近章节摘要。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["issues"],
+      properties: {
+        issues: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["severity", "summary", "evidence"],
+            properties: {
+              severity: { type: "string" },
+              summary: { type: "string" },
+              evidence: { type: "string" },
+              suggestion: { type: "string" },
+            },
+          },
+        },
+      },
+    }),
+  },
+];
+
+export function promptTemplateFingerprint(template: DefaultPromptTemplate) {
+  return `${template.key}@v${template.version}`;
+}
+
+export function taskTypesFromDefaultTemplates() {
+  return [...new Set(DEFAULT_AI_PROMPT_TEMPLATES.map((template) => template.taskType))];
+}

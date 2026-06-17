@@ -29,6 +29,8 @@ model Project {
   characterVersions CharacterVersion[]
   chapters          Chapter[]
   chapterVersions   ChapterVersion[]
+  aiPromptTemplates AiPromptTemplate[]
+  aiTasks           AiTask[]
 
   @@index([status])
   @@map("projects")
@@ -154,6 +156,7 @@ model Chapter {
 
   project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
   versions ChapterVersion[]
+  aiTasks  AiTask[]
 
   @@index([projectId, status])
   @@index([projectId, chapterNumber])
@@ -177,4 +180,62 @@ model ChapterVersion {
   @@index([projectId])
   @@index([chapterId, versionNumber])
   @@map("chapter_versions")
+}
+
+model AiPromptTemplate {
+  id             String   @id @default(cuid())
+  projectId      String
+  key            String
+  name           String
+  taskType       String
+  version        Int      @default(1)
+  status         String   @default("active")
+  outputFormat   String   @default("text")
+  systemPrompt   String
+  userPrompt     String
+  contextNotes   String?
+  responseSchema String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   AiTask[]
+
+  @@unique([projectId, key, version])
+  @@index([projectId, taskType])
+  @@index([projectId, status])
+  @@map("ai_prompt_templates")
+}
+
+model AiTask {
+  id                  String    @id @default(cuid())
+  projectId           String
+  promptTemplateId    String?
+  chapterId           String?
+  taskType            String
+  model               String
+  status              String    @default("pending")
+  adoptionState       String    @default("not_reviewed")
+  inputContextSummary String
+  inputJson           String?
+  outputText          String?
+  outputJson          String?
+  errorMessage        String?
+  tokenInput          Int?
+  tokenOutput         Int?
+  tokenTotal          Int?
+  startedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  promptTemplate AiPromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  chapter        Chapter?          @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, taskType])
+  @@index([projectId, status])
+  @@index([promptTemplateId])
+  @@index([chapterId])
+  @@map("ai_tasks")
 }

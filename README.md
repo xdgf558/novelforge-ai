@@ -26,3 +26,6 @@ npm run test
 npm run typecheck
 npm run build
 ```
+
+AI calls are server-only. Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `.env`
+before enabling real model-backed actions.

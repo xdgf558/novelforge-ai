@@ -291,3 +291,63 @@ Deferred review items:
 - `countChapterWords` behavior remains unchanged because whitespace-only final text correctly falls back to draft text or counts as zero when no draft exists.
 - Chapter version numbering remains scoped to the local single-user MVP and should be revisited with a stronger concurrency strategy if the product expands beyond local single-user usage.
 - Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
+
+## 2026-06-17: Phase 5 AI Task Infrastructure
+
+Status: completed.
+
+Scope:
+
+- AI prompt template storage.
+- AI task audit records.
+- Server-only OpenAI Responses wrapper.
+- Task logging helper for future model-backed features.
+- Project AI task page and project detail entry point.
+
+What was done:
+
+- Added `AiPromptTemplate` and `AiTask` Prisma models.
+- Added the `ai_task_infra` migration with project-scoped prompt templates and AI task records.
+- Added default prompt templates for project setting generation, chapter beat generation, chapter draft generation, chapter summary extraction, pending update extraction, and continuity checking.
+- Added a server-only OpenAI Responses wrapper that builds text input payloads, reads `OPENAI_MODEL`, requires `OPENAI_API_KEY` only at call time, extracts output text, and records token usage when present.
+- Added AI task logger helpers for pending, running, completed, failed, and logged OpenAI text tasks.
+- Added a project AI page for syncing default templates and recording a local readiness check without calling an external model.
+- Added project detail counts and entry point for AI templates and tasks.
+- Updated README and UI copy to reflect server-only AI task infrastructure.
+- Added Vitest coverage for prompt template uniqueness, task status labels, OpenAI payload construction, output extraction, token usage extraction, and environment config helpers.
+
+Verification:
+
+- `npx prisma migrate dev --name ai_task_infra` completed and generated Prisma Client.
+- `npx prisma migrate status` passed.
+- `npm run test` passed, 7 files and 33 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `git diff --check` passed.
+- Browser verification passed for creating a project, opening the AI page, syncing 6 default templates, recording a local readiness task, seeing project AI counts update, and deleting the test project.
+- Browser console had no error entries during the AI task flow.
+- Local SQLite counts returned to zero for the browser test project, AI prompt templates, and AI tasks after cleanup.
+
+Notes:
+
+- Phase 5 does not generate chapter beats or drafts yet. It only creates the safe and traceable AI foundation.
+- The readiness check intentionally does not call OpenAI; it verifies local task logging and server-side key visibility without spending tokens.
+- `OPENAI_API_KEY` remains server-only and is never rendered to the frontend.
+
+Next recommended step:
+
+- Start Phase 6: chapter beat generation using the `chapter_beat_generation` prompt template and `ai_tasks` logging.
+
+## 2026-06-17: Phase 5 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Changed the local AI readiness check to create a completed `ai_tasks` record in one write instead of creating a pending task and updating it afterward.
+- Reused the shared AI task payload stringifier so readiness input/output JSON formatting stays aligned with the task logger helpers.
+
+Deferred review items:
+
+- Reading `OPENAI_MODEL` and `OPENAI_API_KEY` presence from the AI page Server Component remains safe for the current Node server runtime.
+- Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
