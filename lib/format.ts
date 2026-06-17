@@ -14,18 +14,17 @@ export function formatNumber(value: number | null | undefined) {
 }
 
 export function formatWordRange(min?: number | null, max?: number | null) {
-  if (min && max) {
+  if (min != null && max != null) {
     return `${formatNumber(min)}-${formatNumber(max)} 字`;
   }
 
-  if (min) {
+  if (min != null) {
     return `至少 ${formatNumber(min)} 字`;
   }
 
-  if (max) {
+  if (max != null) {
     return `最多 ${formatNumber(max)} 字`;
   }
 
   return "未设置";
 }
-

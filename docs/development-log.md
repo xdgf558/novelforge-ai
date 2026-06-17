@@ -96,3 +96,19 @@ Notes:
 Next recommended step:
 
 - Start Phase 2: project setting editor and setting version records.
+
+## 2026-06-17: Phase 1 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Hardened `formatWordRange` by using nullish checks instead of truthiness checks.
+- Changed homepage active project and target word statistics to use Prisma `count` and `aggregate`.
+- Added `cp .env.example .env` to README local setup steps.
+
+Deferred review items:
+
+- Test framework setup is deferred to Phase 2, where setting-version behavior will benefit more from regression tests.
+- Friendly Server Action error handling is deferred until form state handling is introduced.
+- Dependency ranges remain paired with `package-lock.json`; use `npm ci` for reproducible installs.

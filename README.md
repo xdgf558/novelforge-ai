@@ -10,6 +10,7 @@ See `AGENTS.md` and `docs/` before starting implementation work.
 
 ```bash
 npm install
+cp .env.example .env
 npm run prisma:migrate
 npm run dev
 ```
@@ -24,4 +25,3 @@ Useful checks:
 npm run typecheck
 npm run build
 ```
-

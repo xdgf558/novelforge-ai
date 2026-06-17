@@ -6,17 +6,25 @@ import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const projects = await prisma.project.findMany({
-    orderBy: {
-      updatedAt: "desc",
-    },
-  });
+  const [projects, activeProjectCount, wordTargetAggregate] = await Promise.all([
+    prisma.project.findMany({
+      orderBy: {
+        updatedAt: "desc",
+      },
+    }),
+    prisma.project.count({
+      where: {
+        status: "active",
+      },
+    }),
+    prisma.project.aggregate({
+      _sum: {
+        totalWordTarget: true,
+      },
+    }),
+  ]);
 
-  const activeProjects = projects.filter((project) => project.status === "active");
-  const totalWordTarget = projects.reduce(
-    (sum, project) => sum + (project.totalWordTarget ?? 0),
-    0,
-  );
+  const totalWordTarget = wordTargetAggregate._sum.totalWordTarget ?? 0;
 
   return (
     <div className="space-y-7">
@@ -56,7 +64,7 @@ export default async function HomePage() {
             活跃项目
           </div>
           <p className="mt-3 text-2xl font-semibold text-ink-950">
-            {activeProjects.length}
+            {activeProjectCount}
           </p>
         </div>
 
@@ -138,4 +146,3 @@ export default async function HomePage() {
     </div>
   );
 }
-
