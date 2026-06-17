@@ -7,6 +7,7 @@ import {
   chapterValuesFromRecord,
   countChapterWords,
   emptyChapterValues,
+  formatChapterWordCount,
 } from "./chapter-fields";
 
 describe("chapter fields", () => {
@@ -46,6 +47,19 @@ describe("chapter fields", () => {
     expect(Object.keys(values).sort()).toEqual([...chapterFieldNames].sort());
   });
 
+  it("keeps defaults for missing or null chapter record fields", () => {
+    const values = chapterValuesFromRecord({
+      chapterNumber: null,
+      title: "雨夜借命",
+      wordCount: null,
+    });
+
+    expect(values.chapterNumber).toBe(1);
+    expect(values.title).toBe("雨夜借命");
+    expect(values.wordCount).toBe(0);
+    expect(Object.keys(values).sort()).toEqual([...chapterFieldNames].sort());
+  });
+
   it("labels known and unknown chapter statuses explicitly", () => {
     expect(chapterStatusLabel("draft")).toBe("草稿");
     expect(chapterStatusLabel("revising")).toBe("修订中");
@@ -58,6 +72,12 @@ describe("chapter fields", () => {
   it("counts words from final text first and ignores whitespace", () => {
     expect(countChapterWords(" 定 稿\n正文 ", " 草稿正文很长 ")).toBe(4);
     expect(countChapterWords("", " 草稿\n正文 ")).toBe(4);
+  });
+
+  it("formats missing chapter word counts as uncounted", () => {
+    expect(formatChapterWordCount(0)).toBe("未统计");
+    expect(formatChapterWordCount(null)).toBe("未统计");
+    expect(formatChapterWordCount(12000)).toBe("12,000 字");
   });
 
   it("trims snapshots and recomputes word count while preserving every field", () => {

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, History, Pencil, Trash2 } from "lucide-react";
 import { deleteChapter } from "@/app/projects/[projectId]/chapters/actions";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
-import { chapterStatusLabel } from "@/lib/chapter-fields";
+import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields";
 import { formatDate, formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -60,7 +60,8 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
               {chapter.goal || "暂未填写章节目标。"}
             </p>
             <p className="mt-2 text-xs text-ink-700">
-              {chapterStatusLabel(chapter.status)} / {formatNumber(chapter.wordCount)} 字
+              {chapterStatusLabel(chapter.status)} /{" "}
+              {formatChapterWordCount(chapter.wordCount)}
               / 最近更新：{formatDate(chapter.updatedAt)}
             </p>
           </div>

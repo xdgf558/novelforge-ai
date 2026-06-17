@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, Plus } from "lucide-react";
-import { chapterStatusLabel } from "@/lib/chapter-fields";
+import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields";
 import { formatDate, formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -133,7 +133,7 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
                 <div>
                   <dt className="text-ink-700">字数</dt>
                   <dd className="mt-1 font-medium text-ink-950">
-                    {formatNumber(chapter.wordCount)}
+                    {formatChapterWordCount(chapter.wordCount)}
                   </dd>
                 </div>
                 <div>

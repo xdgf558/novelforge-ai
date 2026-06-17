@@ -2,6 +2,7 @@ import {
   chapterFieldGroups,
   chapterStatusLabel,
   chapterValuesFromRecord,
+  formatChapterWordCount,
   type ChapterRecord,
 } from "@/lib/chapter-fields";
 import { formatNumber } from "@/lib/format";
@@ -33,7 +34,7 @@ export function ChapterSnapshot({ values }: ChapterSnapshotProps) {
           <SnapshotItem label="章节状态" value={statusLabel} />
           <SnapshotItem
             label="当前字数"
-            value={formatNumber(normalizedValues.wordCount)}
+            value={formatChapterWordCount(normalizedValues.wordCount)}
           />
         </dl>
       </section>

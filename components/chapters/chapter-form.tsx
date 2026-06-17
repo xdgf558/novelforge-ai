@@ -3,11 +3,11 @@ import Link from "next/link";
 import { ArrowLeft, History, Save } from "lucide-react";
 import {
   chapterFieldGroups,
+  formatChapterWordCount,
   chapterStatusOptions,
   chapterValuesFromRecord,
   type ChapterValues,
 } from "@/lib/chapter-fields";
-import { formatNumber } from "@/lib/format";
 
 type ChapterFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -118,7 +118,7 @@ export function ChapterForm({
           <div className="rounded-md bg-paper-50 p-4 md:col-span-3">
             <p className="text-sm text-ink-700">当前字数</p>
             <p className="mt-1 text-lg font-semibold text-ink-950">
-              {formatNumber(values.wordCount)}
+              {formatChapterWordCount(values.wordCount)}
             </p>
           </div>
         </section>

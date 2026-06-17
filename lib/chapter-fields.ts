@@ -12,34 +12,30 @@ export const chapterFieldNames = [
 
 export type ChapterFieldName = (typeof chapterFieldNames)[number];
 
+type ChapterNumberFieldName = Extract<
+  ChapterFieldName,
+  "chapterNumber" | "wordCount"
+>;
+
+type ChapterStringFieldName = Exclude<ChapterFieldName, ChapterNumberFieldName>;
+
 export type ChapterTextFieldName = Extract<
   ChapterFieldName,
   "goal" | "beats" | "draftText" | "finalText" | "notes"
 >;
 
-export type ChapterValues = {
-  chapterNumber: number;
-  title: string;
-  status: string;
-  goal: string;
-  beats: string;
-  draftText: string;
-  finalText: string;
-  notes: string;
-  wordCount: number;
-};
+export type ChapterValues = Record<ChapterStringFieldName, string> &
+  Record<ChapterNumberFieldName, number>;
 
-export type ChapterRecord = Partial<{
-  chapterNumber: number | null;
-  title: string | null;
-  status: string | null;
-  goal: string | null;
-  beats: string | null;
-  draftText: string | null;
-  finalText: string | null;
-  notes: string | null;
-  wordCount: number | null;
-}>;
+export type ChapterRecord = Partial<
+  Record<ChapterStringFieldName, string | null> &
+    Record<ChapterNumberFieldName, number | null>
+>;
+
+const chapterNumberFieldNames = [
+  "chapterNumber",
+  "wordCount",
+] as const satisfies readonly ChapterNumberFieldName[];
 
 type ChapterTextField = {
   name: ChapterTextFieldName;
@@ -142,6 +138,14 @@ export function countChapterWords(
   return source.replace(/\s/g, "").length;
 }
 
+export function formatChapterWordCount(wordCount?: number | null) {
+  if (wordCount == null || wordCount <= 0) {
+    return "未统计";
+  }
+
+  return `${wordCount.toLocaleString("zh-CN")} 字`;
+}
+
 export function emptyChapterValues(): ChapterValues {
   return {
     chapterNumber: 1,
@@ -163,17 +167,27 @@ export function chapterValuesFromRecord(record?: ChapterRecord | null): ChapterV
     return values;
   }
 
-  return {
-    chapterNumber: record.chapterNumber ?? values.chapterNumber,
-    title: record.title ?? values.title,
-    status: record.status ?? values.status,
-    goal: record.goal ?? values.goal,
-    beats: record.beats ?? values.beats,
-    draftText: record.draftText ?? values.draftText,
-    finalText: record.finalText ?? values.finalText,
-    notes: record.notes ?? values.notes,
-    wordCount: record.wordCount ?? values.wordCount,
-  };
+  for (const fieldName of chapterFieldNames) {
+    const recordValue = record[fieldName];
+
+    if (recordValue == null) {
+      continue;
+    }
+
+    if (isChapterNumberFieldName(fieldName)) {
+      if (typeof recordValue === "number") {
+        values[fieldName] = recordValue;
+      }
+
+      continue;
+    }
+
+    if (typeof recordValue === "string") {
+      values[fieldName] = recordValue;
+    }
+  }
+
+  return values;
 }
 
 export function chapterSnapshot(values: ChapterValues): ChapterValues {
@@ -190,4 +204,12 @@ export function chapterSnapshot(values: ChapterValues): ChapterValues {
   snapshot.wordCount = countChapterWords(snapshot.finalText, snapshot.draftText);
 
   return snapshot;
+}
+
+function isChapterNumberFieldName(
+  fieldName: ChapterFieldName,
+): fieldName is ChapterNumberFieldName {
+  return chapterNumberFieldNames.some(
+    (numberFieldName) => numberFieldName === fieldName,
+  );
 }

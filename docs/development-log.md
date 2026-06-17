@@ -275,3 +275,19 @@ Notes:
 Next recommended step:
 
 - Start Phase 5: server-only AI service wrapper, prompt templates, and AI task records.
+
+## 2026-06-17: Phase 4 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Replaced the manual chapter record-to-form value mapping with a data-driven helper based on `chapterFieldNames`.
+- Added regression coverage for null/default chapter record fields.
+- Added `formatChapterWordCount` so empty or zero chapter word counts display as `未统计` instead of `0`.
+
+Deferred review items:
+
+- `countChapterWords` behavior remains unchanged because whitespace-only final text correctly falls back to draft text or counts as zero when no draft exists.
+- Chapter version numbering remains scoped to the local single-user MVP and should be revisited with a stronger concurrency strategy if the product expands beyond local single-user usage.
+- Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
