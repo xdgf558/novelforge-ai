@@ -15,7 +15,11 @@ import {
   generateChapterBeats,
 } from "@/app/projects/[projectId]/chapters/actions";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
-import { aiTaskAdoptionLabel, aiTaskStatusLabel } from "@/lib/ai/status";
+import {
+  aiTaskAdoptionLabel,
+  aiTaskStatusLabel,
+  isActiveAiTaskStatus,
+} from "@/lib/ai/status";
 import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -167,6 +171,11 @@ function ChapterBeatAiPanel({
   projectId: string;
   tasks: readonly ChapterBeatTask[];
 }) {
+  const hasActiveGeneration = tasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
+  const canGenerate = hasApiKey && !hasActiveGeneration;
+
   return (
     <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -186,15 +195,15 @@ function ChapterBeatAiPanel({
         <form action={generateChapterBeats.bind(null, projectId, chapterId)}>
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
-              hasApiKey
+              canGenerate
                 ? "bg-ink-950 text-white hover:bg-ink-800"
                 : "cursor-not-allowed border border-ink-950/15 bg-paper-100 text-ink-700"
             }`}
-            disabled={!hasApiKey}
+            disabled={!canGenerate}
             type="submit"
           >
             <Sparkles aria-hidden="true" className="h-4 w-4" />
-            生成节拍
+            {hasActiveGeneration ? "生成中" : "生成节拍"}
           </button>
         </form>
       </div>
@@ -202,6 +211,12 @@ function ChapterBeatAiPanel({
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           未配置 API Key，暂不能调用模型；已有任务记录仍可查看和采用。
+        </p>
+      ) : null}
+
+      {hasActiveGeneration ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          当前章节已有节拍生成任务进行中，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 

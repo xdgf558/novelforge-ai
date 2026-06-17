@@ -8,6 +8,7 @@ import {
   type ChapterBeatChapterContext,
 } from "@/lib/ai/chapter-beats";
 import { DEFAULT_AI_PROMPT_TEMPLATES } from "@/lib/ai/prompt-templates";
+import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
   chapterFieldNames,
@@ -211,6 +212,25 @@ export async function deleteChapter(projectId: string, chapterId: string) {
 }
 
 export async function generateChapterBeats(projectId: string, chapterId: string) {
+  const activeTask = await prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      chapterId,
+      taskType: "chapter_beat_generation",
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (activeTask) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
   const contextInput = await loadChapterBeatContext(projectId, chapterId);
   const template = await ensureChapterBeatPromptTemplate(projectId);
   const context = buildChapterBeatContext(contextInput);

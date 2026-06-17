@@ -392,3 +392,27 @@ Notes:
 Next recommended step:
 
 - Start Phase 7: chapter draft generation using confirmed chapter beats and the `chapter_draft_generation` prompt template.
+
+## 2026-06-17: Phase 6 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Added shared active AI task status detection for `pending` and `running` tasks.
+- Prevented duplicate chapter beat generation calls when a chapter already has a pending or running `chapter_beat_generation` task.
+- Disabled the chapter beat generate button while a generation task is active and added an in-page explanation.
+
+Verification:
+
+- `npm run test` passed, 8 files and 37 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `git diff --check` passed.
+- Local page verification confirmed a chapter with a running beat task renders the generate button as disabled with the `生成中` label and duplicate-generation explanation.
+- Local SQLite counts returned to zero for the review-fix test project, chapter, and AI task after cleanup.
+
+Deferred review items:
+
+- Long-running Server Action feedback remains deferred until streaming, optimistic UI, or shared form state handling is introduced.
+- Project-scoped prompt template upsert remains outside the generation transaction because templates are reusable and safe to keep once created.

@@ -6,6 +6,8 @@ export const aiTaskStatusOptions = [
   { value: "cancelled", label: "已取消" },
 ] as const;
 
+export const activeAiTaskStatuses = ["pending", "running"] as const;
+
 export const aiTaskAdoptionOptions = [
   { value: "not_reviewed", label: "未审阅" },
   { value: "adopted", label: "已采纳" },
@@ -18,6 +20,10 @@ export function aiTaskStatusLabel(status?: string | null) {
     aiTaskStatusOptions.find((option) => option.value === status)?.label ??
     "未知"
   );
+}
+
+export function isActiveAiTaskStatus(status?: string | null) {
+  return activeAiTaskStatuses.some((activeStatus) => activeStatus === status);
 }
 
 export function aiTaskAdoptionLabel(adoptionState?: string | null) {

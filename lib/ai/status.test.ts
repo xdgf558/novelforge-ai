@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { aiTaskAdoptionLabel, aiTaskStatusLabel } from "./status";
+import {
+  aiTaskAdoptionLabel,
+  aiTaskStatusLabel,
+  isActiveAiTaskStatus,
+} from "./status";
 
 describe("AI task labels", () => {
   it("labels known and unknown task statuses", () => {
@@ -7,6 +11,13 @@ describe("AI task labels", () => {
     expect(aiTaskStatusLabel("running")).toBe("执行中");
     expect(aiTaskStatusLabel("completed")).toBe("已完成");
     expect(aiTaskStatusLabel("unknown-status")).toBe("未知");
+  });
+
+  it("detects active task statuses", () => {
+    expect(isActiveAiTaskStatus("pending")).toBe(true);
+    expect(isActiveAiTaskStatus("running")).toBe(true);
+    expect(isActiveAiTaskStatus("completed")).toBe(false);
+    expect(isActiveAiTaskStatus(null)).toBe(false);
   });
 
   it("labels known and unknown adoption states", () => {
