@@ -35,6 +35,8 @@ MVP includes:
 - Pending update approval/rejection flow
 - Basic continuity check
 - AI task records
+- WeChat publish package generation
+- Markdown/JSON project export
 - Local persistence
 
 MVP excludes:
@@ -181,16 +183,16 @@ Recommended implementation order:
 - Phase 8: AI chapter summary extraction from author-confirmed final text, structured summary task records, and chapter detail UI review surface.
 - Phase 9: Pending update extraction, author review flow, and approved writes into formal setting, character, world rule, foreshadow, and timeline memory.
 - Phase 10: Continuity check reports, issue review surface, and resolved/open report workflow.
+- Phase 11: WeChat publish packages, copy/download Markdown publishing materials, and Markdown/JSON project export.
 
 ## Next Phase
 
-Phase 11 should focus on WeChat publish package and Markdown/JSON export:
+The planned local MVP feature set is now implemented through the original phase list. The next phase should be a post-MVP acceptance and hardening pass:
 
-- Use author-confirmed chapter final text only for publish packaging.
-- Generate WeChat-ready title/options, intro, body Markdown, call-to-action, tags, and publish checklist.
-- Keep every AI packaging call in `ai_tasks`.
-- Add Markdown/JSON export for project data, including settings, characters, chapters, structured memory, pending updates, continuity reports, and AI task references.
-- Do not add automatic WeChat publishing during MVP; export/package only.
+- Walk through the full acceptance baseline from project creation to export.
+- Clean up oversized page/action files where review notes repeatedly flagged maintainability.
+- Add friendly Server Action/form error handling where it improves the local author workflow.
+- Keep MVP boundaries intact: no SaaS, team collaboration, mobile app, cloud sync, payment, or automatic WeChat publishing unless the user explicitly expands scope.
 
 ## Acceptance Baseline
 
@@ -211,4 +213,5 @@ The MVP is not complete until it can:
 - Produce continuity issues.
 - Record every AI call.
 - Preserve data after restart.
+- Produce a WeChat publish package from author-confirmed chapter final text.
 - Export project data as Markdown or JSON.

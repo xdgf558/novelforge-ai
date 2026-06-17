@@ -7,6 +7,7 @@ import {
   History,
   ListChecks,
   Pencil,
+  Send,
   ShieldAlert,
   Sparkles,
   Trash2,
@@ -21,6 +22,7 @@ import {
 } from "@/app/projects/[projectId]/chapters/actions";
 import { generateContinuityReport } from "@/app/projects/[projectId]/continuity/actions";
 import { generatePendingUpdates } from "@/app/projects/[projectId]/pending-updates/actions";
+import { generatePublishPackage } from "@/app/projects/[projectId]/publish/actions";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
 import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
@@ -57,6 +59,7 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
           versions: true,
           pendingUpdates: true,
           continuityReports: true,
+          publishPackages: true,
         },
       },
       aiTasks: {
@@ -68,6 +71,7 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
               "chapter_summary_extraction",
               "pending_update_extraction",
               "continuity_check",
+              "wechat_publish_packaging",
             ],
           },
         },
@@ -106,6 +110,9 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
   );
   const continuityTasks = chapter.aiTasks.filter(
     (task) => task.taskType === "continuity_check",
+  );
+  const publishTasks = chapter.aiTasks.filter(
+    (task) => task.taskType === "wechat_publish_packaging",
   );
   const hasConfirmedBeats = hasConfirmedChapterBeats(chapter);
   const hasConfirmedText = hasConfirmedChapterText(chapter);
@@ -208,6 +215,15 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
         hasConfirmedText={hasConfirmedText}
         projectId={chapter.project.id}
         tasks={continuityTasks}
+      />
+
+      <ChapterPublishPackagePanel
+        chapterId={chapter.id}
+        hasApiKey={hasApiKey}
+        hasConfirmedText={hasConfirmedText}
+        projectId={chapter.project.id}
+        publishPackageCount={chapter._count.publishPackages}
+        tasks={publishTasks}
       />
 
       <ChapterSnapshot values={chapter} />
@@ -821,6 +837,125 @@ function ChapterContinuityPanel({
           <p className="font-semibold text-ink-950">还没有检查任务</p>
           <p className="mt-2 leading-6">
             检查后会保存 AI 任务记录，并把可解析问题写入连续性报告列表。
+          </p>
+        </div>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {tasks.map((task) => (
+            <article
+              className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+              key={task.id}
+            >
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                <span className="rounded-md bg-white px-2.5 py-1">
+                  {aiTaskStatusLabel(task.status)}
+                </span>
+                <span className="rounded-md bg-white px-2.5 py-1">
+                  {aiTaskAdoptionLabel(task.adoptionState)}
+                </span>
+                <span>{formatDate(task.createdAt)}</span>
+              </div>
+              <p className="mt-2 text-sm font-semibold text-ink-950">
+                {task.model}
+                {task.promptTemplate
+                  ? ` / ${task.promptTemplate.name} v${task.promptTemplate.version}`
+                  : ""}
+              </p>
+              <p className="mt-1 text-xs text-ink-700">
+                {task.inputContextSummary}
+              </p>
+              <div className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-white p-4 font-mono text-xs leading-6 text-ink-700">
+                {task.outputText || task.errorMessage || "任务尚未产生输出。"}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ChapterPublishPackagePanel({
+  chapterId,
+  hasApiKey,
+  hasConfirmedText,
+  projectId,
+  publishPackageCount,
+  tasks,
+}: {
+  chapterId: string;
+  hasApiKey: boolean;
+  hasConfirmedText: boolean;
+  projectId: string;
+  publishPackageCount: number;
+  tasks: readonly ChapterAiTask[];
+}) {
+  const hasActiveGeneration = tasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
+  const canGenerate = hasApiKey && hasConfirmedText && !hasActiveGeneration;
+
+  return (
+    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <Send aria-hidden="true" className="h-4 w-4" />
+            公众号发布包装
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-ink-950">
+            从定稿正文生成可复制发布材料
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+            AI 会生成标题候选、开头引导、互动问题、下章预告、封面提示词和 Markdown 发布版。这里只保存包装草稿，不会自动发布到公众号。
+          </p>
+          <Link
+            className="mt-3 inline-flex text-sm font-semibold text-signal-600 hover:underline"
+            href={`/projects/${projectId}/publish`}
+          >
+            查看发布包装与导出（{publishPackageCount}）
+          </Link>
+        </div>
+
+        <form action={generatePublishPackage.bind(null, projectId, chapterId)}>
+          <button
+            className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+              canGenerate
+                ? "bg-ink-950 text-white hover:bg-ink-800"
+                : "cursor-not-allowed border border-ink-950/15 bg-paper-100 text-ink-700"
+            }`}
+            disabled={!canGenerate}
+            type="submit"
+          >
+            <Sparkles aria-hidden="true" className="h-4 w-4" />
+            {hasActiveGeneration ? "生成中" : "生成包装"}
+          </button>
+        </form>
+      </div>
+
+      {!hasApiKey ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          未配置 API Key，暂不能调用模型；已有发布包装仍可在发布页复制或下载。
+        </p>
+      ) : null}
+
+      {!hasConfirmedText ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          生成发布包装前需要先保存作者确认后的定稿正文。
+        </p>
+      ) : null}
+
+      {hasActiveGeneration ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          当前章节已有发布包装任务进行中，完成前不会重复发起新的模型调用。
+        </p>
+      ) : null}
+
+      {tasks.length === 0 ? (
+        <div className="mt-5 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
+          <p className="font-semibold text-ink-950">还没有发布包装任务</p>
+          <p className="mt-2 leading-6">
+            生成后会在项目发布页显示可复制的 Markdown 发布版和项目导出。
           </p>
         </div>
       ) : (

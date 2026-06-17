@@ -630,3 +630,50 @@ Notes:
 Next recommended step:
 
 - Start Phase 11: WeChat publish package plus Markdown/JSON export without automatic WeChat publishing.
+
+## 2026-06-17: Phase 11 WeChat Publish Packages and Project Export
+
+Status: completed.
+
+Scope:
+
+- WeChat publish package data model.
+- AI-backed publish packaging from author-confirmed final chapter text.
+- Copy/download Markdown publish materials.
+- Markdown/JSON project export.
+- Project and chapter entry points for publishing/export.
+
+What was done:
+
+- Added the `PublishPackage` Prisma model and `publish_packages` migration with project, chapter, and AI task relations.
+- Added the default `wechat_publish_packaging` prompt template with a JSON response schema for title candidates, opening guide, reader-facing summary, ending question, next-chapter preview, comment guide, cover prompt, Markdown body, and checklist.
+- Added a pure publish package context builder that uses only `Chapter.finalText`, publish-relevant project setting fields, the latest chapter summary task output, and recent publish titles.
+- Added a publish package parser that accepts snake_case or camelCase JSON and builds fallback Markdown when the model omits `markdown_body`.
+- Added project-level `/publish` page with:
+  - chapter list for generating packages,
+  - publish package records,
+  - copy/download controls for Markdown publish bodies,
+  - Markdown and JSON project export panels.
+- Added chapter-detail and project-dashboard entry points for publish packaging and export.
+- Added project export builders covering project basics, settings, characters, chapters, structured memory, pending updates, continuity reports, publish packages, and AI task references.
+- Added Vitest coverage for publish package helpers, AI context/parser behavior, project exports, and default prompt template coverage.
+
+Verification:
+
+- `npm run test -- lib/publish-packages.test.ts lib/project-export.test.ts lib/ai/publish-packages.test.ts lib/ai/prompt-templates.test.ts` passed, 4 files and 12 tests.
+- `npm run test` passed, 17 files and 69 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npx prisma migrate status` passed; local database is up to date with 8 migrations.
+- `git diff --check` passed.
+- Browser-level page verification via local dev server passed with a temporary finalized chapter and publish package: project dashboard, chapter detail page, and `/projects/[projectId]/publish` all returned 200 and displayed the expected publish/export panels. Temporary verification data was deleted afterward.
+
+Notes:
+
+- Phase 11 preserves the MVP boundary: the app only prepares local publish materials and exports; it does not publish to WeChat automatically.
+- Publish packaging uses author-confirmed `finalText` only, not draft text.
+- Marking a package as exported is a local workflow state and does not call any external service.
+
+Next recommended step:
+
+- Run a full MVP acceptance and hardening pass across project setup, story memory, AI task records, pending updates, continuity reports, publish packages, export, and the repeated review cleanup items.

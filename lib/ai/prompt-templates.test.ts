@@ -21,6 +21,7 @@ describe("default AI prompt templates", () => {
         "chapter_summary_extraction",
         "pending_update_extraction",
         "continuity_check",
+        "wechat_publish_packaging",
       ]),
     );
   });

@@ -36,6 +36,7 @@ model Project {
   aiTasks           AiTask[]
   pendingUpdates    PendingUpdate[]
   continuityReports ContinuityReport[]
+  publishPackages   PublishPackage[]
 
   @@index([status])
   @@map("projects")
@@ -167,6 +168,7 @@ model Chapter {
   resolvedForeshadows Foreshadow[]       @relation("ResolvedChapter")
   timelineEvents      TimelineEvent[]
   continuityReports   ContinuityReport[]
+  publishPackages     PublishPackage[]
 
   @@index([projectId, status])
   @@index([projectId, chapterNumber])
@@ -244,6 +246,7 @@ model AiTask {
   chapter           Chapter?           @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   pendingUpdates    PendingUpdate[]
   continuityReports ContinuityReport[]
+  publishPackages   PublishPackage[]
 
   @@index([projectId, taskType])
   @@index([projectId, status])
@@ -385,4 +388,34 @@ model ContinuityReport {
   @@index([chapterId])
   @@index([aiTaskId])
   @@map("continuity_reports")
+}
+
+model PublishPackage {
+  id                  String   @id @default(cuid())
+  projectId           String
+  chapterId           String
+  aiTaskId            String?
+  titleCandidatesJson String?
+  selectedTitle       String?
+  openingGuide        String?
+  chapterSummary      String?
+  endingQuestion      String?
+  nextChapterPreview  String?
+  commentGuide        String?
+  collectionTitle     String?
+  coverPrompt         String?
+  markdownBody        String?
+  checklistJson       String?
+  status              String   @default("draft")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  aiTask  AiTask? @relation(fields: [aiTaskId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([chapterId])
+  @@index([aiTaskId])
+  @@map("publish_packages")
 }

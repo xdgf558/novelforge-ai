@@ -198,6 +198,49 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
       },
     }),
   },
+  {
+    key: "wechat_publish_packaging",
+    name: "公众号发布包装",
+    taskType: "wechat_publish_packaging",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是微信公众号长篇连载小说发布主编。只生成发布包装材料，不得宣称已经自动发布到公众号。",
+    userPrompt:
+      "根据作者确认的章节最终正文、本章摘要、目标读者、公众号定位、禁写事项和最近标题风格，生成公众号发布包装。",
+    contextNotes:
+      "输入必须使用章节 finalText，不得使用草稿正文。输出应包含标题候选、开头引导语、章节摘要、结尾互动问题、下章预告、评论区引导、封面图提示词、Markdown 发布版和发布检查清单。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: [
+        "title_candidates",
+        "opening_guide",
+        "ending_question",
+        "next_chapter_preview",
+        "comment_guide",
+        "cover_prompt",
+        "markdown_body",
+      ],
+      properties: {
+        title_candidates: {
+          type: "array",
+          items: { type: "string" },
+        },
+        opening_guide: { type: "string" },
+        chapter_summary: { type: "string" },
+        ending_question: { type: "string" },
+        next_chapter_preview: { type: "string" },
+        comment_guide: { type: "string" },
+        collection_title: { type: "string" },
+        cover_prompt: { type: "string" },
+        markdown_body: { type: "string" },
+        checklist: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+    }),
+  },
 ];
 
 export function promptTemplateFingerprint(template: DefaultPromptTemplate) {
