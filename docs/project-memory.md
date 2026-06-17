@@ -177,17 +177,18 @@ Recommended implementation order:
 - Phase 4: Chapter list, chapter editor, chapter CRUD, chapter version snapshots, and chapter field tests.
 - Phase 5: AI prompt templates, AI task records, server-only OpenAI wrapper, and AI task audit page.
 - Phase 6: AI chapter beat generation, context assembly, AI task records, and explicit author adoption into chapter beats.
+- Phase 7: AI chapter draft generation from confirmed beats, draft task records, and explicit author adoption into chapter draft text.
 
 ## Next Phase
 
-Phase 7 should focus on chapter draft generation:
+Phase 8 should focus on chapter summary generation:
 
 - Use the Phase 5 server-only AI wrapper and task logger for every model call.
-- Use confirmed chapter beats as the primary creative input.
-- Use the project-scoped `chapter_draft_generation` prompt template.
-- Assemble only task-relevant context: confirmed beats, style sample, character speaking rules, previous chapter ending when needed, target word range, and forbidden items.
+- Use the project-scoped `chapter_summary_extraction` prompt template.
+- Summarize only author-confirmed chapter text; prefer final text and avoid treating draft output as formal canon unless the author confirms it.
+- Extract a short summary, main events, character state changes, new foreshadows, and continuity risks for later memory layers.
 - Save model input summary, output, status, errors, token usage when available, and template version in `ai_tasks`.
-- Write generated draft text back to the chapter only after an explicit author action; do not update formal story memory automatically.
+- Store summary output as an AI task first; do not update formal story memory or future pending updates automatically.
 
 ## Acceptance Baseline
 

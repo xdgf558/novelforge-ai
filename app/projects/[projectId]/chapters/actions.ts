@@ -7,6 +7,11 @@ import {
   buildChapterBeatContext,
   type ChapterBeatChapterContext,
 } from "@/lib/ai/chapter-beats";
+import {
+  buildChapterDraftContext,
+  hasConfirmedChapterBeats,
+  type ChapterDraftChapterContext,
+} from "@/lib/ai/chapter-drafts";
 import { DEFAULT_AI_PROMPT_TEMPLATES } from "@/lib/ai/prompt-templates";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
@@ -59,6 +64,7 @@ const changeReasonSchema = z
   );
 
 const chapterBeatTemplateKey = "chapter_beat_generation";
+const chapterDraftTemplateKey = "chapter_draft_generation";
 
 function parseChapterForm(formData: FormData) {
   const parsedValues = chapterSchema.parse(
@@ -212,19 +218,11 @@ export async function deleteChapter(projectId: string, chapterId: string) {
 }
 
 export async function generateChapterBeats(projectId: string, chapterId: string) {
-  const activeTask = await prisma.aiTask.findFirst({
-    where: {
-      projectId,
-      chapterId,
-      taskType: "chapter_beat_generation",
-      status: {
-        in: [...activeAiTaskStatuses],
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
+  const activeTask = await findActiveChapterAiTask(
+    projectId,
+    chapterId,
+    "chapter_beat_generation",
+  );
 
   if (activeTask) {
     revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
@@ -232,8 +230,61 @@ export async function generateChapterBeats(projectId: string, chapterId: string)
   }
 
   const contextInput = await loadChapterBeatContext(projectId, chapterId);
-  const template = await ensureChapterBeatPromptTemplate(projectId);
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    chapterBeatTemplateKey,
+  );
   const context = buildChapterBeatContext(contextInput);
+
+  await runLoggedOpenAITextTask(
+    {
+      projectId,
+      chapterId,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    },
+    {
+      systemPrompt: template.systemPrompt,
+      developerPrompt: [template.userPrompt, template.contextNotes]
+        .filter(Boolean)
+        .join("\n\n"),
+      input: context.inputText,
+    },
+  );
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/ai`);
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+}
+
+export async function generateChapterDraft(projectId: string, chapterId: string) {
+  const activeTask = await findActiveChapterAiTask(
+    projectId,
+    chapterId,
+    "chapter_draft_generation",
+  );
+
+  if (activeTask) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
+  const contextInput = await loadChapterDraftContext(projectId, chapterId);
+
+  if (!hasConfirmedChapterBeats(contextInput.chapter)) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    chapterDraftTemplateKey,
+  );
+  const context = buildChapterDraftContext(contextInput);
 
   await runLoggedOpenAITextTask(
     {
@@ -341,13 +392,114 @@ export async function adoptChapterBeats(
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
-async function ensureChapterBeatPromptTemplate(projectId: string) {
+export async function adoptChapterDraft(
+  projectId: string,
+  chapterId: string,
+  taskId: string,
+) {
+  const [chapter, task] = await Promise.all([
+    prisma.chapter.findFirst({
+      where: {
+        id: chapterId,
+        projectId,
+      },
+    }),
+    prisma.aiTask.findFirst({
+      where: {
+        id: taskId,
+        projectId,
+        chapterId,
+        taskType: "chapter_draft_generation",
+        status: "completed",
+      },
+      select: {
+        id: true,
+        outputText: true,
+      },
+    }),
+  ]);
+
+  const draftText = task?.outputText?.trim();
+
+  if (!chapter || !task || !draftText) {
+    notFound();
+  }
+
+  const snapshot = chapterSnapshot({
+    ...chapterValuesFromRecord(chapter),
+    draftText,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.chapter.update({
+      where: {
+        id: chapterId,
+      },
+      data: snapshot,
+    });
+
+    const versionCount = await tx.chapterVersion.count({
+      where: {
+        chapterId,
+      },
+    });
+
+    await tx.chapterVersion.create({
+      data: {
+        projectId,
+        chapterId,
+        versionNumber: versionCount + 1,
+        snapshotJson: JSON.stringify(snapshot),
+        changeReason: `采用 AI 章节草稿任务 ${task.id}`,
+        sourceType: "ai_chapter_draft",
+      },
+    });
+
+    await tx.aiTask.update({
+      where: {
+        id: task.id,
+      },
+      data: {
+        adoptionState: "adopted",
+      },
+    });
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/ai`);
+  revalidatePath(`/projects/${projectId}/chapters`);
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}/history`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+}
+
+async function findActiveChapterAiTask(
+  projectId: string,
+  chapterId: string,
+  taskType: string,
+) {
+  return prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      chapterId,
+      taskType,
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+}
+
+async function ensureDefaultPromptTemplate(projectId: string, templateKey: string) {
   const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
-    (defaultTemplate) => defaultTemplate.key === chapterBeatTemplateKey,
+    (defaultTemplate) => defaultTemplate.key === templateKey,
   );
 
   if (!template) {
-    throw new Error("Default chapter beat prompt template is missing.");
+    throw new Error(`Default prompt template is missing: ${templateKey}.`);
   }
 
   return prisma.aiPromptTemplate.upsert({
@@ -459,6 +611,85 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     characters,
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
+  };
+}
+
+async function loadChapterDraftContext(projectId: string, chapterId: string) {
+  const chapter = await prisma.chapter.findFirst({
+    where: {
+      id: chapterId,
+      projectId,
+    },
+    include: {
+      project: {
+        select: {
+          title: true,
+          genre: true,
+          targetAudience: true,
+          platform: true,
+          totalWordTarget: true,
+          chapterWordMin: true,
+          chapterWordMax: true,
+          description: true,
+          wechatPositioning: true,
+        },
+      },
+    },
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
+  const [setting, characters, previousChapter] = await Promise.all([
+    prisma.projectSetting.findUnique({
+      where: {
+        projectId,
+      },
+    }),
+    prisma.character.findMany({
+      where: {
+        projectId,
+        status: "active",
+      },
+      orderBy: {
+        name: "asc",
+      },
+      take: 8,
+    }),
+    prisma.chapter.findFirst({
+      where: {
+        projectId,
+        chapterNumber: {
+          lt: chapter.chapterNumber,
+        },
+      },
+      orderBy: {
+        chapterNumber: "desc",
+      },
+    }),
+  ]);
+
+  return {
+    project: chapter.project,
+    setting,
+    chapter: pickChapterDraftContext(chapter),
+    characters,
+    previousChapter: previousChapter
+      ? pickChapterDraftContext(previousChapter)
+      : null,
+  };
+}
+
+function pickChapterDraftContext(chapter: ChapterDraftChapterContext) {
+  return {
+    chapterNumber: chapter.chapterNumber,
+    title: chapter.title,
+    goal: chapter.goal,
+    beats: chapter.beats,
+    draftText: chapter.draftText,
+    finalText: chapter.finalText,
+    notes: chapter.notes,
   };
 }
 

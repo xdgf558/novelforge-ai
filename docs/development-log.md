@@ -416,3 +416,43 @@ Deferred review items:
 
 - Long-running Server Action feedback remains deferred until streaming, optimistic UI, or shared form state handling is introduced.
 - Project-scoped prompt template upsert remains outside the generation transaction because templates are reusable and safe to keep once created.
+
+## 2026-06-17: Phase 7 Chapter Draft Generation
+
+Status: completed.
+
+Scope:
+
+- Chapter draft context assembly from confirmed chapter beats.
+- AI-backed chapter draft generation.
+- AI task records for generated draft text.
+- Explicit author adoption of draft task output into `Chapter.draftText`.
+- Chapter detail UI entry point for draft generation and recent draft tasks.
+
+What was done:
+
+- Added a pure chapter draft context builder that assembles confirmed beats, style sample, character speaking rules, previous chapter ending, target word range, story constraints, and forbidden items.
+- Added checks so draft generation requires confirmed chapter beats and avoids duplicate pending or running draft generation tasks.
+- Added a `generateChapterDraft` server action that ensures the project has the `chapter_draft_generation` prompt template, calls the server-only AI wrapper, and records the model call in `ai_tasks`.
+- Added an `adoptChapterDraft` server action that writes a completed AI task output into `Chapter.draftText` only after an explicit author action, creates a chapter version snapshot, and marks the AI task as adopted.
+- Added an AI chapter draft panel to the chapter detail page with generation, latest task display, task status, adoption status, and an adopt button.
+- Added Vitest coverage for draft context assembly, previous-ending clipping, confirmed-beat detection, and AI task context summaries.
+
+Verification:
+
+- `npm run test` passed, 9 files and 40 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npx prisma migrate status` confirmed the SQLite schema is up to date.
+- `git diff --check` passed.
+- Browser verification passed with a temporary project: the chapter detail page showed the AI chapter draft panel and completed draft task, the author adoption action wrote the output to `Chapter.draftText`, created an `ai_chapter_draft` chapter version snapshot, marked the task as adopted, and the temporary project was deleted after verification.
+
+Notes:
+
+- Phase 7 does not generate chapter summaries, pending memory updates, or continuity reports.
+- Generated draft output is not written into chapter data until the author clicks adopt.
+- Missing API keys or missing confirmed beats disable the UI generate button; real model-backed calls remain server-only.
+
+Next recommended step:
+
+- Start Phase 8: chapter summary generation using author-confirmed chapter text and the `chapter_summary_extraction` prompt template.
