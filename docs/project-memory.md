@@ -184,13 +184,20 @@ Recommended implementation order:
 - Phase 9: Pending update extraction, author review flow, and approved writes into formal setting, character, world rule, foreshadow, and timeline memory.
 - Phase 10: Continuity check reports, issue review surface, and resolved/open report workflow.
 - Phase 11: WeChat publish packages, copy/download Markdown publishing materials, and Markdown/JSON project export.
+- Phase 12: MVP acceptance dashboard, local acceptance smoke script, prompt-template helper consolidation, and acceptance hardening checks.
 
 ## Next Phase
 
-The planned local MVP feature set is now implemented through the original phase list. The next phase should be a post-MVP acceptance and hardening pass:
+The local MVP feature set and acceptance hardening pass are now implemented. The next phase can be Phase 13: macOS desktop packaging prototype, if the product direction is to ship this local web app as a Mac app.
 
-- Walk through the full acceptance baseline from project creation to export.
-- Clean up oversized page/action files where review notes repeatedly flagged maintainability.
+- Keep the existing local-first Next.js/SQLite app as the functional core.
+- Evaluate a thin desktop shell such as Tauri or Electron only for local packaging, not for SaaS/cloud features.
+- Preserve local data ownership and server-only AI key handling.
+- Keep WeChat publishing manual; packaging must not introduce automatic WeChat publishing.
+
+If macOS packaging is delayed, the next useful cleanup pass is:
+
+- Split oversized page/action files where review notes repeatedly flagged maintainability.
 - Add friendly Server Action/form error handling where it improves the local author workflow.
 - Keep MVP boundaries intact: no SaaS, team collaboration, mobile app, cloud sync, payment, or automatic WeChat publishing unless the user explicitly expands scope.
 
@@ -215,3 +222,5 @@ The MVP is not complete until it can:
 - Preserve data after restart.
 - Produce a WeChat publish package from author-confirmed chapter final text.
 - Export project data as Markdown or JSON.
+- Show the project-level MVP acceptance dashboard.
+- Pass `npm run mvp:acceptance`, which creates a temporary full-flow project, reconnects SQLite, verifies core records, and cleans up.

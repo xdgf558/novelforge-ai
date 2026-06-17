@@ -23,6 +23,7 @@ Useful checks:
 
 ```bash
 npm run test
+npm run mvp:acceptance
 npm run typecheck
 npm run build
 ```
