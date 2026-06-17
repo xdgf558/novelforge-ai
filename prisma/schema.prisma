@@ -27,6 +27,8 @@ model Project {
   settingVersions   SettingVersion[]
   characters        Character[]
   characterVersions CharacterVersion[]
+  chapters          Chapter[]
+  chapterVersions   ChapterVersion[]
 
   @@index([status])
   @@map("projects")
@@ -133,4 +135,46 @@ model CharacterVersion {
   @@index([projectId])
   @@index([characterId, versionNumber])
   @@map("character_versions")
+}
+
+model Chapter {
+  id            String   @id @default(cuid())
+  projectId     String
+  chapterNumber Int
+  title         String
+  status        String   @default("draft")
+  goal          String?
+  beats         String?
+  draftText     String?
+  finalText     String?
+  notes         String?
+  wordCount     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions ChapterVersion[]
+
+  @@index([projectId, status])
+  @@index([projectId, chapterNumber])
+  @@map("chapters")
+}
+
+model ChapterVersion {
+  id              String   @id @default(cuid())
+  projectId       String
+  chapterId       String
+  versionNumber   Int
+  snapshotJson    String
+  changeReason    String?
+  sourceType      String   @default("manual")
+  sourceChapterId String?
+  createdAt       DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([chapterId, versionNumber])
+  @@map("chapter_versions")
 }

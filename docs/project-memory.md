@@ -174,16 +174,17 @@ Recommended implementation order:
 - Phase 1: Next.js, TypeScript, Tailwind CSS, Prisma, SQLite, base layout, and project CRUD.
 - Phase 2: Project setting editor, setting version snapshots, setting history pages, and Vitest baseline tests.
 - Phase 3: Character library, character CRUD, character version snapshots, and character field tests.
+- Phase 4: Chapter list, chapter editor, chapter CRUD, chapter version snapshots, and chapter field tests.
 
 ## Next Phase
 
-Phase 4 should focus on chapter list and chapter editor:
+Phase 5 should focus on the AI service wrapper, prompt templates, and AI task records:
 
-- Add `Chapter` and `ChapterVersion` tables.
-- Add project chapter list, create, edit, detail, and delete flows.
-- Track stable chapter fields such as chapter number, title, goal, beats, draft text, final text, status, and word count.
-- Create version snapshots for important chapter edits where practical.
-- Keep AI chapter beat/draft generation out of scope until the AI service wrapper, prompt templates, and AI task records are introduced.
+- Add an `AiTask` data model for task type, model, prompt template version, input summary, output, status, error message, token usage, and adoption state.
+- Add an `AiPromptTemplate` model or equivalent local prompt registry with template versions.
+- Add a server-only AI client wrapper so API keys stay off the frontend.
+- Add traceable task logging for future AI operations before any beat or draft generation feature ships.
+- Keep formal setting, character, chapter, timeline, and foreshadow changes behind user review and approval.
 
 ## Acceptance Baseline
 

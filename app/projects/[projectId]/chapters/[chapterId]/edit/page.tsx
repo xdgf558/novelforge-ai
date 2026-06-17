@@ -1,0 +1,47 @@
+import { notFound } from "next/navigation";
+import { updateChapter } from "@/app/projects/[projectId]/chapters/actions";
+import { ChapterForm } from "@/components/chapters/chapter-form";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
+
+type EditChapterPageProps = {
+  params: Promise<{
+    projectId: string;
+    chapterId: string;
+  }>;
+};
+
+export default async function EditChapterPage({ params }: EditChapterPageProps) {
+  const { projectId, chapterId } = await params;
+  const chapter = await prisma.chapter.findFirst({
+    where: {
+      id: chapterId,
+      projectId,
+    },
+    include: {
+      project: true,
+      _count: {
+        select: {
+          versions: true,
+        },
+      },
+    },
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
+  return (
+    <ChapterForm
+      action={updateChapter.bind(null, chapter.project.id, chapter.id)}
+      chapter={chapter}
+      project={chapter.project}
+      submitLabel="保存并记录版本"
+      subtitle="章节资料会作为后续摘要提取、AI 生成和连续性检查的重要记忆；保存后会生成新的章节快照。"
+      title="编辑章节"
+      versionCount={chapter._count.versions}
+    />
+  );
+}
