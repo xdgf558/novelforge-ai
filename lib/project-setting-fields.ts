@@ -202,6 +202,22 @@ export function emptyProjectSettingValues(): ProjectSettingValues {
   ) as ProjectSettingValues;
 }
 
+export function projectSettingValuesFromRecord(
+  record?: Partial<Record<ProjectSettingFieldName, string | null>> | null,
+): ProjectSettingValues {
+  const values = emptyProjectSettingValues();
+
+  if (!record) {
+    return values;
+  }
+
+  for (const field of projectSettingFields) {
+    values[field.name] = record[field.name] ?? "";
+  }
+
+  return values;
+}
+
 export function projectSettingSnapshot(values: ProjectSettingValues) {
   return projectSettingFields.reduce<Record<string, string>>((snapshot, field) => {
     snapshot[field.name] = values[field.name]?.trim() ?? "";

@@ -2,8 +2,8 @@ import type { Project, ProjectSetting } from "@prisma/client";
 import Link from "next/link";
 import { ArrowLeft, History, Save } from "lucide-react";
 import {
-  emptyProjectSettingValues,
   projectSettingGroups,
+  projectSettingValuesFromRecord,
   type ProjectSettingValues,
 } from "@/lib/project-setting-fields";
 
@@ -20,30 +20,7 @@ const inputClass =
 const labelClass = "text-sm font-medium text-ink-800";
 
 function valuesFromSetting(setting?: ProjectSetting | null): ProjectSettingValues {
-  return {
-    ...emptyProjectSettingValues(),
-    genre: setting?.genre ?? "",
-    targetAudience: setting?.targetAudience ?? "",
-    sellingPoint: setting?.sellingPoint ?? "",
-    mainConflict: setting?.mainConflict ?? "",
-    worldviewRules: setting?.worldviewRules ?? "",
-    protagonistDesire: setting?.protagonistDesire ?? "",
-    protagonistFlaw: setting?.protagonistFlaw ?? "",
-    villainLogic: setting?.villainLogic ?? "",
-    supportingCharacters: setting?.supportingCharacters ?? "",
-    factions: setting?.factions ?? "",
-    timeline: setting?.timeline ?? "",
-    pleasureMechanism: setting?.pleasureMechanism ?? "",
-    forbiddenItems: setting?.forbiddenItems ?? "",
-    styleSample: setting?.styleSample ?? "",
-    wechatPositioning: setting?.wechatPositioning ?? "",
-    emotionalTone: setting?.emotionalTone ?? "",
-    readerExpectation: setting?.readerExpectation ?? "",
-    commercialHook: setting?.commercialHook ?? "",
-    longTermForeshadowing: setting?.longTermForeshadowing ?? "",
-    endingDirection: setting?.endingDirection ?? "",
-    sensitiveContentRules: setting?.sensitiveContentRules ?? "",
-  };
+  return projectSettingValuesFromRecord(setting);
 }
 
 export function ProjectSettingForm({
@@ -147,4 +124,3 @@ export function ProjectSettingForm({
     </div>
   );
 }
-

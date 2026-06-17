@@ -24,7 +24,7 @@ export default async function HomePage() {
     }),
   ]);
 
-  const totalWordTarget = wordTargetAggregate._sum.totalWordTarget ?? 0;
+  const totalWordTarget = wordTargetAggregate._sum.totalWordTarget;
 
   return (
     <div className="space-y-7">
@@ -74,7 +74,9 @@ export default async function HomePage() {
             目标字数
           </div>
           <p className="mt-3 text-2xl font-semibold text-ink-950">
-            {formatNumber(totalWordTarget)}
+            {totalWordTarget != null && totalWordTarget > 0
+              ? formatNumber(totalWordTarget)
+              : "未设置"}
           </p>
         </div>
       </section>

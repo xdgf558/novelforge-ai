@@ -4,6 +4,7 @@ import {
   projectSettingFieldNames,
   projectSettingFields,
   projectSettingSnapshot,
+  projectSettingValuesFromRecord,
 } from "./project-setting-fields";
 
 describe("project setting fields", () => {
@@ -18,6 +19,19 @@ describe("project setting fields", () => {
 
     expect(Object.keys(values).sort()).toEqual([...projectSettingFieldNames].sort());
     expect(Object.values(values).every((value) => value === "")).toBe(true);
+  });
+
+  it("creates form values from a data-driven setting record", () => {
+    const values = projectSettingValuesFromRecord({
+      genre: "都市异能",
+      mainConflict: "主角与契约组织对抗",
+      sensitiveContentRules: null,
+    });
+
+    expect(values.genre).toBe("都市异能");
+    expect(values.mainConflict).toBe("主角与契约组织对抗");
+    expect(values.sensitiveContentRules).toBe("");
+    expect(Object.keys(values).sort()).toEqual([...projectSettingFieldNames].sort());
   });
 
   it("trims snapshots while preserving every field", () => {

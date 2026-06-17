@@ -157,3 +157,18 @@ Notes:
 Next recommended step:
 
 - Start Phase 3: character library, character CRUD, and character version records.
+
+## 2026-06-17: Phase 2 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Replaced the manual project setting form value mapping with a data-driven helper based on `projectSettingFields`.
+- Added a regression test for building form values from a setting record.
+- Changed the homepage total target word count to show `未设置` when the aggregate target is empty or zero.
+
+Deferred review items:
+
+- Setting version numbering remains scoped to the local single-user MVP. If the product expands to multi-user deployment, add a stronger concurrency strategy with unique constraints and retry handling.
+- Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
