@@ -719,3 +719,57 @@ Next recommended step:
 
 - Start Phase 13 if the goal is macOS desktop packaging for the local MVP. Keep it as a thin local shell around the existing app and preserve local SQLite plus server-only AI key handling.
 - Otherwise, run a component/action cleanup pass for the larger files accumulated in the AI panels, pending update flow, and continuity flow.
+
+## 2026-06-17: Phase 13 macOS Desktop Packaging
+
+Status: completed.
+
+Scope:
+
+- macOS desktop packaging prototype.
+- Thin Electron shell around the existing local Next.js MVP.
+- Local desktop SQLite data path and startup migration flow.
+- Desktop packaging scripts and documentation.
+
+What was done:
+
+- Added Electron and electron-builder packaging support.
+- Added `desktop/main.cjs`, which starts a local production Next.js server on `127.0.0.1`, opens it in a secure BrowserWindow, and shuts the server down with the app.
+- Added `desktop/runtime.cjs` for desktop-only SQLite URL handling, database file pre-creation, and desktop `.env` parsing.
+- Added startup Prisma migration execution against the desktop SQLite database before the local server starts.
+- Added optional desktop AI config loading from `~/Library/Application Support/NovelForge AI/.env`, limited to `OPENAI_API_KEY` and `OPENAI_MODEL`.
+- Added `NOVELFORGE_DESKTOP_DATA_DIR` for automated desktop smoke tests without touching the real user data folder.
+- Added npm scripts:
+  - `npm run desktop:dev`
+  - `npm run desktop:smoke`
+  - `npm run desktop:pack:mac`
+  - `npm run desktop:dist:mac`
+- Configured local macOS packaging output under `release/desktop/`.
+- Disabled automatic macOS code signing for Phase 13 so local packaging does not hang on timestamp/signing; signing and notarization are deferred to distribution hardening.
+- Moved `prisma` to runtime dependencies so the packaged app can run startup migrations.
+- Added `docs/macos-desktop-packaging.md` and README desktop packaging instructions.
+
+Verification:
+
+- `npm run desktop:smoke` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed, 18 files and 71 tests.
+- `npm run build` passed.
+- `npm run desktop:pack:mac` passed and produced `release/desktop/mac-arm64/NovelForge AI.app`.
+- Packaged app startup smoke passed with a temporary data directory; it created the SQLite database and applied all 8 migrations.
+- `npm run mvp:acceptance` passed.
+- `npx prisma migrate status` passed; local database is up to date with 8 migrations.
+- `npm audit --omit=dev` passed with 0 vulnerabilities after retrying a transient registry 503.
+- `git diff --check` passed.
+
+Notes:
+
+- Phase 13 preserves the local-first MVP boundary. It does not add SaaS, cloud sync, payment, team collaboration, mobile apps, or automatic WeChat publishing.
+- The desktop package is currently unsigned and not notarized.
+- `asar` is disabled in Phase 13 to keep the Next.js server, Prisma CLI, and migrations externally available for the prototype. A later packaging-hardening pass can move to `asar` plus `asarUnpack`.
+- The default Electron icon is still used; branded icon work is deferred.
+
+Next recommended step:
+
+- Run a distribution hardening phase if the app will be shared: app icon, signing, notarization, DMG polish, release artifact cleanup, and a manual release checklist.
+- Otherwise, run the deferred component/action cleanup pass for large page/action files.

@@ -13,6 +13,7 @@ out/
 # build output
 dist/
 build/
+release/
 tsconfig.tsbuildinfo
 
 # local database and generated artifacts

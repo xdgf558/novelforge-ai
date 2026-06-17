@@ -30,3 +30,35 @@ npm run build
 
 AI calls are server-only. Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `.env`
 before enabling real model-backed actions.
+
+## macOS Desktop Packaging
+
+Phase 13 adds an Electron shell that launches the existing local Next.js app
+inside a desktop window.
+
+Development desktop shell:
+
+```bash
+npm run desktop:dev
+```
+
+Package a local macOS `.app` directory:
+
+```bash
+npm run desktop:pack:mac
+```
+
+Build distributable macOS artifacts:
+
+```bash
+npm run desktop:dist:mac
+```
+
+Desktop runtime data lives outside the app bundle:
+
+- database: `~/Library/Application Support/NovelForge AI/data/novelforge-ai.sqlite`
+- optional AI config: `~/Library/Application Support/NovelForge AI/.env`
+
+On first launch, the app creates `.env.example` in that data folder. Copy it to
+`.env` and set `OPENAI_API_KEY` / `OPENAI_MODEL` there to enable model-backed
+actions in the desktop app. API keys are passed only to the local server process.

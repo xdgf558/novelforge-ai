@@ -185,17 +185,19 @@ Recommended implementation order:
 - Phase 10: Continuity check reports, issue review surface, and resolved/open report workflow.
 - Phase 11: WeChat publish packages, copy/download Markdown publishing materials, and Markdown/JSON project export.
 - Phase 12: MVP acceptance dashboard, local acceptance smoke script, prompt-template helper consolidation, and acceptance hardening checks.
+- Phase 13: macOS desktop packaging prototype with Electron, local app data, desktop SQLite startup migrations, and macOS packaging scripts.
 
 ## Next Phase
 
-The local MVP feature set and acceptance hardening pass are now implemented. The next phase can be Phase 13: macOS desktop packaging prototype, if the product direction is to ship this local web app as a Mac app.
+The local MVP feature set, acceptance hardening pass, and macOS packaging prototype are implemented. The next phase can be distribution hardening if the app is meant to be shared outside local development:
 
-- Keep the existing local-first Next.js/SQLite app as the functional core.
-- Evaluate a thin desktop shell such as Tauri or Electron only for local packaging, not for SaaS/cloud features.
-- Preserve local data ownership and server-only AI key handling.
-- Keep WeChat publishing manual; packaging must not introduce automatic WeChat publishing.
+- Add a production app icon and branded installer polish.
+- Add Apple Developer signing and notarization.
+- Add versioned release artifact cleanup rules.
+- Add a manual pre-release checklist for DB migration, desktop startup, MVP acceptance, and export.
+- Keep WeChat publishing manual; distribution hardening must not introduce automatic WeChat publishing.
 
-If macOS packaging is delayed, the next useful cleanup pass is:
+If distribution hardening is delayed, the next useful cleanup pass is:
 
 - Split oversized page/action files where review notes repeatedly flagged maintainability.
 - Add friendly Server Action/form error handling where it improves the local author workflow.

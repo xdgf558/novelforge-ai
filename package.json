@@ -1,20 +1,28 @@
 {
   "name": "novelforge-ai",
   "version": "0.1.0",
+  "description": "Local-first AI writing workbench for long-form serialized novels.",
+  "author": "NovelForge AI",
   "private": true,
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "test": "vitest run",
+    "desktop:dev": "node scripts/desktop-dev.cjs",
+    "desktop:pack:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never",
+    "desktop:dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
+    "desktop:smoke": "node scripts/desktop-smoke.cjs",
+    "test": "vitest run --exclude 'release/**'",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "mvp:acceptance": "node scripts/mvp-acceptance-smoke.cjs"
   },
   "dependencies": {
-    "@prisma/client": "^6.0.0",
+    "@prisma/client": "^6.19.3",
     "lucide-react": "^0.468.0",
     "next": "^15.0.0",
+    "prisma": "^6.19.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.24.0"
@@ -27,10 +35,42 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
+    "electron": "^42.4.1",
+    "electron-builder": "^26.15.3",
     "postcss": "^8.5.10",
-    "prisma": "^6.0.0",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.0",
     "vitest": "^4.1.9"
+  },
+  "build": {
+    "appId": "com.novelforge.ai",
+    "productName": "NovelForge AI",
+    "asar": false,
+    "directories": {
+      "output": "release/desktop"
+    },
+    "files": [
+      ".next/**/*",
+      "app/**/*",
+      "components/**/*",
+      "desktop/**/*",
+      "lib/**/*",
+      "node_modules/**/*",
+      "prisma/**/*",
+      "next.config.mjs",
+      "package.json",
+      "package-lock.json",
+      "postcss.config.js",
+      "tailwind.config.ts"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "NovelForge-AI-${version}-${os}-${arch}.${ext}"
+    }
   }
 }
