@@ -179,18 +179,19 @@ Recommended implementation order:
 - Phase 6: AI chapter beat generation, context assembly, AI task records, and explicit author adoption into chapter beats.
 - Phase 7: AI chapter draft generation from confirmed beats, draft task records, and explicit author adoption into chapter draft text.
 - Phase 8: AI chapter summary extraction from author-confirmed final text, structured summary task records, and chapter detail UI review surface.
+- Phase 9: Pending update extraction, author review flow, and approved writes into formal setting, character, world rule, foreshadow, and timeline memory.
 
 ## Next Phase
 
-Phase 9 should focus on pending update extraction and review flow:
+Phase 10 should focus on continuity check reports:
 
 - Use the Phase 5 server-only AI wrapper and task logger for every model call.
-- Use the project-scoped `pending_update_extraction` prompt template.
-- Read author-confirmed final chapter text, current formal project setting, character memory, and the latest completed chapter summary task where useful.
-- Extract proposed setting, character, world rule, timeline, and foreshadow updates into reviewable pending records.
-- Add an author review surface for approving, rejecting, or editing proposed updates.
-- Approved updates should write to formal tables with source chapter and version snapshots; rejected updates must not change formal memory.
-- Keep high-risk updates visible and require explicit author approval.
+- Use the project-scoped `continuity_check` prompt template.
+- Read author-confirmed final chapter text, project setting, character memory, world rules, timeline events, foreshadows, and recent summary/pending-update records where useful.
+- Generate structured continuity issues with severity, evidence, conflicting memory, and suggested fix.
+- Store reports in a formal `continuity_reports` table and keep every model call in `ai_tasks`.
+- Add a project or chapter review surface for open/resolved continuity issues.
+- Do not automatically change formal story memory from continuity reports; fixes should route through author edits or pending updates.
 
 ## Acceptance Baseline
 

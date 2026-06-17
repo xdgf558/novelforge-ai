@@ -517,3 +517,49 @@ Notes:
 Next recommended step:
 
 - Start Phase 9: pending update extraction and author review flow using final chapter text, latest completed summary task output, and current formal memory.
+
+## 2026-06-17: Phase 9 Pending Update Extraction and Review Flow
+
+Status: completed.
+
+Scope:
+
+- Pending update data model and review workflow.
+- AI-backed pending update extraction from author-confirmed final chapter text.
+- Author approval, rejection, and edit-before-approval controls.
+- Approved writes into formal memory tables where supported by the current MVP schema.
+
+What was done:
+
+- Added `PendingUpdate`, `WorldRule`, `Foreshadow`, and `TimelineEvent` Prisma models plus project/chapter/AI task relations.
+- Added a pure pending update context builder that assembles final chapter text, current project setting, active character memory, and the latest completed chapter summary task output.
+- Added parser support for the `updates` array schema and the grouped schema style from the original product document.
+- Added `generatePendingUpdates` server action using the server-only AI wrapper and task logger, with duplicate active-task protection.
+- Added a project-level pending update review page with source chapter, risk level, target type, evidence, approval, rejection, and edit-before-approval controls.
+- Added approval application logic:
+  - Project setting updates append to the relevant setting field and create a setting version snapshot.
+  - Character updates create or update character records and create character version snapshots.
+  - World rules, foreshadows, and timeline events write to formal structured memory rows with source chapter and pending-update linkage.
+  - Rejected updates do not change formal memory.
+- Added chapter-detail entry point for extracting pending updates and project-dashboard entry points/counts for pending updates and structured memory.
+- Expanded the default `pending_update_extraction` JSON schema with update type, target type, target name, field name, title, reason, risk level, and source evidence.
+- Added Vitest coverage for pending update context assembly, direct JSON parsing, grouped schema conversion, risk normalization, field inference, and formal-memory append behavior.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 12 files and 51 tests.
+- `npm run build` passed.
+- `npx prisma migrate status` passed; local database is up to date with 6 migrations.
+- `git diff --check` passed.
+- Browser verification passed with a temporary project and finalized chapter: the chapter detail page showed the pending update extraction panel, the pending update review page showed high-risk labels, source evidence, approve/reject controls, approval wrote the proposed rule into `ProjectSetting.worldviewRules` and created a `SettingVersion`, rejection left formal `WorldRule` memory unchanged, and temporary verification data was deleted afterward.
+
+Notes:
+
+- Phase 9 keeps the non-negotiable author-control rule: AI output first becomes `pending_updates`; only explicit approval writes formal memory.
+- High-risk updates are labeled visibly, but every approval is explicit, including low- and medium-risk items.
+- World rule, foreshadow, and timeline memory are intentionally minimal formal tables for MVP continuity work; richer management pages can follow after continuity reports.
+
+Next recommended step:
+
+- Start Phase 10: basic continuity check reports using project setting, character memory, world rules, foreshadows, timeline events, latest chapter text, and recent summaries.

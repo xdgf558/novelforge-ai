@@ -29,8 +29,12 @@ model Project {
   characterVersions CharacterVersion[]
   chapters          Chapter[]
   chapterVersions   ChapterVersion[]
+  worldRules        WorldRule[]
+  foreshadows       Foreshadow[]
+  timelineEvents    TimelineEvent[]
   aiPromptTemplates AiPromptTemplate[]
   aiTasks           AiTask[]
+  pendingUpdates    PendingUpdate[]
 
   @@index([status])
   @@map("projects")
@@ -154,9 +158,13 @@ model Chapter {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  project  Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  versions ChapterVersion[]
-  aiTasks  AiTask[]
+  project             Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions            ChapterVersion[]
+  aiTasks             AiTask[]
+  pendingUpdates      PendingUpdate[]
+  plantedForeshadows  Foreshadow[]     @relation("PlantedChapter")
+  resolvedForeshadows Foreshadow[]     @relation("ResolvedChapter")
+  timelineEvents      TimelineEvent[]
 
   @@index([projectId, status])
   @@index([projectId, chapterNumber])
@@ -232,10 +240,117 @@ model AiTask {
   project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   promptTemplate AiPromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
   chapter        Chapter?          @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  pendingUpdates PendingUpdate[]
 
   @@index([projectId, taskType])
   @@index([projectId, status])
   @@index([promptTemplateId])
   @@index([chapterId])
   @@map("ai_tasks")
+}
+
+model WorldRule {
+  id              String   @id @default(cuid())
+  projectId       String
+  title           String
+  content         String
+  category        String?
+  riskLevel       String   @default("medium")
+  status          String   @default("active")
+  sourceChapterId String?
+  pendingUpdateId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pendingUpdate PendingUpdate? @relation(fields: [pendingUpdateId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status])
+  @@index([sourceChapterId])
+  @@index([pendingUpdateId])
+  @@map("world_rules")
+}
+
+model Foreshadow {
+  id                String   @id @default(cuid())
+  projectId         String
+  content           String
+  status            String   @default("planted")
+  importance        String   @default("medium")
+  plantedChapterId  String?
+  resolvedChapterId String?
+  sourceChapterId   String?
+  pendingUpdateId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  plantedChapter  Chapter?       @relation("PlantedChapter", fields: [plantedChapterId], references: [id], onDelete: SetNull)
+  resolvedChapter Chapter?       @relation("ResolvedChapter", fields: [resolvedChapterId], references: [id], onDelete: SetNull)
+  pendingUpdate   PendingUpdate? @relation(fields: [pendingUpdateId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status])
+  @@index([plantedChapterId])
+  @@index([resolvedChapterId])
+  @@index([pendingUpdateId])
+  @@map("foreshadows")
+}
+
+model TimelineEvent {
+  id              String   @id @default(cuid())
+  projectId       String
+  title           String
+  description     String
+  storyTime       String?
+  impact          String?
+  chapterId       String?
+  sourceChapterId String?
+  pendingUpdateId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter       Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  pendingUpdate PendingUpdate? @relation(fields: [pendingUpdateId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([chapterId])
+  @@index([pendingUpdateId])
+  @@map("timeline_events")
+}
+
+model PendingUpdate {
+  id              String    @id @default(cuid())
+  projectId       String
+  chapterId       String?
+  aiTaskId        String?
+  updateType      String
+  targetType      String
+  targetId        String?
+  targetName      String?
+  fieldName       String?
+  title           String
+  proposedContent String
+  reason          String?
+  riskLevel       String    @default("medium")
+  evidence        String?
+  payloadJson     String?
+  status          String    @default("pending")
+  resolutionNote  String?
+  appliedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter        Chapter?        @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  aiTask         AiTask?         @relation(fields: [aiTaskId], references: [id], onDelete: SetNull)
+  worldRules     WorldRule[]
+  foreshadows    Foreshadow[]
+  timelineEvents TimelineEvent[]
+
+  @@index([projectId, status])
+  @@index([projectId, targetType])
+  @@index([chapterId])
+  @@index([aiTaskId])
+  @@map("pending_updates")
 }

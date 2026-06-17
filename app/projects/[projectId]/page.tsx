@@ -6,7 +6,9 @@ import {
   Bot,
   FileText,
   History,
+  ListChecks,
   Pencil,
+  ShieldCheck,
   Trash2,
   Users,
 } from "lucide-react";
@@ -36,8 +38,12 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           characterVersions: true,
           chapters: true,
           chapterVersions: true,
+          worldRules: true,
+          foreshadows: true,
+          timelineEvents: true,
           aiPromptTemplates: true,
           aiTasks: true,
+          pendingUpdates: true,
         },
       },
     },
@@ -102,7 +108,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Link
           className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
           href={`/projects/${project.id}/settings`}
@@ -197,6 +203,41 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </div>
           </div>
         </Link>
+
+        <Link
+          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+          href={`/projects/${project.id}/pending-updates`}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ember-500/10 text-ember-500">
+              <ListChecks aria-hidden="true" className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-ink-950">
+                待审更新
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-ink-700">
+                {project._count.pendingUpdates} 条建议，批准后才写入正式记忆。
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <div className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
+              <ShieldCheck aria-hidden="true" className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-ink-950">
+                结构化记忆
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-ink-700">
+                世界规则 {project._count.worldRules} 条，伏笔 {project._count.foreshadows} 条，时间线 {project._count.timelineEvents} 条。
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
