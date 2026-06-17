@@ -8,7 +8,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "mvp:acceptance": "node scripts/mvp-acceptance-smoke.cjs"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0",

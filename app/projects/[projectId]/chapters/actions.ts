@@ -17,7 +17,7 @@ import {
   hasConfirmedChapterText,
   type ChapterSummaryChapterContext,
 } from "@/lib/ai/chapter-summaries";
-import { DEFAULT_AI_PROMPT_TEMPLATES } from "@/lib/ai/prompt-templates";
+import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
@@ -551,49 +551,6 @@ async function findActiveChapterAiTask(
     },
     select: {
       id: true,
-    },
-  });
-}
-
-async function ensureDefaultPromptTemplate(projectId: string, templateKey: string) {
-  const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
-    (defaultTemplate) => defaultTemplate.key === templateKey,
-  );
-
-  if (!template) {
-    throw new Error(`Default prompt template is missing: ${templateKey}.`);
-  }
-
-  return prisma.aiPromptTemplate.upsert({
-    where: {
-      projectId_key_version: {
-        projectId,
-        key: template.key,
-        version: template.version,
-      },
-    },
-    create: {
-      projectId,
-      key: template.key,
-      name: template.name,
-      taskType: template.taskType,
-      version: template.version,
-      outputFormat: template.outputFormat,
-      systemPrompt: template.systemPrompt,
-      userPrompt: template.userPrompt,
-      contextNotes: template.contextNotes,
-      responseSchema: template.responseSchema,
-      status: "active",
-    },
-    update: {
-      name: template.name,
-      taskType: template.taskType,
-      outputFormat: template.outputFormat,
-      systemPrompt: template.systemPrompt,
-      userPrompt: template.userPrompt,
-      contextNotes: template.contextNotes,
-      responseSchema: template.responseSchema,
-      status: "active",
     },
   });
 }

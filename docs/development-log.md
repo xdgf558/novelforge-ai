@@ -677,3 +677,45 @@ Notes:
 Next recommended step:
 
 - Run a full MVP acceptance and hardening pass across project setup, story memory, AI task records, pending updates, continuity reports, publish packages, export, and the repeated review cleanup items.
+
+## 2026-06-17: Phase 12 MVP Acceptance and Hardening
+
+Status: completed.
+
+Scope:
+
+- Project-level MVP acceptance dashboard.
+- Local full-flow acceptance smoke script.
+- Prompt-template helper consolidation.
+- Hardening around the acceptance checklist and repeated AI template upsert logic.
+
+What was done:
+
+- Added `buildMvpAcceptanceReport`, a pure acceptance report builder covering the original MVP checks plus the Phase 11 publish-package requirement.
+- Added `/projects/[projectId]/acceptance`, a project-level acceptance dashboard grouped by project basics, story memory, AI links, author review, release/export, and local persistence.
+- Added a project dashboard entry point for MVP acceptance.
+- Added `scripts/mvp-acceptance-smoke.cjs` and `npm run mvp:acceptance`; the script creates a temporary project with setting, 5 characters, chapter 1, core AI task records, applied/rejected pending updates, continuity report, publish package, reconnects SQLite, verifies persistence, and cleans up.
+- Centralized default prompt-template upsert logic in `lib/ai/prompt-template-store.ts` and reused it across AI workspace, chapters, pending updates, continuity, and publish actions.
+- Updated README with the new local acceptance command.
+
+Verification:
+
+- `npm run test -- lib/mvp-acceptance.test.ts lib/ai/prompt-templates.test.ts` passed, 2 files and 5 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 18 files and 71 tests.
+- `npm run mvp:acceptance` passed.
+- `npm run build` passed.
+- `npx prisma migrate status` passed; local database is up to date with 8 migrations.
+- `git diff --check` passed.
+- Browser-level page smoke verification passed with a temporary project: project detail displayed the MVP acceptance entry point, `/projects/[projectId]/acceptance` returned 200 and displayed `Phase 12 / MVP 验收`, and temporary verification data was deleted afterward.
+
+Notes:
+
+- Phase 12 does not add SaaS, cloud sync, mobile apps, payment, collaboration, or automatic WeChat publishing.
+- The acceptance dashboard is a local project readiness view, not an external deployment gate.
+- The smoke script uses synthetic local records so it can validate persistence and data shape without calling OpenAI.
+
+Next recommended step:
+
+- Start Phase 13 if the goal is macOS desktop packaging for the local MVP. Keep it as a thin local shell around the existing app and preserve local SQLite plus server-only AI key handling.
+- Otherwise, run a component/action cleanup pass for the larger files accumulated in the AI panels, pending update flow, and continuity flow.
