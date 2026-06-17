@@ -182,6 +182,13 @@ export const characterTextFields: readonly CharacterField[] =
 
 export type CharacterValues = Record<CharacterFieldName, string>;
 
+export function characterStatusLabel(status?: string | null) {
+  return (
+    characterStatusOptions.find((option) => option.value === status)?.label ??
+    "未知"
+  );
+}
+
 export function emptyCharacterValues(): CharacterValues {
   return Object.fromEntries(
     characterFieldNames.map((fieldName) => [fieldName, ""]),

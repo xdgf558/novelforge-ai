@@ -215,3 +215,17 @@ Notes:
 Next recommended step:
 
 - Start Phase 4: chapter list, chapter editor, and chapter version records.
+
+## 2026-06-17: Phase 3 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Changed character snapshot status rendering so unknown or invalid status values display `未知` instead of silently falling back to `活跃`.
+- Added a regression test for known and unknown character status labels.
+
+Deferred review items:
+
+- Character version numbering remains scoped to the local single-user MVP and should be revisited with a stronger concurrency strategy if the product expands beyond local single-user usage.
+- Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.

@@ -1,6 +1,6 @@
 import {
   characterFieldGroups,
-  characterStatusOptions,
+  characterStatusLabel,
   characterValuesFromRecord,
   type CharacterFieldName,
 } from "@/lib/character-fields";
@@ -11,10 +11,7 @@ type CharacterSnapshotProps = {
 
 export function CharacterSnapshot({ values }: CharacterSnapshotProps) {
   const normalizedValues = characterValuesFromRecord(values);
-  const statusLabel =
-    characterStatusOptions.find(
-      (option) => option.value === normalizedValues.status,
-    )?.label ?? "活跃";
+  const statusLabel = characterStatusLabel(normalizedValues.status);
 
   return (
     <div className="space-y-5">

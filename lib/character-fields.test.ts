@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   characterFieldNames,
   characterSnapshot,
+  characterStatusLabel,
   characterTextFields,
   characterValuesFromRecord,
   emptyCharacterValues,
@@ -36,6 +37,14 @@ describe("character fields", () => {
     expect(values.desire).toBe("摆脱借命契约");
     expect(values.hiddenInfo).toBe("");
     expect(Object.keys(values).sort()).toEqual([...characterFieldNames].sort());
+  });
+
+  it("labels known and unknown character statuses explicitly", () => {
+    expect(characterStatusLabel("active")).toBe("活跃");
+    expect(characterStatusLabel("inactive")).toBe("暂不出场");
+    expect(characterStatusLabel("archived")).toBe("已归档");
+    expect(characterStatusLabel("invalid-status")).toBe("未知");
+    expect(characterStatusLabel("")).toBe("未知");
   });
 
   it("trims snapshots while preserving every character field", () => {
