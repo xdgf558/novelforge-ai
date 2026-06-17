@@ -229,3 +229,65 @@ Deferred review items:
 
 - Character version numbering remains scoped to the local single-user MVP and should be revisited with a stronger concurrency strategy if the product expands beyond local single-user usage.
 - Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
+
+## 2026-06-17: Phase 4 Chapter Editor and Chapter Versions
+
+Status: completed.
+
+Scope:
+
+- Chapter data model.
+- Chapter version snapshot records.
+- Manual chapter list and CRUD.
+- Chapter history and snapshot detail pages.
+- Project detail entry point for chapters.
+- Lightweight test coverage for chapter field helpers.
+
+What was done:
+
+- Added `Chapter` and `ChapterVersion` Prisma models.
+- Added a `chapters` migration with project-scoped chapter records and version history.
+- Added shared chapter field descriptors for forms, status labels, word counting, and snapshot rendering.
+- Added chapter create, update, and delete server actions.
+- Added pages for project chapter list, chapter creation, chapter detail, chapter editing, chapter history, and chapter version snapshots.
+- Added project detail links and counts for chapter editor and chapter snapshots.
+- Updated current UI copy so the app no longer says chapters are only a future module.
+- Added Vitest coverage for chapter field alignment, defaults, record-to-form values, status labels, word counting, and snapshot trimming.
+
+Verification:
+
+- `npx prisma migrate dev --name chapters` completed and generated Prisma Client.
+- `npx prisma migrate status` passed.
+- `npm run test` passed, 4 files and 20 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `git diff --check` passed.
+- Browser verification passed for creating a project, seeing the chapter editor entry, creating a chapter, saving a second chapter version, viewing history, viewing the v2 snapshot, deleting the chapter, and deleting the test project.
+- Browser console had no error entries during the chapter CRUD check.
+- Local SQLite counts returned to zero for the browser test project, chapter, and chapter versions after cleanup.
+
+Notes:
+
+- Chapter word count is computed from final text when present, otherwise from draft text, with whitespace removed.
+- Chapter delete currently deletes that chapter's version history through the chapter relation, which keeps the local MVP from accumulating orphaned chapter snapshots with no detail route.
+- AI chapter beat generation and draft generation remain intentionally out of scope until the AI service wrapper, prompt templates, and AI task records are introduced.
+
+Next recommended step:
+
+- Start Phase 5: server-only AI service wrapper, prompt templates, and AI task records.
+
+## 2026-06-17: Phase 4 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Replaced the manual chapter record-to-form value mapping with a data-driven helper based on `chapterFieldNames`.
+- Added regression coverage for null/default chapter record fields.
+- Added `formatChapterWordCount` so empty or zero chapter word counts display as `未统计` instead of `0`.
+
+Deferred review items:
+
+- `countChapterWords` behavior remains unchanged because whitespace-only final text correctly falls back to draft text or counts as zero when no draft exists.
+- Chapter version numbering remains scoped to the local single-user MVP and should be revisited with a stronger concurrency strategy if the product expands beyond local single-user usage.
+- Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
