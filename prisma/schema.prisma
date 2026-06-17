@@ -23,8 +23,10 @@ model Project {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  setting         ProjectSetting?
-  settingVersions SettingVersion[]
+  setting           ProjectSetting?
+  settingVersions   SettingVersion[]
+  characters        Character[]
+  characterVersions CharacterVersion[]
 
   @@index([status])
   @@map("projects")
@@ -80,4 +82,55 @@ model SettingVersion {
   @@index([projectId, versionNumber])
   @@index([settingId])
   @@map("setting_versions")
+}
+
+model Character {
+  id                    String   @id @default(cuid())
+  projectId             String
+  name                  String
+  roleInStory           String?
+  identity              String?
+  status                String   @default("active")
+  speakingStyle         String?
+  desire                String?
+  fear                  String?
+  secret                String?
+  relationToProtagonist String?
+  relationToAntagonist  String?
+  knownInfo             String?
+  hiddenInfo            String?
+  abilityBoundary       String?
+  behaviorRules         String?
+  characterArc          String?
+  firstAppearance       String?
+  latestAppearance      String?
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  project  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions CharacterVersion[]
+
+  @@index([projectId, status])
+  @@index([projectId, name])
+  @@map("characters")
+}
+
+model CharacterVersion {
+  id              String   @id @default(cuid())
+  projectId       String
+  characterId     String
+  versionNumber   Int
+  snapshotJson    String
+  changeReason    String?
+  sourceType      String   @default("manual")
+  sourceChapterId String?
+  createdAt       DateTime @default(now())
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([characterId, versionNumber])
+  @@map("character_versions")
 }

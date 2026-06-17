@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BookMarked, History, Pencil, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  BookMarked,
+  History,
+  Pencil,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { deleteProject } from "@/app/projects/actions";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
@@ -23,6 +30,8 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       _count: {
         select: {
           settingVersions: true,
+          characters: true,
+          characterVersions: true,
         },
       },
     },
@@ -87,7 +96,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Link
           className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
           href={`/projects/${project.id}/settings`}
@@ -102,6 +111,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               </h2>
               <p className="mt-1 text-sm leading-6 text-ink-700">
                 维护题材、主线、世界观、人物规则、文风和发布约束。
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+          href={`/projects/${project.id}/characters`}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
+              <Users aria-hidden="true" className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-ink-950">
+                角色库
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-ink-700">
+                已保存 {project._count.characters} 个角色，{project._count.characterVersions} 个角色快照。
               </p>
             </div>
           </div>

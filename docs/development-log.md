@@ -172,3 +172,46 @@ Deferred review items:
 
 - Setting version numbering remains scoped to the local single-user MVP. If the product expands to multi-user deployment, add a stronger concurrency strategy with unique constraints and retry handling.
 - Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
+
+## 2026-06-17: Phase 3 Character Library and Character Versions
+
+Status: completed.
+
+Scope:
+
+- Character data model.
+- Character version snapshot records.
+- Manual character library and CRUD.
+- Character history and snapshot detail pages.
+- Project detail entry point for characters.
+- Lightweight test coverage for character field helpers.
+
+What was done:
+
+- Added `Character` and `CharacterVersion` Prisma models.
+- Added a `characters` migration with project-scoped character records and version history.
+- Added shared character field descriptors for forms and snapshot rendering.
+- Added character create, update, and delete server actions.
+- Added pages for project character list, character creation, character detail, character editing, character history, and character version snapshots.
+- Added project detail links and counts for character library and character snapshots.
+- Updated current UI copy so the app no longer says characters are only a future module.
+- Added Vitest coverage for character field alignment, defaults, record-to-form values, and snapshot trimming.
+
+Verification:
+
+- `npx prisma migrate dev --name characters` completed and generated Prisma Client.
+- `npm run test` passed, 3 files and 13 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Browser verification passed for creating a project, opening empty character library, creating a character, saving a second character version, viewing history, viewing the v2 snapshot, deleting the character, deleting the test project, and returning to the empty project state.
+- Browser console had no error or warning entries during the character CRUD check.
+- Local SQLite counts returned to zero for projects, characters, and character versions after test cleanup.
+
+Notes:
+
+- Character delete currently deletes that character's version history through the character relation, which keeps the local MVP from accumulating orphaned character snapshots with no detail route.
+- AI character generation remains intentionally out of scope until the AI service wrapper, prompt templates, and AI task records are introduced.
+
+Next recommended step:
+
+- Start Phase 4: chapter list, chapter editor, and chapter version records.

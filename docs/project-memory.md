@@ -173,16 +173,17 @@ Recommended implementation order:
 - Repository setup: local Git repository and private GitHub repository.
 - Phase 1: Next.js, TypeScript, Tailwind CSS, Prisma, SQLite, base layout, and project CRUD.
 - Phase 2: Project setting editor, setting version snapshots, setting history pages, and Vitest baseline tests.
+- Phase 3: Character library, character CRUD, character version snapshots, and character field tests.
 
 ## Next Phase
 
-Phase 3 should focus on character library and character CRUD:
+Phase 4 should focus on chapter list and chapter editor:
 
-- Add `Character` and `CharacterVersion` tables.
-- Add project character list, create, edit, detail, and delete flows.
-- Track stable character fields such as speaking style, desire, fear, known information, hidden information, ability boundary, behavior rules, and character arc.
-- Create version snapshots for important character profile changes.
-- Keep AI character generation out of scope until the AI service wrapper and prompt template system are introduced.
+- Add `Chapter` and `ChapterVersion` tables.
+- Add project chapter list, create, edit, detail, and delete flows.
+- Track stable chapter fields such as chapter number, title, goal, beats, draft text, final text, status, and word count.
+- Create version snapshots for important chapter edits where practical.
+- Keep AI chapter beat/draft generation out of scope until the AI service wrapper, prompt templates, and AI task records are introduced.
 
 ## Acceptance Baseline
 

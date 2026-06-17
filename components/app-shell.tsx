@@ -53,7 +53,7 @@ export function AppShell({ children }: AppShellProps) {
           <div className="mt-auto hidden border-t border-ink-950/10 p-5 lg:block">
             <div className="flex items-start gap-3 rounded-lg bg-paper-50 p-3 text-sm text-ink-700">
               <Database aria-hidden="true" className="mt-0.5 h-4 w-4 text-signal-600" />
-              <p>本地 SQLite 持久化，已启用项目与设定档管理。</p>
+              <p>本地 SQLite 持久化，已启用项目、设定档与角色库。</p>
             </div>
           </div>
         </div>
