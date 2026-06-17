@@ -15,9 +15,11 @@ import {
   deleteChapter,
   generateChapterDraft,
   generateChapterBeats,
+  generateChapterSummary,
 } from "@/app/projects/[projectId]/chapters/actions";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
 import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
+import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import {
   aiTaskAdoptionLabel,
   aiTaskStatusLabel,
@@ -54,7 +56,11 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
       aiTasks: {
         where: {
           taskType: {
-            in: ["chapter_beat_generation", "chapter_draft_generation"],
+            in: [
+              "chapter_beat_generation",
+              "chapter_draft_generation",
+              "chapter_summary_extraction",
+            ],
           },
         },
         include: {
@@ -68,7 +74,7 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
         orderBy: {
           createdAt: "desc",
         },
-        take: 10,
+        take: 15,
       },
     },
   });
@@ -84,7 +90,11 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
   const draftTasks = chapter.aiTasks.filter(
     (task) => task.taskType === "chapter_draft_generation",
   );
+  const summaryTasks = chapter.aiTasks.filter(
+    (task) => task.taskType === "chapter_summary_extraction",
+  );
   const hasConfirmedBeats = hasConfirmedChapterBeats(chapter);
+  const hasConfirmedText = hasConfirmedChapterText(chapter);
 
   return (
     <div className="space-y-6">
@@ -158,6 +168,14 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
         hasConfirmedBeats={hasConfirmedBeats}
         projectId={chapter.project.id}
         tasks={draftTasks}
+      />
+
+      <ChapterSummaryAiPanel
+        chapterId={chapter.id}
+        hasApiKey={hasApiKey}
+        hasConfirmedText={hasConfirmedText}
+        projectId={chapter.project.id}
+        tasks={summaryTasks}
       />
 
       <ChapterSnapshot values={chapter} />
@@ -451,6 +469,120 @@ function ChapterDraftAiPanel({
               </article>
             );
           })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ChapterSummaryAiPanel({
+  chapterId,
+  hasApiKey,
+  hasConfirmedText,
+  projectId,
+  tasks,
+}: {
+  chapterId: string;
+  hasApiKey: boolean;
+  hasConfirmedText: boolean;
+  projectId: string;
+  tasks: readonly ChapterAiTask[];
+}) {
+  const hasActiveGeneration = tasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
+  const canGenerate = hasApiKey && hasConfirmedText && !hasActiveGeneration;
+
+  return (
+    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <Bot aria-hidden="true" className="h-4 w-4" />
+            AI 章节摘要
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-ink-950">
+            从定稿正文提取结构化摘要
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+            摘要任务只读取作者确认的定稿正文，输出短摘要、主要事件、角色变化、伏笔和连续性风险。结果先保存在 AI 任务中，不会自动写入正式故事记忆。
+          </p>
+        </div>
+
+        <form action={generateChapterSummary.bind(null, projectId, chapterId)}>
+          <button
+            className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+              canGenerate
+                ? "bg-ink-950 text-white hover:bg-ink-800"
+                : "cursor-not-allowed border border-ink-950/15 bg-paper-100 text-ink-700"
+            }`}
+            disabled={!canGenerate}
+            type="submit"
+          >
+            <Sparkles aria-hidden="true" className="h-4 w-4" />
+            {hasActiveGeneration ? "生成中" : "生成摘要"}
+          </button>
+        </form>
+      </div>
+
+      {!hasApiKey ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          未配置 API Key，暂不能调用模型；已有摘要任务仍可查看。
+        </p>
+      ) : null}
+
+      {!hasConfirmedText ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          生成章节摘要前需要先在定稿正文中保存作者确认后的章节文本。
+        </p>
+      ) : null}
+
+      {hasActiveGeneration ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          当前章节已有摘要生成任务进行中，完成前不会重复发起新的模型调用。
+        </p>
+      ) : null}
+
+      {tasks.length === 0 ? (
+        <div className="mt-5 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
+          <p className="font-semibold text-ink-950">还没有摘要任务</p>
+          <p className="mt-2 leading-6">
+            生成后会在这里显示最近摘要任务，包含模型、模板版本、状态和结构化输出。
+          </p>
+        </div>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {tasks.map((task) => (
+            <article
+              className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+              key={task.id}
+            >
+              <div>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                  <span className="rounded-md bg-white px-2.5 py-1">
+                    {aiTaskStatusLabel(task.status)}
+                  </span>
+                  <span className="rounded-md bg-white px-2.5 py-1">
+                    {aiTaskAdoptionLabel(task.adoptionState)}
+                  </span>
+                  <span>{formatDate(task.createdAt)}</span>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-ink-950">
+                  {task.model}
+                  {task.promptTemplate
+                    ? ` / ${task.promptTemplate.name} v${task.promptTemplate.version}`
+                    : ""}
+                </p>
+                <p className="mt-1 text-xs text-ink-700">
+                  {task.inputContextSummary}
+                </p>
+              </div>
+
+              <div className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-white p-4 font-mono text-xs leading-6 text-ink-700">
+                {task.outputText || task.errorMessage || "任务尚未产生输出。"}
+              </div>
+            </article>
+          ))}
         </div>
       )}
     </section>

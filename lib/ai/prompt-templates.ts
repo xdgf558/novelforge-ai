@@ -73,7 +73,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     systemPrompt:
       "你是长篇连载小说的结构化记忆提取助手。只提取文本中明确出现的信息，不推测隐藏设定。",
     userPrompt:
-      "从最终章节正文中提取短摘要、主要事件、角色状态变化、新设定、伏笔和时间线事件。",
+      "从最终章节正文中提取短摘要、主要事件、角色状态变化、新设定、伏笔、时间线事件和连续性风险。",
     contextNotes:
       "输入应包含章节号、最终正文、当前项目设定摘要和必要的角色名表。",
     responseSchema: JSON.stringify({
@@ -84,6 +84,8 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
         mainEvents: { type: "array", items: { type: "string" } },
         characterChanges: { type: "array", items: { type: "string" } },
         newForeshadows: { type: "array", items: { type: "string" } },
+        newSettings: { type: "array", items: { type: "string" } },
+        timelineEvents: { type: "array", items: { type: "string" } },
         continuityRisks: { type: "array", items: { type: "string" } },
       },
     }),

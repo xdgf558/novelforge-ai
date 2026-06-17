@@ -478,3 +478,42 @@ Deferred review items:
 
 - Draft adoption word count behavior remains unchanged because the current `chapterSnapshot` rule intentionally prefers final text when present.
 - Version number race risk and friendly Server Action error handling remain deferred with the earlier Phase 1-6 follow-up items.
+
+## 2026-06-17: Phase 8 Chapter Summary Generation
+
+Status: completed.
+
+Scope:
+
+- Chapter summary context assembly from author-confirmed final chapter text.
+- AI-backed structured chapter summary extraction.
+- AI task records for generated summary JSON text.
+- Chapter detail UI entry point for summary generation and recent summary tasks.
+
+What was done:
+
+- Added a pure chapter summary context builder that assembles final chapter text, project basics, project setting summary, active character list, chapter goal, beats, and notes.
+- Added guards so summary generation requires `Chapter.finalText` and never treats draft text as confirmed chapter canon.
+- Added `generateChapterSummary` server action that prevents duplicate pending or running summary tasks, ensures the project has the `chapter_summary_extraction` prompt template, passes the JSON schema to the model prompt, and records the task in `ai_tasks`.
+- Added an AI chapter summary panel to the chapter detail page with generation status, disabled-state explanations, recent summary tasks, and structured output display.
+- Updated the default chapter summary schema to include new settings and timeline events alongside short summary, main events, character changes, foreshadows, and continuity risks.
+- Added Vitest coverage for summary context assembly, final-text-only confirmation, and AI task context summaries.
+
+Verification:
+
+- `npm run test` passed, 10 files and 43 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npx prisma migrate status` passed; local database is up to date.
+- `git diff --check` passed.
+- Browser verification passed with a temporary project and finalized chapter: the chapter detail page displayed the AI chapter summary panel, showed a completed `chapter_summary_extraction` task with structured JSON output, kept draft text out of the summary panel output, and disabled generation when no API key was configured. Temporary verification data was deleted afterward.
+
+Notes:
+
+- Phase 8 does not create formal `chapter_summaries`, `foreshadows`, `timeline_events`, or `pending_updates` records yet.
+- Generated chapter summaries are saved as AI task outputs first; they do not automatically update formal story memory.
+- Missing API keys, missing final text, or active summary tasks disable the UI generate button.
+
+Next recommended step:
+
+- Start Phase 9: pending update extraction and author review flow using final chapter text, latest completed summary task output, and current formal memory.
