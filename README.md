@@ -6,3 +6,22 @@ The MVP focuses on structured story memory, setting versioning, character state 
 
 See `AGENTS.md` and `docs/` before starting implementation work.
 
+## Local Development
+
+```bash
+npm install
+npm run prisma:migrate
+npm run dev
+```
+
+Default local URL:
+
+- `http://localhost:3000`
+
+Useful checks:
+
+```bash
+npm run typecheck
+npm run build
+```
+

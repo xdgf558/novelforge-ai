@@ -13,6 +13,7 @@ out/
 # build output
 dist/
 build/
+tsconfig.tsbuildinfo
 
 # local database and generated artifacts
 *.db
@@ -31,4 +32,3 @@ yarn-debug.log*
 .DS_Store
 .idea/
 .vscode/
-

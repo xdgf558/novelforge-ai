@@ -54,3 +54,45 @@ What was done:
 - Created the private GitHub repository.
 - Added `origin`.
 - Pushed the initial repository state to GitHub.
+
+## 2026-06-17: Phase 1 Project Skeleton and Project CRUD
+
+Status: completed.
+
+Scope:
+
+- Next.js local MVP skeleton.
+- TypeScript configuration.
+- Tailwind CSS configuration and base styling.
+- Prisma and SQLite setup.
+- Base application layout.
+- Project CRUD only.
+
+What was done:
+
+- Added App Router pages for project list, project creation, project detail, and project editing.
+- Added server actions for project create, update, and delete.
+- Added Prisma `Project` model and initial migration.
+- Added local `.env.example` with `DATABASE_URL`.
+- Added reusable project form and app shell components.
+- Added README local development commands.
+- Added PostCSS override to avoid the moderate npm audit issue reported through Next's nested PostCSS dependency.
+
+Verification:
+
+- `npm install` completed and reported 0 vulnerabilities after the PostCSS override.
+- `npx prisma migrate dev` reports the database is in sync.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Browser verification passed for homepage, create project, project detail, edit project, delete project, and empty state.
+- Browser console had no error or warning entries during the CRUD check.
+- Local SQLite project count returned to 0 after deleting the browser test project.
+
+Notes:
+
+- The first `prisma migrate dev --name init` failed because Prisma could not create the first SQLite file on this volume path. Creating an empty `prisma/dev.db`, running `prisma db push`, generating the initial migration SQL with `prisma migrate diff`, and marking that migration as applied resolved the issue.
+- `npm audit --omit=dev` briefly returned a registry 503 during the final recheck, but the preceding `npm install` audit completed with 0 vulnerabilities.
+
+Next recommended step:
+
+- Start Phase 2: project setting editor and setting version records.

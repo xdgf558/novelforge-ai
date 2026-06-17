@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id                String   @id @default(cuid())
+  title             String
+  genre             String?
+  targetAudience    String?
+  platform          String?
+  totalWordTarget   Int?
+  chapterWordMin    Int?
+  chapterWordMax    Int?
+  updateFrequency   String?
+  description       String?
+  wechatPositioning String?
+  status            String   @default("active")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@map("projects")
+}
