@@ -456,3 +456,25 @@ Notes:
 Next recommended step:
 
 - Start Phase 8: chapter summary generation using author-confirmed chapter text and the `chapter_summary_extraction` prompt template.
+
+## 2026-06-17: Phase 7 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Changed `ChapterDraftSettingContext` from a hand-written setting field shape to a `ProjectSettingFieldName`-derived record.
+- Centralized the draft-relevant setting fields into typed field lists for style, world constraints, and forbidden items.
+- Preserved the existing chapter draft prompt behavior while removing the need to manually keep the context type in sync with project setting fields.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 9 files and 40 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+
+Deferred review items:
+
+- Draft adoption word count behavior remains unchanged because the current `chapterSnapshot` rule intentionally prefers final text when present.
+- Version number race risk and friendly Server Action error handling remain deferred with the earlier Phase 1-6 follow-up items.

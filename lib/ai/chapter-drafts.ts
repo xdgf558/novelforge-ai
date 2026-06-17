@@ -1,5 +1,6 @@
 import { clipText, excerptChapterEnding } from "./chapter-beats";
 import { formatWordRange } from "../format";
+import type { ProjectSettingFieldName } from "../project-setting-fields";
 
 export type ChapterDraftProjectContext = {
   title: string;
@@ -13,24 +14,9 @@ export type ChapterDraftProjectContext = {
   wechatPositioning?: string | null;
 };
 
-export type ChapterDraftSettingContext = {
-  sellingPoint?: string | null;
-  mainConflict?: string | null;
-  worldviewRules?: string | null;
-  protagonistDesire?: string | null;
-  protagonistFlaw?: string | null;
-  villainLogic?: string | null;
-  supportingCharacters?: string | null;
-  factions?: string | null;
-  timeline?: string | null;
-  pleasureMechanism?: string | null;
-  styleSample?: string | null;
-  emotionalTone?: string | null;
-  readerExpectation?: string | null;
-  commercialHook?: string | null;
-  forbiddenItems?: string | null;
-  sensitiveContentRules?: string | null;
-};
+export type ChapterDraftSettingContext = Partial<
+  Record<ProjectSettingFieldName, string | null>
+>;
 
 export type ChapterDraftCharacterContext = {
   name: string;
@@ -69,6 +55,30 @@ export type BuiltChapterDraftContext = {
   inputContextSummary: string;
 };
 
+type DraftSettingField = readonly [ProjectSettingFieldName, string];
+
+const draftStyleSettingFields = [
+  ["styleSample", "文风样例"],
+  ["emotionalTone", "情绪基调"],
+  ["readerExpectation", "读者期待"],
+  ["commercialHook", "商业钩子"],
+] as const satisfies readonly DraftSettingField[];
+
+const draftWorldSettingFields = [
+  ["sellingPoint", "卖点"],
+  ["mainConflict", "主线矛盾"],
+  ["worldviewRules", "世界观规则"],
+  ["protagonistDesire", "主角欲望"],
+  ["protagonistFlaw", "主角缺陷"],
+  ["villainLogic", "反派逻辑"],
+  ["pleasureMechanism", "爽点机制"],
+] as const satisfies readonly DraftSettingField[];
+
+const draftForbiddenSettingFields = [
+  "forbiddenItems",
+  "sensitiveContentRules",
+] as const satisfies readonly ProjectSettingFieldName[];
+
 export function buildChapterDraftContext(
   input: ChapterDraftContextInput,
 ): BuiltChapterDraftContext {
@@ -79,38 +89,20 @@ export function buildChapterDraftContext(
   const characterRules = input.characters
     .map(buildCharacterRuleLine)
     .filter(Boolean);
-  const styleConstraints = compact([
-    input.setting?.styleSample ? `文风样例：${clipText(input.setting.styleSample)}` : "",
-    input.setting?.emotionalTone ? `情绪基调：${input.setting.emotionalTone}` : "",
-    input.setting?.readerExpectation
-      ? `读者期待：${input.setting.readerExpectation}`
-      : "",
-    input.setting?.commercialHook ? `商业钩子：${input.setting.commercialHook}` : "",
+  const styleConstraints = [
+    ...buildLabeledSettingLines(input.setting, draftStyleSettingFields),
     input.project.wechatPositioning
       ? `公众号定位：${input.project.wechatPositioning}`
       : "",
-  ]);
-  const worldConstraints = compact([
-    input.setting?.sellingPoint ? `卖点：${input.setting.sellingPoint}` : "",
-    input.setting?.mainConflict ? `主线矛盾：${input.setting.mainConflict}` : "",
-    input.setting?.worldviewRules
-      ? `世界观规则：${input.setting.worldviewRules}`
-      : "",
-    input.setting?.protagonistDesire
-      ? `主角欲望：${input.setting.protagonistDesire}`
-      : "",
-    input.setting?.protagonistFlaw
-      ? `主角缺陷：${input.setting.protagonistFlaw}`
-      : "",
-    input.setting?.villainLogic ? `反派逻辑：${input.setting.villainLogic}` : "",
-    input.setting?.pleasureMechanism
-      ? `爽点机制：${input.setting.pleasureMechanism}`
-      : "",
-  ]).map((value) => clipText(value));
-  const forbiddenItems = compact([
-    input.setting?.forbiddenItems,
-    input.setting?.sensitiveContentRules,
-  ]).join("\n");
+  ].filter(Boolean);
+  const worldConstraints = buildLabeledSettingLines(
+    input.setting,
+    draftWorldSettingFields,
+  );
+  const forbiddenItems = buildSettingValues(
+    input.setting,
+    draftForbiddenSettingFields,
+  ).join("\n");
   const wordRange = formatWordRange(
     input.project.chapterWordMin,
     input.project.chapterWordMax,
@@ -232,6 +224,33 @@ function lines(items: readonly (readonly [string, string | number | null | undef
 
 function compact(values: readonly (string | null | undefined)[]) {
   return values.map(clean).filter(Boolean);
+}
+
+function buildLabeledSettingLines(
+  setting: ChapterDraftSettingContext | null | undefined,
+  fields: readonly DraftSettingField[],
+) {
+  if (!setting) {
+    return [];
+  }
+
+  return fields
+    .map(([name, label]) => {
+      const value = clipText(setting[name]);
+      return value ? `${label}：${value}` : "";
+    })
+    .filter(Boolean);
+}
+
+function buildSettingValues(
+  setting: ChapterDraftSettingContext | null | undefined,
+  fields: readonly ProjectSettingFieldName[],
+) {
+  if (!setting) {
+    return [];
+  }
+
+  return fields.map((name) => clipText(setting[name])).filter(Boolean);
 }
 
 function clean(value?: string | null) {
