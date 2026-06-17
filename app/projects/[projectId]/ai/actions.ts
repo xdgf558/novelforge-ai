@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { DEFAULT_AI_PROMPT_TEMPLATES } from "@/lib/ai/prompt-templates";
-import { createAiTask } from "@/lib/ai/task-logger";
+import { stringifyAiTaskPayload } from "@/lib/ai/task-logger";
 import {
   getConfiguredOpenAIModel,
   hasConfiguredOpenAIKey,
@@ -75,38 +75,31 @@ export async function recordLocalAiReadinessCheck(projectId: string) {
 
   const model = getConfiguredOpenAIModel();
   const hasApiKey = hasConfiguredOpenAIKey();
+  const completedAt = new Date();
 
-  const task = await createAiTask({
-    projectId,
-    taskType: "ai_readiness_check",
-    model,
-    inputContextSummary: "本地 AI 任务记录管线检查，未调用外部模型。",
-    inputJson: {
-      model,
-      hasApiKey,
-      externalCall: false,
-    },
-  });
-
-  await prisma.aiTask.update({
-    where: {
-      id: task.id,
-    },
+  await prisma.aiTask.create({
     data: {
+      projectId,
+      taskType: "ai_readiness_check",
+      model,
       status: "completed",
+      adoptionState: "not_reviewed",
+      inputContextSummary: "本地 AI 任务记录管线检查，未调用外部模型。",
+      inputJson: stringifyAiTaskPayload({
+        model,
+        hasApiKey,
+        externalCall: false,
+      }),
       outputText: hasApiKey
         ? "AI 任务记录已就绪，服务端已检测到 API key。"
         : "AI 任务记录已就绪，尚未配置 API key。",
-      outputJson: JSON.stringify(
-        {
-          aiTaskLogging: "ready",
-          serverOnlyKeyAccess: true,
-          externalCall: false,
-        },
-        null,
-        2,
-      ),
-      completedAt: new Date(),
+      outputJson: stringifyAiTaskPayload({
+        aiTaskLogging: "ready",
+        serverOnlyKeyAccess: true,
+        externalCall: false,
+      }),
+      startedAt: completedAt,
+      completedAt,
     },
   });
 

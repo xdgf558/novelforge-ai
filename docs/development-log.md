@@ -337,3 +337,17 @@ Notes:
 Next recommended step:
 
 - Start Phase 6: chapter beat generation using the `chapter_beat_generation` prompt template and `ai_tasks` logging.
+
+## 2026-06-17: Phase 5 Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Changed the local AI readiness check to create a completed `ai_tasks` record in one write instead of creating a pending task and updating it afterward.
+- Reused the shared AI task payload stringifier so readiness input/output JSON formatting stays aligned with the task logger helpers.
+
+Deferred review items:
+
+- Reading `OPENAI_MODEL` and `OPENAI_API_KEY` presence from the AI page Server Component remains safe for the current Node server runtime.
+- Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
