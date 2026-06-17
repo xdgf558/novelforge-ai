@@ -351,3 +351,44 @@ Deferred review items:
 
 - Reading `OPENAI_MODEL` and `OPENAI_API_KEY` presence from the AI page Server Component remains safe for the current Node server runtime.
 - Friendly Server Action error handling remains deferred until form state and user-facing error messages are introduced.
+
+## 2026-06-17: Phase 6 Chapter Beat Generation
+
+Status: completed.
+
+Scope:
+
+- Chapter beat context assembly.
+- AI-backed chapter beat generation.
+- AI task records for generated beat drafts.
+- Explicit author adoption of beat drafts into chapter records.
+- Chapter detail UI entry point for beat generation and recent beat tasks.
+
+What was done:
+
+- Added a pure chapter beat context builder that assembles task-relevant project, setting, character, recent chapter, previous ending, current chapter goal, and forbidden-item context.
+- Added clipping for previous chapter text so routine beat generation uses the previous ending rather than full manuscript text.
+- Added a `generateChapterBeats` server action that ensures the project has the `chapter_beat_generation` prompt template, calls the server-only AI wrapper, and records the model call in `ai_tasks`.
+- Added an `adoptChapterBeats` server action that writes a completed AI task output into `Chapter.beats` only after an explicit author action, creates a chapter version snapshot, and marks the AI task as adopted.
+- Added an AI chapter beat panel to the chapter detail page with generation, latest task display, task status, adoption status, and an adopt button.
+- Added Vitest coverage for beat context assembly, previous-ending clipping, and AI task context summaries.
+
+Verification:
+
+- `npm run test` passed, 8 files and 36 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npx prisma migrate status` passed.
+- `git diff --check` passed.
+- Browser verification passed for opening a chapter with a completed beat task, seeing the AI beat panel, confirming the generate button is disabled when no API key is configured, adopting the beat task output into chapter beats, seeing the task marked adopted, and confirming a chapter version snapshot was created.
+- Local SQLite counts returned to zero for the browser test project, chapters, AI tasks, and chapter versions after cleanup.
+
+Notes:
+
+- Phase 6 does not generate chapter drafts yet. It only produces and adopts chapter beat drafts.
+- Generated beat output is not written into formal chapter data until the author clicks adopt.
+- Missing API keys disable the UI generate button; real model-backed calls remain server-only.
+
+Next recommended step:
+
+- Start Phase 7: chapter draft generation using confirmed chapter beats and the `chapter_draft_generation` prompt template.
