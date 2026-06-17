@@ -162,18 +162,36 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
       "输入应包含当前章节正文、相关角色、相关世界规则、时间线事件、伏笔池和最近章节摘要。",
     responseSchema: JSON.stringify({
       type: "object",
-      required: ["issues"],
+      required: ["chapter_number", "overall_risk_level", "issues"],
       properties: {
+        chapter_number: { type: "integer" },
+        overall_risk_level: {
+          type: "string",
+          enum: ["low", "medium", "high", "critical"],
+        },
         issues: {
           type: "array",
           items: {
             type: "object",
-            required: ["severity", "summary", "evidence"],
+            required: [
+              "issue_type",
+              "severity",
+              "description",
+              "related_characters",
+              "related_rules",
+              "fix_suggestion",
+            ],
             properties: {
-              severity: { type: "string" },
-              summary: { type: "string" },
+              issue_type: { type: "string" },
+              severity: {
+                type: "string",
+                enum: ["low", "medium", "high", "critical"],
+              },
+              description: { type: "string" },
               evidence: { type: "string" },
-              suggestion: { type: "string" },
+              related_characters: { type: "array", items: { type: "string" } },
+              related_rules: { type: "array", items: { type: "string" } },
+              fix_suggestion: { type: "string" },
             },
           },
         },

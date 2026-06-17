@@ -180,18 +180,17 @@ Recommended implementation order:
 - Phase 7: AI chapter draft generation from confirmed beats, draft task records, and explicit author adoption into chapter draft text.
 - Phase 8: AI chapter summary extraction from author-confirmed final text, structured summary task records, and chapter detail UI review surface.
 - Phase 9: Pending update extraction, author review flow, and approved writes into formal setting, character, world rule, foreshadow, and timeline memory.
+- Phase 10: Continuity check reports, issue review surface, and resolved/open report workflow.
 
 ## Next Phase
 
-Phase 10 should focus on continuity check reports:
+Phase 11 should focus on WeChat publish package and Markdown/JSON export:
 
-- Use the Phase 5 server-only AI wrapper and task logger for every model call.
-- Use the project-scoped `continuity_check` prompt template.
-- Read author-confirmed final chapter text, project setting, character memory, world rules, timeline events, foreshadows, and recent summary/pending-update records where useful.
-- Generate structured continuity issues with severity, evidence, conflicting memory, and suggested fix.
-- Store reports in a formal `continuity_reports` table and keep every model call in `ai_tasks`.
-- Add a project or chapter review surface for open/resolved continuity issues.
-- Do not automatically change formal story memory from continuity reports; fixes should route through author edits or pending updates.
+- Use author-confirmed chapter final text only for publish packaging.
+- Generate WeChat-ready title/options, intro, body Markdown, call-to-action, tags, and publish checklist.
+- Keep every AI packaging call in `ai_tasks`.
+- Add Markdown/JSON export for project data, including settings, characters, chapters, structured memory, pending updates, continuity reports, and AI task references.
+- Do not add automatic WeChat publishing during MVP; export/package only.
 
 ## Acceptance Baseline
 

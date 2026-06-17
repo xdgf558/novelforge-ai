@@ -586,3 +586,47 @@ Deferred review items:
 
 - Pending update review UI extraction remains deferred to a future component cleanup pass.
 - Pending update action splitting by target type remains deferred until the flow stabilizes further.
+
+## 2026-06-17: Phase 10 Continuity Check Reports
+
+Status: completed.
+
+Scope:
+
+- Continuity report data model.
+- AI-backed continuity checking from author-confirmed final chapter text.
+- Formal issue records with severity, category, evidence, conflicting memory, suggested fix, and status.
+- Project-level report review page.
+- Chapter detail entry point for running continuity checks.
+
+What was done:
+
+- Added the `ContinuityReport` Prisma model and `continuity_reports` migration.
+- Added a pure continuity context builder that reads final chapter text, project setting, active characters, world rules, foreshadows, timeline events, recent summary tasks, and pending updates.
+- Added parser support for the product document's `chapter_number` / `overall_risk_level` / `issues` JSON shape and camelCase variants.
+- Expanded the default `continuity_check` prompt template schema to match the product document.
+- Added `generateContinuityReport` server action using the server-only AI wrapper and task logger, with duplicate active-task protection.
+- Added report status actions for marking issues resolved and reopening them.
+- Added a project-level continuity report page with risk/category/status labels, source chapter links, evidence, conflicting memory, suggested fix, and resolution notes.
+- Added a chapter-detail continuity panel with disabled-state explanations and recent continuity task output.
+- Added project dashboard entry point and count for continuity reports.
+- Added Vitest coverage for continuity labels, severity/category normalization, context assembly, context summaries, and output parsing.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test -- lib/continuity-reports.test.ts lib/ai/continuity-reports.test.ts lib/ai/prompt-templates.test.ts` passed, 3 files and 10 tests.
+- `npm run test` passed, 14 files and 60 tests.
+- `npm run build` passed.
+- `npx prisma migrate status` passed; local database is up to date with 7 migrations.
+- `git diff --check` passed.
+- Browser verification passed with a temporary project and continuity report: the project dashboard showed the continuity entry and count, the chapter detail page showed the continuity panel and task output, the report page showed severity/category/status/evidence/conflicting memory/suggested fix, marking a report resolved worked with a resolution note, reopening cleared the note and restored the open state, browser console had no warnings or errors, and temporary data was deleted afterward.
+
+Notes:
+
+- Continuity reports do not update formal story memory. Fixes still route through author edits or pending updates.
+- If the model returns no parseable issues, the AI task remains available in the audit log and no report rows are created.
+
+Next recommended step:
+
+- Start Phase 11: WeChat publish package plus Markdown/JSON export without automatic WeChat publishing.

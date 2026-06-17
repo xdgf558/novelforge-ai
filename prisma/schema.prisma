@@ -35,6 +35,7 @@ model Project {
   aiPromptTemplates AiPromptTemplate[]
   aiTasks           AiTask[]
   pendingUpdates    PendingUpdate[]
+  continuityReports ContinuityReport[]
 
   @@index([status])
   @@map("projects")
@@ -158,13 +159,14 @@ model Chapter {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  project             Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project             Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   versions            ChapterVersion[]
   aiTasks             AiTask[]
   pendingUpdates      PendingUpdate[]
-  plantedForeshadows  Foreshadow[]     @relation("PlantedChapter")
-  resolvedForeshadows Foreshadow[]     @relation("ResolvedChapter")
+  plantedForeshadows  Foreshadow[]       @relation("PlantedChapter")
+  resolvedForeshadows Foreshadow[]       @relation("ResolvedChapter")
   timelineEvents      TimelineEvent[]
+  continuityReports   ContinuityReport[]
 
   @@index([projectId, status])
   @@index([projectId, chapterNumber])
@@ -237,10 +239,11 @@ model AiTask {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  promptTemplate AiPromptTemplate? @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
-  chapter        Chapter?          @relation(fields: [chapterId], references: [id], onDelete: SetNull)
-  pendingUpdates PendingUpdate[]
+  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  promptTemplate    AiPromptTemplate?  @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  chapter           Chapter?           @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  pendingUpdates    PendingUpdate[]
+  continuityReports ContinuityReport[]
 
   @@index([projectId, taskType])
   @@index([projectId, status])
@@ -353,4 +356,33 @@ model PendingUpdate {
   @@index([chapterId])
   @@index([aiTaskId])
   @@map("pending_updates")
+}
+
+model ContinuityReport {
+  id                String    @id @default(cuid())
+  projectId         String
+  chapterId         String?
+  aiTaskId          String?
+  severity          String    @default("medium")
+  category          String    @default("general")
+  title             String
+  description       String
+  evidence          String?
+  conflictingMemory String?
+  suggestedFix      String?
+  status            String    @default("open")
+  resolutionNote    String?
+  resolvedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  aiTask  AiTask?  @relation(fields: [aiTaskId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status])
+  @@index([projectId, severity])
+  @@index([chapterId])
+  @@index([aiTaskId])
+  @@map("continuity_reports")
 }

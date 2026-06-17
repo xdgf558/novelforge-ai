@@ -8,6 +8,7 @@ import {
   History,
   ListChecks,
   Pencil,
+  ShieldAlert,
   ShieldCheck,
   Trash2,
   Users,
@@ -44,6 +45,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           aiPromptTemplates: true,
           aiTasks: true,
           pendingUpdates: true,
+          continuityReports: true,
         },
       },
     },
@@ -238,6 +240,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </div>
           </div>
         </div>
+
+        <Link
+          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+          href={`/projects/${project.id}/continuity`}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ember-500/10 text-ember-500">
+              <ShieldAlert aria-hidden="true" className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-ink-950">
+                连续性报告
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-ink-700">
+                {project._count.continuityReports} 条检查问题，处理前不会自动修改记忆。
+              </p>
+            </div>
+          </div>
+        </Link>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
