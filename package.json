@@ -9,8 +9,10 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "desktop:dev": "node scripts/desktop-dev.cjs",
-    "desktop:pack:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never",
-    "desktop:dist:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
+    "desktop:icon": "python3 scripts/generate-macos-icon.py",
+    "desktop:pack:mac": "npm run desktop:icon && npm run build && SKIP_NOTARIZE=1 CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never",
+    "desktop:dist:mac": "npm run desktop:icon && npm run build && SKIP_NOTARIZE=1 CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
+    "desktop:dist:mac:notarized": "npm run desktop:icon && npm run build && APPLE_KEYCHAIN_PROFILE=${APPLE_KEYCHAIN_PROFILE:-simplecut-pro-notary} electron-builder --mac --publish never",
     "desktop:smoke": "node scripts/desktop-smoke.cjs",
     "test": "vitest run --exclude 'release/**'",
     "typecheck": "tsc --noEmit",
@@ -34,6 +36,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@electron/notarize": "^3.1.1",
     "autoprefixer": "^10.4.20",
     "electron": "^42.4.1",
     "electron-builder": "^26.15.3",
@@ -45,7 +48,22 @@
   "build": {
     "appId": "com.novelforge.ai",
     "productName": "NovelForge AI",
-    "asar": false,
+    "asar": true,
+    "asarUnpack": [
+      ".next/**/*",
+      "app/**/*",
+      "components/**/*",
+      "lib/**/*",
+      "node_modules/.prisma/**/*",
+      "node_modules/**/*",
+      "prisma/schema.prisma",
+      "prisma/migrations/**/*",
+      "next.config.mjs",
+      "package.json",
+      "package-lock.json",
+      "postcss.config.js",
+      "tailwind.config.ts"
+    ],
     "directories": {
       "output": "release/desktop"
     },
@@ -55,8 +73,10 @@
       "components/**/*",
       "desktop/**/*",
       "lib/**/*",
+      "node_modules/.prisma/**/*",
       "node_modules/**/*",
-      "prisma/**/*",
+      "prisma/schema.prisma",
+      "prisma/migrations/**/*",
       "next.config.mjs",
       "package.json",
       "package-lock.json",
@@ -65,12 +85,26 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "identity": null,
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "timestamp": "http://timestamp.apple.com/ts01",
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "identity": "HAO YE (Y35K7AQ974)",
+      "signIgnore": [
+        "\\.(?:png|jpe?g|gif|webp|svg|ico|icns|woff2?|ttf|otf|eot|map|pak|bin|dat)$"
+      ],
       "target": [
         "dmg",
         "zip"
       ],
       "artifactName": "NovelForge-AI-${version}-${os}-${arch}.${ext}"
-    }
+    },
+    "dmg": {
+      "sign": true
+    },
+    "afterPack": "scripts/after-pack.cjs",
+    "afterSign": "scripts/notarize.cjs"
   }
 }

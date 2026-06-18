@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="NovelForge AI app icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c4c5b"/>
+      <stop offset="1" stop-color="#385f73"/>
+    </linearGradient>
+  </defs>
+  <rect x="104" y="92" width="816" height="828" rx="188" fill="url(#bg)"/>
+  <rect x="254" y="228" width="506" height="592" rx="48" fill="#f4eedc"/>
+  <path d="M704 228l56 58-56 6z" fill="#dbcdb0"/>
+  <path d="M716 252l26 74 80 26-80 26-26 78-26-78-80-26 80-26z" fill="#39bcac"/>
+  <circle cx="716" cy="352" r="32" fill="#f9f6ec"/>
+  <text x="278" y="342" font-size="150" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#e06352">N</text>
+  <text x="390" y="342" font-size="150" font-weight="700" font-family="Arial, Helvetica, sans-serif" fill="#2a5261">F</text>
+  <g fill="#2a5261" opacity=".82">
+    <rect x="334" y="356" width="352" height="18" rx="9"/>
+    <rect x="334" y="426" width="352" height="18" rx="9"/>
+    <rect x="334" y="496" width="352" height="18" rx="9"/>
+    <rect x="334" y="566" width="352" height="18" rx="9"/>
+    <rect x="334" y="636" width="352" height="18" rx="9"/>
+  </g>
+  <rect x="334" y="706" width="258" height="18" rx="9" fill="#e06352" opacity=".9"/>
+</svg>

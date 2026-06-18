@@ -70,7 +70,7 @@ async function startDesktopApp() {
 }
 
 function getDesktopPaths() {
-  const appRoot = app.getAppPath();
+  const appRoot = getRuntimeAppRoot();
   const dataRoot =
     process.env.NOVELFORGE_DESKTOP_DATA_DIR ||
     path.join(app.getPath("appData"), "NovelForge AI");
@@ -86,6 +86,14 @@ function getDesktopPaths() {
     databasePath,
     envPath,
   };
+}
+
+function getRuntimeAppRoot() {
+  if (!app.isPackaged) {
+    return app.getAppPath();
+  }
+
+  return path.join(process.resourcesPath, "app.asar.unpacked");
 }
 
 async function startBundledNext(paths) {

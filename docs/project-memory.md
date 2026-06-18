@@ -186,15 +186,19 @@ Recommended implementation order:
 - Phase 11: WeChat publish packages, copy/download Markdown publishing materials, and Markdown/JSON project export.
 - Phase 12: MVP acceptance dashboard, local acceptance smoke script, prompt-template helper consolidation, and acceptance hardening checks.
 - Phase 13: macOS desktop packaging prototype with Electron, local app data, desktop SQLite startup migrations, and macOS packaging scripts.
+- Phase 14: macOS distribution hardening is completed. Branded icon generation, Developer ID signing, hardened runtime, `asar` packaging, Electron locale pruning, generated Prisma client copying, signed DMG/ZIP artifacts, packaged startup smoke, final DMG notarization, stapling, and `syspolicy_check distribution` are implemented.
 
 ## Next Phase
 
-The local MVP feature set, acceptance hardening pass, and macOS packaging prototype are implemented. The next phase can be distribution hardening if the app is meant to be shared outside local development:
+The local MVP feature set, acceptance hardening pass, and macOS packaging prototype are implemented. Distribution hardening is now underway:
 
-- Add a production app icon and branded installer polish.
-- Add Apple Developer signing and notarization.
-- Add versioned release artifact cleanup rules.
-- Add a manual pre-release checklist for DB migration, desktop startup, MVP acceptance, and export.
+- Production app icon assets exist under `build/`.
+- macOS packaging now uses Developer ID signing, hardened runtime, and signed DMG/ZIP artifacts.
+- The final DMG `release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` was notarized and stapled; notary submission `ac82cd1b-e370-4b92-b0c0-7c66785d90db` returned `Accepted`.
+- Packaged runtime uses `app.asar.unpacked`; keep generated Prisma client copying in `scripts/after-pack.cjs` because electron-builder does not reliably include the `node_modules/.prisma` dot directory from glob rules alone.
+- `npm run desktop:dist:mac` produces signed local artifacts and skips notarization.
+- `npm run desktop:dist:mac:notarized` is intended for Apple notarized builds and uses `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`.
+- Still add a manual public-release checklist if this build will be uploaded outside local sharing.
 - Keep WeChat publishing manual; distribution hardening must not introduce automatic WeChat publishing.
 
 If distribution hardening is delayed, the next useful cleanup pass is:

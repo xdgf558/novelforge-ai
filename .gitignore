@@ -12,7 +12,11 @@ out/
 
 # build output
 dist/
-build/
+build/*
+!build/entitlements.mac.plist
+!build/icon.icns
+!build/icon.png
+!build/icon.svg
 release/
 tsconfig.tsbuildinfo
 
