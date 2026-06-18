@@ -190,6 +190,7 @@ Recommended implementation order:
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
+- Phase 18A: Station Cat publish API adapter and draft API contract, including import request generation, endpoint normalization, server-only future HTTP client, response/error parsing, dry-run publish run request storage, and contract documentation for the website backend agent.
 
 ## UI Direction
 
@@ -203,7 +204,7 @@ Recommended implementation order:
 
 ## Next Phase
 
-The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, first dark UI refresh, in-app AI connection settings, and software-side publishing platform preparation are implemented:
+The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, first dark UI refresh, in-app AI connection settings, software-side publishing platform preparation, and Station Cat API contract adapter are implemented:
 
 - Production app icon assets exist under `build/`.
 - macOS packaging now uses Developer ID signing, hardened runtime, and signed DMG/ZIP artifacts.
@@ -213,12 +214,15 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - `npm run desktop:dist:mac:notarized` is intended for Apple notarized builds and uses `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`.
 - AI connection config is now editable at `/ai-settings`; the app writes the local `.env` config and reads `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_BASE_URL` dynamically on the server.
 - Publishing targets are editable from `/projects/[projectId]/publish`; tokens are stored locally and masked in UI, standard publish-package JSON can be exported, and local `PublishRun` / `PublishSyncState` rows track prepared draft/direct publish attempts and changed content hashes.
+- Station Cat targets now generate dry-run `station-cat-novelforge-import.v1` request JSON and show the normalized `POST /api/novelforge/import` contract endpoint, but the UI still does not call the real website API.
+- The website-side contract is documented in `docs/station-cat-publish-api-contract.md`; keep request tokens in the `Authorization` header only, never inside request JSON.
 - Still add a manual public-release checklist if this build will be uploaded outside local sharing.
 - Keep WeChat publishing manual; distribution hardening must not introduce automatic WeChat publishing.
 
 The next useful product phase is:
 
-- Connect the software-side publish target to the Station Cat website API once that backend contract is available.
+- Phase 18B: connect the dry-run Station Cat publisher to the real website API once the backend implements `station-cat-novelforge-import.v1`.
+- Save returned preview/publish URLs, remote book ids, and per-item remote ids back into `PublishRun` / `PublishSyncState`.
 - Add cover image generation and local cover asset storage before uploading covers.
 - Keep external publishing behind explicit preview and author confirmation; default to draft import.
 

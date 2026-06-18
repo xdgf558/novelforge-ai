@@ -45,6 +45,7 @@ import {
   stringifyStandardPublishPackage,
 } from "@/lib/publish-platforms";
 import { prisma } from "@/lib/prisma";
+import { buildStationCatImportEndpoint } from "@/lib/station-cat-publisher";
 
 export const dynamic = "force-dynamic";
 
@@ -90,13 +91,13 @@ export default async function PublishPage({ params }: PublishPageProps) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-signal-600">
-              Phase 11 / 公众号发布包装
+              Phase 18A / 发布 API 合约准备
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink-950">
               {project.title} 发布与导出
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
-              从作者确认的定稿正文生成公众号标题、引导语、互动和 Markdown 发布版；所有内容都只供复制或下载，不会自动发布到公众号。
+              生成公众号发布包装、项目导出和 Station Cat 标准导入请求。当前一键发布仍为 dry-run 记录，不会自动发送到外部网站。
             </p>
           </div>
         </div>
@@ -130,7 +131,7 @@ export default async function PublishPage({ params }: PublishPageProps) {
             目标网站与 Token
           </h2>
           <p className="mt-1 text-sm leading-6 text-ink-700">
-            软件端会保存目标站点、Token、默认发布模式，并生成标准发布包与增量变更记录。真实上传等网站后台 API 定稿后接入。
+            软件端会保存目标站点、Token、默认发布模式，并生成标准发布包、Station Cat 导入请求和增量变更记录。真实上传等网站后台 API 定稿后再启用。
           </p>
         </div>
 
@@ -232,6 +233,16 @@ export default async function PublishPage({ params }: PublishPageProps) {
                       <p className="mt-1 break-all text-sm text-ink-700">
                         {target.apiBaseUrl || "尚未填写 API Base URL"}
                       </p>
+                      {target.platformKey === "station_cat" ? (
+                        <p className="mt-2 break-all rounded-md border border-ink-950/10 bg-white px-3 py-2 text-xs leading-5 text-ink-700">
+                          API 合约：POST{" "}
+                          {target.apiBaseUrl
+                            ? stationCatEndpointLabel(target.apiBaseUrl)
+                            : "/api/novelforge/import"}
+                          ，Authorization: Bearer Token。本阶段仅生成 dry-run
+                          请求记录，不自动发送。
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
@@ -748,6 +759,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function stationCatEndpointLabel(apiBaseUrl: string) {
+  try {
+    return buildStationCatImportEndpoint(apiBaseUrl);
+  } catch {
+    return "API Base URL 格式异常，请重新保存目标";
+  }
 }
 
 function safeFilename(value: string) {

@@ -1,0 +1,249 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildStationCatDryRunMessage,
+  buildStationCatImportEndpoint,
+  buildStationCatImportRequest,
+  parseStationCatPublishResult,
+  publishToStationCat,
+  serializeStationCatImportRequest,
+  StationCatPublishError,
+} from "./station-cat-publisher";
+import {
+  buildPublishSyncItems,
+  buildStandardPublishPackage,
+  diffPublishSyncItems,
+} from "./publish-platforms";
+
+const publishPackage = buildStandardPublishPackage(
+  {
+    project: {
+      id: "project_1",
+      title: "借命人",
+      genre: "都市悬疑",
+      targetAudience: "长篇连载读者",
+      platform: "Station Cat",
+      status: "active",
+      totalWordTarget: 300000,
+      description: "寿命交易背后的地下契约网络。",
+    },
+    chapters: [
+      {
+        id: "chapter_1",
+        chapterNumber: 1,
+        title: "第一封短信",
+        status: "final",
+        finalText: "短信来自一个死人。",
+        wordCount: 9,
+      },
+    ],
+    publishPackages: [
+      {
+        coverPrompt: "雨夜旧楼，手机冷光。",
+      },
+    ],
+  },
+  {
+    generatedAt: "2026-06-18T05:00:00.000Z",
+  },
+);
+
+const changedItems = diffPublishSyncItems(
+  buildPublishSyncItems(publishPackage),
+  [],
+);
+
+describe("station cat publisher adapter", () => {
+  it("builds a stable Station Cat import request without secrets", () => {
+    const request = buildStationCatImportRequest({
+      publishPackage,
+      changedItems,
+      mode: "draft",
+      onlyChanged: true,
+    });
+    const serialized = serializeStationCatImportRequest(request);
+
+    expect(request.contract).toBe("station-cat-novelforge-import");
+    expect(request.contractVersion).toBe(1);
+    expect(request.requestId).toMatch(/^novelforge:project_1:/);
+    expect(request.source).toMatchObject({
+      app: "NovelForge AI",
+      packageFormat: "novelforge-standard-publish-package",
+      packageVersion: 1,
+    });
+    expect(request.changedItems[0]).toMatchObject({
+      localType: "project",
+      changeType: "create",
+    });
+    expect(serialized).toContain('"publishPackage"');
+    expect(serialized).not.toContain("Bearer");
+    expect(serialized).not.toContain("secret-token");
+  });
+
+  it("normalizes Station Cat endpoint variants", () => {
+    expect(buildStationCatImportEndpoint("https://wwwstationcat.org")).toBe(
+      "https://wwwstationcat.org/api/novelforge/import",
+    );
+    expect(
+      buildStationCatImportEndpoint("https://wwwstationcat.org/api/novelforge"),
+    ).toBe("https://wwwstationcat.org/api/novelforge/import");
+    expect(
+      buildStationCatImportEndpoint(
+        "https://wwwstationcat.org/api/novelforge/import?debug=1",
+      ),
+    ).toBe("https://wwwstationcat.org/api/novelforge/import");
+  });
+
+  it("sends a future real request with token only in the Authorization header", async () => {
+    const request = buildStationCatImportRequest({
+      publishPackage,
+      changedItems,
+      mode: "publish",
+      onlyChanged: false,
+      requestId: "novelforge:test-request",
+    });
+    const calls: {
+      url: string;
+      init?: RequestInit;
+    }[] = [];
+    const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({
+        url: String(url),
+        init,
+      });
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          remoteBookId: "work_123",
+          previewUrl: "https://wwwstationcat.org/preview/work_123",
+          publishUrl: "https://wwwstationcat.org/zh-hant/works/work_123",
+          message: "Imported as published work.",
+          items: [
+            {
+              localType: "chapter",
+              localId: "chapter_1",
+              remoteId: "chapter_remote_1",
+              status: "created",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    }) as typeof fetch;
+
+    const result = await publishToStationCat(
+      {
+        apiBaseUrl: "https://wwwstationcat.org/api/novelforge",
+        token: "secret-token",
+        request,
+      },
+      {
+        fetchImpl,
+      },
+    );
+
+    expect(calls[0].url).toBe("https://wwwstationcat.org/api/novelforge/import");
+    expect(calls[0].init?.method).toBe("POST");
+    expect(calls[0].init?.headers).toMatchObject({
+      Authorization: "Bearer secret-token",
+      "Content-Type": "application/json",
+      "X-NovelForge-Contract": "station-cat-novelforge-import.v1",
+    });
+    expect(String(calls[0].init?.body)).not.toContain("secret-token");
+    expect(result).toMatchObject({
+      ok: true,
+      remoteBookId: "work_123",
+      publishUrl: "https://wwwstationcat.org/zh-hant/works/work_123",
+    });
+    expect(result.items[0]).toMatchObject({
+      localId: "chapter_1",
+      remoteId: "chapter_remote_1",
+      status: "created",
+    });
+  });
+
+  it("normalizes error responses for the future real client", async () => {
+    const request = buildStationCatImportRequest({
+      publishPackage,
+      changedItems,
+      mode: "draft",
+      onlyChanged: true,
+    });
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "Invalid publish token.",
+          },
+        }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      )) as typeof fetch;
+
+    await expect(
+      publishToStationCat(
+        {
+          apiBaseUrl: "https://wwwstationcat.org",
+          token: "bad-token",
+          request,
+        },
+        {
+          fetchImpl,
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: "StationCatPublishError",
+      statusCode: 401,
+      message: "Invalid publish token.",
+    } satisfies Partial<StationCatPublishError>);
+  });
+
+  it("parses snake_case response aliases and dry-run copy", () => {
+    const parsed = parseStationCatPublishResult({
+      success: true,
+      workId: "work_456",
+      preview_url: "https://wwwstationcat.org/preview/work_456",
+      publish_url: "https://wwwstationcat.org/zh-hant/works/work_456",
+      changedItems: [
+        {
+          local_type: "project",
+          local_id: "project_1",
+          remote_id: "work_456",
+          status: "updated",
+          detail: "metadata synced",
+        },
+      ],
+    });
+    const message = buildStationCatDryRunMessage({
+      endpoint: "https://wwwstationcat.org/api/novelforge/import",
+      requestId: "novelforge:test",
+      changedCount: 2,
+      hasToken: true,
+    });
+
+    expect(parsed).toMatchObject({
+      ok: true,
+      remoteBookId: "work_456",
+      previewUrl: "https://wwwstationcat.org/preview/work_456",
+      publishUrl: "https://wwwstationcat.org/zh-hant/works/work_456",
+    });
+    expect(parsed.items[0]).toMatchObject({
+      localType: "project",
+      localId: "project_1",
+      remoteId: "work_456",
+      status: "updated",
+      message: "metadata synced",
+    });
+    expect(message).toContain("dry-run");
+    expect(message).toContain("Token 已保存在本机");
+  });
+});

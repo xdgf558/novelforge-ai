@@ -23,6 +23,12 @@ import {
   type PublishChangedItem,
 } from "@/lib/publish-platforms";
 import { prisma } from "@/lib/prisma";
+import {
+  buildStationCatDryRunMessage,
+  buildStationCatImportEndpoint,
+  buildStationCatImportRequest,
+  serializeStationCatImportRequest,
+} from "@/lib/station-cat-publisher";
 
 const publishPackageTemplateKey = "wechat_publish_packaging";
 const publishPackageTaskType = "wechat_publish_packaging";
@@ -255,6 +261,19 @@ export async function preparePublishRun(
     null,
     2,
   );
+  const stationCatRequest =
+    target.platformKey === "station_cat"
+      ? buildStationCatImportRequest({
+          publishPackage: standardPackage,
+          changedItems,
+          mode,
+          onlyChanged,
+        })
+      : null;
+  const stationCatEndpoint =
+    target.platformKey === "station_cat" && target.apiBaseUrl
+      ? buildStationCatImportEndpoint(target.apiBaseUrl)
+      : null;
 
   await prisma.$transaction(async (tx) => {
     await tx.publishRun.create({
@@ -263,7 +282,9 @@ export async function preparePublishRun(
         targetId: target.id,
         mode,
         status: "completed",
-        packageJson: stringifyStandardPublishPackage(standardPackage),
+        packageJson: stationCatRequest
+          ? serializeStationCatImportRequest(stationCatRequest)
+          : stringifyStandardPublishPackage(standardPackage),
         changedItemsJson,
         resultMessage: buildPublishRunMessage({
           mode,
@@ -271,6 +292,9 @@ export async function preparePublishRun(
           changedCount: changedItems.length,
           hasToken: Boolean(target.tokenSecret),
           hasApiBaseUrl: Boolean(target.apiBaseUrl),
+          platformKey: target.platformKey,
+          stationCatEndpoint,
+          stationCatRequestId: stationCatRequest?.requestId ?? null,
         }),
         completedAt,
       },
@@ -467,15 +491,30 @@ function buildPublishRunMessage({
   changedCount,
   hasToken,
   hasApiBaseUrl,
+  platformKey,
+  stationCatEndpoint,
+  stationCatRequestId,
 }: {
   mode: string;
   onlyChanged: boolean;
   changedCount: number;
   hasToken: boolean;
   hasApiBaseUrl: boolean;
+  platformKey: string;
+  stationCatEndpoint: string | null;
+  stationCatRequestId: string | null;
 }) {
   const uploadScope = onlyChanged ? "仅变更" : "全量";
   const baseMessage = `${uploadScope}标准包已准备完成：${publishModeLabel(mode)}，检测到 ${changedCount} 个待上传条目。`;
+
+  if (platformKey === "station_cat") {
+    return `${baseMessage} ${buildStationCatDryRunMessage({
+      endpoint: stationCatEndpoint,
+      requestId: stationCatRequestId,
+      changedCount,
+      hasToken,
+    })}`;
+  }
 
   if (!hasToken) {
     return `${baseMessage} 当前目标尚未保存 Token，等待补齐后再接入真实网站导入。`;

@@ -953,3 +953,42 @@ Notes:
 - Preview and publish URLs are display fields for future website responses; until real API integration, they show as waiting for website API.
 - Tokens are stored locally for the selected publish target and are never rendered back as raw values in the UI.
 - Cover image generation is still not implemented. The standard package includes the latest cover prompt plus empty cover image fields for the future cover asset flow.
+
+## 2026-06-18: Phase 18A Station Cat Publish API Adapter
+
+Status: completed.
+
+Scope:
+
+- Software-side Station Cat publish API contract adapter.
+- Dry-run import request generation for website backend handoff.
+- Mockable future HTTP client with server-only token handling.
+- Response and error parsing for the future real API.
+- Contract documentation for the website-side agent.
+
+What was done:
+
+- Added `lib/station-cat-publisher.ts` for:
+  - `station-cat-novelforge-import.v1` request construction,
+  - normalized `POST /api/novelforge/import` endpoint generation,
+  - deterministic request IDs,
+  - token-free request JSON serialization,
+  - server-only `publishToStationCat` with injectable `fetch`,
+  - success/error response normalization,
+  - dry-run result message generation.
+- Added `docs/station-cat-publish-api-contract.md` covering endpoint, auth, request body, response body, aliases, item statuses, error shape, and Phase 18B handoff expectations.
+- Updated the project publish action so Station Cat targets store the generated import request JSON in `PublishRun.packageJson` while remaining a local dry-run.
+- Updated the publish page copy and target card to show the normalized Station Cat API endpoint and dry-run boundary.
+- Added Vitest coverage for request generation, endpoint normalization, auth header behavior, token exclusion from request JSON, response parsing, error parsing, and dry-run messaging.
+
+Verification:
+
+- `npm run test -- lib/station-cat-publisher.test.ts lib/publish-platforms.test.ts` passed, 2 files and 10 tests.
+- `npm run typecheck` passed.
+
+Notes:
+
+- Phase 18A still does not send real website HTTP requests from the UI.
+- Token values are sent only through the future `Authorization: Bearer <token>` header and are not serialized into the request body.
+- The default external publish path should remain `draft`; direct publish must stay an explicit user-selected mode.
+- Phase 18B should call `publishToStationCat` only after the Station Cat website backend implements the documented contract, then persist returned preview/publish URLs and remote ids.
