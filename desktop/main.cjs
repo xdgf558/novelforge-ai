@@ -105,6 +105,9 @@ async function startBundledNext(paths) {
     ...desktopEnv,
     DATABASE_URL: databaseUrl,
     NEXT_TELEMETRY_DISABLED: "1",
+    NOVELFORGE_AI_CONFIG_PATH: paths.envPath,
+    NOVELFORGE_DESKTOP: "1",
+    NOVELFORGE_DESKTOP_DATA_DIR: paths.dataRoot,
     NODE_ENV: "production",
     PORT: String(port),
   };

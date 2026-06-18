@@ -1,3 +1,10 @@
+import {
+  DEFAULT_OPENAI_BASE_URL,
+  DEFAULT_OPENAI_MODEL,
+  getAiRuntimeEnv,
+  normalizeAiBaseUrl,
+} from "./local-config";
+
 type EnvLike = {
   [key: string]: string | undefined;
   OPENAI_API_KEY?: string;
@@ -33,14 +40,15 @@ export type OpenAITextResult = {
 
 type FetchLike = typeof fetch;
 
-const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
-const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
-
-export function getConfiguredOpenAIModel(env: EnvLike = process.env) {
+export function getConfiguredOpenAIModel(env: EnvLike = getAiRuntimeEnv()) {
   return env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
 }
 
-export function hasConfiguredOpenAIKey(env: EnvLike = process.env) {
+export function getConfiguredOpenAIBaseUrl(env: EnvLike = getAiRuntimeEnv()) {
+  return normalizeAiBaseUrl(env.OPENAI_BASE_URL);
+}
+
+export function hasConfiguredOpenAIKey(env: EnvLike = getAiRuntimeEnv()) {
   return Boolean(env.OPENAI_API_KEY?.trim());
 }
 
@@ -95,14 +103,14 @@ export async function createOpenAITextResponse(
 ): Promise<OpenAITextResult> {
   assertServerOnly();
 
-  const env = options.env ?? process.env;
+  const env = options.env ?? getAiRuntimeEnv();
   const apiKey = env.OPENAI_API_KEY?.trim();
 
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not configured.");
   }
 
-  const baseUrl = normalizeOpenAIBaseUrl(env.OPENAI_BASE_URL);
+  const baseUrl = getConfiguredOpenAIBaseUrl(env);
   const fetchImpl = options.fetchImpl ?? fetch;
   const payload = buildOpenAIResponsesPayload({
     ...request,
@@ -177,10 +185,6 @@ export function extractOpenAIUsage(responseJson: unknown): OpenAIUsage {
     outputTokens: readNumber(responseJson.usage.output_tokens),
     totalTokens: readNumber(responseJson.usage.total_tokens),
   };
-}
-
-function normalizeOpenAIBaseUrl(baseUrl?: string) {
-  return (baseUrl?.trim() || DEFAULT_OPENAI_BASE_URL).replace(/\/+$/, "");
 }
 
 function extractOpenAIErrorMessage(responseJson: unknown, status: number) {

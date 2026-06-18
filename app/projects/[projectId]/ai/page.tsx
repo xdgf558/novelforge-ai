@@ -1,15 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Bot, CheckCircle2, Database, FileClock, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  Bot,
+  CheckCircle2,
+  Database,
+  FileClock,
+  RefreshCw,
+  ServerCog,
+  Settings,
+} from "lucide-react";
 import {
   recordLocalAiReadinessCheck,
   syncDefaultPromptTemplates,
 } from "@/app/projects/[projectId]/ai/actions";
 import { aiTaskAdoptionLabel, aiTaskStatusLabel } from "@/lib/ai/status";
-import {
-  getConfiguredOpenAIModel,
-  hasConfiguredOpenAIKey,
-} from "@/lib/ai/openai-client";
+import { readAiConnectionSettings } from "@/lib/ai/local-config";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -84,8 +90,7 @@ export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) 
     }),
   ]);
 
-  const configuredModel = getConfiguredOpenAIModel();
-  const hasApiKey = hasConfiguredOpenAIKey();
+  const aiSettings = readAiConnectionSettings();
 
   return (
     <div className="space-y-6">
@@ -110,6 +115,13 @@ export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) 
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <Link
+            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            href="/ai-settings"
+          >
+            <Settings aria-hidden="true" className="h-4 w-4" />
+            配置接入
+          </Link>
           <form action={syncDefaultPromptTemplates.bind(null, project.id)}>
             <button
               className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
@@ -131,16 +143,21 @@ export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) 
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <InfoTile
           icon={Bot}
           label="默认模型"
-          value={configuredModel}
+          value={aiSettings.model}
         />
         <InfoTile
           icon={Database}
           label="API Key"
-          value={hasApiKey ? "已配置" : "未配置"}
+          value={aiSettings.hasApiKey ? "已配置" : "未配置"}
+        />
+        <InfoTile
+          icon={ServerCog}
+          label="接口地址"
+          value={aiSettings.baseUrl}
         />
         <InfoTile
           icon={FileClock}

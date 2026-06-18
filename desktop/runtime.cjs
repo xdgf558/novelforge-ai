@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const desktopEnvKeys = new Set(["OPENAI_API_KEY", "OPENAI_MODEL"]);
+const desktopEnvKeys = new Set(["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_BASE_URL"]);
 
 function toPrismaSqliteUrl(filePath) {
   const normalizedPath = path.resolve(filePath).replace(/\\/g, "/");
@@ -63,6 +63,7 @@ function ensureDesktopEnvExample(dataRoot) {
         "# Copy this file to .env in the same folder when launching the desktop app.",
         "OPENAI_API_KEY=your_api_key_here",
         "OPENAI_MODEL=gpt-4.1-mini",
+        "OPENAI_BASE_URL=https://api.openai.com/v1",
         "",
       ].join("\n"),
     );

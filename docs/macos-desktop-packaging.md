@@ -29,8 +29,11 @@ The desktop shell reads only these keys from the optional desktop `.env` file:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
+- `OPENAI_BASE_URL`
 
 The desktop shell ignores `DATABASE_URL` from that file because it owns the local desktop database path.
+The in-app AI connection settings page writes the same `.env` file, so packaged
+desktop users do not need to edit it by hand.
 
 ## Commands
 

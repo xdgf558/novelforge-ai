@@ -858,3 +858,41 @@ Notes:
 
 - This is a UI-only pass. It does not add SaaS, cloud sync, collaboration, mobile apps, payment, or automatic WeChat publishing.
 - Existing author-control and AI review rules are unchanged; AI output still cannot directly overwrite formal story memory.
+
+## 2026-06-18: Phase 16 AI Connection Settings
+
+Status: completed.
+
+Scope:
+
+- In-app AI connection settings for the local desktop/web MVP.
+- Custom OpenAI-compatible provider support through editable model id and base URL.
+- Preserve server-only API key handling.
+
+What was done:
+
+- Added `/ai-settings`, a global local settings page for API Key, custom model name, and OpenAI-compatible base URL.
+- Connected the app shell settings icon and the project AI workspace to the new AI settings page.
+- Added `lib/ai/local-config.ts` to read and write the local AI `.env` config while masking API keys in UI-facing status.
+- Updated the OpenAI client to dynamically read the local config file on server-side calls, so saved settings take effect without rebuilding the app.
+- Added `OPENAI_BASE_URL` to `.env.example`, desktop runtime parsing, and the generated desktop `.env.example`.
+- Updated desktop startup env to expose `NOVELFORGE_AI_CONFIG_PATH` and `NOVELFORGE_DESKTOP_DATA_DIR` to the bundled Next.js server.
+- Updated README and macOS desktop packaging docs for the in-app settings flow.
+- Added regression coverage for AI config parsing, saving, key masking, environment fallback, custom base URL support, and desktop smoke parsing.
+
+Verification:
+
+- `npm run test -- lib/ai/local-config.test.ts lib/ai/openai-client.test.ts` passed, 2 files and 13 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 19 files and 78 tests.
+- `npm run desktop:smoke` passed.
+- `npm run build` passed.
+- `git diff --check` passed.
+- Local HTTP smoke passed: `/ai-settings` returned 200 and `/` returned 200 through `npm run dev`.
+
+Notes:
+
+- API keys are still not exposed to client components. The settings page only renders masked key status and posts new key values through a Server Action.
+- Leaving the API Key field blank keeps the currently saved key. Checking "清除已保存的 API Key" removes the saved local key.
+- DeepSeek or other OpenAI-compatible providers should be configured by entering their provider base URL and exact model id in the settings page.
+- This phase does not add cover image generation or Station Cat publishing; those remain future publishing-platform phases.

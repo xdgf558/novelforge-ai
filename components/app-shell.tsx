@@ -140,9 +140,9 @@ export function AppShell({ children }: AppShellProps) {
               本地模式
             </div>
             <div className="hidden h-8 w-px bg-[#a87943]/20 sm:block" />
-            <button className="nf-icon-button" type="button" aria-label="设置">
+            <Link className="nf-icon-button" href="/ai-settings" aria-label="设置">
               <Settings aria-hidden="true" className="h-5 w-5" />
-            </button>
+            </Link>
           </div>
           <div className="nf-workspace-panel nf-legacy-surface">{children}</div>
         </div>

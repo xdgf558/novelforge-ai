@@ -102,6 +102,7 @@ assert.deepEqual(
       "# desktop config",
       "OPENAI_API_KEY=\"sk-test\"",
       "OPENAI_MODEL=gpt-4.1-mini",
+      "OPENAI_BASE_URL=https://api.deepseek.example/v1",
       "DATABASE_URL=file:ignored.db",
       "",
     ].join("\n"),
@@ -109,6 +110,7 @@ assert.deepEqual(
   {
     OPENAI_API_KEY: "sk-test",
     OPENAI_MODEL: "gpt-4.1-mini",
+    OPENAI_BASE_URL: "https://api.deepseek.example/v1",
   },
 );
 

@@ -28,8 +28,9 @@ npm run typecheck
 npm run build
 ```
 
-AI calls are server-only. Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `.env`
-before enabling real model-backed actions.
+AI calls are server-only. Use the in-app AI connection settings page to set
+`OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_BASE_URL`, or set the same keys in
+`.env` before enabling real model-backed actions.
 
 ## macOS Desktop Packaging
 
@@ -57,8 +58,9 @@ npm run desktop:dist:mac
 Desktop runtime data lives outside the app bundle:
 
 - database: `~/Library/Application Support/NovelForge AI/data/novelforge-ai.sqlite`
-- optional AI config: `~/Library/Application Support/NovelForge AI/.env`
+- AI config: `~/Library/Application Support/NovelForge AI/.env`
 
-On first launch, the app creates `.env.example` in that data folder. Copy it to
-`.env` and set `OPENAI_API_KEY` / `OPENAI_MODEL` there to enable model-backed
-actions in the desktop app. API keys are passed only to the local server process.
+On first launch, the app creates `.env.example` in that data folder. The desktop
+UI can write `.env` from the AI connection settings page. Custom
+OpenAI-compatible providers can be configured by setting `OPENAI_BASE_URL` and a
+custom `OPENAI_MODEL`. API keys are passed only to the local server process.

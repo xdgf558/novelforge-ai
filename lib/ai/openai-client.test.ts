@@ -4,6 +4,7 @@ import {
   buildOpenAIResponsesPayload,
   extractOpenAIOutputText,
   extractOpenAIUsage,
+  getConfiguredOpenAIBaseUrl,
   getConfiguredOpenAIModel,
   hasConfiguredOpenAIKey,
 } from "./openai-client";
@@ -16,6 +17,16 @@ describe("OpenAI client helpers", () => {
     expect(getConfiguredOpenAIModel({ OPENAI_MODEL: "", OPENAI_API_KEY: "" })).toBe(
       "gpt-4.1-mini",
     );
+  });
+
+  it("uses a custom OpenAI-compatible base URL", () => {
+    expect(
+      getConfiguredOpenAIBaseUrl({
+        OPENAI_BASE_URL: "https://api.example.com/v1/",
+        OPENAI_MODEL: "",
+        OPENAI_API_KEY: "",
+      }),
+    ).toBe("https://api.example.com/v1");
   });
 
   it("detects whether the server has an API key", () => {
