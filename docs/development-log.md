@@ -1153,3 +1153,43 @@ Notes:
 
 - Current installed macOS app must be rebuilt before this new global settings UI appears there.
 - Global Station Cat settings do not change the website contract: requests still use `POST /api/novelforge/import` with `Authorization: Bearer <token>`.
+
+## 2026-06-18: Formal Personal macOS Installer 0.1.1
+
+Status: completed.
+
+Scope:
+
+- Bump the desktop app/package version for a distinguishable formal personal-use installer.
+- Rebuild a clean single-DMG macOS installer with the read-only-safe desktop migration runner.
+
+What was done:
+
+- Bumped `package.json` and `package-lock.json` from `0.1.0` to `0.1.1`.
+- Kept the no-notarization personal-use packaging policy.
+- Rebuilt the macOS installer from the current `main` code.
+- Re-signed the packaged app with Developer ID signing after the electron-builder output required final verification.
+- Recreated the DMG from the signed app.
+- Removed build intermediates and update artifacts so `release/desktop/` contains only:
+  - `NovelForge-AI-0.1.1-mac-arm64.dmg`
+
+Verification:
+
+- `npm run desktop:smoke` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed.
+- `npm run build` passed.
+- Package metadata reports version `0.1.1`.
+- Packaged `app.asar` desktop runtime check passed:
+  - `desktop/main.cjs` contains `runDesktopMigrations`.
+  - The packaged startup code does not contain `prisma/build/index.js`.
+  - The packaged startup code does not contain `migrate deploy`.
+  - `desktop/runtime.cjs` reads bundled `migration.sql`.
+- DMG verification passed.
+- DMG-mounted app signature verification passed.
+- Direct launch from the read-only mounted DMG with a temporary `NOVELFORGE_DESKTOP_DATA_DIR` started the local app and returned HTTP 200, with no `EROFS` error.
+
+Notes:
+
+- Continue handing off the single DMG only for personal macOS use.
+- Do not leave `release/desktop/mac-arm64/`, ZIP, blockmaps, `latest-mac.yml`, or `builder-debug.yml` in the user-facing delivery folder unless explicitly requested.
