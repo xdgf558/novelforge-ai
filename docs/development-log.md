@@ -896,3 +896,60 @@ Notes:
 - Leaving the API Key field blank keeps the currently saved key. Checking "清除已保存的 API Key" removes the saved local key.
 - DeepSeek or other OpenAI-compatible providers should be configured by entering their provider base URL and exact model id in the settings page.
 - This phase does not add cover image generation or Station Cat publishing; those remain future publishing-platform phases.
+
+## 2026-06-18: Phase 17 Publish Platform Packages
+
+Status: completed.
+
+Scope:
+
+- Software-side publish platform abstraction.
+- Local target website and Token management.
+- Standard website import package export.
+- Draft/direct publish mode selection.
+- Incremental content-hash tracking for "only upload changes".
+- Publish result display fields for future website API responses.
+
+What was done:
+
+- Added `PublishTarget`, `PublishRun`, and `PublishSyncState` Prisma models plus the `publish_platforms` migration.
+- Added `lib/publish-platforms.ts` for:
+  - Station Cat / WeChat target labels,
+  - draft/direct publish mode normalization,
+  - publish Token masking,
+  - standard publish-package JSON generation,
+  - pricing suggestion generation,
+  - stable SHA-256 content hashes,
+  - changed-item detection against previous sync state.
+- Extended the project publish page with:
+  - target website creation,
+  - API Base URL and Token save/update,
+  - masked Token status,
+  - per-target draft/direct mode selection,
+  - "only upload changes" toggle,
+  - local one-click publish preparation,
+  - latest result message, preview URL, publish URL, and changed items.
+- Added standard publish-package JSON export alongside existing Markdown/JSON project export.
+- Added Server Actions to save publish targets and create local publish runs.
+- Extended project publish data loading to include target runs and sync states.
+- Added Vitest coverage for standard package generation, changed-item detection, deterministic JSON output, labels, modes, and Token masking.
+
+Verification:
+
+- `npx prisma migrate dev --name publish_platforms` applied the new migration and generated Prisma Client.
+- `npm run test -- lib/publish-platforms.test.ts lib/publish-packages.test.ts lib/project-export.test.ts` passed, 3 files and 10 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 20 files and 83 tests.
+- `npm run build` passed.
+- `npm run mvp:acceptance` passed.
+- `npm run desktop:smoke` passed.
+- `npx prisma migrate status` passed.
+- `git diff --check` passed.
+- Local HTTP smoke passed for `/projects/[projectId]/publish` with a temporary project, finalized chapter, and Station Cat target; temporary verification data was deleted afterward.
+
+Notes:
+
+- Phase 17 does not call the Station Cat website API. It prepares the local software-side contract and stores local publish run records only.
+- Preview and publish URLs are display fields for future website responses; until real API integration, they show as waiting for website API.
+- Tokens are stored locally for the selected publish target and are never rendered back as raw values in the UI.
+- Cover image generation is still not implemented. The standard package includes the latest cover prompt plus empty cover image fields for the future cover asset flow.

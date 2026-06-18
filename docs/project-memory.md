@@ -189,6 +189,7 @@ Recommended implementation order:
 - Phase 14: macOS distribution hardening is completed. Branded icon generation, Developer ID signing, hardened runtime, `asar` packaging, Electron locale pruning, generated Prisma client copying, signed DMG/ZIP artifacts, packaged startup smoke, final DMG notarization, stapling, and `syspolicy_check distribution` are implemented.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
+- Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
 
 ## UI Direction
 
@@ -202,7 +203,7 @@ Recommended implementation order:
 
 ## Next Phase
 
-The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, first dark UI refresh, and in-app AI connection settings are implemented:
+The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, first dark UI refresh, in-app AI connection settings, and software-side publishing platform preparation are implemented:
 
 - Production app icon assets exist under `build/`.
 - macOS packaging now uses Developer ID signing, hardened runtime, and signed DMG/ZIP artifacts.
@@ -211,14 +212,15 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - `npm run desktop:dist:mac` produces signed local artifacts and skips notarization.
 - `npm run desktop:dist:mac:notarized` is intended for Apple notarized builds and uses `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`.
 - AI connection config is now editable at `/ai-settings`; the app writes the local `.env` config and reads `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_BASE_URL` dynamically on the server.
+- Publishing targets are editable from `/projects/[projectId]/publish`; tokens are stored locally and masked in UI, standard publish-package JSON can be exported, and local `PublishRun` / `PublishSyncState` rows track prepared draft/direct publish attempts and changed content hashes.
 - Still add a manual public-release checklist if this build will be uploaded outside local sharing.
 - Keep WeChat publishing manual; distribution hardening must not introduce automatic WeChat publishing.
 
 The next useful product phase is:
 
-- Introduce publish platform abstractions for WeChat package export and future Station Cat website drafts.
-- Keep external publishing behind explicit preview and author confirmation.
-- Do not auto-publish to WeChat or Station Cat unless the user explicitly approves that product boundary.
+- Connect the software-side publish target to the Station Cat website API once that backend contract is available.
+- Add cover image generation and local cover asset storage before uploading covers.
+- Keep external publishing behind explicit preview and author confirmation; default to draft import.
 
 The next useful cleanup pass is:
 

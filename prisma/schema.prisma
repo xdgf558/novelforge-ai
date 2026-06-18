@@ -37,6 +37,9 @@ model Project {
   pendingUpdates    PendingUpdate[]
   continuityReports ContinuityReport[]
   publishPackages   PublishPackage[]
+  publishTargets    PublishTarget[]
+  publishRuns       PublishRun[]
+  publishSyncStates PublishSyncState[]
 
   @@index([status])
   @@map("projects")
@@ -418,4 +421,72 @@ model PublishPackage {
   @@index([chapterId])
   @@index([aiTaskId])
   @@map("publish_packages")
+}
+
+model PublishTarget {
+  id             String   @id @default(cuid())
+  projectId      String
+  name           String
+  platformKey    String   @default("station_cat")
+  apiBaseUrl     String?
+  tokenSecret    String?
+  tokenUpdatedAt DateTime?
+  defaultMode    String   @default("draft")
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  runs       PublishRun[]
+  syncStates PublishSyncState[]
+
+  @@index([projectId, status])
+  @@index([projectId, platformKey])
+  @@map("publish_targets")
+}
+
+model PublishRun {
+  id               String    @id @default(cuid())
+  projectId        String
+  targetId         String
+  mode             String
+  status           String    @default("completed")
+  packageJson      String
+  changedItemsJson String
+  previewUrl       String?
+  publishUrl       String?
+  resultMessage    String?
+  errorMessage     String?
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target  PublishTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([targetId, createdAt])
+  @@index([projectId, status])
+  @@map("publish_runs")
+}
+
+model PublishSyncState {
+  id           String    @id @default(cuid())
+  projectId    String
+  targetId     String
+  localType    String
+  localId      String
+  remoteId     String?
+  contentHash  String
+  lastMode     String?
+  lastSyncedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  target  PublishTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([targetId, localType, localId])
+  @@index([projectId, localType])
+  @@index([targetId, contentHash])
+  @@map("publish_sync_states")
 }

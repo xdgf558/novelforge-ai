@@ -6,13 +6,19 @@ import {
   Download,
   FileJson,
   FileText,
+  Globe2,
   type LucideIcon,
+  KeyRound,
+  PackageCheck,
   Send,
   Sparkles,
+  UploadCloud,
 } from "lucide-react";
 import {
   generatePublishPackage,
   markPublishPackageExported,
+  preparePublishRun,
+  savePublishTarget,
 } from "@/app/projects/[projectId]/publish/actions";
 import { CopyExportPanel } from "@/components/copy-export-panel";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
@@ -29,6 +35,15 @@ import {
   buildProjectMarkdownExport,
 } from "@/lib/project-export";
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
+import {
+  buildStandardPublishPackage,
+  maskPublishToken,
+  platformLabel,
+  publishModeLabel,
+  publishModeOptions,
+  publishPlatformOptions,
+  stringifyStandardPublishPackage,
+} from "@/lib/publish-platforms";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +71,9 @@ export default async function PublishPage({ params }: PublishPageProps) {
   const exportData = buildExportData(project);
   const markdownExport = buildProjectMarkdownExport(exportData);
   const jsonExport = buildProjectJsonExport(exportData);
+  const standardPublishPackage = stringifyStandardPublishPackage(
+    buildStandardPublishPackage(exportData),
+  );
   const baseFilename = safeFilename(project.title || "novelforge-project");
 
   return (
@@ -100,6 +118,280 @@ export default async function PublishPage({ params }: PublishPageProps) {
           label="AI 任务"
           value={`${formatNumber(project._count.aiTasks)} 条`}
         />
+      </section>
+
+      <section className="space-y-5 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+          <Globe2 aria-hidden="true" className="h-4 w-4" />
+          发布目标与一键发布准备
+        </div>
+        <div>
+          <h2 className="text-base font-semibold text-ink-950">
+            目标网站与 Token
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-ink-700">
+            软件端会保存目标站点、Token、默认发布模式，并生成标准发布包与增量变更记录。真实上传等网站后台 API 定稿后接入。
+          </p>
+        </div>
+
+        <form
+          action={savePublishTarget.bind(null, project.id)}
+          className="grid gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4 lg:grid-cols-[1fr_1fr_1fr_auto]"
+        >
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold text-ink-700">目标名称</span>
+            <input
+              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+              name="name"
+              placeholder="Station Cat 作品后台"
+            />
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold text-ink-700">目标平台</span>
+            <select
+              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+              name="platformKey"
+              defaultValue="station_cat"
+            >
+              {publishPlatformOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1.5">
+            <span className="text-xs font-semibold text-ink-700">默认模式</span>
+            <select
+              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+              name="defaultMode"
+              defaultValue="draft"
+            >
+              {publishModeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+            type="submit"
+          >
+            <PackageCheck aria-hidden="true" className="h-4 w-4" />
+            新增目标
+          </button>
+          <label className="space-y-1.5 lg:col-span-2">
+            <span className="text-xs font-semibold text-ink-700">API Base URL</span>
+            <input
+              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+              name="apiBaseUrl"
+              placeholder="https://wwwstationcat.org/api/novelforge"
+              type="url"
+            />
+          </label>
+          <label className="space-y-1.5 lg:col-span-2">
+            <span className="text-xs font-semibold text-ink-700">发布 Token</span>
+            <input
+              autoComplete="off"
+              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+              name="token"
+              placeholder="保存到本机 SQLite，界面不回显明文"
+              type="password"
+            />
+          </label>
+        </form>
+
+        {project.publishTargets.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
+            还没有发布目标。先新增 Station Cat 或其它目标网站，再生成标准包和增量发布记录。
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {project.publishTargets.map((target) => {
+              const latestRun = target.runs[0];
+              const changedItems = parseChangedItems(latestRun?.changedItemsJson);
+
+              return (
+                <article
+                  className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+                  key={target.id}
+                >
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                        <span className="rounded-md bg-white px-2.5 py-1">
+                          {platformLabel(target.platformKey)}
+                        </span>
+                        <span>{publishModeLabel(target.defaultMode)}</span>
+                        <span>Token：{maskPublishToken(target.tokenSecret)}</span>
+                      </div>
+                      <h3 className="mt-2 text-lg font-semibold text-ink-950">
+                        {target.name}
+                      </h3>
+                      <p className="mt-1 break-all text-sm text-ink-700">
+                        {target.apiBaseUrl || "尚未填写 API Base URL"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <form
+                    action={savePublishTarget.bind(null, project.id)}
+                    className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]"
+                  >
+                    <input name="targetId" type="hidden" value={target.id} />
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-ink-700">
+                        目标名称
+                      </span>
+                      <input
+                        className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                        defaultValue={target.name}
+                        name="name"
+                      />
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-ink-700">
+                        平台
+                      </span>
+                      <select
+                        className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                        defaultValue={target.platformKey}
+                        name="platformKey"
+                      >
+                        {publishPlatformOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-ink-700">
+                        默认模式
+                      </span>
+                      <select
+                        className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                        defaultValue={target.defaultMode}
+                        name="defaultMode"
+                      >
+                        {publishModeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className="inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                      type="submit"
+                    >
+                      <KeyRound aria-hidden="true" className="h-4 w-4" />
+                      保存目标
+                    </button>
+                    <label className="space-y-1.5 lg:col-span-2">
+                      <span className="text-xs font-semibold text-ink-700">
+                        API Base URL
+                      </span>
+                      <input
+                        className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                        defaultValue={target.apiBaseUrl ?? ""}
+                        name="apiBaseUrl"
+                        type="url"
+                      />
+                    </label>
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-ink-700">
+                        更新 Token
+                      </span>
+                      <input
+                        autoComplete="off"
+                        className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                        name="token"
+                        placeholder="留空则保留当前 Token"
+                        type="password"
+                      />
+                    </label>
+                    <label className="flex items-center gap-2 self-end rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm text-ink-700">
+                      <input name="clearToken" type="checkbox" />
+                      清除 Token
+                    </label>
+                  </form>
+
+                  <form
+                    action={preparePublishRun.bind(null, project.id, target.id)}
+                    className="mt-4 flex flex-col gap-3 rounded-lg border border-ink-950/10 bg-white p-4 sm:flex-row sm:items-end"
+                  >
+                    <label className="space-y-1.5">
+                      <span className="text-xs font-semibold text-ink-700">
+                        本次模式
+                      </span>
+                      <select
+                        className="min-h-10 min-w-40 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                        defaultValue={target.defaultMode}
+                        name="publishMode"
+                      >
+                        {publishModeOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex min-h-10 items-center gap-2 rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm text-ink-700">
+                      <input defaultChecked name="onlyChanged" type="checkbox" />
+                      仅上传变更
+                    </label>
+                    <button
+                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+                      type="submit"
+                    >
+                      <UploadCloud aria-hidden="true" className="h-4 w-4" />
+                      一键准备发布
+                    </button>
+                  </form>
+
+                  {latestRun ? (
+                    <div className="mt-4 rounded-lg border border-ink-950/10 bg-white p-4">
+                      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-ink-950">
+                            最近结果：{publishModeLabel(latestRun.mode)}
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-ink-700">
+                            {latestRun.resultMessage || "暂无结果说明。"}
+                          </p>
+                        </div>
+                        <div className="text-sm text-ink-700">
+                          {formatDate(latestRun.createdAt)}
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-2 text-sm text-ink-700 lg:grid-cols-2">
+                        <ResultLink label="预览链接" value={latestRun.previewUrl} />
+                        <ResultLink label="发布链接" value={latestRun.publishUrl} />
+                      </div>
+                      {changedItems.length > 0 ? (
+                        <div className="mt-3 rounded-md bg-paper-50 p-3">
+                          <p className="text-xs font-semibold text-ink-700">
+                            本次变更条目
+                          </p>
+                          <ul className="mt-2 space-y-1 text-sm text-ink-700">
+                            {changedItems.slice(0, 8).map((item) => (
+                              <li key={`${item.localType}:${item.localId}`}>
+                                {item.changeType === "update" ? "更新" : "新增"}：
+                                {item.label}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
@@ -323,6 +615,13 @@ export default async function PublishPage({ params }: PublishPageProps) {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <CopyExportPanel
+            content={standardPublishPackage}
+            filename={`${baseFilename}-standard-publish-package.json`}
+            mimeType="application/json;charset=utf-8"
+            rows={18}
+            title="标准发布包 JSON"
+          />
+          <CopyExportPanel
             content={markdownExport}
             filename={`${baseFilename}-project-export.md`}
             rows={18}
@@ -376,6 +675,79 @@ function InfoBlock({
       </p>
     </div>
   );
+}
+
+function ResultLink({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  if (!value) {
+    return (
+      <div>
+        <span className="font-semibold text-ink-950">{label}：</span>
+        待网站 API 返回
+      </div>
+    );
+  }
+
+  return (
+    <a
+      className="inline-flex items-center gap-1 font-semibold text-signal-600 hover:text-signal-500"
+      href={value}
+      rel="noreferrer"
+      target="_blank"
+    >
+      {label}
+      <span className="break-all">{value}</span>
+    </a>
+  );
+}
+
+function parseChangedItems(value?: string | null): {
+  localType: string;
+  localId: string;
+  label: string;
+  changeType: string;
+}[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.flatMap((item) => {
+      if (!isRecord(item)) {
+        return [];
+      }
+
+      const localType = stringValue(item.localType);
+      const localId = stringValue(item.localId);
+      const label = stringValue(item.label);
+      const changeType = stringValue(item.changeType);
+
+      return localType && localId && label
+        ? [{ localType, localId, label, changeType }]
+        : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
 function safeFilename(value: string) {

@@ -80,6 +80,24 @@ export const projectPublishInclude = {
       createdAt: "desc",
     },
   },
+  publishTargets: {
+    include: {
+      runs: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 3,
+      },
+      syncStates: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+      },
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  },
   aiTasks: {
     include: {
       promptTemplate: {
@@ -99,6 +117,7 @@ export const projectPublishInclude = {
       chapters: true,
       publishPackages: true,
       aiTasks: true,
+      publishTargets: true,
     },
   },
 } satisfies Prisma.ProjectInclude;

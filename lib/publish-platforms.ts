@@ -1,0 +1,321 @@
+import { createHash } from "node:crypto";
+import type { ProjectExportData } from "./project-export";
+
+type Scalar = string | number | boolean | Date | null | undefined;
+
+export const publishPlatformOptions = [
+  {
+    value: "station_cat",
+    label: "Station Cat 个人网站",
+    defaultName: "Station Cat 作品后台",
+  },
+  {
+    value: "wechat",
+    label: "微信公众号",
+    defaultName: "微信公众号手动发布",
+  },
+] as const;
+
+export const publishModeOptions = [
+  { value: "draft", label: "导入为草稿" },
+  { value: "publish", label: "直接发布" },
+] as const;
+
+export type PublishMode = (typeof publishModeOptions)[number]["value"];
+
+export type StandardPublishChapter = {
+  id: string;
+  chapterNumber: number | null;
+  title: string;
+  status: string;
+  wordCount: number;
+  body: string;
+  updatedAt: string | null;
+};
+
+export type StandardPublishPackage = {
+  format: "novelforge-standard-publish-package";
+  version: 1;
+  generatedAt: string;
+  project: {
+    id: string;
+    title: string;
+    genre: string;
+    targetAudience: string;
+    platform: string;
+    description: string;
+    status: string;
+    totalWordTarget: number | null;
+  };
+  chapters: StandardPublishChapter[];
+  cover: {
+    prompt: string;
+    imagePath: string | null;
+    imageUrl: string | null;
+    status: "not_generated" | "ready";
+  };
+  pricingSuggestion: {
+    strategy: "free_serial_first" | "paid_archive_ready";
+    currency: "CNY";
+    suggestedPriceCents: number | null;
+    notes: string;
+  };
+};
+
+export type PublishSyncItem = {
+  localType: "project" | "cover" | "chapter";
+  localId: string;
+  label: string;
+  contentHash: string;
+  payload: unknown;
+};
+
+export type PreviousPublishSyncState = {
+  localType: string;
+  localId: string;
+  contentHash: string;
+  remoteId?: string | null;
+};
+
+export type PublishChangedItem = PublishSyncItem & {
+  remoteId?: string | null;
+  changeType: "create" | "update";
+};
+
+export function platformLabel(value?: string | null) {
+  return (
+    publishPlatformOptions.find((option) => option.value === value)?.label ??
+    "自定义网站"
+  );
+}
+
+export function publishModeLabel(value?: string | null) {
+  return (
+    publishModeOptions.find((option) => option.value === value)?.label ??
+    "导入为草稿"
+  );
+}
+
+export function normalizePublishMode(value?: string | null): PublishMode {
+  return value === "publish" ? "publish" : "draft";
+}
+
+export function maskPublishToken(token?: string | null) {
+  const cleanToken = token?.trim() ?? "";
+
+  if (!cleanToken) {
+    return "未保存";
+  }
+
+  if (cleanToken.length <= 8) {
+    return `${cleanToken.slice(0, 2)}...${cleanToken.slice(-2)}`;
+  }
+
+  return `${cleanToken.slice(0, 6)}...${cleanToken.slice(-4)}`;
+}
+
+export function buildStandardPublishPackage(
+  data: ProjectExportData,
+  options: { generatedAt?: string } = {},
+): StandardPublishPackage {
+  const chapters = (data.chapters ?? []).map((chapter) => ({
+    id: stringValue(chapter.id) || `chapter-${stringValue(chapter.chapterNumber)}`,
+    chapterNumber: numberValue(chapter.chapterNumber),
+    title: stringValue(chapter.title) || "未命名章节",
+    status: stringValue(chapter.status) || "draft",
+    wordCount: numberValue(chapter.wordCount) ?? countTextWords(chapter.finalText),
+    body: stringValue(chapter.finalText),
+    updatedAt: dateString(chapter.updatedAt),
+  }));
+  const confirmedChapters = chapters.filter((chapter) => chapter.body);
+  const totalWords = confirmedChapters.reduce(
+    (sum, chapter) => sum + chapter.wordCount,
+    0,
+  );
+
+  return {
+    format: "novelforge-standard-publish-package",
+    version: 1,
+    generatedAt: options.generatedAt ?? new Date().toISOString(),
+    project: {
+      id: stringValue(data.project.id),
+      title: stringValue(data.project.title) || "未命名项目",
+      genre: stringValue(data.project.genre),
+      targetAudience: stringValue(data.project.targetAudience),
+      platform: stringValue(data.project.platform),
+      description: stringValue(data.project.description),
+      status: stringValue(data.project.status) || "active",
+      totalWordTarget: numberValue(data.project.totalWordTarget),
+    },
+    chapters,
+    cover: {
+      prompt: latestCoverPrompt(data.publishPackages),
+      imagePath: null,
+      imageUrl: null,
+      status: "not_generated",
+    },
+    pricingSuggestion: buildPricingSuggestion({
+      chapterCount: confirmedChapters.length,
+      totalWords,
+    }),
+  };
+}
+
+export function buildPublishSyncItems(
+  publishPackage: StandardPublishPackage,
+): PublishSyncItem[] {
+  const projectPayload = {
+    ...publishPackage.project,
+    pricingSuggestion: publishPackage.pricingSuggestion,
+  };
+
+  return [
+    {
+      localType: "project",
+      localId: publishPackage.project.id || "project",
+      label: `小说元信息：${publishPackage.project.title}`,
+      contentHash: hashPayload(projectPayload),
+      payload: projectPayload,
+    },
+    {
+      localType: "cover",
+      localId: `${publishPackage.project.id || "project"}:cover`,
+      label: "封面图与封面提示词",
+      contentHash: hashPayload(publishPackage.cover),
+      payload: publishPackage.cover,
+    },
+    ...publishPackage.chapters.map((chapter) => ({
+      localType: "chapter" as const,
+      localId: chapter.id,
+      label: `第 ${chapter.chapterNumber ?? "?"} 章：${chapter.title}`,
+      contentHash: hashPayload(chapter),
+      payload: chapter,
+    })),
+  ];
+}
+
+export function diffPublishSyncItems(
+  items: readonly PublishSyncItem[],
+  previousStates: readonly PreviousPublishSyncState[],
+): PublishChangedItem[] {
+  const stateByKey = new Map(
+    previousStates.map((state) => [
+      syncKey(state.localType, state.localId),
+      state,
+    ]),
+  );
+
+  return items.flatMap((item) => {
+    const previousState = stateByKey.get(syncKey(item.localType, item.localId));
+
+    if (previousState?.contentHash === item.contentHash) {
+      return [];
+    }
+
+    return [
+      {
+        ...item,
+        remoteId: previousState?.remoteId ?? null,
+        changeType: previousState ? "update" : "create",
+      },
+    ];
+  });
+}
+
+export function stringifyStandardPublishPackage(
+  publishPackage: StandardPublishPackage,
+) {
+  return `${stableStringify(publishPackage)}\n`;
+}
+
+function buildPricingSuggestion({
+  chapterCount,
+  totalWords,
+}: {
+  chapterCount: number;
+  totalWords: number;
+}): StandardPublishPackage["pricingSuggestion"] {
+  if (chapterCount >= 30 && totalWords >= 90000) {
+    return {
+      strategy: "paid_archive_ready",
+      currency: "CNY",
+      suggestedPriceCents: 990,
+      notes: "已有较多定稿内容，可考虑合集/存档付费；连载最新章仍建议先免费积累读者。",
+    };
+  }
+
+  return {
+    strategy: "free_serial_first",
+    currency: "CNY",
+    suggestedPriceCents: null,
+    notes: "当前更适合免费连载导入，优先积累连续阅读和评论反馈，完结或形成合集后再定价。",
+  };
+}
+
+function latestCoverPrompt(publishPackages?: readonly Record<string, Scalar>[]) {
+  const latest = publishPackages?.find((item) => stringValue(item.coverPrompt));
+
+  return latest ? stringValue(latest.coverPrompt) : "";
+}
+
+function hashPayload(payload: unknown) {
+  return createHash("sha256").update(stableStringify(payload)).digest("hex");
+}
+
+function stableStringify(value: unknown) {
+  return JSON.stringify(sortForStableStringify(value), null, 2);
+}
+
+function sortForStableStringify(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(sortForStableStringify);
+  }
+
+  if (typeof value === "object" && value !== null && !(value instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
+        .map(([key, entryValue]) => [key, sortForStableStringify(entryValue)]),
+    );
+  }
+
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function syncKey(localType: string, localId: string) {
+  return `${localType}:${localId}`;
+}
+
+function stringValue(value: Scalar) {
+  if (value == null) {
+    return "";
+  }
+
+  return value instanceof Date ? value.toISOString() : String(value).trim();
+}
+
+function numberValue(value: Scalar) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function dateString(value: Scalar) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return stringValue(value) || null;
+}
+
+function countTextWords(value: Scalar) {
+  return stringValue(value).replace(/\s/g, "").length;
+}
