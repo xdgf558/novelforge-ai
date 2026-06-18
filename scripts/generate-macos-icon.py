@@ -195,11 +195,21 @@ def main():
     icon.convert("RGB").save(PNG_PATH, dpi=(72, 72))
     write_svg()
     save_iconset(icon)
-    subprocess.run(
-        ["iconutil", "--convert", "icns", "--output", str(ICNS_PATH), str(ICONSET_DIR)],
-        check=True,
-    )
-    shutil.rmtree(ICONSET_DIR)
+    try:
+        subprocess.run(
+            ["iconutil", "--convert", "icns", "--output", str(ICNS_PATH), str(ICONSET_DIR)],
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        if not ICNS_PATH.exists():
+            raise
+
+        print(
+            "iconutil could not rebuild build/icon.icns; reusing the existing icon.",
+        )
+    finally:
+        shutil.rmtree(ICONSET_DIR, ignore_errors=True)
+
     print(f"Generated {ICNS_PATH.relative_to(ROOT)}")
 
 

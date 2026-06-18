@@ -1,3 +1,4 @@
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -83,10 +84,126 @@ function unwrapEnvValue(value) {
   return value;
 }
 
+async function runDesktopMigrations(appRoot, databaseUrl) {
+  const { PrismaClient } = require(require.resolve("@prisma/client", {
+    paths: [appRoot],
+  }));
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    await ensurePrismaMigrationTable(prisma);
+
+    const appliedMigrationRows = await prisma.$queryRaw`
+      SELECT migration_name FROM _prisma_migrations
+      WHERE rolled_back_at IS NULL
+    `;
+    const appliedMigrations = new Set(
+      appliedMigrationRows.map((row) => row.migration_name),
+    );
+
+    for (const migration of listDesktopMigrations(appRoot)) {
+      if (appliedMigrations.has(migration.name)) {
+        continue;
+      }
+
+      await applyDesktopMigration(prisma, migration);
+    }
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+async function ensurePrismaMigrationTable(prisma) {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "checksum" TEXT NOT NULL,
+      "finished_at" DATETIME,
+      "migration_name" TEXT NOT NULL,
+      "logs" TEXT,
+      "rolled_back_at" DATETIME,
+      "started_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "applied_steps_count" INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+}
+
+function listDesktopMigrations(appRoot) {
+  const migrationsDir = path.join(appRoot, "prisma", "migrations");
+
+  return fs
+    .readdirSync(migrationsDir, {
+      withFileTypes: true,
+    })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const migrationPath = path.join(migrationsDir, entry.name, "migration.sql");
+
+      return {
+        name: entry.name,
+        path: migrationPath,
+        sql: fs.readFileSync(migrationPath, "utf8"),
+      };
+    })
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+async function applyDesktopMigration(prisma, migration) {
+  const statements = splitSqlStatements(migration.sql);
+  const checksum = crypto.createHash("sha256").update(migration.sql).digest("hex");
+  const migrationId = crypto.randomUUID();
+
+  await prisma.$transaction(async (tx) => {
+    for (const statement of statements) {
+      await tx.$executeRawUnsafe(statement);
+    }
+
+    await tx.$executeRaw`
+      INSERT INTO _prisma_migrations (
+        id,
+        checksum,
+        finished_at,
+        migration_name,
+        logs,
+        rolled_back_at,
+        started_at,
+        applied_steps_count
+      ) VALUES (
+        ${migrationId},
+        ${checksum},
+        CURRENT_TIMESTAMP,
+        ${migration.name},
+        NULL,
+        NULL,
+        CURRENT_TIMESTAMP,
+        ${statements.length}
+      )
+    `;
+  });
+}
+
+function splitSqlStatements(sql) {
+  return sql
+    .split(/\r?\n/)
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n")
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+}
+
 module.exports = {
   ensureDesktopEnvExample,
   ensureSqliteDatabaseFile,
   parseDesktopEnv,
   readDesktopEnv,
+  runDesktopMigrations,
+  splitSqlStatements,
   toPrismaSqliteUrl,
 };

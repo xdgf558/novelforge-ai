@@ -1,5 +1,4 @@
 const http = require("node:http");
-const fs = require("node:fs");
 const net = require("node:net");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
@@ -8,6 +7,7 @@ const {
   ensureDesktopEnvExample,
   ensureSqliteDatabaseFile,
   readDesktopEnv,
+  runDesktopMigrations,
   toPrismaSqliteUrl,
 } = require("./runtime.cjs");
 
@@ -112,7 +112,7 @@ async function startBundledNext(paths) {
     PORT: String(port),
   };
 
-  await runPrismaMigrations(paths.appRoot, serverEnv);
+  await runDesktopMigrations(paths.appRoot, databaseUrl);
 
   const nextBin = require.resolve("next/dist/bin/next", {
     paths: [paths.appRoot],
@@ -143,41 +143,6 @@ async function startBundledNext(paths) {
   await waitForServer(startUrl);
 
   return startUrl;
-}
-
-async function runPrismaMigrations(appRoot, env) {
-  const prismaBin = require.resolve("prisma/build/index.js", {
-    paths: [appRoot],
-  });
-  const schemaPath = path.join(appRoot, "prisma", "schema.prisma");
-
-  await runCommand(
-    prismaBin,
-    ["migrate", "deploy", "--schema", schemaPath],
-    appRoot,
-    env,
-  );
-}
-
-function runCommand(scriptPath, args, cwd, env) {
-  return new Promise((resolve, reject) => {
-    const child = runElectronNode(scriptPath, args, cwd, env);
-    let stderr = "";
-
-    child.stdout.on("data", () => {});
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(stderr.trim() || `${path.basename(scriptPath)} failed.`));
-      }
-    });
-  });
 }
 
 function runElectronNode(scriptPath, args, cwd, env) {

@@ -211,6 +211,7 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - macOS packaging now uses Developer ID signing, hardened runtime, and signed DMG/ZIP artifacts.
 - Historical Phase 14 distribution validation produced a notarized and stapled DMG, but the current product is for personal local use. Do not run Apple notarization by default for future rebuilds; produce a fresh signed local DMG/ZIP instead.
 - Packaged runtime uses `app.asar.unpacked`; keep generated Prisma client copying in `scripts/after-pack.cjs` because electron-builder does not reliably include the `node_modules/.prisma` dot directory from glob rules alone.
+- Desktop startup must not run Prisma CLI commands from inside the packaged app bundle. DMG volumes are read-only, and Prisma CLI can try to mutate `node_modules/@prisma/engines` under `app.asar.unpacked`, causing `EROFS`. Use `runDesktopMigrations` in `desktop/runtime.cjs`, which reads bundled `prisma/migrations/*/migration.sql`, applies SQL through Prisma Client to the user data SQLite database, and records `_prisma_migrations`.
 - `npm run desktop:dist:mac` produces signed local artifacts and skips notarization.
 - `npm run desktop:dist:mac:notarized` exists only for an explicit future public-distribution request; do not use it for normal personal-use rebuilds.
 - AI connection config is now editable at `/ai-settings`; the app writes the local `.env` config and reads `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_BASE_URL` dynamically on the server.

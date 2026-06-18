@@ -1064,3 +1064,53 @@ Verification:
 Notes:
 
 - Do not run `desktop:dist:mac:notarized` for future normal rebuilds unless the user explicitly asks for public distribution.
+
+## 2026-06-18: macOS Read-Only DMG Startup Fix
+
+Status: completed.
+
+Bug:
+
+- Launching `NovelForge AI.app` directly from the mounted DMG failed with:
+  - `Error: EROFS: read-only file system, unlink '/Volumes/NovelForge AI/NovelForge AI.app/Contents/Resources/app.asar.unpacked/node_modules/@prisma/engines/libquery_engine-darwin-arm64.dylib.node'`
+- Root cause: desktop startup ran Prisma CLI `migrate deploy` from inside `app.asar.unpacked`. On a mounted DMG, the app bundle is read-only, and Prisma CLI can try to mutate its bundled engine files.
+
+What was done:
+
+- Removed the packaged desktop startup dependency on Prisma CLI migration execution.
+- Added `runDesktopMigrations` to `desktop/runtime.cjs`.
+  - Resolves bundled `@prisma/client` from `app.asar.unpacked`.
+  - Reads bundled `prisma/migrations/*/migration.sql`.
+  - Applies unapplied SQL migrations to the user data SQLite database through Prisma Client.
+  - Records applied rows in `_prisma_migrations` with checksums and step counts.
+- Updated `desktop/main.cjs` to run the read-only-safe migration runner before starting the bundled Next.js server.
+- Expanded `npm run desktop:smoke` so it now verifies:
+  - desktop startup no longer references `prisma/build/index.js`,
+  - the migration SQL splitter handles comments,
+  - all bundled migrations apply to a fresh desktop SQLite file,
+  - rerunning desktop migrations is idempotent.
+- Hardened `scripts/generate-macos-icon.py` to reuse an existing valid `build/icon.icns` if the local macOS `iconutil` rejects the generated iconset, so a system iconutil issue does not block urgent desktop rebuilds.
+
+Verification:
+
+- `npm run desktop:smoke` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npm run test` passed, 21 files and 88 tests.
+- `npm run desktop:dist:mac` completed with notarization skipped.
+- Re-signed the generated app with `Developer ID Application: HAO YE (Y35K7AQ974)` and verified:
+  - `codesign --verify --deep --strict --verbose=2 release/desktop/mac-arm64/NovelForge AI.app` passed.
+- Final artifacts:
+  - `release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg`
+  - `release/desktop/NovelForge-AI-0.1.0-mac-arm64.zip`
+- Final package checks:
+  - `hdiutil verify release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` passed.
+  - `unzip -tq release/desktop/NovelForge-AI-0.1.0-mac-arm64.zip` passed.
+  - ZIP-extracted app signature verification passed.
+  - DMG-mounted app signature verification passed.
+  - Direct launch from the read-only mounted DMG with `NOVELFORGE_DESKTOP_DATA_DIR=/private/tmp/novelforge-readonly-smoke-data` started the local Next.js server and returned HTTP 200 from `http://127.0.0.1:48312`, with no `EROFS` error.
+
+Notes:
+
+- Keep desktop runtime writes inside the user data directory. Never write to `process.resourcesPath`, `app.asar`, or `app.asar.unpacked` at runtime.
+- The current DMG is still not notarized, by user preference for personal local use.
