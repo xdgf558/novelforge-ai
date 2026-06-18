@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Bot,
+  CheckCircle2,
   Database,
   Globe2,
   KeyRound,
@@ -22,9 +23,19 @@ import { publishModeLabel, publishModeOptions } from "@/lib/publish-platforms";
 
 export const dynamic = "force-dynamic";
 
-export default function AiSettingsPage() {
+type AiSettingsPageProps = {
+  searchParams?: Promise<{
+    saved?: string;
+  }>;
+};
+
+export default async function AiSettingsPage({
+  searchParams,
+}: AiSettingsPageProps) {
+  const resolvedSearchParams = await searchParams;
   const settings = readAiConnectionSettings();
   const stationCatSettings = readStationCatPublishSettings();
+  const savedMessage = settingsSavedMessage(resolvedSearchParams?.saved);
 
   return (
     <div className="space-y-6">
@@ -46,6 +57,22 @@ export default function AiSettingsPage() {
           </p>
         </div>
       </div>
+
+      {savedMessage ? (
+        <div
+          className="flex items-start gap-3 rounded-lg border border-signal-600/25 bg-signal-600/10 p-4 text-sm leading-6 text-ink-800"
+          role="status"
+        >
+          <CheckCircle2
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0 text-signal-600"
+          />
+          <div>
+            <p className="font-semibold text-ink-950">{savedMessage.title}</p>
+            <p>{savedMessage.description}</p>
+          </div>
+        </div>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-3">
         <InfoTile
@@ -291,4 +318,22 @@ function sourceLabel(source: "file" | "environment" | "default") {
   }
 
   return "默认值";
+}
+
+function settingsSavedMessage(saved?: string) {
+  if (saved === "ai") {
+    return {
+      title: "AI 接入参数已保存",
+      description: "新的模型、接口地址和 API Key 设置会用于后续模型调用。",
+    };
+  }
+
+  if (saved === "station-cat") {
+    return {
+      title: "个人网站发布参数已保存",
+      description: "Station Cat 接口、发布 Token 和默认发布模式已写入本机配置。",
+    };
+  }
+
+  return null;
 }

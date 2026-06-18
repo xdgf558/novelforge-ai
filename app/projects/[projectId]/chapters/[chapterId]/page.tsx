@@ -23,14 +23,20 @@ import {
 import { generateContinuityReport } from "@/app/projects/[projectId]/continuity/actions";
 import { generatePendingUpdates } from "@/app/projects/[projectId]/pending-updates/actions";
 import { generatePublishPackage } from "@/app/projects/[projectId]/publish/actions";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
 import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import {
+  activeAiTaskStatuses,
   aiTaskAdoptionLabel,
   aiTaskStatusLabel,
   isActiveAiTaskStatus,
 } from "@/lib/ai/status";
+import {
+  staleAiTaskCutoff,
+  staleAiTaskErrorMessage,
+} from "@/lib/ai/task-timeouts";
 import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -47,6 +53,8 @@ type ChapterPageProps = {
 
 export default async function ChapterPage({ params }: ChapterPageProps) {
   const { projectId, chapterId } = await params;
+  await expireStaleChapterAiTasks(projectId, chapterId);
+
   const chapter = await prisma.chapter.findFirst({
     where: {
       id: chapterId,
@@ -116,9 +124,14 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
   );
   const hasConfirmedBeats = hasConfirmedChapterBeats(chapter);
   const hasConfirmedText = hasConfirmedChapterText(chapter);
+  const hasActiveAiTasks = chapter.aiTasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
 
   return (
     <div className="space-y-6">
+      <AutoRefresh enabled={hasActiveAiTasks} />
+
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
         href={`/projects/${chapter.project.id}/chapters`}
@@ -229,6 +242,39 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
       <ChapterSnapshot values={chapter} />
     </div>
   );
+}
+
+async function expireStaleChapterAiTasks(projectId: string, chapterId: string) {
+  const now = new Date();
+  const cutoff = staleAiTaskCutoff(now);
+
+  await prisma.aiTask.updateMany({
+    where: {
+      projectId,
+      chapterId,
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+      OR: [
+        {
+          startedAt: {
+            lt: cutoff,
+          },
+        },
+        {
+          startedAt: null,
+          createdAt: {
+            lt: cutoff,
+          },
+        },
+      ],
+    },
+    data: {
+      status: "failed",
+      errorMessage: staleAiTaskErrorMessage,
+      completedAt: now,
+    },
+  });
 }
 
 type ChapterAiTask = {

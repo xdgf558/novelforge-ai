@@ -97,6 +97,13 @@ async function main() {
     mainSource.includes("runDesktopMigrations"),
     "desktop startup uses bundled read-only-safe migration runner",
   );
+  assert.ok(
+    mainSource.includes("before-input-event") &&
+      mainSource.includes("exitExpandedWindow") &&
+      mainSource.includes("setFullScreen(false)") &&
+      mainSource.includes("unmaximize()"),
+    "desktop window handles Escape to leave fullscreen or maximized state",
+  );
 
   const encodedUrl = toPrismaSqliteUrl(
     "/Users/example/Library/Application Support/NovelForge AI/data/app db.sqlite",

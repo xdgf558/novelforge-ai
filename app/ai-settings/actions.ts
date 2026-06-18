@@ -17,7 +17,7 @@ export async function saveAiConnectionSettingsAction(formData: FormData) {
 
   revalidatePath("/ai-settings");
   revalidatePath("/");
-  redirect("/ai-settings");
+  redirect("/ai-settings?saved=ai");
 }
 
 export async function saveStationCatPublishSettingsAction(formData: FormData) {
@@ -30,5 +30,5 @@ export async function saveStationCatPublishSettingsAction(formData: FormData) {
 
   revalidatePath("/ai-settings");
   revalidatePath("/");
-  redirect("/ai-settings");
+  redirect("/ai-settings?saved=station-cat");
 }

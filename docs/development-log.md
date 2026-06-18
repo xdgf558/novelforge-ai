@@ -1,5 +1,36 @@
 # Development Log
 
+## 2026-06-18: 0.1.3 Desktop UX Hotfix
+
+Status: completed.
+
+What was done:
+
+- Added automatic chapter-page refresh while AI tasks are pending or running, so completed model calls appear without manual reload.
+- Added stale AI task cleanup on chapter detail load: pending/running chapter AI tasks older than 15 minutes are marked failed with a clear retry message.
+- Added settings-page success notices after saving AI connection settings or Station Cat publishing settings.
+- Added Electron window-level Escape handling so fullscreen or maximized desktop windows return to windowed mode.
+- Bumped the app version to `0.1.3` for the replacement macOS installer.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test -- lib/ai/task-timeouts.test.ts` passed.
+- `npm run desktop:smoke` passed.
+- `npm run test` passed, 22 files and 97 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app and expanded PKG payload app.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.3"`.
+- Packaged app contains the Escape fullscreen/maximize handler, auto-refresh component, stale task timeout helper, and settings saved messages.
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.3-mac-arm64.pkg`.
+- SHA-256: `406ad2a02840478d95e56366fa26d3bab847b6cf206329c253ff76dc90c13af5`.
+
+Packaging note:
+
+- The app payload is Developer ID Application signed. The PKG itself still reports `Status: no signature` because the local keychain does not contain a Developer ID Installer certificate.
+
 ## 2026-06-18: 0.1.2 AI Provider Crash Hotfix
 
 Status: completed.

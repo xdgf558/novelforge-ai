@@ -191,6 +191,14 @@ function createMainWindow(startUrl, paths) {
     }
   });
 
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && input.key === "Escape") {
+      if (exitExpandedWindow(mainWindow)) {
+        event.preventDefault();
+      }
+    }
+  });
+
   mainWindow.loadURL(startUrl).catch((error) => {
     showStartupError(error);
     app.quit();
@@ -205,6 +213,32 @@ function createMainWindow(startUrl, paths) {
   });
 
   mainWindow.paths = paths;
+}
+
+function exitExpandedWindow(browserWindow) {
+  if (!browserWindow) {
+    return false;
+  }
+
+  if (browserWindow.isFullScreen()) {
+    browserWindow.setFullScreen(false);
+    return true;
+  }
+
+  if (
+    typeof browserWindow.isSimpleFullScreen === "function" &&
+    browserWindow.isSimpleFullScreen()
+  ) {
+    browserWindow.setSimpleFullScreen(false);
+    return true;
+  }
+
+  if (browserWindow.isMaximized()) {
+    browserWindow.unmaximize();
+    return true;
+  }
+
+  return false;
 }
 
 function installApplicationMenu(paths) {
