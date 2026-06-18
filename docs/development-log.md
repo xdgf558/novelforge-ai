@@ -826,3 +826,35 @@ Next recommended step:
 
 - Open a PR for Phase 14 and review the packaging hardening changes.
 - If this app will be released publicly, add a manual release checklist for final version bump, artifact upload, DMG download smoke, and release notes.
+
+## 2026-06-18: Nocturne UI Refresh
+
+Status: completed.
+
+Scope:
+
+- Visual redesign of the local MVP shell and project dashboard.
+- Dark writing-workbench style inspired by the provided NovelForge AI reference mockup.
+- Preserve existing local-first product behavior and data flow.
+
+What was done:
+
+- Reworked the global app background into a dark teal/nocturne theme with warm gold and cyan accents.
+- Rebuilt the app shell with a branded NovelForge mark, glassy sidebar navigation, local mode status, notification/settings icon buttons, and a pinned local SQLite memory note.
+- Added custom project-specific SVG illustration components for the logo mark, sidebar nocturne scene, empty project state, and stat card backdrops.
+- Redesigned the home dashboard with a large local-workbench header, gold CTA buttons, dark glass stat cards, illustrated empty state, project cards, and recent activity panel.
+- Added scoped legacy-surface styling so existing pages inherit the darker theme without changing their server actions or form logic.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 18 files and 71 tests.
+- `npm run build` passed.
+- Browser visual smoke passed for the home dashboard at desktop width: `h1` and CTA rendered, 4 glass cards were present, workspace panel rendered, and no horizontal overflow was detected.
+- Browser responsive smoke passed at 390px width: no horizontal overflow, mobile panel width fit the viewport, and primary CTA buttons remained single-line.
+- Browser form-page smoke passed for `/projects/new`: form rendered, dark legacy-surface overrides applied to inputs and form section, and no horizontal overflow was detected.
+
+Notes:
+
+- This is a UI-only pass. It does not add SaaS, cloud sync, collaboration, mobile apps, payment, or automatic WeChat publishing.
+- Existing author-control and AI review rules are unchanged; AI output still cannot directly overwrite formal story memory.

@@ -187,10 +187,21 @@ Recommended implementation order:
 - Phase 12: MVP acceptance dashboard, local acceptance smoke script, prompt-template helper consolidation, and acceptance hardening checks.
 - Phase 13: macOS desktop packaging prototype with Electron, local app data, desktop SQLite startup migrations, and macOS packaging scripts.
 - Phase 14: macOS distribution hardening is completed. Branded icon generation, Developer ID signing, hardened runtime, `asar` packaging, Electron locale pruning, generated Prisma client copying, signed DMG/ZIP artifacts, packaged startup smoke, final DMG notarization, stapling, and `syspolicy_check distribution` are implemented.
+- Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
+
+## UI Direction
+
+- Current product UI direction is a dark local writing workbench, not a generic light SaaS dashboard.
+- Primary feel: nocturne writing room, local memory vault, warm editorial tooling.
+- Use very dark teal/black surfaces, warm gold CTAs and borders, cyan local/active accents, cream primary text, and muted parchment secondary text.
+- Keep the first screen as the usable project dashboard. Do not turn it into a marketing landing page.
+- Custom story-specific SVG illustration components live in `components/story-illustrations.tsx` and can be reused for future empty states or dashboard panels.
+- `components/app-shell.tsx` owns the persistent sidebar, local mode toolbar, and dark workspace panel.
+- `app/globals.css` contains the scoped `nf-*` visual system plus `nf-legacy-surface` overrides so older MVP pages stay visually aligned until they receive dedicated component cleanup.
 
 ## Next Phase
 
-The local MVP feature set, acceptance hardening pass, and macOS packaging prototype are implemented. Distribution hardening is now underway:
+The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, and first dark UI refresh are implemented:
 
 - Production app icon assets exist under `build/`.
 - macOS packaging now uses Developer ID signing, hardened runtime, and signed DMG/ZIP artifacts.
@@ -201,10 +212,11 @@ The local MVP feature set, acceptance hardening pass, and macOS packaging protot
 - Still add a manual public-release checklist if this build will be uploaded outside local sharing.
 - Keep WeChat publishing manual; distribution hardening must not introduce automatic WeChat publishing.
 
-If distribution hardening is delayed, the next useful cleanup pass is:
+The next useful cleanup pass is:
 
 - Split oversized page/action files where review notes repeatedly flagged maintainability.
 - Add friendly Server Action/form error handling where it improves the local author workflow.
+- Continue applying the nocturne UI system to deeper project pages with dedicated components rather than broad one-off class overrides.
 - Keep MVP boundaries intact: no SaaS, team collaboration, mobile app, cloud sync, payment, or automatic WeChat publishing unless the user explicitly expands scope.
 
 ## Acceptance Baseline
