@@ -7,12 +7,14 @@ import {
   Database,
   LayoutDashboard,
   NotebookTabs,
+  PackageCheck,
   Plus,
   Settings,
   Sparkles,
   Users,
 } from "lucide-react";
 import { NovelForgeMark, SidebarNocturneArt } from "@/components/story-illustrations";
+import { appVersion } from "@/lib/app-version";
 
 type AppShellProps = {
   children: React.ReactNode;
@@ -139,6 +141,13 @@ export function AppShell({ children }: AppShellProps) {
               <span className="h-2.5 w-2.5 rounded-full bg-[#58d7c7] shadow-[0_0_16px_rgba(88,215,199,0.85)]" />
               本地模式
             </div>
+            <Link
+              className="nf-local-pill hidden sm:inline-flex"
+              href="/ai-settings#app-version"
+            >
+              <PackageCheck aria-hidden="true" className="h-4 w-4" />
+              v{appVersion}
+            </Link>
             <div className="hidden h-8 w-px bg-[#a87943]/20 sm:block" />
             <Link className="nf-icon-button" href="/ai-settings" aria-label="设置">
               <Settings aria-hidden="true" className="h-5 w-5" />

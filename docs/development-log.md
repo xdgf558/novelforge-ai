@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-06-18: 0.1.4 Async AI Generation UX Hotfix
+
+Status: completed.
+
+What was done:
+
+- Changed user-triggered AI generation to start a logged background task and return to the UI immediately instead of waiting for the model response inside the Server Action.
+- Applied the non-blocking flow to chapter beats, chapter draft, chapter summary, pending update extraction, continuity checks, and publish package generation.
+- Added completion callbacks for background AI tasks so pending updates, continuity reports, and publish packages are parsed and written to their destination tables after the model finishes.
+- Kept active-task duplicate protection and chapter/publish page auto-refresh so running tasks update the UI without manual reload.
+- Added an in-app version display in the top toolbar and a settings-page `版本与更新` section.
+- Bumped the app version to `0.1.4` for the replacement macOS installer.
+
+Verification:
+
+- `npm run test -- lib/ai/task-logger.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed, 23 files and 100 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload and the expanded PKG payload app in a keychain-enabled environment.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.4"`.
+- Packaged app contains `startLoggedOpenAITextTask`, background completion callbacks, the `版本与更新` settings block, and package version `0.1.4`.
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.4-mac-arm64.pkg`.
+- SHA-256: `ae680e100f5085d6c2db8d98dc2e9164dbb4e4d7d563c7f378eab1ebe9ad4cce`.
+
+Packaging note:
+
+- The app payload is Developer ID Application signed. The PKG itself still reports `Status: no signature` because the local keychain does not contain a Developer ID Installer certificate.
+
 ## 2026-06-18: 0.1.3 Desktop UX Hotfix
 
 Status: completed.

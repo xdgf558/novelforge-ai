@@ -10,7 +10,7 @@ import {
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
-import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import { readStationCatPublishSecrets } from "@/lib/ai/local-config";
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import {
@@ -62,7 +62,7 @@ export async function generatePublishPackage(
   );
   const context = buildPublishPackageContext(contextInput);
 
-  const task = await runLoggedOpenAITextTask(
+  await startLoggedOpenAITextTask(
     {
       projectId,
       chapterId,
@@ -86,36 +86,42 @@ export async function generatePublishPackage(
       input: context.inputText,
     },
     {
-      rethrow: false,
+      onCompleted: async (task) => {
+        const suggestion = parsePublishPackageOutput(task.outputText, {
+          chapterTitle: contextInput.chapter.title,
+          finalText: contextInput.chapter.finalText,
+        });
+
+        if (!suggestion) {
+          return;
+        }
+
+        await prisma.publishPackage.create({
+          data: {
+            projectId,
+            chapterId,
+            aiTaskId: task.id,
+            titleCandidatesJson: JSON.stringify(
+              suggestion.titleCandidates,
+              null,
+              2,
+            ),
+            selectedTitle: suggestion.selectedTitle,
+            openingGuide: suggestion.openingGuide,
+            chapterSummary: suggestion.chapterSummary,
+            endingQuestion: suggestion.endingQuestion,
+            nextChapterPreview: suggestion.nextChapterPreview,
+            commentGuide: suggestion.commentGuide,
+            collectionTitle: suggestion.collectionTitle,
+            coverPrompt: suggestion.coverPrompt,
+            markdownBody: suggestion.markdownBody,
+            checklistJson: JSON.stringify(suggestion.checklist, null, 2),
+            status: "draft",
+          },
+        });
+      },
     },
   );
-
-  const suggestion = parsePublishPackageOutput(task.outputText, {
-    chapterTitle: contextInput.chapter.title,
-    finalText: contextInput.chapter.finalText,
-  });
-
-  if (suggestion) {
-    await prisma.publishPackage.create({
-      data: {
-        projectId,
-        chapterId,
-        aiTaskId: task.id,
-        titleCandidatesJson: JSON.stringify(suggestion.titleCandidates, null, 2),
-        selectedTitle: suggestion.selectedTitle,
-        openingGuide: suggestion.openingGuide,
-        chapterSummary: suggestion.chapterSummary,
-        endingQuestion: suggestion.endingQuestion,
-        nextChapterPreview: suggestion.nextChapterPreview,
-        commentGuide: suggestion.commentGuide,
-        collectionTitle: suggestion.collectionTitle,
-        coverPrompt: suggestion.coverPrompt,
-        markdownBody: suggestion.markdownBody,
-        checklistJson: JSON.stringify(suggestion.checklist, null, 2),
-        status: "draft",
-      },
-    });
-  }
 
   revalidatePublishPaths(projectId, chapterId);
   redirect(`/projects/${projectId}/publish`);

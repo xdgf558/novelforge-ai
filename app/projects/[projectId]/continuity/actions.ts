@@ -11,7 +11,7 @@ import {
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
-import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import { prisma } from "@/lib/prisma";
 
 const continuityTemplateKey = "continuity_check";
@@ -49,7 +49,7 @@ export async function generateContinuityReport(
   );
   const context = buildContinuityContext(contextInput);
 
-  const task = await runLoggedOpenAITextTask(
+  await startLoggedOpenAITextTask(
     {
       projectId,
       chapterId,
@@ -73,32 +73,34 @@ export async function generateContinuityReport(
       input: context.inputText,
     },
     {
-      rethrow: false,
+      onCompleted: async (task) => {
+        const issues = parseContinuityIssues(task.outputText);
+
+        if (issues.length === 0) {
+          return;
+        }
+
+        await prisma.continuityReport.createMany({
+          data: issues.map((issue) => ({
+            projectId,
+            chapterId,
+            aiTaskId: task.id,
+            severity: issue.severity,
+            category: issue.category,
+            title: issue.title,
+            description: issue.description,
+            evidence: issue.evidence,
+            conflictingMemory: issue.conflictingMemory,
+            suggestedFix: issue.suggestedFix,
+            status: "open",
+          })),
+        });
+      },
     },
   );
 
-  const issues = parseContinuityIssues(task.outputText);
-
-  if (issues.length > 0) {
-    await prisma.continuityReport.createMany({
-      data: issues.map((issue) => ({
-        projectId,
-        chapterId,
-        aiTaskId: task.id,
-        severity: issue.severity,
-        category: issue.category,
-        title: issue.title,
-        description: issue.description,
-        evidence: issue.evidence,
-        conflictingMemory: issue.conflictingMemory,
-        suggestedFix: issue.suggestedFix,
-        status: "open",
-      })),
-    });
-  }
-
   revalidateContinuityPaths(projectId, chapterId);
-  redirect(`/projects/${projectId}/continuity`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
 export async function resolveContinuityReport(

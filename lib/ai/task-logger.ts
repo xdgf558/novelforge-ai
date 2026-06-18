@@ -23,6 +23,18 @@ type CompleteAiTaskInput = {
   tokenTotal?: number;
 };
 
+type CompletedAiTask = Awaited<ReturnType<typeof markAiTaskCompleted>>;
+
+type RunLoggedOpenAITextTaskOptions = {
+  rethrow?: boolean;
+  onCompleted?: (task: CompletedAiTask) => Promise<void> | void;
+};
+
+type StartLoggedOpenAITextTaskOptions = Pick<
+  RunLoggedOpenAITextTaskOptions,
+  "onCompleted"
+>;
+
 export function stringifyAiTaskPayload(value: unknown) {
   if (value == null) {
     return undefined;
@@ -95,26 +107,54 @@ export async function markAiTaskFailed(taskId: string, error: unknown) {
 export async function runLoggedOpenAITextTask(
   taskInput: CreateAiTaskInput,
   request: OpenAITextRequest,
-  options: {
-    rethrow?: boolean;
-  } = {},
+  options: RunLoggedOpenAITextTaskOptions = {},
 ) {
   const task = await createAiTask(taskInput);
-  await markAiTaskRunning(task.id);
+  const runningTask = await markAiTaskRunning(task.id);
 
+  return completeRunningOpenAITextTask(runningTask, request, options);
+}
+
+export async function startLoggedOpenAITextTask(
+  taskInput: CreateAiTaskInput,
+  request: OpenAITextRequest,
+  options: StartLoggedOpenAITextTaskOptions = {},
+) {
+  const task = await createAiTask(taskInput);
+  const runningTask = await markAiTaskRunning(task.id);
+
+  void completeRunningOpenAITextTask(runningTask, request, {
+    onCompleted: options.onCompleted,
+    rethrow: false,
+  }).catch((error) => {
+    console.error("Background AI task failed after logging attempt:", error);
+  });
+
+  return runningTask;
+}
+
+async function completeRunningOpenAITextTask(
+  task: Awaited<ReturnType<typeof markAiTaskRunning>>,
+  request: OpenAITextRequest,
+  options: RunLoggedOpenAITextTaskOptions,
+) {
   try {
     const result = await createOpenAITextResponse({
       ...request,
       model: task.model,
     });
 
-    return markAiTaskCompleted(task.id, {
+    const completedTask = await markAiTaskCompleted(task.id, {
       outputText: result.outputText,
       outputJson: result.responseJson,
       tokenInput: result.usage.inputTokens,
       tokenOutput: result.usage.outputTokens,
       tokenTotal: result.usage.totalTokens,
     });
+
+    await options.onCompleted?.(completedTask);
+
+    return completedTask;
   } catch (error) {
     const failedTask = await markAiTaskFailed(task.id, error);
 

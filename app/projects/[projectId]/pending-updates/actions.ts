@@ -11,7 +11,7 @@ import {
 } from "@/lib/ai/pending-updates";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
-import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
   characterSnapshot,
   characterValuesFromRecord,
@@ -74,7 +74,7 @@ export async function generatePendingUpdates(projectId: string, chapterId: strin
   );
   const context = buildPendingUpdateContext(contextInput);
 
-  const task = await runLoggedOpenAITextTask(
+  await startLoggedOpenAITextTask(
     {
       projectId,
       chapterId,
@@ -98,38 +98,40 @@ export async function generatePendingUpdates(projectId: string, chapterId: strin
       input: context.inputText,
     },
     {
-      rethrow: false,
+      onCompleted: async (task) => {
+        const suggestions = parsePendingUpdateSuggestions(task.outputText);
+
+        if (suggestions.length === 0) {
+          return;
+        }
+
+        await prisma.$transaction(
+          suggestions.map((suggestion) =>
+            prisma.pendingUpdate.create({
+              data: {
+                projectId,
+                chapterId,
+                aiTaskId: task.id,
+                updateType: suggestion.updateType,
+                targetType: suggestion.targetType,
+                targetName: suggestion.targetName,
+                fieldName: suggestion.fieldName,
+                title: suggestion.title,
+                proposedContent: suggestion.proposedContent,
+                reason: suggestion.reason,
+                riskLevel: suggestion.riskLevel,
+                evidence: suggestion.evidence,
+                payloadJson: JSON.stringify(suggestion.payload, null, 2),
+              },
+            }),
+          ),
+        );
+      },
     },
   );
 
-  const suggestions = parsePendingUpdateSuggestions(task.outputText);
-
-  if (suggestions.length > 0) {
-    await prisma.$transaction(
-      suggestions.map((suggestion) =>
-        prisma.pendingUpdate.create({
-          data: {
-            projectId,
-            chapterId,
-            aiTaskId: task.id,
-            updateType: suggestion.updateType,
-            targetType: suggestion.targetType,
-            targetName: suggestion.targetName,
-            fieldName: suggestion.fieldName,
-            title: suggestion.title,
-            proposedContent: suggestion.proposedContent,
-            reason: suggestion.reason,
-            riskLevel: suggestion.riskLevel,
-            evidence: suggestion.evidence,
-            payloadJson: JSON.stringify(suggestion.payload, null, 2),
-          },
-        }),
-      ),
-    );
-  }
-
   revalidateChapterAndPendingUpdatePaths(projectId, chapterId);
-  redirect(`/projects/${projectId}/pending-updates`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
 export async function approvePendingUpdate(

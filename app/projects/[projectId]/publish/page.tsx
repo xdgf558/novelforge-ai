@@ -21,6 +21,7 @@ import {
   preparePublishRun,
   savePublishTarget,
 } from "@/app/projects/[projectId]/publish/actions";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyExportPanel } from "@/components/copy-export-panel";
 import { readStationCatPublishSettings } from "@/lib/ai/local-config";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
@@ -82,9 +83,14 @@ export default async function PublishPage({ params }: PublishPageProps) {
     buildStandardPublishPackage(exportData),
   );
   const baseFilename = safeFilename(project.title || "novelforge-project");
+  const hasActivePublishPackageTask = project.chapters.some((chapter) =>
+    chapter.aiTasks.some((task) => isActiveAiTaskStatus(task.status)),
+  );
 
   return (
     <div className="space-y-6">
+      <AutoRefresh enabled={hasActivePublishPackageTask} />
+
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
         href={`/projects/${project.id}`}
@@ -569,6 +575,11 @@ export default async function PublishPage({ params }: PublishPageProps) {
                         已有发布包装 {chapter._count.publishPackages} 个 /{" "}
                         {hasFinalText ? "已保存定稿" : "缺少定稿正文"}
                       </p>
+                      {hasActiveTask ? (
+                        <p className="mt-2 rounded-md bg-white px-3 py-2 text-xs leading-5 text-ink-700">
+                          发布包装正在后台生成，页面会自动刷新显示结果。
+                        </p>
+                      ) : null}
                     </div>
 
                     <form

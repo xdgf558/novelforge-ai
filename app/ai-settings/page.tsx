@@ -6,6 +6,7 @@ import {
   Database,
   Globe2,
   KeyRound,
+  PackageCheck,
   Save,
   ServerCog,
   ShieldCheck,
@@ -19,6 +20,7 @@ import {
   readAiConnectionSettings,
   readStationCatPublishSettings,
 } from "@/lib/ai/local-config";
+import { appReleaseNotes, appReleaseTitle, appVersion } from "@/lib/app-version";
 import { publishModeLabel, publishModeOptions } from "@/lib/publish-platforms";
 
 export const dynamic = "force-dynamic";
@@ -101,6 +103,7 @@ export default async function AiSettingsPage({
           label="默认发布模式"
           value={publishModeLabel(stationCatSettings.defaultMode)}
         />
+        <InfoTile icon={PackageCheck} label="当前版本" value={`v${appVersion}`} />
       </section>
 
       <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
@@ -281,6 +284,37 @@ export default async function AiSettingsPage({
               {settings.fileExists ? "已存在" : "尚未创建"}。
               Station Cat 来源：{sourceLabel(stationCatSettings.source)}。
             </p>
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+        id="app-version"
+      >
+        <div className="flex items-start gap-3">
+          <PackageCheck
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5 text-signal-600"
+          />
+          <div>
+            <h2 className="text-base font-semibold text-ink-950">
+              版本与更新
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-ink-700">
+              当前版本：v{appVersion}。{appReleaseTitle}
+            </p>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-ink-700">
+              {appReleaseNotes.map((note) => (
+                <li className="flex gap-2" key={note}>
+                  <CheckCircle2
+                    aria-hidden="true"
+                    className="mt-1 h-4 w-4 shrink-0 text-signal-600"
+                  />
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>

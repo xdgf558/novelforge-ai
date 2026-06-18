@@ -349,7 +349,7 @@ function ChapterBeatAiPanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有节拍生成任务进行中，完成前不会重复发起新的模型调用。
+          当前章节已有节拍生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -491,7 +491,7 @@ function ChapterDraftAiPanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有草稿生成任务进行中，完成前不会重复发起新的模型调用。
+          当前章节已有草稿生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -633,7 +633,7 @@ function ChapterSummaryAiPanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有摘要生成任务进行中，完成前不会重复发起新的模型调用。
+          当前章节已有摘要生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -755,7 +755,7 @@ function ChapterPendingUpdatePanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有待更新提取任务进行中，完成前不会重复发起新的模型调用。
+          当前章节已有待更新提取任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -874,7 +874,7 @@ function ChapterContinuityPanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有连续性检查任务进行中，完成前不会重复发起新的模型调用。
+          当前章节已有连续性检查任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -993,7 +993,7 @@ function ChapterPublishPackagePanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有发布包装任务进行中，完成前不会重复发起新的模型调用。
+          当前章节已有发布包装任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 

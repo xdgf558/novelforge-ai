@@ -19,7 +19,7 @@ import {
 } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
-import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
   chapterFieldNames,
   chapterValuesFromRecord,
@@ -242,7 +242,7 @@ export async function generateChapterBeats(projectId: string, chapterId: string)
   );
   const context = buildChapterBeatContext(contextInput);
 
-  await runLoggedOpenAITextTask(
+  await startLoggedOpenAITextTask(
     {
       projectId,
       chapterId,
@@ -258,9 +258,6 @@ export async function generateChapterBeats(projectId: string, chapterId: string)
         .filter(Boolean)
         .join("\n\n"),
       input: context.inputText,
-    },
-    {
-      rethrow: false,
     },
   );
 
@@ -295,7 +292,7 @@ export async function generateChapterDraft(projectId: string, chapterId: string)
   );
   const context = buildChapterDraftContext(contextInput);
 
-  await runLoggedOpenAITextTask(
+  await startLoggedOpenAITextTask(
     {
       projectId,
       chapterId,
@@ -311,9 +308,6 @@ export async function generateChapterDraft(projectId: string, chapterId: string)
         .filter(Boolean)
         .join("\n\n"),
       input: context.inputText,
-    },
-    {
-      rethrow: false,
     },
   );
 
@@ -348,7 +342,7 @@ export async function generateChapterSummary(projectId: string, chapterId: strin
   );
   const context = buildChapterSummaryContext(contextInput);
 
-  await runLoggedOpenAITextTask(
+  await startLoggedOpenAITextTask(
     {
       projectId,
       chapterId,
@@ -370,9 +364,6 @@ export async function generateChapterSummary(projectId: string, chapterId: strin
         .filter(Boolean)
         .join("\n\n"),
       input: context.inputText,
-    },
-    {
-      rethrow: false,
     },
   );
 
