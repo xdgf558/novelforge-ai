@@ -85,6 +85,9 @@ export async function generatePublishPackage(
         .join("\n\n"),
       input: context.inputText,
     },
+    {
+      rethrow: false,
+    },
   );
 
   const suggestion = parsePublishPackageOutput(task.outputText, {

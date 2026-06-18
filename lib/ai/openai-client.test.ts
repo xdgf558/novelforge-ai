@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  buildOpenAIChatCompletionsPayload,
   buildOpenAIInputMessages,
   buildOpenAIResponsesPayload,
+  createOpenAITextResponse,
   extractOpenAIOutputText,
   extractOpenAIUsage,
   getConfiguredOpenAIBaseUrl,
@@ -78,6 +80,29 @@ describe("OpenAI client helpers", () => {
     });
   });
 
+  it("builds a Chat Completions payload for OpenAI-compatible providers", () => {
+    expect(
+      buildOpenAIChatCompletionsPayload({
+        model: "deepseek-v4-pro",
+        systemPrompt: "系统",
+        developerPrompt: "开发者",
+        input: "生成章节节拍",
+      }),
+    ).toEqual({
+      model: "deepseek-v4-pro",
+      messages: [
+        {
+          role: "system",
+          content: "系统\n\n开发者",
+        },
+        {
+          role: "user",
+          content: "生成章节节拍",
+        },
+      ],
+    });
+  });
+
   it("extracts output text from current and nested response shapes", () => {
     expect(extractOpenAIOutputText({ output_text: "直接文本" })).toBe("直接文本");
     expect(
@@ -98,6 +123,17 @@ describe("OpenAI client helpers", () => {
         ],
       }),
     ).toBe("第一段\n第二段");
+    expect(
+      extractOpenAIOutputText({
+        choices: [
+          {
+            message: {
+              content: "Chat 文本",
+            },
+          },
+        ],
+      }),
+    ).toBe("Chat 文本");
   });
 
   it("extracts token usage when present", () => {
@@ -113,6 +149,91 @@ describe("OpenAI client helpers", () => {
       inputTokens: 10,
       outputTokens: 20,
       totalTokens: 30,
+    });
+    expect(
+      extractOpenAIUsage({
+        usage: {
+          prompt_tokens: 11,
+          completion_tokens: 22,
+          total_tokens: 33,
+        },
+      }),
+    ).toEqual({
+      inputTokens: 11,
+      outputTokens: 22,
+      totalTokens: 33,
+    });
+  });
+
+  it("uses chat completions for custom OpenAI-compatible base URLs", async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: "节拍结果",
+              },
+            },
+          ],
+          usage: {
+            prompt_tokens: 1,
+            completion_tokens: 2,
+            total_tokens: 3,
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    });
+
+    const result = await createOpenAITextResponse(
+      {
+        model: "deepseek-v4-pro",
+        systemPrompt: "系统",
+        developerPrompt: "开发者",
+        input: "生成章节节拍",
+      },
+      {
+        env: {
+          OPENAI_API_KEY: "sk-test",
+          OPENAI_MODEL: "deepseek-v4-pro",
+          OPENAI_BASE_URL: "https://api.deepseek.com",
+        },
+        fetchImpl,
+      },
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.deepseek.com/chat/completions",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    const requestInit = (fetchImpl.mock.calls as unknown as [string, RequestInit][])[0][1];
+
+    expect(JSON.parse(String(requestInit.body))).toEqual({
+      model: "deepseek-v4-pro",
+      messages: [
+        {
+          role: "system",
+          content: "系统\n\n开发者",
+        },
+        {
+          role: "user",
+          content: "生成章节节拍",
+        },
+      ],
+    });
+    expect(result.outputText).toBe("节拍结果");
+    expect(result.usage).toEqual({
+      inputTokens: 1,
+      outputTokens: 2,
+      totalTokens: 3,
     });
   });
 });

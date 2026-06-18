@@ -259,6 +259,9 @@ export async function generateChapterBeats(projectId: string, chapterId: string)
         .join("\n\n"),
       input: context.inputText,
     },
+    {
+      rethrow: false,
+    },
   );
 
   revalidatePath(`/projects/${projectId}`);
@@ -308,6 +311,9 @@ export async function generateChapterDraft(projectId: string, chapterId: string)
         .filter(Boolean)
         .join("\n\n"),
       input: context.inputText,
+    },
+    {
+      rethrow: false,
     },
   );
 
@@ -364,6 +370,9 @@ export async function generateChapterSummary(projectId: string, chapterId: strin
         .filter(Boolean)
         .join("\n\n"),
       input: context.inputText,
+    },
+    {
+      rethrow: false,
     },
   );
 

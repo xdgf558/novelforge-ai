@@ -19,6 +19,11 @@ export type OpenAITextMessage = {
   content: string;
 };
 
+export type OpenAIChatMessage = {
+  role: "system" | "user";
+  content: string;
+};
+
 export type OpenAITextRequest = {
   input: string;
   model?: string;
@@ -94,6 +99,35 @@ export function buildOpenAIInputMessages(request: OpenAITextRequest) {
   }));
 }
 
+export function buildOpenAIChatCompletionsPayload(request: OpenAITextRequest) {
+  return {
+    model: request.model?.trim() || getConfiguredOpenAIModel(),
+    messages: buildOpenAIChatMessages(request),
+  };
+}
+
+export function buildOpenAIChatMessages(request: OpenAITextRequest) {
+  const messages: OpenAIChatMessage[] = [];
+  const systemContent = [request.systemPrompt, request.developerPrompt]
+    .map((content) => content?.trim())
+    .filter(Boolean)
+    .join("\n\n");
+
+  if (systemContent) {
+    messages.push({
+      role: "system",
+      content: systemContent,
+    });
+  }
+
+  messages.push({
+    role: "user",
+    content: request.input,
+  });
+
+  return messages;
+}
+
 export async function createOpenAITextResponse(
   request: OpenAITextRequest,
   options: {
@@ -112,21 +146,29 @@ export async function createOpenAITextResponse(
 
   const baseUrl = getConfiguredOpenAIBaseUrl(env);
   const fetchImpl = options.fetchImpl ?? fetch;
-  const payload = buildOpenAIResponsesPayload({
+  const resolvedRequest = {
     ...request,
     model: request.model ?? getConfiguredOpenAIModel(env),
-  });
+  };
+  const useResponsesApi = shouldUseResponsesApi(baseUrl);
+  const payload = useResponsesApi
+    ? buildOpenAIResponsesPayload(resolvedRequest)
+    : buildOpenAIChatCompletionsPayload(resolvedRequest);
 
-  const response = await fetchImpl(`${baseUrl}/responses`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+  const response = await fetchImpl(
+    `${baseUrl}/${useResponsesApi ? "responses" : "chat/completions"}`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
+  );
 
-  const responseJson = (await response.json()) as unknown;
+  const responseText = await response.text();
+  const responseJson = parseOpenAIResponseBody(responseText, response.status);
 
   if (!response.ok) {
     throw new Error(extractOpenAIErrorMessage(responseJson, response.status));
@@ -146,6 +188,10 @@ export function extractOpenAIOutputText(responseJson: unknown) {
 
   if (typeof responseJson.output_text === "string") {
     return responseJson.output_text;
+  }
+
+  if (typeof responseJson.choices !== "undefined") {
+    return extractChatCompletionOutputText(responseJson.choices);
   }
 
   const output = responseJson.output;
@@ -181,8 +227,12 @@ export function extractOpenAIUsage(responseJson: unknown): OpenAIUsage {
   }
 
   return {
-    inputTokens: readNumber(responseJson.usage.input_tokens),
-    outputTokens: readNumber(responseJson.usage.output_tokens),
+    inputTokens:
+      readNumber(responseJson.usage.input_tokens) ??
+      readNumber(responseJson.usage.prompt_tokens),
+    outputTokens:
+      readNumber(responseJson.usage.output_tokens) ??
+      readNumber(responseJson.usage.completion_tokens),
     totalTokens: readNumber(responseJson.usage.total_tokens),
   };
 }
@@ -196,7 +246,63 @@ function extractOpenAIErrorMessage(responseJson: unknown, status: number) {
     return responseJson.error.message;
   }
 
+  if (isRecord(responseJson) && typeof responseJson.message === "string") {
+    return responseJson.message;
+  }
+
   return `OpenAI request failed with status ${status}.`;
+}
+
+function extractChatCompletionOutputText(choices: unknown) {
+  if (!Array.isArray(choices)) {
+    return "";
+  }
+
+  return choices
+    .map((choice) => {
+      if (!isRecord(choice)) {
+        return "";
+      }
+
+      if (
+        isRecord(choice.message) &&
+        typeof choice.message.content === "string"
+      ) {
+        return choice.message.content;
+      }
+
+      if (isRecord(choice.delta) && typeof choice.delta.content === "string") {
+        return choice.delta.content;
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function parseOpenAIResponseBody(responseText: string, status: number) {
+  if (!responseText.trim()) {
+    return {
+      error: {
+        message: `OpenAI-compatible request failed with status ${status} and an empty response body.`,
+      },
+    };
+  }
+
+  try {
+    return JSON.parse(responseText) as unknown;
+  } catch {
+    return {
+      error: {
+        message: `OpenAI-compatible request failed with status ${status} and a non-JSON response body: ${responseText.slice(0, 200)}`,
+      },
+    };
+  }
+}
+
+function shouldUseResponsesApi(baseUrl: string) {
+  return baseUrl === DEFAULT_OPENAI_BASE_URL;
 }
 
 function assertServerOnly() {

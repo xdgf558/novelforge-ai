@@ -95,6 +95,9 @@ export async function markAiTaskFailed(taskId: string, error: unknown) {
 export async function runLoggedOpenAITextTask(
   taskInput: CreateAiTaskInput,
   request: OpenAITextRequest,
+  options: {
+    rethrow?: boolean;
+  } = {},
 ) {
   const task = await createAiTask(taskInput);
   await markAiTaskRunning(task.id);
@@ -113,7 +116,12 @@ export async function runLoggedOpenAITextTask(
       tokenTotal: result.usage.totalTokens,
     });
   } catch (error) {
-    await markAiTaskFailed(task.id, error);
+    const failedTask = await markAiTaskFailed(task.id, error);
+
+    if (options.rethrow === false) {
+      return failedTask;
+    }
+
     throw error;
   }
 }

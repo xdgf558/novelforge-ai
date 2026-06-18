@@ -97,6 +97,9 @@ export async function generatePendingUpdates(projectId: string, chapterId: strin
         .join("\n\n"),
       input: context.inputText,
     },
+    {
+      rethrow: false,
+    },
   );
 
   const suggestions = parsePendingUpdateSuggestions(task.outputText);

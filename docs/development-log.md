@@ -1,5 +1,42 @@
 # Development Log
 
+## 2026-06-18: 0.1.2 AI Provider Crash Hotfix
+
+Status: completed.
+
+Problem:
+
+- The installed desktop app showed a Next.js production application error after generating chapter beats with a custom DeepSeek-compatible AI configuration.
+- The failed AI task recorded `Unexpected end of JSON input`, which pointed to an empty or non-JSON provider response being parsed through the old Responses API path.
+
+What was done:
+
+- Updated the server-only AI client so the official OpenAI base URL continues to use `/responses`, while custom OpenAI-compatible base URLs use `/chat/completions`.
+- Added Chat Completions response parsing for `choices[].message.content` and token usage fields such as `prompt_tokens` / `completion_tokens`.
+- Changed AI task logging so selected user-triggered generation actions can record failed tasks without rethrowing into a full-page production error.
+- Applied the non-crashing AI failure behavior to chapter beats, chapter draft, chapter summary, pending updates, continuity reports, and publish package generation.
+- Added regression tests for custom OpenAI-compatible provider requests and Chat Completions output/usage parsing.
+- Bumped the app version to `0.1.2` for the replacement macOS installer.
+
+Verification:
+
+- `npm run test -- lib/ai/openai-client.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app and the expanded PKG payload app.
+- `pkgutil --expand-full` confirmed the PKG payload has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.2"`.
+- Packaged runtime still uses `runDesktopMigrations` and does not contain the old Prisma CLI `migrate deploy` startup path.
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.2-mac-arm64.pkg`.
+- SHA-256: `191aaebe5287c838598cbd969920ef9095dc5237afc3ef4156dbbac30bf297b7`.
+
+Packaging note:
+
+- As with the previous formal PKG build, the app payload is Developer ID Application signed, but the PKG itself reports `Status: no signature` because the local keychain still does not contain a Developer ID Installer certificate.
+
 ## 2026-06-16: Phase 0 Memory Baseline
 
 Status: completed.

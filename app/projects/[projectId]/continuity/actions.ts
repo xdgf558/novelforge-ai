@@ -72,6 +72,9 @@ export async function generateContinuityReport(
         .join("\n\n"),
       input: context.inputText,
     },
+    {
+      rethrow: false,
+    },
   );
 
   const issues = parseContinuityIssues(task.outputText);
