@@ -1193,3 +1193,30 @@ Notes:
 
 - Continue handing off the single DMG only for personal macOS use.
 - Do not leave `release/desktop/mac-arm64/`, ZIP, blockmaps, `latest-mac.yml`, or `builder-debug.yml` in the user-facing delivery folder unless explicitly requested.
+
+## 2026-06-18: Formal macOS PKG Installer Correction
+
+Status: completed.
+
+Correction:
+
+- A DMG is not the formal installer shape the user expects because the app inside it can still be launched directly.
+- Formal personal-use handoff should be a `.pkg` installer that installs `NovelForge AI.app` into `/Applications`.
+
+What was done:
+
+- Kept app version at `0.1.1`.
+- Built a macOS PKG installer named `NovelForge-AI-0.1.1-mac-arm64.pkg`.
+- Set the installer payload to install `NovelForge AI.app` into `/Applications`.
+- Removed the DMG from the final user-facing delivery directory so the user does not confuse drag-and-drop distribution with the formal installer.
+- Confirmed the current keychain does not include a `Developer ID Installer` identity, so the PKG itself is unsigned; the bundled `NovelForge AI.app` payload remains Developer ID Application signed.
+
+Verification:
+
+- `pkgutil --check-signature` reports `Status: no signature`, matching the missing Installer certificate.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.1"`.
+- Expanded payload contains `NovelForge AI.app`.
+- Expanded app `codesign --verify --deep --strict --verbose=2` passed.
+- Expanded app `CFBundleShortVersionString` and `CFBundleVersion` are `0.1.1`.
+- Packaged `package.json` is `0.1.1`.
+- Packaged startup code still uses `runDesktopMigrations`, reads bundled `migration.sql`, and does not contain Prisma CLI `migrate deploy` startup code.
