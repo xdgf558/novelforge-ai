@@ -1114,3 +1114,42 @@ Notes:
 
 - Keep desktop runtime writes inside the user data directory. Never write to `process.resourcesPath`, `app.asar`, or `app.asar.unpacked` at runtime.
 - The current DMG is still not notarized, by user preference for personal local use.
+
+## 2026-06-18: Global Station Cat Publish Settings
+
+Status: completed.
+
+Scope:
+
+- Make Station Cat website API settings global instead of requiring every project to configure a publish target first.
+
+What was done:
+
+- Extended the local desktop `.env` config to support:
+  - `STATION_CAT_API_BASE_URL`,
+  - `STATION_CAT_PUBLISH_TOKEN`,
+  - `STATION_CAT_DEFAULT_MODE`.
+- Updated desktop runtime config parsing and `.env.example` generation so packaged macOS builds load the Station Cat global settings into the server process.
+- Expanded `/ai-settings` into a general local integration settings page:
+  - AI API Key / model / base URL,
+  - Station Cat API Base URL,
+  - Station Cat Publish Token,
+  - default draft/direct publish mode.
+- Kept Station Cat Publish Token server-only and masked in UI.
+- Added a global Station Cat card to `/projects/[projectId]/publish`.
+  - Users can publish with global settings without manually adding a per-project target.
+  - On first use, the action creates or updates an internal `Station Cat 全局配置` publish target for that project, preserving existing `PublishRun` and `PublishSyncState` tracking for incremental uploads and remote IDs.
+- Left project-specific publish targets available for future cases where a project needs a custom destination.
+
+Verification:
+
+- `npm run test -- lib/ai/local-config.test.ts lib/station-cat-publisher.test.ts lib/publish-platforms.test.ts` passed, 3 files and 20 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 21 files and 92 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+
+Notes:
+
+- Current installed macOS app must be rebuilt before this new global settings UI appears there.
+- Global Station Cat settings do not change the website contract: requests still use `POST /api/novelforge/import` with `Authorization: Bearer <token>`.

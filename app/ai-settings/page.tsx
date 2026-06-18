@@ -3,18 +3,28 @@ import {
   ArrowLeft,
   Bot,
   Database,
+  Globe2,
   KeyRound,
   Save,
   ServerCog,
   ShieldCheck,
+  UploadCloud,
 } from "lucide-react";
-import { saveAiConnectionSettingsAction } from "@/app/ai-settings/actions";
-import { readAiConnectionSettings } from "@/lib/ai/local-config";
+import {
+  saveAiConnectionSettingsAction,
+  saveStationCatPublishSettingsAction,
+} from "@/app/ai-settings/actions";
+import {
+  readAiConnectionSettings,
+  readStationCatPublishSettings,
+} from "@/lib/ai/local-config";
+import { publishModeLabel, publishModeOptions } from "@/lib/publish-platforms";
 
 export const dynamic = "force-dynamic";
 
 export default function AiSettingsPage() {
   const settings = readAiConnectionSettings();
+  const stationCatSettings = readStationCatPublishSettings();
 
   return (
     <div className="space-y-6">
@@ -29,10 +39,10 @@ export default function AiSettingsPage() {
           </Link>
           <p className="text-sm font-semibold text-signal-600">本机配置</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-normal text-ink-950">
-            AI 接入设置
+            本机接入设置
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-            配置本机模型调用参数。API Key 只保存在本机配置文件中，AI 调用仍由服务端执行。
+            配置本机模型调用和个人网站发布参数。密钥只保存在本机配置文件中，模型调用和网站发布都由服务端执行。
           </p>
         </div>
       </div>
@@ -40,7 +50,7 @@ export default function AiSettingsPage() {
       <section className="grid gap-4 md:grid-cols-3">
         <InfoTile
           icon={KeyRound}
-          label="API Key"
+          label="AI API Key"
           value={settings.hasApiKey ? settings.maskedApiKey : "未配置"}
         />
         <InfoTile icon={Bot} label="模型" value={settings.model} />
@@ -48,6 +58,21 @@ export default function AiSettingsPage() {
           icon={ServerCog}
           label="接口地址"
           value={settings.baseUrl}
+        />
+        <InfoTile
+          icon={Globe2}
+          label="Station Cat"
+          value={stationCatSettings.apiBaseUrl}
+        />
+        <InfoTile
+          icon={UploadCloud}
+          label="发布 Token"
+          value={stationCatSettings.hasToken ? stationCatSettings.maskedToken : "未配置"}
+        />
+        <InfoTile
+          icon={ShieldCheck}
+          label="默认发布模式"
+          value={publishModeLabel(stationCatSettings.defaultMode)}
         />
       </section>
 
@@ -130,6 +155,96 @@ export default function AiSettingsPage() {
       </section>
 
       <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <div className="mb-5 flex items-center gap-2 text-base font-semibold text-ink-950">
+          <Globe2 aria-hidden="true" className="h-5 w-5 text-signal-600" />
+          个人网站发布参数
+        </div>
+
+        <form action={saveStationCatPublishSettingsAction} className="space-y-5">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink-800">
+                Station Cat API Base URL
+              </span>
+              <input
+                className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+                defaultValue={stationCatSettings.apiBaseUrl}
+                name="stationCatApiBaseUrl"
+                placeholder="https://wwwstationcat.org"
+                type="url"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink-800">
+                默认发布模式
+              </span>
+              <select
+                className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+                defaultValue={stationCatSettings.defaultMode}
+                name="stationCatDefaultMode"
+              >
+                {publishModeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-ink-800">
+              Station Cat Publish Token
+            </span>
+            <input
+              autoComplete="off"
+              className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+              name="stationCatToken"
+              placeholder={
+                stationCatSettings.hasToken
+                  ? "留空则保留当前 Token"
+                  : "输入与网站端 NOVELFORGE_PUBLISH_TOKEN 一致的 Token"
+              }
+              type="password"
+            />
+          </label>
+
+          <label className="flex items-start gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4 text-sm text-ink-700">
+            <input
+              className="mt-1 h-4 w-4 rounded border-ink-950/20 text-signal-600"
+              name="clearStationCatToken"
+              type="checkbox"
+            />
+            <span>
+              <span className="block font-semibold text-ink-950">
+                清除已保存的 Station Cat Publish Token
+              </span>
+              <span className="mt-1 block leading-6">
+                勾选后保存会移除本机配置文件中的发布 Token，API Base URL 和默认模式仍会保存。
+              </span>
+            </span>
+          </label>
+
+          <div className="flex flex-col gap-3 border-t border-ink-950/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm leading-6 text-ink-700">
+              <span className="font-semibold text-ink-950">网站接口：</span>
+              <span className="break-all">
+                {stationCatSettings.apiBaseUrl}/api/novelforge/import
+              </span>
+            </div>
+            <button
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+              type="submit"
+            >
+              <Save aria-hidden="true" className="h-4 w-4" />
+              保存网站发布设置
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
         <div className="flex items-start gap-3">
           <Database aria-hidden="true" className="mt-0.5 h-5 w-5 text-signal-600" />
           <div>
@@ -137,6 +252,7 @@ export default function AiSettingsPage() {
             <p className="mt-2 text-sm leading-6 text-ink-700">
               当前来源：{sourceLabel(settings.source)}；配置文件
               {settings.fileExists ? "已存在" : "尚未创建"}。
+              Station Cat 来源：{sourceLabel(stationCatSettings.source)}。
             </p>
           </div>
         </div>

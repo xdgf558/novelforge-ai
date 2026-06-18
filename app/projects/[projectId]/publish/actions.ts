@@ -11,6 +11,7 @@ import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { runLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { readStationCatPublishSecrets } from "@/lib/ai/local-config";
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import {
   buildPublishSyncItems,
@@ -21,6 +22,7 @@ import {
   publishPlatformOptions,
   stringifyStandardPublishPackage,
   type PublishChangedItem,
+  type PublishMode,
 } from "@/lib/publish-platforms";
 import { prisma } from "@/lib/prisma";
 import {
@@ -231,28 +233,77 @@ export async function preparePublishRun(
   const mode = normalizePublishMode(formData.get("publishMode")?.toString());
   const onlyChanged = formData.get("onlyChanged") === "on";
   const [project, target] = await Promise.all([
-    prisma.project.findUnique({
-      where: {
-        id: projectId,
-      },
-      include: projectPublishInclude,
-    }),
-    prisma.publishTarget.findFirst({
-      where: {
-        id: targetId,
-        projectId,
-        status: "active",
-      },
-      include: {
-        syncStates: true,
-      },
-    }),
+    loadProjectForPublishRun(projectId),
+    loadPublishTargetForRun(projectId, targetId),
   ]);
 
   if (!project || !target) {
     notFound();
   }
 
+  await createPublishRun({
+    projectId,
+    project,
+    target,
+    mode,
+    onlyChanged,
+  });
+
+  revalidatePublishPaths(projectId);
+  redirect(`/projects/${projectId}/publish`);
+}
+
+export async function prepareGlobalStationCatPublishRun(
+  projectId: string,
+  formData: FormData,
+) {
+  const stationCatSettings = readStationCatPublishSecrets();
+  const mode = normalizePublishMode(
+    formData.get("publishMode")?.toString() || stationCatSettings.defaultMode,
+  );
+  const onlyChanged = formData.get("onlyChanged") === "on";
+  const project = await loadProjectForPublishRun(projectId);
+
+  if (!project) {
+    notFound();
+  }
+
+  const targetId = await ensureGlobalStationCatTarget(projectId, {
+    apiBaseUrl: stationCatSettings.apiBaseUrl,
+    token: stationCatSettings.token,
+    defaultMode: mode,
+  });
+  const target = await loadPublishTargetForRun(projectId, targetId);
+
+  if (!target) {
+    notFound();
+  }
+
+  await createPublishRun({
+    projectId,
+    project,
+    target,
+    mode,
+    onlyChanged,
+  });
+
+  revalidatePublishPaths(projectId);
+  redirect(`/projects/${projectId}/publish`);
+}
+
+async function createPublishRun({
+  projectId,
+  project,
+  target,
+  mode,
+  onlyChanged,
+}: {
+  projectId: string;
+  project: NonNullable<Awaited<ReturnType<typeof loadProjectForPublishRun>>>;
+  target: NonNullable<Awaited<ReturnType<typeof loadPublishTargetForRun>>>;
+  mode: PublishMode;
+  onlyChanged: boolean;
+}) {
   const standardPackage = buildStandardPublishPackage(buildExportData(project));
   const syncItems = buildPublishSyncItems(standardPackage);
   const changedItems = onlyChanged
@@ -360,9 +411,83 @@ export async function preparePublishRun(
       });
     }
   });
+}
 
-  revalidatePublishPaths(projectId);
-  redirect(`/projects/${projectId}/publish`);
+async function loadProjectForPublishRun(projectId: string) {
+  return prisma.project.findUnique({
+    where: {
+      id: projectId,
+    },
+    include: projectPublishInclude,
+  });
+}
+
+async function loadPublishTargetForRun(projectId: string, targetId: string) {
+  return prisma.publishTarget.findFirst({
+    where: {
+      id: targetId,
+      projectId,
+      status: "active",
+    },
+    include: {
+      syncStates: true,
+    },
+  });
+}
+
+async function ensureGlobalStationCatTarget(
+  projectId: string,
+  settings: {
+    apiBaseUrl: string;
+    token: string;
+    defaultMode: PublishMode;
+  },
+) {
+  const existingTarget = await prisma.publishTarget.findFirst({
+    where: {
+      projectId,
+      platformKey: "station_cat",
+      name: "Station Cat 全局配置",
+      status: "active",
+    },
+    select: {
+      id: true,
+    },
+  });
+  const data = {
+    name: "Station Cat 全局配置",
+    platformKey: "station_cat",
+    apiBaseUrl: settings.apiBaseUrl,
+    defaultMode: normalizePublishMode(settings.defaultMode),
+    tokenSecret: settings.token || null,
+    tokenUpdatedAt: new Date(),
+  };
+
+  if (existingTarget) {
+    const target = await prisma.publishTarget.update({
+      where: {
+        id: existingTarget.id,
+      },
+      data,
+      select: {
+        id: true,
+      },
+    });
+
+    return target.id;
+  }
+
+  const target = await prisma.publishTarget.create({
+    data: {
+      projectId,
+      ...data,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return target.id;
 }
 
 async function runStationCatPublishAttempt({
@@ -377,7 +502,7 @@ async function runStationCatPublishAttempt({
   apiBaseUrl?: string | null;
   token?: string | null;
   request: Parameters<typeof publishToStationCat>[0]["request"];
-  mode: string;
+  mode: PublishMode;
   onlyChanged: boolean;
   changedCount: number;
   endpoint: string | null;

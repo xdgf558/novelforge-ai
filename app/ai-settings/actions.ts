@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { saveAiConnectionSettings } from "@/lib/ai/local-config";
+import {
+  saveAiConnectionSettings,
+  saveStationCatPublishSettings,
+} from "@/lib/ai/local-config";
 
 export async function saveAiConnectionSettingsAction(formData: FormData) {
   saveAiConnectionSettings({
@@ -10,6 +13,19 @@ export async function saveAiConnectionSettingsAction(formData: FormData) {
     clearApiKey: formData.get("clearApiKey") === "on",
     model: formData.get("model")?.toString(),
     baseUrl: formData.get("baseUrl")?.toString(),
+  });
+
+  revalidatePath("/ai-settings");
+  revalidatePath("/");
+  redirect("/ai-settings");
+}
+
+export async function saveStationCatPublishSettingsAction(formData: FormData) {
+  saveStationCatPublishSettings({
+    apiBaseUrl: formData.get("stationCatApiBaseUrl")?.toString(),
+    token: formData.get("stationCatToken")?.toString(),
+    clearToken: formData.get("clearStationCatToken") === "on",
+    defaultMode: formData.get("stationCatDefaultMode")?.toString(),
   });
 
   revalidatePath("/ai-settings");

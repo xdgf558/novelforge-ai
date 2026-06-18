@@ -2,7 +2,14 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const desktopEnvKeys = new Set(["OPENAI_API_KEY", "OPENAI_MODEL", "OPENAI_BASE_URL"]);
+const desktopEnvKeys = new Set([
+  "OPENAI_API_KEY",
+  "OPENAI_MODEL",
+  "OPENAI_BASE_URL",
+  "STATION_CAT_API_BASE_URL",
+  "STATION_CAT_PUBLISH_TOKEN",
+  "STATION_CAT_DEFAULT_MODE",
+]);
 
 function toPrismaSqliteUrl(filePath) {
   const normalizedPath = path.resolve(filePath).replace(/\\/g, "/");
@@ -65,6 +72,9 @@ function ensureDesktopEnvExample(dataRoot) {
         "OPENAI_API_KEY=your_api_key_here",
         "OPENAI_MODEL=gpt-4.1-mini",
         "OPENAI_BASE_URL=https://api.openai.com/v1",
+        "STATION_CAT_API_BASE_URL=https://wwwstationcat.org",
+        "STATION_CAT_PUBLISH_TOKEN=your_station_cat_publish_token_here",
+        "STATION_CAT_DEFAULT_MODE=draft",
         "",
       ].join("\n"),
     );

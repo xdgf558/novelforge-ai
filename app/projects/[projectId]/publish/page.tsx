@@ -17,10 +17,12 @@ import {
 import {
   generatePublishPackage,
   markPublishPackageExported,
+  prepareGlobalStationCatPublishRun,
   preparePublishRun,
   savePublishTarget,
 } from "@/app/projects/[projectId]/publish/actions";
 import { CopyExportPanel } from "@/components/copy-export-panel";
+import { readStationCatPublishSettings } from "@/lib/ai/local-config";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { isActiveAiTaskStatus } from "@/lib/ai/status";
@@ -69,6 +71,10 @@ export default async function PublishPage({ params }: PublishPageProps) {
   }
 
   const hasApiKey = hasConfiguredOpenAIKey();
+  const stationCatSettings = readStationCatPublishSettings();
+  const canUseGlobalStationCat = Boolean(
+    stationCatSettings.apiBaseUrl && stationCatSettings.hasToken,
+  );
   const exportData = buildExportData(project);
   const markdownExport = buildProjectMarkdownExport(exportData);
   const jsonExport = buildProjectJsonExport(exportData);
@@ -134,6 +140,82 @@ export default async function PublishPage({ params }: PublishPageProps) {
             软件端会保存目标站点、Station Cat Publish Token、默认发布模式，并在 API URL 和 Token 齐全时调用网站导入接口，同时保存预览链接、发布链接和远端 ID。
           </p>
         </div>
+
+        <article className="rounded-lg border border-signal-600/20 bg-paper-50 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                <span className="rounded-md bg-white px-2.5 py-1">
+                  全局 Station Cat 配置
+                </span>
+                <span>{publishModeLabel(stationCatSettings.defaultMode)}</span>
+                <span>
+                  Token：
+                  {stationCatSettings.hasToken
+                    ? stationCatSettings.maskedToken
+                    : "未配置"}
+                </span>
+              </div>
+              <h3 className="mt-2 text-lg font-semibold text-ink-950">
+                使用全局网站 API 发布
+              </h3>
+              <p className="mt-1 break-all text-sm text-ink-700">
+                {stationCatSettings.apiBaseUrl}/api/novelforge/import
+              </p>
+              <p className="mt-2 text-sm leading-6 text-ink-700">
+                全局配置保存在本机设置中，所有项目共用同一套 API Base URL 和
+                Station Cat Publish Token。第一次使用时，本项目会自动建立一个内部发布目标来记录增量同步状态。
+              </p>
+            </div>
+            <Link
+              className="inline-flex min-h-10 items-center justify-center rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+              href="/ai-settings"
+            >
+              修改全局设置
+            </Link>
+          </div>
+
+          <form
+            action={prepareGlobalStationCatPublishRun.bind(null, project.id)}
+            className="mt-4 flex flex-col gap-3 rounded-lg border border-ink-950/10 bg-white p-4 sm:flex-row sm:items-end"
+          >
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-ink-700">本次模式</span>
+              <select
+                className="min-h-10 min-w-40 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                defaultValue={stationCatSettings.defaultMode}
+                name="publishMode"
+              >
+                {publishModeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-h-10 items-center gap-2 rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm text-ink-700">
+              <input defaultChecked name="onlyChanged" type="checkbox" />
+              仅上传变更
+            </label>
+            <button
+              className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
+                canUseGlobalStationCat
+                  ? "bg-ink-950 text-white hover:bg-ink-800"
+                  : "cursor-not-allowed border border-ink-950/15 bg-paper-50 text-ink-700"
+              }`}
+              disabled={!canUseGlobalStationCat}
+              type="submit"
+            >
+              <UploadCloud aria-hidden="true" className="h-4 w-4" />
+              使用全局配置发送到 Station Cat
+            </button>
+            {!canUseGlobalStationCat ? (
+              <p className="text-sm leading-6 text-ink-700 sm:basis-full">
+                需要先在本机设置中保存 Station Cat Publish Token，才能调用网站导入接口。
+              </p>
+            ) : null}
+          </form>
+        </article>
 
         <form
           action={savePublishTarget.bind(null, project.id)}

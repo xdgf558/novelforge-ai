@@ -120,6 +120,9 @@ async function main() {
         "OPENAI_API_KEY=\"sk-test\"",
         "OPENAI_MODEL=gpt-4.1-mini",
         "OPENAI_BASE_URL=https://api.deepseek.example/v1",
+        "STATION_CAT_API_BASE_URL=https://wwwstationcat.org",
+        "STATION_CAT_PUBLISH_TOKEN=publish-token",
+        "STATION_CAT_DEFAULT_MODE=draft",
         "DATABASE_URL=file:ignored.db",
         "",
       ].join("\n"),
@@ -128,6 +131,9 @@ async function main() {
       OPENAI_API_KEY: "sk-test",
       OPENAI_MODEL: "gpt-4.1-mini",
       OPENAI_BASE_URL: "https://api.deepseek.example/v1",
+      STATION_CAT_API_BASE_URL: "https://wwwstationcat.org",
+      STATION_CAT_PUBLISH_TOKEN: "publish-token",
+      STATION_CAT_DEFAULT_MODE: "draft",
     },
   );
 

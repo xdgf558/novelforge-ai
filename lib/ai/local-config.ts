@@ -1,12 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { normalizePublishMode, type PublishMode } from "../publish-platforms";
 
 export type AiRuntimeEnv = {
   [key: string]: string | undefined;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   OPENAI_BASE_URL?: string;
+  STATION_CAT_API_BASE_URL?: string;
+  STATION_CAT_PUBLISH_TOKEN?: string;
+  STATION_CAT_DEFAULT_MODE?: string;
   NOVELFORGE_AI_CONFIG_PATH?: string;
   NOVELFORGE_DESKTOP_DATA_DIR?: string;
 };
@@ -28,20 +32,57 @@ export type SaveAiConnectionSettingsInput = {
   baseUrl?: string | null;
 };
 
+export type StationCatPublishSettings = {
+  configPath: string;
+  fileExists: boolean;
+  hasToken: boolean;
+  maskedToken: string;
+  apiBaseUrl: string;
+  defaultMode: PublishMode;
+  source: "file" | "environment" | "default";
+};
+
+export type StationCatPublishSecrets = {
+  apiBaseUrl: string;
+  token: string;
+  defaultMode: PublishMode;
+};
+
+export type SaveStationCatPublishSettingsInput = {
+  apiBaseUrl?: string | null;
+  token?: string | null;
+  clearToken?: boolean;
+  defaultMode?: string | null;
+};
+
 type AiConfigKey = (typeof aiConfigKeys)[number];
+type StationCatConfigKey = (typeof stationCatConfigKeys)[number];
+type LocalConfigKey = AiConfigKey | StationCatConfigKey;
 
 export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+export const DEFAULT_STATION_CAT_API_BASE_URL = "https://wwwstationcat.org";
+export const DEFAULT_STATION_CAT_DEFAULT_MODE: PublishMode = "draft";
 export const aiConfigKeys = [
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
   "OPENAI_BASE_URL",
 ] as const;
+export const stationCatConfigKeys = [
+  "STATION_CAT_API_BASE_URL",
+  "STATION_CAT_PUBLISH_TOKEN",
+  "STATION_CAT_DEFAULT_MODE",
+] as const;
 
 const aiConfigKeySet = new Set<string>(aiConfigKeys);
+const stationCatConfigKeySet = new Set<string>(stationCatConfigKeys);
+const localConfigKeySet = new Set<string>([
+  ...aiConfigKeys,
+  ...stationCatConfigKeys,
+]);
 
 export function getAiRuntimeEnv(env: AiRuntimeEnv = process.env) {
-  const fileEnv = readAiConfigFile(getAiConfigPath(env));
+  const fileEnv = readLocalConfigFile(getAiConfigPath(env));
 
   return {
     ...env,
@@ -53,7 +94,7 @@ export function readAiConnectionSettings(
   env: AiRuntimeEnv = process.env,
 ): AiConnectionSettings {
   const configPath = getAiConfigPath(env);
-  const fileEnv = readAiConfigFile(configPath);
+  const fileEnv = readLocalConfigFile(configPath);
   const runtimeEnv = {
     ...env,
     ...compactAiEnv(fileEnv),
@@ -78,7 +119,7 @@ export function saveAiConnectionSettings(
   env: AiRuntimeEnv = process.env,
 ) {
   const configPath = getAiConfigPath(env);
-  const currentFileEnv = readAiConfigFile(configPath);
+  const currentFileEnv = readLocalConfigFile(configPath);
   const apiKeyInput = input.apiKey?.trim() ?? "";
   const currentFileApiKey = currentFileEnv.OPENAI_API_KEY?.trim() ?? "";
   const nextApiKey = input.clearApiKey
@@ -90,13 +131,83 @@ export function saveAiConnectionSettings(
     OPENAI_BASE_URL: normalizeAiBaseUrl(input.baseUrl),
   };
 
-  writeAiConfigFile(configPath, nextEnv);
+  writeLocalConfigFile(configPath, nextEnv, aiConfigKeys);
 
   process.env.OPENAI_API_KEY = nextApiKey || "";
   process.env.OPENAI_MODEL = nextEnv.OPENAI_MODEL;
   process.env.OPENAI_BASE_URL = nextEnv.OPENAI_BASE_URL;
 
   return readAiConnectionSettings(env);
+}
+
+export function readStationCatPublishSettings(
+  env: AiRuntimeEnv = process.env,
+): StationCatPublishSettings {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactStationCatEnv(fileEnv),
+  };
+  const token = runtimeEnv.STATION_CAT_PUBLISH_TOKEN?.trim() ?? "";
+
+  return {
+    configPath,
+    fileExists: fs.existsSync(configPath),
+    hasToken: Boolean(token),
+    maskedToken: maskSecret(token),
+    apiBaseUrl: normalizeStationCatApiBaseUrl(runtimeEnv.STATION_CAT_API_BASE_URL),
+    defaultMode: normalizePublishMode(
+      runtimeEnv.STATION_CAT_DEFAULT_MODE || DEFAULT_STATION_CAT_DEFAULT_MODE,
+    ),
+    source: detectStationCatConfigSource(fileEnv, env),
+  };
+}
+
+export function readStationCatPublishSecrets(
+  env: AiRuntimeEnv = process.env,
+): StationCatPublishSecrets {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactStationCatEnv(fileEnv),
+  };
+
+  return {
+    apiBaseUrl: normalizeStationCatApiBaseUrl(runtimeEnv.STATION_CAT_API_BASE_URL),
+    token: runtimeEnv.STATION_CAT_PUBLISH_TOKEN?.trim() ?? "",
+    defaultMode: normalizePublishMode(
+      runtimeEnv.STATION_CAT_DEFAULT_MODE || DEFAULT_STATION_CAT_DEFAULT_MODE,
+    ),
+  };
+}
+
+export function saveStationCatPublishSettings(
+  input: SaveStationCatPublishSettingsInput,
+  env: AiRuntimeEnv = process.env,
+) {
+  const configPath = getAiConfigPath(env);
+  const currentFileEnv = readLocalConfigFile(configPath);
+  const tokenInput = input.token?.trim() ?? "";
+  const currentToken =
+    currentFileEnv.STATION_CAT_PUBLISH_TOKEN?.trim() ||
+    env.STATION_CAT_PUBLISH_TOKEN?.trim() ||
+    "";
+  const nextToken = input.clearToken ? "" : tokenInput || currentToken;
+  const nextEnv: Partial<Record<StationCatConfigKey, string>> = {
+    STATION_CAT_API_BASE_URL: normalizeStationCatApiBaseUrl(input.apiBaseUrl),
+    STATION_CAT_PUBLISH_TOKEN: nextToken,
+    STATION_CAT_DEFAULT_MODE: normalizePublishMode(input.defaultMode),
+  };
+
+  writeLocalConfigFile(configPath, nextEnv, stationCatConfigKeys);
+
+  process.env.STATION_CAT_API_BASE_URL = nextEnv.STATION_CAT_API_BASE_URL;
+  process.env.STATION_CAT_PUBLISH_TOKEN = nextToken || "";
+  process.env.STATION_CAT_DEFAULT_MODE = nextEnv.STATION_CAT_DEFAULT_MODE;
+
+  return readStationCatPublishSettings(env);
 }
 
 export function getAiConfigPath(env: AiRuntimeEnv = process.env) {
@@ -122,7 +233,33 @@ export function getAiConfigPath(env: AiRuntimeEnv = process.env) {
 }
 
 export function parseAiEnv(content: string) {
+  const localEnv = parseLocalConfigEnv(content);
   const env: Partial<Record<AiConfigKey, string>> = {};
+
+  for (const key of aiConfigKeys) {
+    if (localEnv[key] !== undefined) {
+      env[key] = localEnv[key];
+    }
+  }
+
+  return env;
+}
+
+export function parseStationCatEnv(content: string) {
+  const localEnv = parseLocalConfigEnv(content);
+  const env: Partial<Record<StationCatConfigKey, string>> = {};
+
+  for (const key of stationCatConfigKeys) {
+    if (localEnv[key] !== undefined) {
+      env[key] = localEnv[key];
+    }
+  }
+
+  return env;
+}
+
+function parseLocalConfigEnv(content: string) {
+  const env: Partial<Record<LocalConfigKey, string>> = {};
 
   for (const line of content.split(/\r?\n/)) {
     const trimmedLine = line.trim();
@@ -139,12 +276,12 @@ export function parseAiEnv(content: string) {
 
     const key = trimmedLine.slice(0, separatorIndex).trim();
 
-    if (!aiConfigKeySet.has(key)) {
+    if (!localConfigKeySet.has(key)) {
       continue;
     }
 
     const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-    env[key as AiConfigKey] = unwrapEnvValue(rawValue);
+    env[key as LocalConfigKey] = unwrapEnvValue(rawValue);
   }
 
   return env;
@@ -164,7 +301,24 @@ export function normalizeAiBaseUrl(baseUrl?: string | null) {
   return normalized;
 }
 
+export function normalizeStationCatApiBaseUrl(apiBaseUrl?: string | null) {
+  const normalized = (apiBaseUrl?.trim() || DEFAULT_STATION_CAT_API_BASE_URL).replace(
+    /\/+$/,
+    "",
+  );
+
+  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
+    throw new Error("Station Cat API Base URL 必须是 http 或 https URL。");
+  }
+
+  return normalized;
+}
+
 export function maskApiKey(apiKey?: string | null) {
+  return maskSecret(apiKey);
+}
+
+function maskSecret(apiKey?: string | null) {
   const cleanKey = apiKey?.trim() ?? "";
 
   if (!cleanKey) {
@@ -178,17 +332,18 @@ export function maskApiKey(apiKey?: string | null) {
   return `${cleanKey.slice(0, 6)}...${cleanKey.slice(-4)}`;
 }
 
-function readAiConfigFile(configPath: string) {
+function readLocalConfigFile(configPath: string) {
   if (!fs.existsSync(configPath)) {
     return {};
   }
 
-  return parseAiEnv(fs.readFileSync(configPath, "utf8"));
+  return parseLocalConfigEnv(fs.readFileSync(configPath, "utf8"));
 }
 
-function writeAiConfigFile(
+function writeLocalConfigFile(
   configPath: string,
-  nextEnv: Partial<Record<AiConfigKey, string>>,
+  nextEnv: Partial<Record<LocalConfigKey, string>>,
+  keysToEnsure: readonly LocalConfigKey[],
 ) {
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
 
@@ -207,15 +362,15 @@ function writeAiConfigFile(
 
       const key = line.slice(0, separatorIndex).trim();
 
-      if (!aiConfigKeySet.has(key)) {
+      if (!Object.prototype.hasOwnProperty.call(nextEnv, key)) {
         return line;
       }
 
       seenKeys.add(key);
-      return `${key}=${formatEnvValue(nextEnv[key as AiConfigKey] ?? "")}`;
+      return `${key}=${formatEnvValue(nextEnv[key as LocalConfigKey] ?? "")}`;
     });
 
-  for (const key of aiConfigKeys) {
+  for (const key of keysToEnsure) {
     if (!seenKeys.has(key)) {
       nextLines.push(`${key}=${formatEnvValue(nextEnv[key] ?? "")}`);
     }
@@ -224,7 +379,7 @@ function writeAiConfigFile(
   fs.writeFileSync(configPath, `${nextLines.join("\n")}\n`);
 }
 
-function compactAiEnv(env: Partial<Record<AiConfigKey, string>>) {
+function compactAiEnv(env: Partial<Record<LocalConfigKey, string>>) {
   const compacted: Partial<Record<AiConfigKey, string>> = {};
 
   for (const key of aiConfigKeys) {
@@ -238,8 +393,22 @@ function compactAiEnv(env: Partial<Record<AiConfigKey, string>>) {
   return compacted;
 }
 
+function compactStationCatEnv(env: Partial<Record<LocalConfigKey, string>>) {
+  const compacted: Partial<Record<StationCatConfigKey, string>> = {};
+
+  for (const key of stationCatConfigKeys) {
+    const value = env[key]?.trim();
+
+    if (value) {
+      compacted[key] = value;
+    }
+  }
+
+  return compacted;
+}
+
 function detectConfigSource(
-  fileEnv: Partial<Record<AiConfigKey, string>>,
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
   env: AiRuntimeEnv,
 ) {
   if (Object.values(compactAiEnv(fileEnv)).length > 0) {
@@ -250,6 +419,25 @@ function detectConfigSource(
     env.OPENAI_API_KEY?.trim() ||
     env.OPENAI_MODEL?.trim() ||
     env.OPENAI_BASE_URL?.trim()
+  ) {
+    return "environment";
+  }
+
+  return "default";
+}
+
+function detectStationCatConfigSource(
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+  env: AiRuntimeEnv,
+) {
+  if (Object.values(compactStationCatEnv(fileEnv)).length > 0) {
+    return "file";
+  }
+
+  if (
+    env.STATION_CAT_API_BASE_URL?.trim() ||
+    env.STATION_CAT_PUBLISH_TOKEN?.trim() ||
+    env.STATION_CAT_DEFAULT_MODE?.trim()
   ) {
     return "environment";
   }
