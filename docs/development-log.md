@@ -1039,3 +1039,28 @@ Notes:
 - This phase does not generate or upload cover images yet; cover remains a prompt/metadata field until the cover asset phase.
 - The app still defaults to draft import. Direct publish requires the user to select `publish`.
 - Real website calls require the user to save the same token value configured on the website as `NOVELFORGE_PUBLISH_TOKEN`.
+
+## 2026-06-18: Post-Phase 18B Personal macOS Rebuild
+
+Status: completed.
+
+What was done:
+
+- Rebuilt the macOS desktop package from `main` at `88a5822 Phase 18B Station Cat real publish`.
+- Generated fresh personal-use macOS artifacts:
+  - `release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg`
+  - `release/desktop/NovelForge-AI-0.1.0-mac-arm64.zip`
+- Deleted the old DMG/ZIP helper outputs (`*.blockmap`, `latest-mac.yml`, `builder-debug.yml`) and kept only the fresh DMG/ZIP plus current app directory.
+- Canceled Apple notarization at the user's request and changed the project packaging policy: future normal rebuilds should skip notarization because this app is for personal local use.
+
+Verification:
+
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed through signed app packaging before manual artifact regeneration.
+- `unzip -tq release/desktop/NovelForge-AI-0.1.0-mac-arm64.zip` passed.
+- `hdiutil verify release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` passed.
+- Gatekeeper assessment reports `Unnotarized Developer ID`, which is expected for the new personal-use no-notarization policy.
+
+Notes:
+
+- Do not run `desktop:dist:mac:notarized` for future normal rebuilds unless the user explicitly asks for public distribution.

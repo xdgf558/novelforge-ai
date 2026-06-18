@@ -45,7 +45,14 @@ npm run desktop:dist:mac
 npm run desktop:dist:mac:notarized
 ```
 
-Use `desktop:pack:mac` for a fast local `.app` directory verification. Use `desktop:dist:mac` when signed DMG/ZIP artifacts are needed without Apple notarization. Use `desktop:dist:mac:notarized` only when the Apple notarytool keychain profile is available.
+Use `desktop:pack:mac` for a fast local `.app` directory verification. Use `desktop:dist:mac` when signed DMG/ZIP artifacts are needed without Apple notarization.
+
+Current personal-use rebuild policy:
+
+- Do not run Apple notarization by default.
+- Use signed local DMG/ZIP artifacts for the user's own Mac.
+- Keep `desktop:dist:mac:notarized` only for an explicit future public-distribution request.
+- An unnotarized Developer ID build can still be used locally; macOS may require right-click Open or local Gatekeeper approval depending on quarantine state.
 
 ## Packaging Notes
 
@@ -55,4 +62,4 @@ Use `desktop:pack:mac` for a fast local `.app` directory verification. Use `desk
 - DMG artifacts are configured with `dmg.sign: true`.
 - The packaged app runs from `Contents/Resources/app.asar.unpacked` because the desktop shell launches a bundled Next.js server and Prisma startup migrations.
 - `scripts/after-pack.cjs` prunes unused Electron locale resources and copies `node_modules/.prisma` into `app.asar.unpacked`; keep this copy step, because electron-builder glob rules can skip the generated Prisma client dot directory.
-- The signed-only scripts set `SKIP_NOTARIZE=1`; notarized builds use `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`.
+- The signed-only scripts set `SKIP_NOTARIZE=1`; notarized builds use `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`, but should not be used for normal personal rebuilds.

@@ -209,10 +209,10 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 
 - Production app icon assets exist under `build/`.
 - macOS packaging now uses Developer ID signing, hardened runtime, and signed DMG/ZIP artifacts.
-- The final DMG `release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` was notarized and stapled; notary submission `ac82cd1b-e370-4b92-b0c0-7c66785d90db` returned `Accepted`.
+- Historical Phase 14 distribution validation produced a notarized and stapled DMG, but the current product is for personal local use. Do not run Apple notarization by default for future rebuilds; produce a fresh signed local DMG/ZIP instead.
 - Packaged runtime uses `app.asar.unpacked`; keep generated Prisma client copying in `scripts/after-pack.cjs` because electron-builder does not reliably include the `node_modules/.prisma` dot directory from glob rules alone.
 - `npm run desktop:dist:mac` produces signed local artifacts and skips notarization.
-- `npm run desktop:dist:mac:notarized` is intended for Apple notarized builds and uses `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`.
+- `npm run desktop:dist:mac:notarized` exists only for an explicit future public-distribution request; do not use it for normal personal-use rebuilds.
 - AI connection config is now editable at `/ai-settings`; the app writes the local `.env` config and reads `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_BASE_URL` dynamically on the server.
 - Publishing targets are editable from `/projects/[projectId]/publish`; tokens are stored locally and masked in UI, standard publish-package JSON can be exported, and local `PublishRun` / `PublishSyncState` rows track prepared draft/direct publish attempts and changed content hashes.
 - Station Cat targets call `POST https://wwwstationcat.org/api/novelforge/import` when API Base URL and Station Cat Publish Token are configured; keep request tokens in the `Authorization` header only, never inside request JSON.
