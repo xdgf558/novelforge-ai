@@ -192,6 +192,7 @@ Recommended implementation order:
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
 - Phase 18A: Station Cat publish API adapter and draft API contract, including import request generation, endpoint normalization, server-only future HTTP client, response/error parsing, dry-run publish run request storage, and contract documentation for the website backend agent.
 - Phase 18B: Station Cat real publish API integration, including `POST /api/novelforge/import`, Station Cat Publish Token handling, preview/publish URL persistence, remote id sync-state updates, failed-run recording without hash advancement, and updated website API contract docs.
+- Phase 19A: project cover image upload, local cover asset storage, project-level cover metadata, publish-page cover preview/removal, and Station Cat standard package cover payload with base64 image data.
 
 ## UI Direction
 
@@ -205,7 +206,7 @@ Recommended implementation order:
 
 ## Next Phase
 
-The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, first dark UI refresh, in-app AI connection settings, software-side publishing platform preparation, Station Cat API contract adapter, and real Station Cat import integration are implemented:
+The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, first dark UI refresh, in-app AI connection settings, software-side publishing platform preparation, Station Cat API contract adapter, real Station Cat import integration, and local project cover upload are implemented:
 
 - Production app icon assets exist under `build/`.
 - macOS packaging now uses Developer ID signing, hardened runtime, and signed DMG/ZIP artifacts.
@@ -214,7 +215,7 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - Desktop startup must not run Prisma CLI commands from inside the packaged app bundle. DMG volumes are read-only, and Prisma CLI can try to mutate `node_modules/@prisma/engines` under `app.asar.unpacked`, causing `EROFS`. Use `runDesktopMigrations` in `desktop/runtime.cjs`, which reads bundled `prisma/migrations/*/migration.sql`, applies SQL through Prisma Client to the user data SQLite database, and records `_prisma_migrations`.
 - `npm run desktop:dist:mac` produces signed local artifacts and skips notarization.
 - `npm run desktop:dist:mac:notarized` exists only for an explicit future public-distribution request; do not use it for normal personal-use rebuilds.
-- Current formal personal-use macOS installer version is `0.1.4`; handoff should leave only `release/desktop/NovelForge-AI-0.1.4-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
+- Current formal personal-use macOS installer version is `0.1.5`; handoff should leave only `release/desktop/NovelForge-AI-0.1.5-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
 - Formal handoff should use a `.pkg` installer that installs `NovelForge AI.app` into `/Applications`; a DMG is only a drag-and-drop/test package because the app inside a DMG can be launched directly.
 - Current keychain has Developer ID Application signing available but no Developer ID Installer identity; until an Installer certificate is added, the PKG itself is unsigned while the `NovelForge AI.app` payload remains Developer ID Application signed.
 - Before reporting a desktop package as ready, verify the packaged app still uses `runDesktopMigrations` from `desktop/runtime.cjs`, does not contain Prisma CLI `migrate deploy` startup code, and the installer payload targets `/Applications/NovelForge AI.app`.
@@ -229,14 +230,15 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - Publishing targets remain available from `/projects/[projectId]/publish`, but Station Cat can now use the global config without manual per-project setup. The first global publish from a project creates/updates an internal `Station Cat 全局配置` target so `PublishRun` / `PublishSyncState` can still track preview URLs, remote IDs, and changed content hashes per project.
 - Station Cat targets call `POST https://wwwstationcat.org/api/novelforge/import` when API Base URL and Station Cat Publish Token are configured; keep request tokens in the `Authorization` header only, never inside request JSON.
 - Successful Station Cat responses save preview/publish URLs and remote ids into `PublishRun` / `PublishSyncState`; failed responses record a failed run and do not advance content hashes, so retries still include the changed items.
+- Project cover images can be uploaded from the project publish page. They are stored under the local app data assets directory in desktop builds or `.novelforge-assets/` during local development, and are included in the standard publish package / Station Cat request as the cover changed item with `dataBase64` and `dataUrl`.
 - The website-side contract is documented in `docs/station-cat-publish-api-contract.md`; the matching website environment variable is `NOVELFORGE_PUBLISH_TOKEN`.
 - Still add a manual public-release checklist if this build will be uploaded outside local sharing.
 - Keep WeChat publishing manual; distribution hardening must not introduce automatic WeChat publishing.
 
 The next useful product phase is:
 
-- Add cover image generation and local cover asset storage before uploading covers.
-- Extend Station Cat publishing to upload generated cover assets once the cover flow exists.
+- Add AI-assisted cover image prompt-to-image generation on top of the existing local cover upload flow.
+- Let website responses persist remote cover IDs and expose clearer per-item upload status for cover/chapter/project imports.
 - Keep external publishing behind explicit preview and author confirmation; default to draft import.
 
 The next useful cleanup pass is:

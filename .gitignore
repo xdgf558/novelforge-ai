@@ -21,6 +21,7 @@ release/
 tsconfig.tsbuildinfo
 
 # local database and generated artifacts
+.novelforge-assets/
 *.db
 *.db-journal
 *.sqlite

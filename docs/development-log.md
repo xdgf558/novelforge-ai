@@ -1,5 +1,39 @@
 # Development Log
 
+## 2026-06-19: 0.1.5 Project Cover Upload and Station Cat Cover Payload
+
+Status: completed.
+
+What was done:
+
+- Added project-level cover image metadata to the Prisma schema and migration.
+- Added local cover asset storage for PNG, JPEG, WebP, and GIF files, with an 8MB file limit and path traversal protection.
+- Set the Next.js Server Action body limit to 10MB so 8MB cover uploads have room for multipart form overhead.
+- Added the project publish-page cover UI for previewing, uploading, replacing, and deleting a local cover image.
+- Updated the standard publish package so `cover` includes filename, MIME type, size, alt text, updated timestamp, base64 image data, and a data URL when a local cover exists.
+- Kept Station Cat publishing token handling unchanged: tokens stay in the `Authorization` header only, while cover data travels inside the normal package and cover changed item.
+- Bumped the app version to `0.1.5` for the replacement macOS installer.
+
+Verification:
+
+- `npx prisma generate` passed.
+- `npx prisma migrate deploy` applied `20260619090000_project_cover_assets`.
+- `npm run typecheck` passed.
+- `npm run test -- lib/publish-platforms.test.ts lib/station-cat-publisher.test.ts` passed.
+- `npm run test` passed, 23 files and 101 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload and the expanded PKG payload app in a keychain-enabled environment.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.5"`.
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.5-mac-arm64.pkg`.
+- SHA-256: `8a806421a6677dec46aafc93aa139856e19ad139a061fb323108f727d10fb8d3`.
+
+Packaging note:
+
+- The app payload is Developer ID Application signed. The PKG itself still reports `Status: no signature` because the local keychain does not contain a Developer ID Installer certificate.
+
 ## 2026-06-18: 0.1.4 Async AI Generation UX Hotfix
 
 Status: completed.

@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildPublishSyncItems,
@@ -68,6 +71,72 @@ describe("publish platform helpers", () => {
       body: "短信来自一个死人。",
     });
     expect(publishPackage.pricingSuggestion.strategy).toBe("free_serial_first");
+  });
+
+  it("embeds uploaded cover image data in the standard package", () => {
+    const previousDataDir = process.env.NOVELFORGE_DESKTOP_DATA_DIR;
+    const dataDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "novelforge-cover-test-"),
+    );
+    const relativeCoverPath = path.join(
+      "covers",
+      "project_1",
+      "test-cover.png",
+    );
+    const coverBytes = Buffer.from("cover-bytes");
+
+    process.env.NOVELFORGE_DESKTOP_DATA_DIR = dataDir;
+
+    try {
+      fs.mkdirSync(path.join(dataDir, "assets", "covers", "project_1"), {
+        recursive: true,
+      });
+      fs.writeFileSync(
+        path.join(dataDir, "assets", relativeCoverPath),
+        coverBytes,
+      );
+
+      const publishPackage = buildStandardPublishPackage(
+        {
+          ...exportData,
+          project: {
+            ...exportData.project,
+            coverAltText: "借命人封面",
+            coverImageFileName: "test-cover.png",
+            coverImageMimeType: "image/png",
+            coverImagePath: relativeCoverPath,
+            coverImageSizeBytes: coverBytes.byteLength,
+            coverImageUpdatedAt: new Date("2026-06-19T01:00:00.000Z"),
+          },
+        },
+        {
+          generatedAt: "2026-06-19T02:00:00.000Z",
+        },
+      );
+
+      expect(publishPackage.cover).toMatchObject({
+        altText: "借命人封面",
+        dataBase64: coverBytes.toString("base64"),
+        dataUrl: `data:image/png;base64,${coverBytes.toString("base64")}`,
+        fileName: "test-cover.png",
+        imagePath: relativeCoverPath,
+        mimeType: "image/png",
+        sizeBytes: coverBytes.byteLength,
+        status: "ready",
+        updatedAt: "2026-06-19T01:00:00.000Z",
+      });
+    } finally {
+      if (previousDataDir == null) {
+        delete process.env.NOVELFORGE_DESKTOP_DATA_DIR;
+      } else {
+        process.env.NOVELFORGE_DESKTOP_DATA_DIR = previousDataDir;
+      }
+
+      fs.rmSync(dataDir, {
+        force: true,
+        recursive: true,
+      });
+    }
   });
 
   it("creates stable sync items and detects only changed content", () => {

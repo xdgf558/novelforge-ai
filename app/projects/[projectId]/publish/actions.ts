@@ -14,6 +14,10 @@ import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import { readStationCatPublishSecrets } from "@/lib/ai/local-config";
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import {
+  deleteProjectCoverAsset,
+  saveProjectCoverAsset,
+} from "@/lib/project-cover-assets";
+import {
   buildPublishSyncItems,
   buildStandardPublishPackage,
   diffPublishSyncItems,
@@ -37,6 +41,81 @@ import {
 
 const publishPackageTemplateKey = "wechat_publish_packaging";
 const publishPackageTaskType = "wechat_publish_packaging";
+
+export async function uploadProjectCover(projectId: string, formData: FormData) {
+  await assertProject(projectId);
+
+  const project = await prisma.project.findUnique({
+    where: {
+      id: projectId,
+    },
+    select: {
+      coverImagePath: true,
+    },
+  });
+  const file = formData.get("coverImage");
+
+  if (!(file instanceof File) || file.size === 0) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish`);
+  }
+
+  const savedCover = await saveProjectCoverAsset({
+    file,
+    previousRelativePath: project?.coverImagePath,
+    projectId,
+  });
+  const coverAltText =
+    clean(formData.get("coverAltText")?.toString()) || savedCover.fileName;
+
+  await prisma.project.update({
+    where: {
+      id: projectId,
+    },
+    data: {
+      coverImagePath: savedCover.relativePath,
+      coverImageMimeType: savedCover.mimeType,
+      coverImageFileName: savedCover.fileName,
+      coverImageSizeBytes: savedCover.sizeBytes,
+      coverImageUpdatedAt: savedCover.updatedAt,
+      coverAltText,
+    },
+  });
+
+  revalidatePublishPaths(projectId);
+  redirect(`/projects/${projectId}/publish`);
+}
+
+export async function removeProjectCover(projectId: string) {
+  await assertProject(projectId);
+
+  const project = await prisma.project.findUnique({
+    where: {
+      id: projectId,
+    },
+    select: {
+      coverImagePath: true,
+    },
+  });
+
+  await deleteProjectCoverAsset(project?.coverImagePath);
+  await prisma.project.update({
+    where: {
+      id: projectId,
+    },
+    data: {
+      coverImagePath: null,
+      coverImageMimeType: null,
+      coverImageFileName: null,
+      coverImageSizeBytes: null,
+      coverImageUpdatedAt: null,
+      coverAltText: null,
+    },
+  });
+
+  revalidatePublishPaths(projectId);
+  redirect(`/projects/${projectId}/publish`);
+}
 
 export async function generatePublishPackage(
   projectId: string,

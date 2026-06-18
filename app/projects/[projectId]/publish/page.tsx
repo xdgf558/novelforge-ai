@@ -7,11 +7,13 @@ import {
   FileJson,
   FileText,
   Globe2,
+  Image as ImageIcon,
   type LucideIcon,
   KeyRound,
   PackageCheck,
   Send,
   Sparkles,
+  Trash2,
   UploadCloud,
 } from "lucide-react";
 import {
@@ -19,7 +21,9 @@ import {
   markPublishPackageExported,
   prepareGlobalStationCatPublishRun,
   preparePublishRun,
+  removeProjectCover,
   savePublishTarget,
+  uploadProjectCover,
 } from "@/app/projects/[projectId]/publish/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyExportPanel } from "@/components/copy-export-panel";
@@ -47,6 +51,10 @@ import {
   publishPlatformOptions,
   stringifyStandardPublishPackage,
 } from "@/lib/publish-platforms";
+import {
+  coverImageAcceptAttribute,
+  formatCoverImageSize,
+} from "@/lib/project-cover-assets";
 import { prisma } from "@/lib/prisma";
 import { buildStationCatImportEndpoint } from "@/lib/station-cat-publisher";
 
@@ -79,9 +87,11 @@ export default async function PublishPage({ params }: PublishPageProps) {
   const exportData = buildExportData(project);
   const markdownExport = buildProjectMarkdownExport(exportData);
   const jsonExport = buildProjectJsonExport(exportData);
+  const publishPackageForExport = buildStandardPublishPackage(exportData);
   const standardPublishPackage = stringifyStandardPublishPackage(
-    buildStandardPublishPackage(exportData),
+    publishPackageForExport,
   );
+  const cover = publishPackageForExport.cover;
   const baseFilename = safeFilename(project.title || "novelforge-project");
   const hasActivePublishPackageTask = project.chapters.some((chapter) =>
     chapter.aiTasks.some((task) => isActiveAiTaskStatus(task.status)),
@@ -131,6 +141,99 @@ export default async function PublishPage({ params }: PublishPageProps) {
           label="AI 任务"
           value={`${formatNumber(project._count.aiTasks)} 条`}
         />
+      </section>
+
+      <section className="space-y-5 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+          <ImageIcon aria-hidden="true" className="h-4 w-4" />
+          书籍封面
+        </div>
+        <div className="grid gap-5 lg:grid-cols-[minmax(220px,320px)_1fr]">
+          <div className="overflow-hidden rounded-lg border border-ink-950/10 bg-paper-50">
+            {cover.dataUrl ? (
+              <img
+                alt={cover.altText || `${project.title} 封面`}
+                className="aspect-[3/4] w-full object-cover"
+                src={cover.dataUrl}
+              />
+            ) : (
+              <div className="flex aspect-[3/4] items-center justify-center p-8 text-center text-sm leading-6 text-ink-700">
+                还没有上传封面。上传后，标准发布包和 Station Cat 发布请求会带上封面图片。
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-base font-semibold text-ink-950">
+                上传本机封面图
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-ink-700">
+                支持 PNG、JPEG、WebP、GIF，单张最大 8MB。图片保存在本机资产目录，发布到 Station Cat 时会作为封面条目随标准包一起发送。
+              </p>
+            </div>
+
+            <div className="grid gap-3 text-sm text-ink-700 sm:grid-cols-2">
+              <InfoBlock label="文件名" value={cover.fileName} />
+              <InfoBlock label="图片类型" value={cover.mimeType} />
+              <InfoBlock
+                label="文件大小"
+                value={formatCoverImageSize(cover.sizeBytes)}
+              />
+              <InfoBlock label="更新时间" value={cover.updatedAt} />
+            </div>
+
+            <form
+              action={uploadProjectCover.bind(null, project.id)}
+              className="grid gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+            >
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-ink-700">
+                  选择封面图片
+                </span>
+                <input
+                  accept={coverImageAcceptAttribute()}
+                  className="w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                  name="coverImage"
+                  required
+                  type="file"
+                />
+              </label>
+              <label className="space-y-1.5">
+                <span className="text-xs font-semibold text-ink-700">
+                  封面说明
+                </span>
+                <input
+                  className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                  defaultValue={cover.altText ?? project.title}
+                  name="coverAltText"
+                  placeholder="用于网站 alt 文本和导入说明"
+                />
+              </label>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+                  type="submit"
+                >
+                  <UploadCloud aria-hidden="true" className="h-4 w-4" />
+                  {cover.dataUrl ? "替换封面" : "上传封面"}
+                </button>
+              </div>
+            </form>
+
+            {cover.dataUrl ? (
+              <form action={removeProjectCover.bind(null, project.id)}>
+                <button
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                  type="submit"
+                >
+                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                  删除封面
+                </button>
+              </form>
+            ) : null}
+          </div>
+        </div>
       </section>
 
       <section className="space-y-5 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">

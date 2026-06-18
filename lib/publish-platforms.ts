@@ -1,4 +1,8 @@
 import { createHash } from "node:crypto";
+import {
+  buildProjectCoverPayload,
+  type ProjectCoverPayload,
+} from "./project-cover-assets";
 import type { ProjectExportData } from "./project-export";
 
 type Scalar = string | number | boolean | Date | null | undefined;
@@ -48,12 +52,7 @@ export type StandardPublishPackage = {
     totalWordTarget: number | null;
   };
   chapters: StandardPublishChapter[];
-  cover: {
-    prompt: string;
-    imagePath: string | null;
-    imageUrl: string | null;
-    status: "not_generated" | "ready";
-  };
+  cover: ProjectCoverPayload;
   pricingSuggestion: {
     strategy: "free_serial_first" | "paid_archive_ready";
     currency: "CNY";
@@ -148,12 +147,10 @@ export function buildStandardPublishPackage(
       totalWordTarget: numberValue(data.project.totalWordTarget),
     },
     chapters,
-    cover: {
-      prompt: latestCoverPrompt(data.publishPackages),
-      imagePath: null,
-      imageUrl: null,
-      status: "not_generated",
-    },
+    cover: buildProjectCoverPayload(
+      data.project,
+      latestCoverPrompt(data.publishPackages),
+    ),
     pricingSuggestion: buildPricingSuggestion({
       chapterCount: confirmedChapters.length,
       totalWords,

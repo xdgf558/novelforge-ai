@@ -75,6 +75,19 @@ describe("station cat publisher adapter", () => {
       localType: "project",
       changeType: "create",
     });
+    expect(request.publishPackage.cover).toMatchObject({
+      prompt: "雨夜旧楼，手机冷光。",
+      status: "not_generated",
+    });
+    expect(
+      request.changedItems.find((item) => item.localType === "cover"),
+    ).toMatchObject({
+      localType: "cover",
+      payload: {
+        prompt: "雨夜旧楼，手机冷光。",
+        status: "not_generated",
+      },
+    });
     expect(serialized).toContain('"publishPackage"');
     expect(serialized).not.toContain("Bearer");
     expect(serialized).not.toContain("secret-token");

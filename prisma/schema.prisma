@@ -8,20 +8,26 @@ datasource db {
 }
 
 model Project {
-  id                String   @id @default(cuid())
-  title             String
-  genre             String?
-  targetAudience    String?
-  platform          String?
-  totalWordTarget   Int?
-  chapterWordMin    Int?
-  chapterWordMax    Int?
-  updateFrequency   String?
-  description       String?
-  wechatPositioning String?
-  status            String   @default("active")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  title               String
+  genre               String?
+  targetAudience      String?
+  platform            String?
+  totalWordTarget     Int?
+  chapterWordMin      Int?
+  chapterWordMax      Int?
+  updateFrequency     String?
+  description         String?
+  wechatPositioning   String?
+  coverImagePath      String?
+  coverImageMimeType  String?
+  coverImageFileName  String?
+  coverImageSizeBytes Int?
+  coverImageUpdatedAt DateTime?
+  coverAltText        String?
+  status              String   @default("active")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   setting           ProjectSetting?
   settingVersions   SettingVersion[]
