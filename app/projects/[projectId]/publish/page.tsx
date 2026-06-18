@@ -91,13 +91,13 @@ export default async function PublishPage({ params }: PublishPageProps) {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-signal-600">
-              Phase 18A / 发布 API 合约准备
+              Phase 18B / Station Cat 发布联调
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink-950">
               {project.title} 发布与导出
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
-              生成公众号发布包装、项目导出和 Station Cat 标准导入请求。当前一键发布仍为 dry-run 记录，不会自动发送到外部网站。
+              生成公众号发布包装、项目导出，并把 Station Cat 目标接入真实导入 API。默认导入为草稿，直接发布需要显式选择。
             </p>
           </div>
         </div>
@@ -131,7 +131,7 @@ export default async function PublishPage({ params }: PublishPageProps) {
             目标网站与 Token
           </h2>
           <p className="mt-1 text-sm leading-6 text-ink-700">
-            软件端会保存目标站点、Token、默认发布模式，并生成标准发布包、Station Cat 导入请求和增量变更记录。真实上传等网站后台 API 定稿后再启用。
+            软件端会保存目标站点、Station Cat Publish Token、默认发布模式，并在 API URL 和 Token 齐全时调用网站导入接口，同时保存预览链接、发布链接和远端 ID。
           </p>
         </div>
 
@@ -192,12 +192,14 @@ export default async function PublishPage({ params }: PublishPageProps) {
             />
           </label>
           <label className="space-y-1.5 lg:col-span-2">
-            <span className="text-xs font-semibold text-ink-700">发布 Token</span>
+            <span className="text-xs font-semibold text-ink-700">
+              发布 Token（Station Cat Publish Token）
+            </span>
             <input
               autoComplete="off"
               className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
               name="token"
-              placeholder="保存到本机 SQLite，界面不回显明文"
+              placeholder="与网站端 NOVELFORGE_PUBLISH_TOKEN 保持一致"
               type="password"
             />
           </label>
@@ -212,6 +214,13 @@ export default async function PublishPage({ params }: PublishPageProps) {
             {project.publishTargets.map((target) => {
               const latestRun = target.runs[0];
               const changedItems = parseChangedItems(latestRun?.changedItemsJson);
+              const canSubmitPublish =
+                target.platformKey !== "station_cat" ||
+                Boolean(target.apiBaseUrl && target.tokenSecret);
+              const submitLabel =
+                target.platformKey === "station_cat"
+                  ? "发送到 Station Cat"
+                  : "一键准备发布";
 
               return (
                 <article
@@ -239,8 +248,8 @@ export default async function PublishPage({ params }: PublishPageProps) {
                           {target.apiBaseUrl
                             ? stationCatEndpointLabel(target.apiBaseUrl)
                             : "/api/novelforge/import"}
-                          ，Authorization: Bearer Token。本阶段仅生成 dry-run
-                          请求记录，不自动发送。
+                          ，Authorization: Bearer Token。Token 应与网站端
+                          NOVELFORGE_PUBLISH_TOKEN 保持一致。
                         </p>
                       ) : null}
                     </div>
@@ -314,6 +323,9 @@ export default async function PublishPage({ params }: PublishPageProps) {
                     <label className="space-y-1.5">
                       <span className="text-xs font-semibold text-ink-700">
                         更新 Token
+                        {target.platformKey === "station_cat"
+                          ? "（Station Cat Publish Token）"
+                          : ""}
                       </span>
                       <input
                         autoComplete="off"
@@ -354,12 +366,22 @@ export default async function PublishPage({ params }: PublishPageProps) {
                       仅上传变更
                     </label>
                     <button
-                      className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+                      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
+                        canSubmitPublish
+                          ? "bg-ink-950 text-white hover:bg-ink-800"
+                          : "cursor-not-allowed border border-ink-950/15 bg-paper-50 text-ink-700"
+                      }`}
+                      disabled={!canSubmitPublish}
                       type="submit"
                     >
                       <UploadCloud aria-hidden="true" className="h-4 w-4" />
-                      一键准备发布
+                      {submitLabel}
                     </button>
+                    {!canSubmitPublish ? (
+                      <p className="text-sm leading-6 text-ink-700 sm:basis-full">
+                        需要先保存 API Base URL 和 Station Cat Publish Token，才能调用网站导入接口。
+                      </p>
+                    ) : null}
                   </form>
 
                   {latestRun ? (
@@ -367,11 +389,17 @@ export default async function PublishPage({ params }: PublishPageProps) {
                       <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                           <p className="text-sm font-semibold text-ink-950">
-                            最近结果：{publishModeLabel(latestRun.mode)}
+                            最近结果：{publishModeLabel(latestRun.mode)} /{" "}
+                            {publishRunStatusLabel(latestRun.status)}
                           </p>
                           <p className="mt-1 text-sm leading-6 text-ink-700">
                             {latestRun.resultMessage || "暂无结果说明。"}
                           </p>
+                          {latestRun.errorMessage ? (
+                            <p className="mt-1 text-sm leading-6 text-red-700">
+                              错误：{latestRun.errorMessage}
+                            </p>
+                          ) : null}
                         </div>
                         <div className="text-sm text-ink-700">
                           {formatDate(latestRun.createdAt)}
@@ -391,6 +419,9 @@ export default async function PublishPage({ params }: PublishPageProps) {
                               <li key={`${item.localType}:${item.localId}`}>
                                 {item.changeType === "update" ? "更新" : "新增"}：
                                 {item.label}
+                                {item.remoteId ? ` / 远端 ${item.remoteId}` : ""}
+                                {item.remoteStatus ? ` / ${item.remoteStatus}` : ""}
+                                {item.remoteMessage ? ` / ${item.remoteMessage}` : ""}
                               </li>
                             ))}
                           </ul>
@@ -722,6 +753,9 @@ function parseChangedItems(value?: string | null): {
   localId: string;
   label: string;
   changeType: string;
+  remoteId: string;
+  remoteStatus: string;
+  remoteMessage: string;
 }[] {
   if (!value) {
     return [];
@@ -743,14 +777,29 @@ function parseChangedItems(value?: string | null): {
       const localId = stringValue(item.localId);
       const label = stringValue(item.label);
       const changeType = stringValue(item.changeType);
+      const remoteId = stringValue(item.remoteId);
+      const remoteStatus = stringValue(item.remoteStatus);
+      const remoteMessage = stringValue(item.remoteMessage);
 
       return localType && localId && label
-        ? [{ localType, localId, label, changeType }]
+        ? [{ localType, localId, label, changeType, remoteId, remoteStatus, remoteMessage }]
         : [];
     });
   } catch {
     return [];
   }
+}
+
+function publishRunStatusLabel(value?: string | null) {
+  if (value === "completed") {
+    return "成功";
+  }
+
+  if (value === "failed") {
+    return "失败";
+  }
+
+  return value || "未知";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

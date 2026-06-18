@@ -46,7 +46,9 @@ export type StationCatResultItem = {
 export type StationCatPublishResult = {
   ok: boolean;
   statusCode: number;
+  requestId: string | null;
   remoteBookId: string | null;
+  remoteIds: Record<string, string>;
   previewUrl: string | null;
   publishUrl: string | null;
   resultMessage: string | null;
@@ -214,7 +216,9 @@ export function parseStationCatPublishResult(
   return {
     ok: typeof okValue === "boolean" ? okValue : statusCode < 400,
     statusCode,
+    requestId: firstString(record.requestId, record.request_id),
     remoteBookId: firstString(record.remoteBookId, record.bookId, record.workId),
+    remoteIds: parseRemoteIds(record.remoteIds ?? record.remote_ids),
     previewUrl: firstString(record.previewUrl, record.preview_url),
     publishUrl: firstString(record.publishUrl, record.publish_url, record.url),
     resultMessage: firstString(
@@ -228,23 +232,60 @@ export function parseStationCatPublishResult(
   };
 }
 
-export function buildStationCatDryRunMessage({
-  endpoint,
-  requestId,
-  changedCount,
-  hasToken,
-}: {
-  endpoint: string | null;
-  requestId: string | null;
-  changedCount: number;
-  hasToken: boolean;
-}) {
-  const baseMessage = `Station Cat API 合约请求已生成：${changedCount} 个待同步条目。`;
-  const endpointMessage = endpoint ? `目标接口 ${endpoint}。` : "尚未填写 API Base URL。";
-  const tokenMessage = hasToken ? "Token 已保存在本机，不会写入请求 JSON。" : "尚未保存 Token。";
-  const requestMessage = requestId ? `请求 ID：${requestId}。` : "";
+export function remoteIdForStationCatItem(
+  result: StationCatPublishResult,
+  item: Pick<PublishChangedItem, "localType" | "localId">,
+) {
+  const matchedItem = result.items.find(
+    (resultItem) =>
+      resultItem.localType === item.localType && resultItem.localId === item.localId,
+  );
 
-  return `${baseMessage}${endpointMessage}${tokenMessage}${requestMessage}当前仍为 dry-run 归档，等网站端 API 可用后再启用真实发送。`;
+  if (matchedItem?.remoteId) {
+    return matchedItem.remoteId;
+  }
+
+  if (item.localType === "project") {
+    return result.remoteIds.project ?? result.remoteBookId;
+  }
+
+  if (item.localType === "cover") {
+    return result.remoteIds.cover ?? null;
+  }
+
+  if (result.items.length > 0 && !matchedItem) {
+    return null;
+  }
+
+  return result.remoteIds[item.localId] ?? null;
+}
+
+export function stationCatItemSucceeded(
+  result: StationCatPublishResult,
+  item: Pick<PublishChangedItem, "localType" | "localId">,
+) {
+  const matchedItem = result.items.find(
+    (resultItem) =>
+      resultItem.localType === item.localType && resultItem.localId === item.localId,
+  );
+
+  if (matchedItem) {
+    return matchedItem.status !== "failed";
+  }
+
+  if (item.localType === "project" && (result.remoteIds.project || result.remoteBookId)) {
+    return true;
+  }
+
+  if (item.localType === "cover" && result.remoteIds.cover) {
+    return true;
+  }
+
+  if (result.items.length > 0) {
+    return false;
+  }
+
+  return result.ok;
 }
 
 function buildStationCatRequestId({
@@ -302,13 +343,14 @@ function extractStationCatErrorMessage(responseJson: unknown, status: number) {
     }
 
     if (isRecord(responseJson.error)) {
+      const code = firstString(responseJson.error.code);
       const nestedMessage = firstString(
         responseJson.error.message,
         responseJson.error.detail,
       );
 
       if (nestedMessage) {
-        return nestedMessage;
+        return code ? `${code}: ${nestedMessage}` : nestedMessage;
       }
     }
   }
@@ -324,9 +366,10 @@ function parseErrors(errors: unknown, error: unknown) {
         }
 
         if (isRecord(item)) {
+          const code = firstString(item.code);
           const message = firstString(item.message, item.detail, item.code);
 
-          return message ? [message] : [];
+          return message ? [code && code !== message ? `${code}: ${message}` : message] : [];
         }
 
         return [];
@@ -342,12 +385,27 @@ function parseErrors(errors: unknown, error: unknown) {
   }
 
   if (isRecord(error)) {
+    const code = firstString(error.code);
     const message = firstString(error.message, error.detail, error.code);
 
-    return message ? [message] : [];
+    return message ? [code && code !== message ? `${code}: ${message}` : message] : [];
   }
 
   return [];
+}
+
+function parseRemoteIds(value: unknown) {
+  if (!isRecord(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).flatMap(([key, entryValue]) =>
+      typeof entryValue === "string" && entryValue.trim()
+        ? [[key, entryValue.trim()]]
+        : [],
+    ),
+  );
 }
 
 function parseResultItems(value: unknown): StationCatResultItem[] {

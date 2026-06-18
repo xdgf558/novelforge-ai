@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildStationCatDryRunMessage,
   buildStationCatImportEndpoint,
   buildStationCatImportRequest,
   parseStationCatPublishResult,
   publishToStationCat,
+  remoteIdForStationCatItem,
   serializeStationCatImportRequest,
+  stationCatItemSucceeded,
   StationCatPublishError,
 } from "./station-cat-publisher";
 import {
@@ -93,7 +94,7 @@ describe("station cat publisher adapter", () => {
     ).toBe("https://wwwstationcat.org/api/novelforge/import");
   });
 
-  it("sends a future real request with token only in the Authorization header", async () => {
+  it("sends a real request with token only in the Authorization header", async () => {
     const request = buildStationCatImportRequest({
       publishPackage,
       changedItems,
@@ -115,9 +116,14 @@ describe("station cat publisher adapter", () => {
         JSON.stringify({
           ok: true,
           remoteBookId: "work_123",
+          requestId: "novelforge:test-request",
           previewUrl: "https://wwwstationcat.org/preview/work_123",
           publishUrl: "https://wwwstationcat.org/zh-hant/works/work_123",
           message: "Imported as published work.",
+          remoteIds: {
+            project: "work_123",
+            cover: "cover_123",
+          },
           items: [
             {
               localType: "chapter",
@@ -157,7 +163,12 @@ describe("station cat publisher adapter", () => {
     expect(String(calls[0].init?.body)).not.toContain("secret-token");
     expect(result).toMatchObject({
       ok: true,
+      requestId: "novelforge:test-request",
       remoteBookId: "work_123",
+      remoteIds: {
+        project: "work_123",
+        cover: "cover_123",
+      },
       publishUrl: "https://wwwstationcat.org/zh-hant/works/work_123",
     });
     expect(result.items[0]).toMatchObject({
@@ -167,7 +178,7 @@ describe("station cat publisher adapter", () => {
     });
   });
 
-  it("normalizes error responses for the future real client", async () => {
+  it("normalizes error responses for the real client", async () => {
     const request = buildStationCatImportRequest({
       publishPackage,
       changedItems,
@@ -178,6 +189,7 @@ describe("station cat publisher adapter", () => {
       new Response(
         JSON.stringify({
           error: {
+            code: "NOVELFORGE_TOKEN_INVALID",
             message: "Invalid publish token.",
           },
         }),
@@ -203,16 +215,21 @@ describe("station cat publisher adapter", () => {
     ).rejects.toMatchObject({
       name: "StationCatPublishError",
       statusCode: 401,
-      message: "Invalid publish token.",
+      message: "NOVELFORGE_TOKEN_INVALID: Invalid publish token.",
     } satisfies Partial<StationCatPublishError>);
   });
 
-  it("parses snake_case response aliases and dry-run copy", () => {
+  it("parses snake_case response aliases and remote id mapping", () => {
     const parsed = parseStationCatPublishResult({
       success: true,
+      request_id: "novelforge:test",
       workId: "work_456",
       preview_url: "https://wwwstationcat.org/preview/work_456",
       publish_url: "https://wwwstationcat.org/zh-hant/works/work_456",
+      remote_ids: {
+        project: "work_456",
+        cover: "cover_456",
+      },
       changedItems: [
         {
           local_type: "project",
@@ -223,16 +240,14 @@ describe("station cat publisher adapter", () => {
         },
       ],
     });
-    const message = buildStationCatDryRunMessage({
-      endpoint: "https://wwwstationcat.org/api/novelforge/import",
-      requestId: "novelforge:test",
-      changedCount: 2,
-      hasToken: true,
-    });
-
     expect(parsed).toMatchObject({
       ok: true,
+      requestId: "novelforge:test",
       remoteBookId: "work_456",
+      remoteIds: {
+        project: "work_456",
+        cover: "cover_456",
+      },
       previewUrl: "https://wwwstationcat.org/preview/work_456",
       publishUrl: "https://wwwstationcat.org/zh-hant/works/work_456",
     });
@@ -243,7 +258,23 @@ describe("station cat publisher adapter", () => {
       status: "updated",
       message: "metadata synced",
     });
-    expect(message).toContain("dry-run");
-    expect(message).toContain("Token 已保存在本机");
+    expect(
+      remoteIdForStationCatItem(parsed, {
+        localType: "project",
+        localId: "project_1",
+      }),
+    ).toBe("work_456");
+    expect(
+      remoteIdForStationCatItem(parsed, {
+        localType: "cover",
+        localId: "project_1:cover",
+      }),
+    ).toBe("cover_456");
+    expect(
+      stationCatItemSucceeded(parsed, {
+        localType: "project",
+        localId: "project_1",
+      }),
+    ).toBe(true);
   });
 });

@@ -191,6 +191,7 @@ Recommended implementation order:
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
 - Phase 18A: Station Cat publish API adapter and draft API contract, including import request generation, endpoint normalization, server-only future HTTP client, response/error parsing, dry-run publish run request storage, and contract documentation for the website backend agent.
+- Phase 18B: Station Cat real publish API integration, including `POST /api/novelforge/import`, Station Cat Publish Token handling, preview/publish URL persistence, remote id sync-state updates, failed-run recording without hash advancement, and updated website API contract docs.
 
 ## UI Direction
 
@@ -204,7 +205,7 @@ Recommended implementation order:
 
 ## Next Phase
 
-The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, first dark UI refresh, in-app AI connection settings, software-side publishing platform preparation, and Station Cat API contract adapter are implemented:
+The local MVP feature set, acceptance hardening pass, macOS packaging prototype, distribution hardening, first dark UI refresh, in-app AI connection settings, software-side publishing platform preparation, Station Cat API contract adapter, and real Station Cat import integration are implemented:
 
 - Production app icon assets exist under `build/`.
 - macOS packaging now uses Developer ID signing, hardened runtime, and signed DMG/ZIP artifacts.
@@ -214,16 +215,16 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - `npm run desktop:dist:mac:notarized` is intended for Apple notarized builds and uses `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`.
 - AI connection config is now editable at `/ai-settings`; the app writes the local `.env` config and reads `OPENAI_API_KEY`, `OPENAI_MODEL`, and `OPENAI_BASE_URL` dynamically on the server.
 - Publishing targets are editable from `/projects/[projectId]/publish`; tokens are stored locally and masked in UI, standard publish-package JSON can be exported, and local `PublishRun` / `PublishSyncState` rows track prepared draft/direct publish attempts and changed content hashes.
-- Station Cat targets now generate dry-run `station-cat-novelforge-import.v1` request JSON and show the normalized `POST /api/novelforge/import` contract endpoint, but the UI still does not call the real website API.
-- The website-side contract is documented in `docs/station-cat-publish-api-contract.md`; keep request tokens in the `Authorization` header only, never inside request JSON.
+- Station Cat targets call `POST https://wwwstationcat.org/api/novelforge/import` when API Base URL and Station Cat Publish Token are configured; keep request tokens in the `Authorization` header only, never inside request JSON.
+- Successful Station Cat responses save preview/publish URLs and remote ids into `PublishRun` / `PublishSyncState`; failed responses record a failed run and do not advance content hashes, so retries still include the changed items.
+- The website-side contract is documented in `docs/station-cat-publish-api-contract.md`; the matching website environment variable is `NOVELFORGE_PUBLISH_TOKEN`.
 - Still add a manual public-release checklist if this build will be uploaded outside local sharing.
 - Keep WeChat publishing manual; distribution hardening must not introduce automatic WeChat publishing.
 
 The next useful product phase is:
 
-- Phase 18B: connect the dry-run Station Cat publisher to the real website API once the backend implements `station-cat-novelforge-import.v1`.
-- Save returned preview/publish URLs, remote book ids, and per-item remote ids back into `PublishRun` / `PublishSyncState`.
 - Add cover image generation and local cover asset storage before uploading covers.
+- Extend Station Cat publishing to upload generated cover assets once the cover flow exists.
 - Keep external publishing behind explicit preview and author confirmation; default to draft import.
 
 The next useful cleanup pass is:

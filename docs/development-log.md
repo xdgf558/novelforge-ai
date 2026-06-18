@@ -992,3 +992,50 @@ Notes:
 - Token values are sent only through the future `Authorization: Bearer <token>` header and are not serialized into the request body.
 - The default external publish path should remain `draft`; direct publish must stay an explicit user-selected mode.
 - Phase 18B should call `publishToStationCat` only after the Station Cat website backend implements the documented contract, then persist returned preview/publish URLs and remote ids.
+
+## 2026-06-18: Phase 18B Station Cat Real Publish Integration
+
+Status: completed.
+
+Scope:
+
+- Real Station Cat import API calls from the project publish page.
+- Station Cat Publish Token handling aligned with website `NOVELFORGE_PUBLISH_TOKEN`.
+- Preview/publish URL and remote id persistence.
+- Safe retry behavior for failed website imports.
+
+What was done:
+
+- Changed Station Cat publish runs from dry-run storage to real `publishToStationCat` calls when the target has both API Base URL and Token.
+- Kept request bodies token-free; the Token is sent only as `Authorization: Bearer <token>`.
+- Added support for website response fields:
+  - `requestId`,
+  - `remoteIds`,
+  - `previewUrl`,
+  - `publishUrl`,
+  - item-level `remoteId`, `status`, and `message`,
+  - error `code` plus `message`.
+- Persisted successful preview and publish URLs to `PublishRun`.
+- Persisted successful remote ids to `PublishSyncState` so later "only upload changes" runs can update existing remote content.
+- Recorded failed Station Cat runs with `status = failed` and `errorMessage` without updating content hashes, keeping failed changes retryable.
+- Disabled the Station Cat send button when API Base URL or Station Cat Publish Token is missing.
+- Updated the publish page to show real Station Cat API behavior, run status, errors, and remote ids.
+- Updated `docs/station-cat-publish-api-contract.md` with the website-provided production endpoint, token env var, response format, error codes, and remote id rules.
+
+Verification:
+
+- `npm run test -- lib/station-cat-publisher.test.ts lib/publish-platforms.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed, 21 files and 88 tests.
+- `npm run build` passed.
+- `npm run mvp:acceptance` passed.
+- `npm run desktop:smoke` passed.
+- `npx prisma migrate status` passed; all migrations are applied.
+- `git diff --check` passed.
+- Local HTTP smoke passed for `/projects/[projectId]/publish` with a temporary Station Cat target using `https://wwwstationcat.org` and no Token; the page rendered Phase 18B copy, `Station Cat Publish Token`, `NOVELFORGE_PUBLISH_TOKEN`, and the disabled send button state without calling the real website API. Temporary verification data was deleted afterward.
+
+Notes:
+
+- This phase does not generate or upload cover images yet; cover remains a prompt/metadata field until the cover asset phase.
+- The app still defaults to draft import. Direct publish requires the user to select `publish`.
+- Real website calls require the user to save the same token value configured on the website as `NOVELFORGE_PUBLISH_TOKEN`.
