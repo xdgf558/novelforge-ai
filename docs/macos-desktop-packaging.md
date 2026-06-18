@@ -39,12 +39,17 @@ npm run desktop:dev
 npm run desktop:smoke
 npm run desktop:pack:mac
 npm run desktop:dist:mac
+npm run desktop:dist:mac:notarized
 ```
 
-Use `desktop:pack:mac` for a fast local `.app` directory verification. Use `desktop:dist:mac` when DMG/ZIP artifacts are needed.
+Use `desktop:pack:mac` for a fast local `.app` directory verification. Use `desktop:dist:mac` when signed DMG/ZIP artifacts are needed without Apple notarization. Use `desktop:dist:mac:notarized` only when the Apple notarytool keychain profile is available.
 
 ## Packaging Notes
 
 - `electron-builder` output is written to `release/desktop/`.
-- The app is not signed or notarized in Phase 13.
-- Distribution hardening can later add signing, notarization, app icons, versioned release cleanup, and update metadata.
+- The app uses the generated branded icon from `build/icon.icns`.
+- macOS builds use Developer ID signing, hardened runtime, and `build/entitlements.mac.plist`.
+- DMG artifacts are configured with `dmg.sign: true`.
+- The packaged app runs from `Contents/Resources/app.asar.unpacked` because the desktop shell launches a bundled Next.js server and Prisma startup migrations.
+- `scripts/after-pack.cjs` prunes unused Electron locale resources and copies `node_modules/.prisma` into `app.asar.unpacked`; keep this copy step, because electron-builder glob rules can skip the generated Prisma client dot directory.
+- The signed-only scripts set `SKIP_NOTARIZE=1`; notarized builds use `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`.

@@ -773,3 +773,56 @@ Next recommended step:
 
 - Run a distribution hardening phase if the app will be shared: app icon, signing, notarization, DMG polish, release artifact cleanup, and a manual release checklist.
 - Otherwise, run the deferred component/action cleanup pass for large page/action files.
+
+## 2026-06-18: Phase 14 macOS Distribution Hardening
+
+Status: completed.
+
+Scope:
+
+- Branded macOS app icon.
+- Developer ID signing and hardened runtime.
+- `asar` packaging plus runtime unpacking for the local Next.js/Prisma desktop app.
+- Signed DMG/ZIP release artifacts.
+- Apple notarization and stapling.
+
+What was done:
+
+- Added generated branded icon assets under `build/` and `npm run desktop:icon`.
+- Added signing entitlements in `build/entitlements.mac.plist`.
+- Added `scripts/notarize.cjs` as the electron-builder `afterSign` hook.
+- Added `scripts/after-pack.cjs` to prune unused Electron locale resources before signing and copy `node_modules/.prisma` into `app.asar.unpacked` so the packaged app can load Prisma at runtime.
+- Switched desktop packaging to `asar: true` with explicit unpacking for `.next`, runtime app files, Prisma schema/migrations, and runtime dependencies.
+- Updated the Electron runtime root so packaged builds run the local server from `Contents/Resources/app.asar.unpacked`.
+- Split signed-only packaging (`npm run desktop:dist:mac`) from notarized packaging (`npm run desktop:dist:mac:notarized`).
+- Signed the regenerated `.app` with `Developer ID Application: HAO YE (Y35K7AQ974)` and hardened runtime.
+- Enabled `dmg.sign: true`; the current regenerated DMG was also manually signed after the builder run.
+- Notarized and stapled the final DMG release artifact with Apple notarytool.
+- Generated signed release artifacts:
+  - `release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg`
+  - `release/desktop/NovelForge-AI-0.1.0-mac-arm64.zip`
+
+Verification completed:
+
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed.
+- `codesign --verify --deep --strict --verbose=2 release/desktop/mac-arm64/NovelForge\ AI.app` passed.
+- `codesign -dv --verbose=4 release/desktop/mac-arm64/NovelForge\ AI.app` confirmed Developer ID, Team ID `Y35K7AQ974`, hardened runtime, and timestamp.
+- `codesign --verify --verbose=4 release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` passed after DMG signing.
+- `unzip -tq release/desktop/NovelForge-AI-0.1.0-mac-arm64.zip` passed.
+- `hdiutil verify release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` passed.
+- `xcrun notarytool submit release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg --keychain-profile simplecut-pro-notary --wait --output-format json` returned `Accepted` for submission `ac82cd1b-e370-4b92-b0c0-7c66785d90db`.
+- `xcrun stapler staple release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` passed.
+- `xcrun stapler validate release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` passed.
+- `syspolicy_check distribution release/desktop/NovelForge-AI-0.1.0-mac-arm64.dmg` passed with `App passed all pre-distribution checks and is ready for distribution.`
+- Packaged app startup smoke passed with a temporary data directory: the local Next.js server returned HTTP 200 from `127.0.0.1:48312`, created the desktop SQLite database, and no longer emitted the missing `.prisma/client/default` runtime error.
+
+Notes:
+
+- Final distribution should use the notarized and stapled DMG. The direct app zip submission `741f751a-0525-4206-a56a-013f4b4aaefe` remained slow/in progress during verification, but the final DMG distribution path is complete and Gatekeeper-ready.
+- Apple notarytool/CloudKit intermittently returned `NSURLErrorDomain Code=-1005`; retrying by submission id avoided duplicate uploads.
+
+Next recommended step:
+
+- Open a PR for Phase 14 and review the packaging hardening changes.
+- If this app will be released publicly, add a manual release checklist for final version bump, artifact upload, DMG download smoke, and release notes.
