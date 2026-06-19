@@ -1,5 +1,35 @@
 # Development Log
 
+## 2026-06-19: 0.1.7 Pending Update Review Feedback Hotfix
+
+Status: completed.
+
+What was done:
+
+- Added a client-side pending state for pending-update approval and rejection forms.
+- Added a clear success banner after approving an update into formal story memory.
+- Added a clear result banner after rejecting an update.
+- Added per-card processed feedback showing handling time and whether the update wrote to formal memory.
+- Bumped the app version to `0.1.7` for the replacement macOS installer.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 24 files and 105 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload and the expanded PKG payload app.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.7"`.
+- Packaged runtime still uses `runDesktopMigrations` and does not contain Prisma CLI `migrate deploy` startup code.
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.7-mac-arm64.pkg`.
+- SHA-256: `c1904da27c16055416a69c372047c9df1c84eef77ce07e7a0b8ac16450dbb95a`.
+
+Packaging note:
+
+- The app payload is Developer ID Application signed. The PKG itself still reports `Status: no signature` because the local keychain does not contain a Developer ID Installer certificate.
+
 ## 2026-06-19: 0.1.6 MVP Acceptance Completion Hotfix
 
 Status: completed.

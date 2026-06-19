@@ -12,6 +12,7 @@ import {
   approvePendingUpdate,
   rejectPendingUpdate,
 } from "@/app/projects/[projectId]/pending-updates/actions";
+import { PendingUpdateReviewSubmit } from "@/components/pending-update-review-submit";
 import { formatDate } from "@/lib/format";
 import {
   pendingUpdateRiskLabel,
@@ -27,12 +28,18 @@ type PendingUpdatesPageProps = {
   params: Promise<{
     projectId: string;
   }>;
+  searchParams?: Promise<{
+    review?: string;
+  }>;
 };
 
 export default async function PendingUpdatesPage({
   params,
+  searchParams,
 }: PendingUpdatesPageProps) {
   const { projectId } = await params;
+  const resolvedSearchParams = await searchParams;
+  const reviewMessage = pendingUpdateReviewMessage(resolvedSearchParams?.review);
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -129,6 +136,30 @@ export default async function PendingUpdatesPage({
         <InfoTile label="已拒绝" value={`${rejectedCount} 条`} />
       </section>
 
+      {reviewMessage ? (
+        <section
+          className={`flex items-start gap-3 rounded-lg border p-4 text-sm leading-6 ${
+            reviewMessage.tone === "success"
+              ? "border-signal-600/25 bg-signal-600/10 text-ink-800"
+              : "border-red-200 bg-red-50 text-red-800"
+          }`}
+          role="status"
+        >
+          <reviewMessage.Icon
+            aria-hidden="true"
+            className={`mt-0.5 h-5 w-5 shrink-0 ${
+              reviewMessage.tone === "success"
+                ? "text-signal-600"
+                : "text-red-700"
+            }`}
+          />
+          <div>
+            <p className="font-semibold text-ink-950">{reviewMessage.title}</p>
+            <p>{reviewMessage.description}</p>
+          </div>
+        </section>
+      ) : null}
+
       {sortedUpdates.length === 0 ? (
         <section className="rounded-lg border border-dashed border-ink-950/20 bg-white p-8 text-center shadow-panel">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-paper-100 text-ink-700">
@@ -200,6 +231,9 @@ export default async function PendingUpdatesPage({
                         }
                       />
                       <Row label="创建时间" value={formatDate(update.createdAt)} />
+                      {update.appliedAt ? (
+                        <Row label="处理时间" value={formatDate(update.appliedAt)} />
+                      ) : null}
                     </dl>
                   </div>
                 </div>
@@ -221,6 +255,14 @@ export default async function PendingUpdatesPage({
                 {update.resolutionNote ? (
                   <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700">
                     处理备注：{update.resolutionNote}
+                  </p>
+                ) : null}
+
+                {!isPending ? (
+                  <p className="mt-4 rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm leading-6 text-ink-800">
+                    {update.status === "approved"
+                      ? "已批准：该建议已写入正式记忆，并刷新了相关项目、章节和验收页面。"
+                      : "已拒绝：该建议不会写入正式记忆。"}
                   </p>
                 ) : null}
 
@@ -246,14 +288,10 @@ export default async function PendingUpdatesPage({
                           placeholder="可选：记录为什么批准或如何编辑"
                         />
                       </label>
-                      <button
-                        className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-                        data-testid={`approve-pending-update-${update.id}`}
-                        type="submit"
-                      >
-                        <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-                        批准写入正式记忆
-                      </button>
+                      <PendingUpdateReviewSubmit
+                        testId={`approve-pending-update-${update.id}`}
+                        variant="approve"
+                      />
                     </form>
 
                     <form
@@ -268,14 +306,10 @@ export default async function PendingUpdatesPage({
                           placeholder="可选：记录为什么不采纳"
                         />
                       </label>
-                      <button
-                        className="inline-flex min-h-10 items-center gap-2 rounded-md bg-red-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-800"
-                        data-testid={`reject-pending-update-${update.id}`}
-                        type="submit"
-                      >
-                        <XCircle aria-hidden="true" className="h-4 w-4" />
-                        拒绝
-                      </button>
+                      <PendingUpdateReviewSubmit
+                        testId={`reject-pending-update-${update.id}`}
+                        variant="reject"
+                      />
                     </form>
                   </div>
                 ) : null}
@@ -286,6 +320,29 @@ export default async function PendingUpdatesPage({
       )}
     </div>
   );
+}
+
+function pendingUpdateReviewMessage(review?: string | null) {
+  if (review === "approved") {
+    return {
+      Icon: CheckCircle2,
+      description:
+        "正式设定、角色、世界规则、伏笔或时间线已按该建议更新，相关页面也已刷新。",
+      title: "已写入正式记忆",
+      tone: "success" as const,
+    };
+  }
+
+  if (review === "rejected") {
+    return {
+      Icon: XCircle,
+      description: "该建议已标记为拒绝，不会影响正式故事记忆。",
+      title: "已拒绝该建议",
+      tone: "danger" as const,
+    };
+  }
+
+  return null;
 }
 
 function InfoTile({ label, value }: { label: string; value: string }) {

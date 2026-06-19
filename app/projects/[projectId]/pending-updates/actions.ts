@@ -173,7 +173,7 @@ export async function approvePendingUpdate(
   });
 
   revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
-  redirect(`/projects/${projectId}/pending-updates`);
+  redirect(`/projects/${projectId}/pending-updates?review=approved`);
 }
 
 export async function rejectPendingUpdate(
@@ -209,7 +209,7 @@ export async function rejectPendingUpdate(
   });
 
   revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
-  redirect(`/projects/${projectId}/pending-updates`);
+  redirect(`/projects/${projectId}/pending-updates?review=rejected`);
 }
 
 async function applyApprovedUpdate(
