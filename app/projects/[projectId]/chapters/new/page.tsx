@@ -44,7 +44,7 @@ export default async function NewChapterPage({ params }: NewChapterPageProps) {
       }}
       project={project}
       submitLabel="创建章节"
-      subtitle="先手动确认章节目标、节拍和正文。AI 生成章节会在 AI 服务和提示词模板阶段之后接入。"
+      subtitle="只需要先填写章节号、标题和目标。保存后进入章节详情页，再用 AI 生成节拍和草稿。"
       title="新建章节"
     />
   );

@@ -1,5 +1,45 @@
 # Development Log
 
+## 2026-06-19: Minimal Chapter Creation Form
+
+Status: completed.
+
+Scope:
+
+- Reduce the new-chapter form to the fields authors actually need before AI generation.
+
+What was done:
+
+- Bumped the app/package version to `0.1.12`.
+- Updated in-app release notes for the new-chapter form simplification.
+- Updated `ChapterForm` so create mode only shows:
+  - chapter number,
+  - chapter title,
+  - chapter goal.
+- Kept edit mode unchanged, with status, beats, draft text, final text, notes, and change reason still available from the chapter edit page.
+- Preserved hidden default values for create-only submissions so the existing chapter creation action still stores complete chapter records and version snapshots.
+- Updated the new-chapter page copy to tell authors to save the chapter shell first, then generate beats and drafts from the chapter detail page.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.12-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the formal PKG handoff remains.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 25 files and 107 tests.
+- `git diff --check` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.12"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the final expanded PKG payload app.
+- Packaged runtime still uses `runDesktopMigrations` and bundled `migration.sql`; startup does not use Prisma CLI `migrate deploy`.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.12-mac-arm64.pkg`.
+- SHA-256: `827a4a66faef7b83667f613f1dafd6de0c399cd7a0cc6c8fecb9228e93d7a99a`.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate.
+- Copying the Developer ID signed Electron app into a PKG staging directory caused the copied/expanded app to fail codesign verification. The final personal-use PKG therefore uses an ad-hoc signed app payload that survives copy/package/expand verification. Keep this as a local-use workaround until a fully signed Installer certificate workflow is available.
+
 ## 2026-06-19: 0.1.11 AI Task Retention Hotfix
 
 Status: completed.

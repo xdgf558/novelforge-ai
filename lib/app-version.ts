@@ -2,11 +2,11 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.11 AI 任务记录保留上限";
+export const appReleaseTitle = "0.1.12 新建章节表单减负";
 
 export const appReleaseNotes = [
-  "AI 任务记录页现在只展示最近 10 条任务记录。",
-  "新增项目级 AI 任务保留策略，旧的已结束任务会自动清理。",
-  "正在执行中的 AI 任务不会被清理，避免后台生成完成后无法回写状态。",
-  "任务记录统计会随保留策略更新，避免列表和数量显示不一致。",
+  "新建章节页现在只保留章节号、章节标题和章节目标。",
+  "章节状态、节拍、正文、备注和修改原因移到章节详情/编辑流程处理。",
+  "创建章节后会进入章节详情页，再从那里生成 AI 节拍和章节草稿。",
+  "新建章节会自动保存完整默认值和初始版本快照，不影响后续编辑。",
 ];

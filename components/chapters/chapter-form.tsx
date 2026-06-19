@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, History, Save } from "lucide-react";
 import {
   chapterFieldGroups,
+  chapterTextFields,
   formatChapterWordCount,
   chapterStatusOptions,
   chapterValuesFromRecord,
@@ -36,6 +37,10 @@ export function ChapterForm({
   versionCount,
 }: ChapterFormProps) {
   const values = chapterValuesFromRecord(chapter ?? initialValues);
+  const isCreateForm = !chapter;
+  const createHiddenTextFields = chapterTextFields.filter(
+    (field) => field.name !== "goal",
+  );
 
   return (
     <div className="space-y-6">
@@ -75,7 +80,32 @@ export function ChapterForm({
       </div>
 
       <form action={action} className="space-y-5">
-        <section className="grid gap-4 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel md:grid-cols-[160px_1fr_180px]">
+        {isCreateForm ? (
+          <>
+            <input
+              name="status"
+              type="hidden"
+              value={values.status || "draft"}
+            />
+            <input name="changeReason" type="hidden" value="初始章节壳子" />
+            {createHiddenTextFields.map((field) => (
+              <input
+                key={field.name}
+                name={field.name}
+                type="hidden"
+                value={values[field.name]}
+              />
+            ))}
+          </>
+        ) : null}
+
+        <section
+          className={`grid gap-4 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel ${
+            isCreateForm
+              ? "md:grid-cols-[160px_1fr]"
+              : "md:grid-cols-[160px_1fr_180px]"
+          }`}
+        >
           <label className="flex flex-col gap-2">
             <span className={labelClass}>章节号</span>
             <input
@@ -100,30 +130,44 @@ export function ChapterForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2">
-            <span className={labelClass}>章节状态</span>
-            <select
-              className={inputClass}
-              defaultValue={values.status || "draft"}
-              name="status"
-            >
-              {chapterStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {isCreateForm ? null : (
+            <>
+              <label className="flex flex-col gap-2">
+                <span className={labelClass}>章节状态</span>
+                <select
+                  className={inputClass}
+                  defaultValue={values.status || "draft"}
+                  name="status"
+                >
+                  {chapterStatusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          <div className="rounded-md bg-paper-50 p-4 md:col-span-3">
-            <p className="text-sm text-ink-700">当前字数</p>
-            <p className="mt-1 text-lg font-semibold text-ink-950">
-              {formatChapterWordCount(values.wordCount)}
-            </p>
-          </div>
+              <div className="rounded-md bg-paper-50 p-4 md:col-span-3">
+                <p className="text-sm text-ink-700">当前字数</p>
+                <p className="mt-1 text-lg font-semibold text-ink-950">
+                  {formatChapterWordCount(values.wordCount)}
+                </p>
+              </div>
+            </>
+          )}
         </section>
 
-        {chapterFieldGroups.map((group) => (
+        {(isCreateForm
+          ? [
+              {
+                ...chapterFieldGroups[0],
+                fields: chapterFieldGroups[0].fields.filter(
+                  (field) => field.name === "goal",
+                ),
+              },
+            ]
+          : chapterFieldGroups
+        ).map((group) => (
           <section
             className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
             key={group.title}
@@ -154,16 +198,18 @@ export function ChapterForm({
           </section>
         ))}
 
-        <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
-          <label className="flex flex-col gap-2">
-            <span className={labelClass}>修改原因</span>
-            <textarea
-              className={`${inputClass} min-h-24 py-3 leading-6`}
-              name="changeReason"
-              placeholder="例如：初始章节草稿、补全节拍、整理定稿正文"
-            />
-          </label>
-        </section>
+        {isCreateForm ? null : (
+          <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+            <label className="flex flex-col gap-2">
+              <span className={labelClass}>修改原因</span>
+              <textarea
+                className={`${inputClass} min-h-24 py-3 leading-6`}
+                name="changeReason"
+                placeholder="例如：初始章节草稿、补全节拍、整理定稿正文"
+              />
+            </label>
+          </section>
+        )}
 
         <div className="flex flex-wrap items-center gap-3">
           <button
