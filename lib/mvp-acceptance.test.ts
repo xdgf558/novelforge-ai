@@ -32,7 +32,7 @@ describe("MVP acceptance report", () => {
         },
       ],
       aiTasks: completedCoreTasks,
-      pendingUpdates: [{ status: "applied" }, { status: "rejected" }],
+      pendingUpdates: [{ status: "approved" }, { status: "rejected" }],
       continuityReports: [{ id: "report_1" }],
       publishPackages: [{ id: "package_1" }],
       exportFormats: {
@@ -45,6 +45,38 @@ describe("MVP acceptance report", () => {
     expect(report.isComplete).toBe(true);
     expect(report.passedCount).toBe(report.totalCount);
     expect(report.completionPercent).toBe(100);
+  });
+
+  it("accepts legacy applied pending-update status for older fixtures", () => {
+    const report = buildMvpAcceptanceReport({
+      project: {
+        id: "project_1",
+        title: "兼容项目",
+      },
+      setting: {
+        genre: "都市悬疑",
+      },
+      characters: ["a", "b", "c", "d", "e"],
+      chapters: [
+        {
+          chapterNumber: 1,
+          beats: "节拍。",
+          draftText: "草稿。",
+        },
+      ],
+      aiTasks: completedCoreTasks,
+      pendingUpdates: [{ status: "applied" }, { status: "rejected" }],
+      continuityReports: [],
+      publishPackages: [{ id: "package_1" }],
+      exportFormats: {
+        markdown: true,
+      },
+      persistedAfterReconnect: true,
+    });
+
+    expect(
+      report.checks.find((check) => check.id === "update_approved")?.passed,
+    ).toBe(true);
   });
 
   it("keeps missing requirements actionable", () => {

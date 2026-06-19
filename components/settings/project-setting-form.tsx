@@ -1,6 +1,23 @@
-import type { Project, ProjectSetting } from "@prisma/client";
+import type { ProjectSetting } from "@prisma/client";
 import Link from "next/link";
-import { ArrowLeft, History, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  Bot,
+  CheckCircle2,
+  History,
+  Save,
+  Sparkles,
+} from "lucide-react";
+import {
+  aiTaskAdoptionLabel,
+  aiTaskStatusLabel,
+  isActiveAiTaskStatus,
+} from "@/lib/ai/status";
+import { formatDate } from "@/lib/format";
+import {
+  hasProjectSettingDraftValues,
+  parseProjectSettingGenerationOutput,
+} from "@/lib/ai/project-settings";
 import {
   projectSettingGroups,
   projectSettingValuesFromRecord,
@@ -9,9 +26,31 @@ import {
 
 type ProjectSettingFormProps = {
   action: (formData: FormData) => Promise<void>;
-  project: Project;
+  adoptProjectSettingAction: (taskId: string) => Promise<void>;
+  aiTasks: readonly ProjectSettingAiTask[];
+  generateProjectSettingAction: () => Promise<void>;
+  hasApiKey: boolean;
+  project: {
+    id: string;
+    title: string;
+  };
   setting?: ProjectSetting | null;
   versionCount: number;
+};
+
+type ProjectSettingAiTask = {
+  id: string;
+  status: string;
+  adoptionState: string;
+  createdAt: Date;
+  model: string;
+  inputContextSummary: string;
+  outputText: string | null;
+  errorMessage: string | null;
+  promptTemplate?: {
+    name: string;
+    version: number;
+  } | null;
 };
 
 const inputClass =
@@ -25,6 +64,10 @@ function valuesFromSetting(setting?: ProjectSetting | null): ProjectSettingValue
 
 export function ProjectSettingForm({
   action,
+  adoptProjectSettingAction,
+  aiTasks,
+  generateProjectSettingAction,
+  hasApiKey,
   project,
   setting,
   versionCount,
@@ -61,6 +104,14 @@ export function ProjectSettingForm({
           历史版本 {versionCount}
         </Link>
       </div>
+
+      <ProjectSettingAiPanel
+        adoptAction={adoptProjectSettingAction}
+        generateAction={generateProjectSettingAction}
+        hasApiKey={hasApiKey}
+        projectTitle={project.title}
+        tasks={aiTasks}
+      />
 
       <form action={action} className="space-y-5">
         {projectSettingGroups.map((group) => (
@@ -122,5 +173,138 @@ export function ProjectSettingForm({
         </div>
       </form>
     </div>
+  );
+}
+
+function ProjectSettingAiPanel({
+  adoptAction,
+  generateAction,
+  hasApiKey,
+  projectTitle,
+  tasks,
+}: {
+  adoptAction: (taskId: string) => Promise<void>;
+  generateAction: () => Promise<void>;
+  hasApiKey: boolean;
+  projectTitle: string;
+  tasks: readonly ProjectSettingAiTask[];
+}) {
+  const hasActiveGeneration = tasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
+  const canGenerate = hasApiKey && !hasActiveGeneration;
+
+  return (
+    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <Bot aria-hidden="true" className="h-4 w-4" />
+            AI 总设定草案
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-ink-950">
+            根据项目基础信息生成总设定草案
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+            AI 只生成可审阅草案并写入任务记录。点击采用后，草案才会写入正式总设定档并生成历史版本。
+          </p>
+        </div>
+
+        <form action={generateAction}>
+          <button
+            className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+              canGenerate
+                ? "bg-ink-950 text-white hover:bg-ink-800"
+                : "cursor-not-allowed border border-ink-950/15 bg-paper-100 text-ink-700"
+            }`}
+            disabled={!canGenerate}
+            type="submit"
+          >
+            <Sparkles aria-hidden="true" className="h-4 w-4" />
+            {hasActiveGeneration ? "生成中" : "生成总设定草案"}
+          </button>
+        </form>
+      </div>
+
+      {!hasApiKey ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          未配置 API Key，暂不能调用模型；已有总设定草案任务仍可查看。
+        </p>
+      ) : null}
+
+      {hasActiveGeneration ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          当前项目已有总设定生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
+        </p>
+      ) : null}
+
+      {tasks.length === 0 ? (
+        <div className="mt-5 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
+          <p className="font-semibold text-ink-950">还没有总设定草案任务</p>
+          <p className="mt-2 leading-6">
+            生成后会在这里显示最近任务，包含模型、模板版本、状态和输出。验收看板也会据此确认
+            project_setting_generation 审计记录。
+          </p>
+        </div>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {tasks.map((task) => {
+            const parsedDraft = parseProjectSettingGenerationOutput(
+              task.outputText,
+            );
+            const canAdopt =
+              task.status === "completed" &&
+              task.adoptionState !== "adopted" &&
+              hasProjectSettingDraftValues(parsedDraft);
+
+            return (
+              <article
+                className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+                key={task.id}
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                      <span className="rounded-md bg-white px-2.5 py-1">
+                        {aiTaskStatusLabel(task.status)}
+                      </span>
+                      <span className="rounded-md bg-white px-2.5 py-1">
+                        {aiTaskAdoptionLabel(task.adoptionState)}
+                      </span>
+                      <span>{formatDate(task.createdAt)}</span>
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-ink-950">
+                      {task.model}
+                      {task.promptTemplate
+                        ? ` / ${task.promptTemplate.name} v${task.promptTemplate.version}`
+                        : ""}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-700">
+                      {task.inputContextSummary || `${projectTitle} 总设定生成`}
+                    </p>
+                  </div>
+
+                  {canAdopt ? (
+                    <form action={adoptAction.bind(null, task.id)}>
+                      <button
+                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                        type="submit"
+                      >
+                        <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                        采用到总设定档
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-white p-4 font-mono text-xs leading-6 text-ink-700">
+                  {task.outputText || task.errorMessage || "任务尚未产生输出。"}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

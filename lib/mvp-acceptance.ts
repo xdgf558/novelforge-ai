@@ -194,8 +194,8 @@ export function buildMvpAcceptanceReport(
       category: "review",
       label: "批准后能写入正式记忆",
       description: "至少一条待审更新处于已批准/已应用状态。",
-      passed: snapshot.pendingUpdates.some((update) => update.status === "applied"),
-      evidence: statusCountEvidence(snapshot.pendingUpdates, "applied", "已应用"),
+      passed: snapshot.pendingUpdates.some(isApprovedPendingUpdate),
+      evidence: approvedStatusEvidence(snapshot.pendingUpdates),
       actionHint: "在待审更新页批准一条建议。",
     }),
     check({
@@ -318,4 +318,16 @@ function statusCountEvidence(
 ) {
   const count = updates.filter((update) => update.status === status).length;
   return `${label}更新数：${count}`;
+}
+
+function approvedStatusEvidence(
+  updates: readonly MvpAcceptancePendingUpdate[],
+) {
+  const count = updates.filter(isApprovedPendingUpdate).length;
+
+  return `已批准/已应用更新数：${count}`;
+}
+
+function isApprovedPendingUpdate(update: MvpAcceptancePendingUpdate) {
+  return update.status === "approved" || update.status === "applied";
 }

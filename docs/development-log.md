@@ -1,5 +1,38 @@
 # Development Log
 
+## 2026-06-19: 0.1.6 MVP Acceptance Completion Hotfix
+
+Status: completed.
+
+What was done:
+
+- Added a project setting AI generation context builder and parser for `project_setting_generation` tasks.
+- Added an AI total-setting draft panel to the project settings page.
+- Added a non-blocking `generateProjectSettingDraft` Server Action using the existing logged background AI task flow.
+- Added explicit author adoption for AI-generated setting drafts; adoption writes formal `ProjectSetting`, creates a `SettingVersion`, and marks the AI task adopted.
+- Added stale-task cleanup and page auto-refresh for project setting generation tasks.
+- Fixed MVP acceptance so "批准后能写入正式记忆" recognizes the real `approved` status while remaining compatible with legacy `applied` fixture data.
+- Bumped the app version to `0.1.6` for the replacement macOS installer.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test -- lib/ai/project-settings.test.ts lib/mvp-acceptance.test.ts` passed.
+- `npm run test` passed, 24 files and 105 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload and the expanded PKG payload app in a keychain-enabled environment.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.6"`.
+- Packaged runtime still uses `runDesktopMigrations` and does not contain Prisma CLI `migrate deploy` startup code.
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.6-mac-arm64.pkg`.
+- SHA-256: `35d298cddceeb09315bd676a3f7af36b4d5a0c848da2d7b6dcdc929eee0c5458`.
+
+Packaging note:
+
+- The app payload is Developer ID Application signed. The PKG itself still reports `Status: no signature` because the local keychain does not contain a Developer ID Installer certificate.
+
 ## 2026-06-19: 0.1.5 Project Cover Upload and Station Cat Cover Payload
 
 Status: completed.
