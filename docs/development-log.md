@@ -1,5 +1,35 @@
 # Development Log
 
+## 2026-06-19: 0.1.8 Project Dashboard Status and Sidebar Navigation Hotfix
+
+Status: completed.
+
+What was done:
+
+- Changed the project detail pending-update card from total suggestion count to workflow state counts: pending, approved, and rejected.
+- Added a project-aware sidebar navigation component.
+- Turned sidebar creative-tool entries into real links for the current project: settings, characters, chapters, and AI task records.
+- Added active-state highlighting for project landing pages and project tool pages.
+- Bumped the app version to `0.1.8` for the replacement macOS installer.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 24 files and 105 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload and the expanded PKG payload app.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.8"`.
+- Packaged runtime still uses `runDesktopMigrations` and does not contain Prisma CLI `migrate deploy` startup code.
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.8-mac-arm64.pkg`.
+- SHA-256: `d7234a372c4090ec5c84cc110793f3ca790fb8408bb392c10731b0b4a06f2431`.
+
+Packaging note:
+
+- The app payload is Developer ID Application signed. The PKG itself still reports `Status: no signature` because the local keychain does not contain a Developer ID Installer certificate.
+
 ## 2026-06-19: 0.1.7 Pending Update Review Feedback Hotfix
 
 Status: completed.

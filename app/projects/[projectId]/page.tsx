@@ -29,34 +29,47 @@ type ProjectPageProps = {
 
 export default async function ProjectPage({ params }: ProjectPageProps) {
   const { projectId } = await params;
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    include: {
-      _count: {
-        select: {
-          settingVersions: true,
-          characters: true,
-          characterVersions: true,
-          chapters: true,
-          chapterVersions: true,
-          worldRules: true,
-          foreshadows: true,
-          timelineEvents: true,
-          aiPromptTemplates: true,
-          aiTasks: true,
-          pendingUpdates: true,
-          continuityReports: true,
-          publishPackages: true,
+  const [project, pendingUpdateGroups] = await Promise.all([
+    prisma.project.findUnique({
+      where: {
+        id: projectId,
+      },
+      include: {
+        _count: {
+          select: {
+            settingVersions: true,
+            characters: true,
+            characterVersions: true,
+            chapters: true,
+            chapterVersions: true,
+            worldRules: true,
+            foreshadows: true,
+            timelineEvents: true,
+            aiPromptTemplates: true,
+            aiTasks: true,
+            pendingUpdates: true,
+            continuityReports: true,
+            publishPackages: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.pendingUpdate.groupBy({
+      by: ["status"],
+      where: {
+        projectId,
+      },
+      _count: {
+        _all: true,
+      },
+    }),
+  ]);
 
   if (!project) {
     notFound();
   }
+
+  const pendingUpdateStats = summarizePendingUpdates(pendingUpdateGroups);
 
   return (
     <div className="space-y-6">
@@ -222,7 +235,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 待审更新
               </h2>
               <p className="mt-1 text-sm leading-6 text-ink-700">
-                {project._count.pendingUpdates} 条建议，批准后才写入正式记忆。
+                {pendingUpdateSummary(pendingUpdateStats)}
               </p>
             </div>
           </div>
@@ -322,6 +335,59 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       </section>
     </div>
   );
+}
+
+function summarizePendingUpdates(
+  groups: Array<{
+    status: string;
+    _count: {
+      _all: number;
+    };
+  }>,
+) {
+  const stats = {
+    approved: 0,
+    pending: 0,
+    rejected: 0,
+    total: 0,
+  };
+
+  for (const group of groups) {
+    const count = group._count._all;
+    stats.total += count;
+
+    if (group.status === "pending") {
+      stats.pending = count;
+    } else if (group.status === "approved") {
+      stats.approved = count;
+    } else if (group.status === "rejected") {
+      stats.rejected = count;
+    }
+  }
+
+  return stats;
+}
+
+function pendingUpdateSummary({
+  approved,
+  pending,
+  rejected,
+  total,
+}: {
+  approved: number;
+  pending: number;
+  rejected: number;
+  total: number;
+}) {
+  if (total === 0) {
+    return "暂无建议，AI 提取后会先进入待审核列表。";
+  }
+
+  if (pending === 0) {
+    return `全部建议已处理：已批准 ${approved} 条，已拒绝 ${rejected} 条。`;
+  }
+
+  return `待审核 ${pending} 条，已批准 ${approved} 条，已拒绝 ${rejected} 条。`;
 }
 
 function InfoTile({ label, value }: { label: string; value: string }) {

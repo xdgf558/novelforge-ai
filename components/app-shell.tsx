@@ -1,57 +1,18 @@
 import Link from "next/link";
 import {
   Bell,
-  BookOpenText,
   CheckCircle2,
-  ClipboardList,
   Database,
-  LayoutDashboard,
-  NotebookTabs,
   PackageCheck,
-  Plus,
   Settings,
-  Sparkles,
-  Users,
 } from "lucide-react";
+import { AppShellNavigation } from "@/components/app-shell-navigation";
 import { NovelForgeMark, SidebarNocturneArt } from "@/components/story-illustrations";
 import { appVersion } from "@/lib/app-version";
 
 type AppShellProps = {
   children: React.ReactNode;
 };
-
-const navItems = [
-  {
-    href: "/",
-    label: "项目",
-    icon: LayoutDashboard,
-    active: true,
-  },
-  {
-    href: "/projects/new",
-    label: "新建",
-    icon: Plus,
-  },
-];
-
-const toolItems = [
-  {
-    label: "设定库",
-    icon: BookOpenText,
-  },
-  {
-    label: "角色",
-    icon: Users,
-  },
-  {
-    label: "章节",
-    icon: NotebookTabs,
-  },
-  {
-    label: "任务记录",
-    icon: ClipboardList,
-  },
-];
 
 export function AppShell({ children }: AppShellProps) {
   return (
@@ -66,50 +27,7 @@ export function AppShell({ children }: AppShellProps) {
             </div>
           </div>
 
-          <nav className="flex gap-2 overflow-x-auto px-5 pb-5 lg:flex-col lg:overflow-visible">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  className={
-                    item.active
-                      ? "nf-nav-item nf-nav-item-active"
-                      : "nf-nav-item"
-                  }
-                  href={item.href}
-                  key={item.href}
-                >
-                  <Icon aria-hidden="true" className="h-5 w-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="hidden px-6 lg:block">
-            <div className="mb-4 h-px bg-gradient-to-r from-transparent via-[#a87943]/25 to-transparent" />
-            <p className="mb-3 flex items-center gap-2 text-xs font-medium text-[#8b765b]">
-              <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
-              创作工具
-            </p>
-            <div className="space-y-1.5">
-              {toolItems.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <div
-                    aria-disabled="true"
-                    className="nf-nav-item nf-nav-item-muted"
-                    key={item.label}
-                  >
-                    <Icon aria-hidden="true" className="h-5 w-5" />
-                    {item.label}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <AppShellNavigation />
 
           <div className="mt-auto hidden p-6 lg:block">
             <SidebarNocturneArt className="mb-5 h-auto w-full rounded-2xl opacity-90 shadow-[0_18px_55px_rgba(0,0,0,0.32)]" />
