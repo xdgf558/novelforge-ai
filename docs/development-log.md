@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-06-19: 0.1.10 Sidebar Click Hit-Testing Hotfix
+
+Status: completed.
+
+What was done:
+
+- Fixed sidebar link hit-testing by raising the fixed sidebar above the main content layer.
+- Kept project-aware sidebar links from `0.1.9`, including fallback to the most recently updated project.
+- Hid the decorative sidebar illustration on short windows so the local SQLite persistence note is not cut in half.
+- Bumped the app version to `0.1.10` for the replacement macOS installer.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 24 files and 105 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- Real app-window verification passed on the generated app payload: sidebar "设定库" clicked from `/` navigated to `/projects/[projectId]/settings`, and the local SQLite persistence card displayed fully in the short-height desktop window.
+- Generated CSS includes `@media (max-height:900px){.nf-sidebar-art{display:none}}`.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload and the expanded PKG payload app.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.10"`.
+- Packaged runtime still uses `runDesktopMigrations` and does not contain Prisma CLI `migrate deploy` startup code.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.10-mac-arm64.pkg`.
+- SHA-256: `a2e178a5971ce2c3060fd3976cbddad64e3ceece83ae8af73ec44409542d1fd5`.
+- The app payload is Developer ID Application signed. The PKG itself still reports `Status: no signature` because the local keychain does not contain a Developer ID Installer certificate.
+- `release/desktop` was cleaned after packaging so only the formal PKG handoff remains.
+
 ## 2026-06-19: 0.1.9 Sidebar Fallback Navigation and Scroll Hotfix
 
 Status: completed.

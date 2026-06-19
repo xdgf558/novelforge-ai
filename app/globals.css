@@ -126,6 +126,12 @@ button {
       inset 0 1px rgba(255, 255, 255, 0.05);
   }
 
+  @media (max-height: 900px) {
+    .nf-sidebar-art {
+      display: none;
+    }
+  }
+
   .nf-workspace-panel {
     min-height: calc(100vh - 2.5rem);
     border: 1px solid rgba(206, 143, 72, 0.18);
