@@ -18,6 +18,18 @@ Verification:
 - `npm run test` passed, 25 files and 107 tests.
 - `npm run build` passed.
 - `git diff --check` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.11"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload.
+- Packaged runtime still uses `runDesktopMigrations` and bundled `migration.sql`; startup does not use Prisma CLI `migrate deploy`.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.11-mac-arm64.pkg`.
+- SHA-256: `8ded47ada56421d8ee5114cdf596d4017926ec820d0d12b38f78361443c09176`.
+- `release/desktop` was cleaned after packaging so only the formal PKG handoff remains.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate; the app payload is Developer ID Application signed.
+- A temporary-disk install smoke was not completed because macOS `installer` requires root privileges for this package.
 
 ## 2026-06-19: 0.1.10 Sidebar Click Hit-Testing Hotfix
 
