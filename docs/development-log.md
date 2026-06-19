@@ -1,5 +1,28 @@
 # Development Log
 
+## 2026-06-19: Final Text Guidance Hotfix
+
+Status: completed.
+
+What was done:
+
+- Bumped the app/package version to `0.1.13`.
+- Updated in-app release notes for the final-text guidance improvement.
+- Added a stable `#finalText` anchor to the chapter edit form so chapter detail prompts can deep-link directly to the final-text field.
+- Updated final-text dependent AI panels on the chapter detail page:
+  - chapter summary extraction,
+  - pending update extraction,
+  - continuity checking,
+  - publish package generation.
+- When a chapter has no confirmed final text, these panels now show an actionable “去填写定稿正文” link instead of only a passive disabled-state sentence.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 25 files and 107 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+
 ## 2026-06-19: Minimal Chapter Creation Form
 
 Status: completed.

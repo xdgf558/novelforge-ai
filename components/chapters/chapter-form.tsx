@@ -186,8 +186,9 @@ export function ChapterForm({
                 <label className="flex flex-col gap-2" key={field.name}>
                   <span className={labelClass}>{field.label}</span>
                   <textarea
-                    className={`${inputClass} py-3 leading-6`}
+                    className={`${inputClass} scroll-mt-24 py-3 leading-6`}
                     defaultValue={values[field.name]}
+                    id={field.name}
                     name={field.name}
                     placeholder={field.placeholder}
                     rows={field.rows}

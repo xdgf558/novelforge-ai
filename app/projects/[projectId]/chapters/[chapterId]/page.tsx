@@ -626,9 +626,11 @@ function ChapterSummaryAiPanel({
       ) : null}
 
       {!hasConfirmedText ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          生成章节摘要前需要先在定稿正文中保存作者确认后的章节文本。
-        </p>
+        <FinalTextRequiredNotice
+          actionLabel="生成章节摘要"
+          chapterId={chapterId}
+          projectId={projectId}
+        />
       ) : null}
 
       {hasActiveGeneration ? (
@@ -748,9 +750,11 @@ function ChapterPendingUpdatePanel({
       ) : null}
 
       {!hasConfirmedText ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          提取待审核更新前需要先保存作者确认后的定稿正文。
-        </p>
+        <FinalTextRequiredNotice
+          actionLabel="提取待审核更新"
+          chapterId={chapterId}
+          projectId={projectId}
+        />
       ) : null}
 
       {hasActiveGeneration ? (
@@ -867,9 +871,11 @@ function ChapterContinuityPanel({
       ) : null}
 
       {!hasConfirmedText ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          运行连续性检查前需要先保存作者确认后的定稿正文。
-        </p>
+        <FinalTextRequiredNotice
+          actionLabel="运行连续性检查"
+          chapterId={chapterId}
+          projectId={projectId}
+        />
       ) : null}
 
       {hasActiveGeneration ? (
@@ -986,9 +992,11 @@ function ChapterPublishPackagePanel({
       ) : null}
 
       {!hasConfirmedText ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          生成发布包装前需要先保存作者确认后的定稿正文。
-        </p>
+        <FinalTextRequiredNotice
+          actionLabel="生成发布包装"
+          chapterId={chapterId}
+          projectId={projectId}
+        />
       ) : null}
 
       {hasActiveGeneration ? (
@@ -1037,5 +1045,31 @@ function ChapterPublishPackagePanel({
         </div>
       )}
     </section>
+  );
+}
+
+function FinalTextRequiredNotice({
+  actionLabel,
+  chapterId,
+  projectId,
+}: {
+  actionLabel: string;
+  chapterId: string;
+  projectId: string;
+}) {
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-md bg-paper-50 px-3 py-3 text-sm text-ink-700 sm:flex-row sm:items-center sm:justify-between">
+      <p className="leading-6">
+        {actionLabel}
+        前需要先把作者确认后的正文保存到编辑页的“定稿正文”字段。
+      </p>
+      <Link
+        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+        href={`/projects/${projectId}/chapters/${chapterId}/edit#finalText`}
+      >
+        <Pencil aria-hidden="true" className="h-4 w-4" />
+        去填写定稿正文
+      </Link>
+    </div>
   );
 }
