@@ -1,5 +1,24 @@
 # Development Log
 
+## 2026-06-19: One-Click Chapter Finalization
+
+Status: completed.
+
+What was done:
+
+- Bumped the app/package version to `0.1.14`.
+- Updated in-app release notes for one-click finalization.
+- Added a “用草稿一键定稿” button beside the chapter edit page final-text field.
+- The button submits the current form, copies the current draft text into final text, sets chapter status to `final`, saves the chapter, and creates a new chapter version snapshot.
+- If the author leaves the change reason empty, the action records `一键定稿：将草稿正文保存为定稿正文`.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 25 files and 107 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+
 ## 2026-06-19: Final Text Guidance Hotfix
 
 Status: completed.

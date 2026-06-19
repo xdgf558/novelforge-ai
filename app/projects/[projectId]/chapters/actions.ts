@@ -86,7 +86,19 @@ function parseChapterForm(formData: FormData) {
     wordCount: 0,
   };
 
-  const changeReason = changeReasonSchema.parse(formData.get("changeReason"));
+  const shouldFinalizeFromDraft =
+    formData.get("submitIntent") === "finalizeFromDraft";
+  const parsedChangeReason = changeReasonSchema.parse(
+    formData.get("changeReason"),
+  );
+  const changeReason = shouldFinalizeFromDraft
+    ? (parsedChangeReason ?? "一键定稿：将草稿正文保存为定稿正文")
+    : parsedChangeReason;
+
+  if (shouldFinalizeFromDraft) {
+    values.finalText = values.draftText;
+    values.status = "final";
+  }
 
   return {
     values,

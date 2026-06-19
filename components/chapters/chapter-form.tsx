@@ -183,8 +183,22 @@ export function ChapterForm({
 
             <div className="mt-5 grid gap-4">
               {group.fields.map((field) => (
-                <label className="flex flex-col gap-2" key={field.name}>
-                  <span className={labelClass}>{field.label}</span>
+                <div className="flex flex-col gap-2" key={field.name}>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <label className={labelClass} htmlFor={field.name}>
+                      {field.label}
+                    </label>
+                    {!isCreateForm && field.name === "finalText" ? (
+                      <button
+                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-signal-500/40 bg-signal-500/10 px-3 py-2 text-sm font-semibold text-signal-700 transition hover:bg-signal-500/15"
+                        name="submitIntent"
+                        type="submit"
+                        value="finalizeFromDraft"
+                      >
+                        用草稿一键定稿
+                      </button>
+                    ) : null}
+                  </div>
                   <textarea
                     className={`${inputClass} scroll-mt-24 py-3 leading-6`}
                     defaultValue={values[field.name]}
@@ -193,7 +207,12 @@ export function ChapterForm({
                     placeholder={field.placeholder}
                     rows={field.rows}
                   />
-                </label>
+                  {!isCreateForm && field.name === "finalText" ? (
+                    <p className="text-xs leading-5 text-ink-700">
+                      点击后会把当前草稿正文写入定稿正文、把章节状态设为“已定稿”，并保存新的章节快照。
+                    </p>
+                  ) : null}
+                </div>
               ))}
             </div>
           </section>
