@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import {
   Bell,
   CheckCircle2,
@@ -9,15 +10,18 @@ import {
 import { AppShellNavigation } from "@/components/app-shell-navigation";
 import { NovelForgeMark, SidebarNocturneArt } from "@/components/story-illustrations";
 import { appVersion } from "@/lib/app-version";
+import { prisma } from "@/lib/prisma";
 
 type AppShellProps = {
   children: React.ReactNode;
 };
 
-export function AppShell({ children }: AppShellProps) {
+export async function AppShell({ children }: AppShellProps) {
+  const fallbackProjectId = await getFallbackProjectId();
+
   return (
     <div className="nocturne-shell min-h-screen overflow-hidden lg:flex">
-      <aside className="nf-sidebar border-b border-amber-200/10 lg:fixed lg:inset-y-0 lg:left-0 lg:w-80 lg:border-b-0 lg:border-r">
+      <aside className="nf-sidebar max-h-screen overflow-y-auto border-b border-amber-200/10 lg:fixed lg:inset-y-0 lg:left-0 lg:w-80 lg:border-b-0 lg:border-r">
         <div className="flex min-h-full flex-col">
           <div className="flex items-center gap-3 px-6 py-7">
             <NovelForgeMark className="h-14 w-14 shrink-0 rounded-2xl shadow-[0_0_34px_rgba(241,168,76,0.12)]" />
@@ -27,7 +31,7 @@ export function AppShell({ children }: AppShellProps) {
             </div>
           </div>
 
-          <AppShellNavigation />
+          <AppShellNavigation fallbackProjectId={fallbackProjectId} />
 
           <div className="mt-auto hidden p-6 lg:block">
             <SidebarNocturneArt className="mb-5 h-auto w-full rounded-2xl opacity-90 shadow-[0_18px_55px_rgba(0,0,0,0.32)]" />
@@ -76,4 +80,28 @@ export function AppShell({ children }: AppShellProps) {
       </main>
     </div>
   );
+}
+
+async function getFallbackProjectId() {
+  noStore();
+
+  try {
+    const project = await prisma.project.findFirst({
+      orderBy: [
+        {
+          updatedAt: "desc",
+        },
+        {
+          createdAt: "desc",
+        },
+      ],
+      select: {
+        id: true,
+      },
+    });
+
+    return project?.id ?? null;
+  } catch {
+    return null;
+  }
 }

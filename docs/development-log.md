@@ -1,5 +1,34 @@
 # Development Log
 
+## 2026-06-19: 0.1.9 Sidebar Fallback Navigation and Scroll Hotfix
+
+Status: completed.
+
+What was done:
+
+- Added a server-side fallback project lookup so sidebar creative-tool links work even when the current route does not contain a project id.
+- Kept route project ids as the first priority, then falls back to the most recently updated local project.
+- Added independent vertical scrolling to the fixed desktop sidebar so the local SQLite persistence note is not clipped in short windows.
+- Bumped the app version to `0.1.9` for the replacement macOS installer.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 24 files and 105 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` produced the signed macOS app payload with notarization skipped for personal use.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload and the expanded PKG payload app.
+- `pkgutil --expand-full` confirmed the package metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.9"`.
+- Packaged runtime still uses `runDesktopMigrations` and does not contain Prisma CLI `migrate deploy` startup code.
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.9-mac-arm64.pkg`.
+- SHA-256: `136ff557b2f35efb59487943c39851b693a1aa5360fb531cbb22287cddfe5100`.
+
+Packaging note:
+
+- The app payload is Developer ID Application signed. The PKG itself still reports `Status: no signature` because the local keychain does not contain a Developer ID Installer certificate.
+
 ## 2026-06-19: 0.1.8 Project Dashboard Status and Sidebar Navigation Hotfix
 
 Status: completed.

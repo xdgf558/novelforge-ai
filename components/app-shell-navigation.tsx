@@ -48,10 +48,17 @@ const projectToolItems = [
   },
 ];
 
-export function AppShellNavigation() {
+type AppShellNavigationProps = {
+  fallbackProjectId?: string | null;
+};
+
+export function AppShellNavigation({
+  fallbackProjectId,
+}: AppShellNavigationProps) {
   const pathname = usePathname();
-  const projectId = currentProjectId(pathname);
-  const projectLandingPath = projectId ? `/projects/${projectId}` : null;
+  const routeProjectId = currentProjectId(pathname);
+  const projectId = routeProjectId ?? fallbackProjectId ?? null;
+  const projectLandingPath = routeProjectId ? `/projects/${routeProjectId}` : null;
 
   return (
     <>
