@@ -1,5 +1,86 @@
 # Development Log
 
+## 2026-06-19: Continuity Report One-Click Fix
+
+Status: completed.
+
+What was done:
+
+- Bumped the app/package version to `0.1.16`.
+- Added an explicit one-click repair flow to the continuity report page.
+- Continuity reports now show “一键修复正文” when the AI suggestion contains a safe, explicit replacement pattern such as “将 A 改为 B”.
+- Clicking the button updates the linked chapter’s confirmed final text, creates a new chapter version snapshot, and marks the continuity report as resolved.
+- Unsupported or vague fix suggestions remain manual-only so AI reports cannot silently guess complex story edits.
+- Added success/failure feedback banners to the continuity report page so authors can see whether the repair was applied, unsupported, already resolved, missing a chapter, or could not find the original text.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.16-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the formal PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/continuity-fixes.test.ts` passed, 1 file and 3 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 26 files and 112 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.16"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the final expanded PKG payload app.
+- Packaged runtime still uses `runDesktopMigrations` from `desktop/runtime.cjs` and does not contain Prisma CLI `migrate deploy` startup code.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.16-mac-arm64.pkg`.
+- SHA-256: `38a59d0b6803752c8c644b6b57192e765b1c01ce5a720421ece09dd827bcc6e2`.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate.
+- The final personal-use PKG uses the copied-and-ad-hoc-signed app payload path established in the `0.1.12` packaging pass, and the expanded payload passed codesign verification.
+
+## 2026-06-19: Long Chapter Summary Stability Hotfix
+
+Status: completed.
+
+What was done:
+
+- Bumped the app/package version to `0.1.15`.
+- Updated in-app release notes for long chapter summary stability.
+- Fixed repeated `fetch failed` failures when chapter summary generation sends very long final text to an OpenAI-compatible provider.
+- Chapter summary context now keeps the original final-text length in the audit record, but sends a safer head/middle/tail excerpt to the model when the confirmed final text is very long.
+- AI task `inputJson` now records:
+  - original final text length,
+  - model prompt text length,
+  - whether the text was excerpted,
+  - the excerpt strategy.
+- OpenAI-compatible client failures now record the endpoint, approximate request size, and low-level network cause instead of only `fetch failed`.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.15-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the formal PKG handoff remains.
+
+Observed cause:
+
+- The installed `0.1.14` app was configured correctly for DeepSeek (`OPENAI_BASE_URL=https://api.deepseek.com`, model `deepseek-v4-pro`, API Key present).
+- Chapter 1 summary succeeded with about 10k confirmed final-text characters.
+- Chapter 2 summary failed twice with `fetch failed` while sending about 30k confirmed final-text characters.
+- The most likely failure mode is the provider/network closing the oversized single request before an HTTP response is returned.
+
+Verification:
+
+- `npm run test -- lib/ai/chapter-summaries.test.ts lib/ai/openai-client.test.ts` passed, 2 files and 14 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 25 files and 109 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.15"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the final expanded PKG payload app.
+- Packaged runtime still uses `runDesktopMigrations` and bundled `migration.sql`; startup does not use Prisma CLI `migrate deploy`.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.15-mac-arm64.pkg`.
+- SHA-256: `c085a266bd4f9d8e678669493b58adde05cba9cd66bf2d9c69eb2346366daf7f`.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate.
+- The final personal-use PKG uses the copied-and-ad-hoc-signed app payload path established in the `0.1.12` packaging pass, and the expanded payload passed codesign verification.
+
 ## 2026-06-19: One-Click Chapter Finalization
 
 Status: completed.

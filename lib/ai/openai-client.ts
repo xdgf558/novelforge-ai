@@ -45,6 +45,8 @@ export type OpenAITextResult = {
 
 type FetchLike = typeof fetch;
 
+const openAIRequestTimeoutMs = 120_000;
+
 export function getConfiguredOpenAIModel(env: EnvLike = getAiRuntimeEnv()) {
   return env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
 }
@@ -154,18 +156,30 @@ export async function createOpenAITextResponse(
   const payload = useResponsesApi
     ? buildOpenAIResponsesPayload(resolvedRequest)
     : buildOpenAIChatCompletionsPayload(resolvedRequest);
+  const endpoint = `${baseUrl}/${useResponsesApi ? "responses" : "chat/completions"}`;
+  const requestBody = JSON.stringify(payload);
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(
+    () => abortController.abort(),
+    openAIRequestTimeoutMs,
+  );
+  let response: Response;
 
-  const response = await fetchImpl(
-    `${baseUrl}/${useResponsesApi ? "responses" : "chat/completions"}`,
-    {
+  try {
+    response = await fetchImpl(endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
-    },
-  );
+      body: requestBody,
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    throw new Error(formatOpenAIRequestFailure(error, endpoint, requestBody.length));
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const responseText = await response.text();
   const responseJson = parseOpenAIResponseBody(responseText, response.status);
@@ -303,6 +317,56 @@ function parseOpenAIResponseBody(responseText: string, status: number) {
 
 function shouldUseResponsesApi(baseUrl: string) {
   return baseUrl === DEFAULT_OPENAI_BASE_URL;
+}
+
+function formatOpenAIRequestFailure(
+  error: unknown,
+  endpoint: string,
+  payloadLength: number,
+) {
+  if (isAbortError(error)) {
+    return `AI 接口请求超时（${openAIRequestTimeoutMs / 1000} 秒）：${endpoint}，请求体约 ${formatPayloadLength(payloadLength)}。请稍后重试，或缩短本次输入。`;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  const cause =
+    error instanceof Error
+      ? formatErrorCause((error as Error & { cause?: unknown }).cause)
+      : "";
+
+  return [
+    `AI 接口请求未收到响应：${endpoint}`,
+    `请求体约 ${formatPayloadLength(payloadLength)}`,
+    message,
+    cause ? `原因：${cause}` : "",
+  ]
+    .filter(Boolean)
+    .join("；");
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+function formatErrorCause(cause: unknown) {
+  if (!isRecord(cause)) {
+    return "";
+  }
+
+  const parts = [
+    typeof cause.code === "string" ? cause.code : "",
+    typeof cause.message === "string" ? cause.message : "",
+  ].filter(Boolean);
+
+  return parts.join(" ");
+}
+
+function formatPayloadLength(length: number) {
+  if (length < 1024) {
+    return `${length} 字符`;
+  }
+
+  return `${(length / 1024).toFixed(1)} KB`;
 }
 
 function assertServerOnly() {

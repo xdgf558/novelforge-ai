@@ -236,4 +236,44 @@ describe("OpenAI client helpers", () => {
       totalTokens: 3,
     });
   });
+
+  it("adds endpoint and request size details to network failures", async () => {
+    const fetchError = Object.assign(new Error("fetch failed"), {
+      cause: {
+        code: "UND_ERR_SOCKET",
+        message: "other side closed",
+      },
+    });
+    const fetchImpl = vi.fn(async () => {
+      throw fetchError;
+    });
+    let thrownError: unknown;
+
+    try {
+      await createOpenAITextResponse(
+        {
+          model: "deepseek-v4-pro",
+          input: "摘要正文",
+        },
+        {
+          env: {
+            OPENAI_API_KEY: "sk-test",
+            OPENAI_MODEL: "deepseek-v4-pro",
+            OPENAI_BASE_URL: "https://api.deepseek.com",
+          },
+          fetchImpl,
+        },
+      );
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBeInstanceOf(Error);
+    expect((thrownError as Error).message).toContain(
+      "AI 接口请求未收到响应：https://api.deepseek.com/chat/completions",
+    );
+    expect((thrownError as Error).message).toContain(
+      "UND_ERR_SOCKET other side closed",
+    );
+  });
 });

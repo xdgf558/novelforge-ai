@@ -141,6 +141,13 @@ For chapter generation, assemble only:
 - Forbidden items
 - Style sample
 
+For chapter summary extraction, confirmed final text is still the only source.
+When final text is too long for stable single-request model calls, pass a
+head/middle/tail excerpt to the model, and record the original final-text length,
+excerpt length, and excerpt strategy in the AI task audit trail. This keeps the
+local MVP stable with OpenAI-compatible providers while leaving room for a future
+chunk-and-merge summary pipeline.
+
 Long-term memory should live in structured data:
 
 - Project setting
@@ -193,6 +200,7 @@ Recommended implementation order:
 - Phase 18A: Station Cat publish API adapter and draft API contract, including import request generation, endpoint normalization, server-only future HTTP client, response/error parsing, dry-run publish run request storage, and contract documentation for the website backend agent.
 - Phase 18B: Station Cat real publish API integration, including `POST /api/novelforge/import`, Station Cat Publish Token handling, preview/publish URL persistence, remote id sync-state updates, failed-run recording without hash advancement, and updated website API contract docs.
 - Phase 19A: project cover image upload, local cover asset storage, project-level cover metadata, publish-page cover preview/removal, and Station Cat standard package cover payload with base64 image data.
+- Continuity one-click repair: open continuity reports can offer an author-triggered “一键修复正文” button when the suggested fix contains an explicit replacement such as “将 A 改为 B”; the action updates the linked chapter final text, creates a chapter version snapshot, and marks the report resolved. Vague fixes stay manual-only.
 
 ## UI Direction
 
@@ -215,7 +223,7 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - Desktop startup must not run Prisma CLI commands from inside the packaged app bundle. DMG volumes are read-only, and Prisma CLI can try to mutate `node_modules/@prisma/engines` under `app.asar.unpacked`, causing `EROFS`. Use `runDesktopMigrations` in `desktop/runtime.cjs`, which reads bundled `prisma/migrations/*/migration.sql`, applies SQL through Prisma Client to the user data SQLite database, and records `_prisma_migrations`.
 - `npm run desktop:dist:mac` produces the signed local app payload plus DMG/ZIP artifacts and skips notarization; use the app payload to build the formal `/Applications` PKG handoff.
 - `npm run desktop:dist:mac:notarized` exists only for an explicit future public-distribution request; do not use it for normal personal-use rebuilds.
-- Current formal personal-use macOS installer version is `0.1.14`; handoff should leave only `release/desktop/NovelForge-AI-0.1.14-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
+- Current formal personal-use macOS installer version is `0.1.16`; handoff should leave only `release/desktop/NovelForge-AI-0.1.16-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
 - Formal handoff should use a `.pkg` installer that installs `NovelForge AI.app` into `/Applications`; a DMG is only a drag-and-drop/test package because the app inside a DMG can be launched directly.
 - Current keychain has Developer ID Application signing available but no Developer ID Installer identity; until an Installer certificate is added, the PKG itself is unsigned. Since the 0.1.12 packaging pass, copied Developer ID signed app bundles can fail verification after staging/PKG expansion, so the final personal-use PKG uses an ad-hoc signed app payload that passes copy/package/expand verification.
 - Pending update review forms now show an in-flight state while approving/rejecting, redirect back with a visible result banner, and processed cards show the handling time plus whether the suggestion wrote to formal memory.

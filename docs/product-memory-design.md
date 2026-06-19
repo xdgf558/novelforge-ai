@@ -183,6 +183,7 @@ For summary extraction, include:
 - Final chapter text
 - Chapter number
 - Current setting summary
+- Very long final text may be passed as a head/middle/tail excerpt for request stability, with the original length and excerpt strategy recorded in `ai_tasks`; a future chunk-and-merge pipeline can replace this when full long-chapter extraction is required.
 
 For continuity check, include:
 
@@ -213,9 +214,9 @@ Implement memory in this order:
 ## Non-Negotiable Invariants
 
 - No direct AI overwrite of formal memory.
+- Continuity one-click fixes are allowed only as explicit author-triggered actions for precise replacement suggestions; vague AI advice must remain manual.
 - No hidden AI changes.
 - No full-manuscript prompt strategy for ordinary chapter generation.
 - No frontend API key exposure.
 - No unlogged AI calls.
 - No accepted setting update without source and reason.
-

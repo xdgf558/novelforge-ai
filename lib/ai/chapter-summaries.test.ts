@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildChapterSummaryContext,
   buildChapterSummaryContextSummary,
+  buildPromptSourceText,
   confirmedChapterText,
   hasConfirmedChapterText,
 } from "./chapter-summaries";
@@ -72,5 +73,42 @@ describe("chapter summary context builder", () => {
     expect(buildChapterSummaryContextSummary(baseInput)).toBe(
       `第 5 章《门后的倒计时》章节摘要提取；定稿 ${baseInput.chapter.finalText.length} 字；角色 1 个；包含项目设定`,
     );
+  });
+
+  it("uses safe excerpts for very long final text prompts", () => {
+    const longFinalText = [
+      "开头：林野发现倒计时。",
+      "甲".repeat(9000),
+      "中段：周医生旧病例出现。",
+      "乙".repeat(9000),
+      "结尾：短信署名再次变成周医生。",
+    ].join("\n");
+    const context = buildChapterSummaryContext({
+      ...baseInput,
+      chapter: {
+        ...baseInput.chapter,
+        finalText: longFinalText,
+      },
+    });
+    const promptSourceText = buildPromptSourceText(longFinalText);
+
+    expect(context.inputText).toContain("开头摘录");
+    expect(context.inputText).toContain("中段摘录");
+    expect(context.inputText).toContain("结尾摘录");
+    expect(context.inputText).toContain("只基于这些摘录");
+    expect(context.inputText.length).toBeLessThan(longFinalText.length);
+    expect(context.inputJson.chapter).toMatchObject({
+      finalTextLength: longFinalText.length,
+      finalTextPromptWasExcerpted: true,
+      finalTextPromptStrategy: "head_middle_tail_excerpt",
+    });
+    expect(promptSourceText.wasExcerpted).toBe(true);
+    expect(buildChapterSummaryContextSummary({
+      ...baseInput,
+      chapter: {
+        ...baseInput.chapter,
+        finalText: longFinalText,
+      },
+    })).toContain("模型输入首/中/尾摘录");
   });
 });

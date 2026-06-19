@@ -49,11 +49,14 @@ export type BuiltChapterSummaryContext = {
 };
 
 const finalTextPreviewMaxLength = 1200;
+const finalTextPromptMaxLength = 12000;
+const finalTextPromptSectionLength = 4000;
 
 export function buildChapterSummaryContext(
   input: ChapterSummaryContextInput,
 ): BuiltChapterSummaryContext {
   const sourceText = confirmedChapterText(input.chapter);
+  const promptSourceText = buildPromptSourceText(sourceText);
   const settingItems = buildSettingItems(input.setting);
   const characterItems = input.characters.map(buildCharacterLine).filter(Boolean);
 
@@ -74,6 +77,9 @@ export function buildChapterSummaryContext(
       notes: clean(input.chapter.notes),
       finalTextLength: sourceText.length,
       finalTextPreview: clipText(sourceText, finalTextPreviewMaxLength),
+      finalTextPromptLength: promptSourceText.length,
+      finalTextPromptWasExcerpted: promptSourceText.wasExcerpted,
+      finalTextPromptStrategy: promptSourceText.strategy,
     },
     setting: Object.fromEntries(settingItems),
     characters: characterItems,
@@ -82,7 +88,10 @@ export function buildChapterSummaryContext(
       "只提取定稿正文中明确出现的信息。",
       "不得根据草稿、设定脑补或未来剧情推测。",
       "不要直接修改正式设定、人物、时间线或伏笔。",
-    ],
+      promptSourceText.wasExcerpted
+        ? "定稿正文较长，模型输入使用首段/中段/尾段摘录；不要臆造省略部分未出现的信息。"
+        : "",
+    ].filter(Boolean),
   };
 
   const inputText = [
@@ -118,7 +127,7 @@ export function buildChapterSummaryContext(
     ]),
     "",
     "# 定稿正文",
-    sourceText || "未填写定稿正文。禁止基于草稿正文生成章节摘要。",
+    promptSourceText.text || "未填写定稿正文。禁止基于草稿正文生成章节摘要。",
     "",
     "# 输出 JSON 字段",
     "- shortSummary: 1-3 句短摘要。",
@@ -141,10 +150,15 @@ export function buildChapterSummaryContextSummary(
   input: ChapterSummaryContextInput,
 ) {
   const sourceText = confirmedChapterText(input.chapter);
+  const promptSourceText = buildPromptSourceText(sourceText);
 
   return [
     `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节摘要提取`,
-    sourceText ? `定稿 ${sourceText.length} 字` : "缺少定稿正文",
+    sourceText
+      ? promptSourceText.wasExcerpted
+        ? `定稿 ${sourceText.length} 字，模型输入首/中/尾摘录 ${promptSourceText.length} 字`
+        : `定稿 ${sourceText.length} 字`
+      : "缺少定稿正文",
     `角色 ${input.characters.length} 个`,
     input.setting ? "包含项目设定" : "无项目设定",
   ].join("；");
@@ -156,6 +170,49 @@ export function hasConfirmedChapterText(chapter: ChapterSummaryChapterContext) {
 
 export function confirmedChapterText(chapter: ChapterSummaryChapterContext) {
   return clean(chapter.finalText);
+}
+
+export function buildPromptSourceText(sourceText: string) {
+  const text = clean(sourceText);
+
+  if (text.length <= finalTextPromptMaxLength) {
+    return {
+      text,
+      length: text.length,
+      wasExcerpted: false,
+      strategy: "full_text",
+    };
+  }
+
+  const head = text.slice(0, finalTextPromptSectionLength).trim();
+  const middleStart = Math.max(
+    0,
+    Math.floor(text.length / 2) - Math.floor(finalTextPromptSectionLength / 2),
+  );
+  const middle = text
+    .slice(middleStart, middleStart + finalTextPromptSectionLength)
+    .trim();
+  const tail = text.slice(-finalTextPromptSectionLength).trim();
+  const excerpt = [
+    `【系统提示：定稿正文共有 ${text.length} 字。为避免模型接口因超长正文中断，以下只提供开头、中段和结尾摘录。】`,
+    "【摘要边界：只基于这些摘录提取明确事实；省略段落中的未知信息不要脑补。】",
+    "",
+    "## 开头摘录",
+    head,
+    "",
+    "## 中段摘录",
+    middle,
+    "",
+    "## 结尾摘录",
+    tail,
+  ].join("\n");
+
+  return {
+    text: excerpt,
+    length: excerpt.length,
+    wasExcerpted: true,
+    strategy: "head_middle_tail_excerpt",
+  };
 }
 
 function buildSettingItems(setting?: ChapterSummarySettingContext | null) {

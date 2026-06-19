@@ -12,6 +12,11 @@ import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { chapterSnapshot, chapterValuesFromRecord } from "@/lib/chapter-fields";
+import {
+  applyContinuityReplacement,
+  parseContinuityReplacementFix,
+} from "@/lib/continuity-fixes";
 import { prisma } from "@/lib/prisma";
 
 const continuityTemplateKey = "continuity_check";
@@ -171,6 +176,95 @@ export async function reopenContinuityReport(projectId: string, reportId: string
 
   revalidateContinuityPaths(projectId, report.chapterId);
   redirect(`/projects/${projectId}/continuity`);
+}
+
+export async function applyContinuityReportFix(
+  projectId: string,
+  reportId: string,
+) {
+  const report = await prisma.continuityReport.findFirst({
+    where: {
+      id: reportId,
+      projectId,
+    },
+    include: {
+      chapter: true,
+    },
+  });
+
+  if (!report) {
+    notFound();
+  }
+
+  if (report.status !== "open") {
+    redirect(`/projects/${projectId}/continuity?fix=already-resolved`);
+  }
+
+  if (!report.chapter) {
+    redirect(`/projects/${projectId}/continuity?fix=missing-chapter`);
+  }
+
+  const replacementFix = parseContinuityReplacementFix(report.suggestedFix);
+
+  if (!replacementFix) {
+    redirect(`/projects/${projectId}/continuity?fix=unsupported`);
+  }
+
+  const replacementResult = applyContinuityReplacement(
+    report.chapter.finalText ?? "",
+    replacementFix,
+  );
+
+  if (replacementResult.count === 0) {
+    redirect(`/projects/${projectId}/continuity?fix=not-found`);
+  }
+
+  const chapterId = report.chapter.id;
+  const snapshot = chapterSnapshot({
+    ...chapterValuesFromRecord(report.chapter),
+    finalText: replacementResult.text,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.chapter.update({
+      where: {
+        id: chapterId,
+      },
+      data: snapshot,
+    });
+
+    const versionCount = await tx.chapterVersion.count({
+      where: {
+        chapterId,
+      },
+    });
+
+    await tx.chapterVersion.create({
+      data: {
+        projectId,
+        chapterId,
+        versionNumber: versionCount + 1,
+        snapshotJson: JSON.stringify(snapshot),
+        changeReason: `一键修复连续性报告：${report.title}`,
+        sourceType: "continuity_fix",
+      },
+    });
+
+    await tx.continuityReport.update({
+      where: {
+        id: report.id,
+      },
+      data: {
+        status: "resolved",
+        resolutionNote: `一键修复定稿正文：将“${replacementFix.from}”替换为“${replacementFix.to}”（${replacementResult.count} 处）。`,
+        resolvedAt: new Date(),
+      },
+    });
+  });
+
+  revalidateContinuityPaths(projectId, chapterId);
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}/history`);
+  redirect(`/projects/${projectId}/continuity?fix=applied`);
 }
 
 async function loadContinuityContext(projectId: string, chapterId: string) {
