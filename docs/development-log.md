@@ -15,6 +15,8 @@ What was done:
   - continuity checking,
   - publish package generation.
 - When a chapter has no confirmed final text, these panels now show an actionable “去填写定稿正文” link instead of only a passive disabled-state sentence.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.13-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the formal PKG handoff remains.
 
 Verification:
 
@@ -22,6 +24,18 @@ Verification:
 - `npm run test` passed, 25 files and 107 tests.
 - `npm run build` passed.
 - `git diff --check` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.13"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the final expanded PKG payload app.
+- Packaged runtime still uses `runDesktopMigrations` and bundled `migration.sql`; startup does not use Prisma CLI `migrate deploy`.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.13-mac-arm64.pkg`.
+- SHA-256: `527abc07041b183b97af1d1bb2053c115cb54d51c7d5d7d09831e9b1f660744a`.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate.
+- The final personal-use PKG uses the copied-and-ad-hoc-signed app payload path established in the `0.1.12` packaging pass, and the expanded payload passed codesign verification.
 
 ## 2026-06-19: Minimal Chapter Creation Form
 
