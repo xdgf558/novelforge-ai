@@ -1,5 +1,24 @@
 # Development Log
 
+## 2026-06-19: 0.1.11 AI Task Retention Hotfix
+
+Status: completed.
+
+What was done:
+
+- Added a project-level AI task retention helper with a default limit of 10 records.
+- The AI task workspace now prunes old completed/failed/cancelled tasks before loading and only displays the latest 10 records.
+- New logged AI tasks and the local AI readiness check now trigger the same retention cleanup after creating a task record.
+- Pending/running AI tasks are preserved during cleanup so background generation can still update its logged record when it completes.
+- Updated the in-app version and release notes to `0.1.11`.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 25 files and 107 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+
 ## 2026-06-19: 0.1.10 Sidebar Click Hit-Testing Hotfix
 
 Status: completed.

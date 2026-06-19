@@ -16,6 +16,10 @@ import {
 } from "@/app/projects/[projectId]/ai/actions";
 import { aiTaskAdoptionLabel, aiTaskStatusLabel } from "@/lib/ai/status";
 import { readAiConnectionSettings } from "@/lib/ai/local-config";
+import {
+  projectAiTaskRetentionLimit,
+  pruneProjectAiTasks,
+} from "@/lib/ai/task-retention";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -42,6 +46,8 @@ export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) 
   if (!project) {
     notFound();
   }
+
+  await pruneProjectAiTasks(projectId);
 
   const [templates, tasks, taskCount] = await Promise.all([
     prisma.aiPromptTemplate.findMany({
@@ -78,10 +84,15 @@ export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) 
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 20,
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      take: projectAiTaskRetentionLimit,
     }),
     prisma.aiTask.count({
       where: {
@@ -216,7 +227,8 @@ export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) 
         <div>
           <h2 className="text-base font-semibold text-ink-950">Recent Tasks</h2>
           <p className="mt-1 text-sm leading-6 text-ink-700">
-            最近 20 条 AI 任务记录会保留状态、模型、模板版本和输出摘要。
+            最近 {projectAiTaskRetentionLimit} 条 AI
+            任务记录会保留状态、模型、模板版本和输出摘要；更早的已结束任务会自动清理。
           </p>
         </div>
 

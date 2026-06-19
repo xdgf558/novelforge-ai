@@ -4,6 +4,7 @@ import {
   getConfiguredOpenAIModel,
   type OpenAITextRequest,
 } from "@/lib/ai/openai-client";
+import { pruneProjectAiTasks } from "./task-retention";
 
 type CreateAiTaskInput = {
   projectId: string;
@@ -44,7 +45,7 @@ export function stringifyAiTaskPayload(value: unknown) {
 }
 
 export async function createAiTask(input: CreateAiTaskInput) {
-  return prisma.aiTask.create({
+  const task = await prisma.aiTask.create({
     data: {
       projectId: input.projectId,
       promptTemplateId: input.promptTemplateId,
@@ -57,6 +58,10 @@ export async function createAiTask(input: CreateAiTaskInput) {
       inputJson: stringifyAiTaskPayload(input.inputJson),
     },
   });
+
+  await pruneProjectAiTasks(input.projectId);
+
+  return task;
 }
 
 export async function markAiTaskRunning(taskId: string) {

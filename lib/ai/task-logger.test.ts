@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   aiTaskUpdate: vi.fn(),
   createOpenAITextResponse: vi.fn(),
   getConfiguredOpenAIModel: vi.fn(),
+  pruneProjectAiTasks: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -24,6 +25,10 @@ vi.mock("@/lib/ai/openai-client", () => ({
   getConfiguredOpenAIModel: mocks.getConfiguredOpenAIModel,
 }));
 
+vi.mock("./task-retention", () => ({
+  pruneProjectAiTasks: mocks.pruneProjectAiTasks,
+}));
+
 describe("AI task logger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -38,6 +43,7 @@ describe("AI task logger", () => {
       model: "deepseek-v4-pro",
       ...data,
     }));
+    mocks.pruneProjectAiTasks.mockResolvedValue(0);
   });
 
   it("starts a background text task and returns once the task is running", async () => {

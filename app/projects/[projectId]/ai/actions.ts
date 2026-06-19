@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { syncDefaultPromptTemplatesForProject } from "@/lib/ai/prompt-template-store";
+import { pruneProjectAiTasks } from "@/lib/ai/task-retention";
 import { stringifyAiTaskPayload } from "@/lib/ai/task-logger";
 import {
   getConfiguredOpenAIModel,
@@ -67,6 +68,8 @@ export async function recordLocalAiReadinessCheck(projectId: string) {
       completedAt,
     },
   });
+
+  await pruneProjectAiTasks(projectId);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/ai`);
