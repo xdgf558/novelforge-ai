@@ -27,6 +27,7 @@ import {
 } from "@/app/projects/[projectId]/publish/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyExportPanel } from "@/components/copy-export-panel";
+import { PublishSubmitButton } from "@/components/publish-submit-button";
 import { readStationCatPublishSettings } from "@/lib/ai/local-config";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
@@ -49,6 +50,7 @@ import {
   publishModeLabel,
   publishModeOptions,
   publishPlatformOptions,
+  publishUploadScopeOptions,
   stringifyStandardPublishPackage,
 } from "@/lib/publish-platforms";
 import {
@@ -96,6 +98,13 @@ export default async function PublishPage({ params }: PublishPageProps) {
   const hasActivePublishPackageTask = project.chapters.some((chapter) =>
     chapter.aiTasks.some((task) => isActiveAiTaskStatus(task.status)),
   );
+  const publishableChapters = project.chapters
+    .filter((chapter) => hasConfirmedChapterText(chapter))
+    .map((chapter) => ({
+      id: chapter.id,
+      chapterNumber: chapter.chapterNumber,
+      title: chapter.title,
+    }));
 
   return (
     <div className="space-y-6">
@@ -286,43 +295,15 @@ export default async function PublishPage({ params }: PublishPageProps) {
 
           <form
             action={prepareGlobalStationCatPublishRun.bind(null, project.id)}
-            className="mt-4 flex flex-col gap-3 rounded-lg border border-ink-950/10 bg-white p-4 sm:flex-row sm:items-end"
+            className="mt-4 grid gap-3 rounded-lg border border-ink-950/10 bg-white p-4 lg:grid-cols-[minmax(150px,180px)_minmax(170px,220px)_minmax(220px,1fr)_auto] lg:items-end"
           >
-            <label className="space-y-1.5">
-              <span className="text-xs font-semibold text-ink-700">本次模式</span>
-              <select
-                className="min-h-10 min-w-40 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-                defaultValue={stationCatSettings.defaultMode}
-                name="publishMode"
-              >
-                {publishModeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex min-h-10 items-center gap-2 rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm text-ink-700">
-              <input defaultChecked name="onlyChanged" type="checkbox" />
-              仅上传变更
-            </label>
-            <button
-              className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
-                canUseGlobalStationCat
-                  ? "bg-ink-950 text-white hover:bg-ink-800"
-                  : "cursor-not-allowed border border-ink-950/15 bg-paper-50 text-ink-700"
-              }`}
-              disabled={!canUseGlobalStationCat}
-              type="submit"
-            >
-              <UploadCloud aria-hidden="true" className="h-4 w-4" />
-              使用全局配置发送到 Station Cat
-            </button>
-            {!canUseGlobalStationCat ? (
-              <p className="text-sm leading-6 text-ink-700 sm:basis-full">
-                需要先在本机设置中保存 Station Cat Publish Token，才能调用网站导入接口。
-              </p>
-            ) : null}
+            <PublishRunFormControls
+              canSubmit={canUseGlobalStationCat}
+              chapters={publishableChapters}
+              defaultMode={stationCatSettings.defaultMode}
+              disabledMessage="需要先在本机设置中保存 Station Cat Publish Token，才能调用网站导入接口。"
+              submitLabel="使用全局配置发送到 Station Cat"
+            />
           </form>
         </article>
 
@@ -534,45 +515,15 @@ export default async function PublishPage({ params }: PublishPageProps) {
 
                   <form
                     action={preparePublishRun.bind(null, project.id, target.id)}
-                    className="mt-4 flex flex-col gap-3 rounded-lg border border-ink-950/10 bg-white p-4 sm:flex-row sm:items-end"
+                    className="mt-4 grid gap-3 rounded-lg border border-ink-950/10 bg-white p-4 lg:grid-cols-[minmax(150px,180px)_minmax(170px,220px)_minmax(220px,1fr)_auto] lg:items-end"
                   >
-                    <label className="space-y-1.5">
-                      <span className="text-xs font-semibold text-ink-700">
-                        本次模式
-                      </span>
-                      <select
-                        className="min-h-10 min-w-40 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-                        defaultValue={target.defaultMode}
-                        name="publishMode"
-                      >
-                        {publishModeOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex min-h-10 items-center gap-2 rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm text-ink-700">
-                      <input defaultChecked name="onlyChanged" type="checkbox" />
-                      仅上传变更
-                    </label>
-                    <button
-                      className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
-                        canSubmitPublish
-                          ? "bg-ink-950 text-white hover:bg-ink-800"
-                          : "cursor-not-allowed border border-ink-950/15 bg-paper-50 text-ink-700"
-                      }`}
-                      disabled={!canSubmitPublish}
-                      type="submit"
-                    >
-                      <UploadCloud aria-hidden="true" className="h-4 w-4" />
-                      {submitLabel}
-                    </button>
-                    {!canSubmitPublish ? (
-                      <p className="text-sm leading-6 text-ink-700 sm:basis-full">
-                        需要先保存 API Base URL 和 Station Cat Publish Token，才能调用网站导入接口。
-                      </p>
-                    ) : null}
+                    <PublishRunFormControls
+                      canSubmit={canSubmitPublish}
+                      chapters={publishableChapters}
+                      defaultMode={target.defaultMode}
+                      disabledMessage="需要先保存 API Base URL 和 Station Cat Publish Token，才能调用网站导入接口。"
+                      submitLabel={submitLabel}
+                    />
                   </form>
 
                   {latestRun ? (
@@ -898,6 +849,102 @@ function InfoTile({
   );
 }
 
+type PublishChapterOption = {
+  id: string;
+  chapterNumber: number | null;
+  title: string;
+};
+
+function PublishRunFormControls({
+  canSubmit,
+  chapters,
+  defaultMode,
+  disabledMessage,
+  submitLabel,
+}: {
+  canSubmit: boolean;
+  chapters: PublishChapterOption[];
+  defaultMode: string;
+  disabledMessage: string;
+  submitLabel: string;
+}) {
+  const defaultChapterId = chapters[chapters.length - 1]?.id ?? "";
+
+  return (
+    <>
+      <label className="space-y-1.5">
+        <span className="text-xs font-semibold text-ink-700">本次模式</span>
+        <select
+          className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+          defaultValue={defaultMode}
+          name="publishMode"
+        >
+          {publishModeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="space-y-1.5">
+        <span className="text-xs font-semibold text-ink-700">上传范围</span>
+        <select
+          className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+          defaultValue="all"
+          name="uploadScope"
+        >
+          {publishUploadScopeOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="space-y-1.5">
+        <span className="text-xs font-semibold text-ink-700">
+          指定章节（选择“指定章节”时生效）
+        </span>
+        <select
+          className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 disabled:bg-paper-50 disabled:text-ink-600"
+          defaultValue={defaultChapterId}
+          disabled={chapters.length === 0}
+          name="uploadChapterId"
+        >
+          {chapters.length === 0 ? (
+            <option value="">暂无已定稿章节</option>
+          ) : (
+            chapters.map((chapter) => (
+              <option key={chapter.id} value={chapter.id}>
+                {chapterOptionLabel(chapter)}
+              </option>
+            ))
+          )}
+        </select>
+      </label>
+
+      <div className="space-y-2">
+        <label className="flex min-h-10 items-center gap-2 rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          <input defaultChecked name="onlyChanged" type="checkbox" />
+          仅上传变更
+        </label>
+        <PublishSubmitButton disabled={!canSubmit} idleLabel={submitLabel} />
+      </div>
+
+      <p className="text-xs leading-5 text-ink-700 lg:col-span-4">
+        默认上传所有变更；选择“指定章节”后，只会把所选章节作为本次变更条目发送，不会连带封面或其他章节。取消“仅上传变更”可强制重传所选范围。
+      </p>
+
+      {!canSubmit ? (
+        <p className="text-sm leading-6 text-ink-700 lg:col-span-4">
+          {disabledMessage}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 function InfoBlock({
   label,
   value,
@@ -1004,6 +1051,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown) {
   return typeof value === "string" ? value : "";
+}
+
+function chapterOptionLabel(chapter: PublishChapterOption) {
+  const numberLabel =
+    chapter.chapterNumber == null ? "?" : formatNumber(chapter.chapterNumber);
+
+  return `第 ${numberLabel} 章：${chapter.title}`;
 }
 
 function stationCatEndpointLabel(apiBaseUrl: string) {

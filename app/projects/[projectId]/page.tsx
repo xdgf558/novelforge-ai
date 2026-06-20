@@ -18,6 +18,7 @@ import {
 import { deleteProject } from "@/app/projects/actions";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
+import { loadProjectActivitySummary } from "@/lib/project-activity";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +71,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   const pendingUpdateStats = summarizePendingUpdates(pendingUpdateGroups);
+  const activitySummary = await loadProjectActivitySummary(project);
 
   return (
     <div className="space-y-6">
@@ -328,9 +330,24 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           <dl className="mt-4 space-y-3 text-sm">
             <Row label="状态" value={project.status === "active" ? "进行中" : "已归档"} />
             <Row label="更新频率" value={project.updateFrequency || "未设置"} />
-            <Row label="创建时间" value={formatDate(project.createdAt)} />
-            <Row label="更新时间" value={formatDate(project.updatedAt)} />
+            <Row label="项目创建" value={formatDate(activitySummary.projectCreatedAt)} />
+            <Row
+              label="首章创建"
+              value={
+                activitySummary.firstChapter
+                  ? formatDate(activitySummary.firstChapter.createdAt)
+                  : "未创建"
+              }
+            />
+            <Row
+              label="项目资料更新"
+              value={formatDate(activitySummary.projectUpdatedAt)}
+            />
+            <Row label="最近活动" value={formatDate(activitySummary.latestActivityAt)} />
           </dl>
+          <p className="mt-4 text-xs leading-5 text-ink-700">
+            最近活动会统计章节、AI 任务、待审更新、连续性报告和发布记录；项目资料更新只表示标题、简介等基础信息变更。
+          </p>
         </div>
       </section>
     </div>

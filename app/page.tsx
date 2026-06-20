@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
+import { loadProjectActivitySummaries } from "@/lib/project-activity";
 import {
   EmptyStationIllustration,
   StatCardBackdrop,
@@ -17,7 +18,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [projects, activeProjectCount, wordTargetAggregate] = await Promise.all([
+  const [rawProjects, activeProjectCount, wordTargetAggregate] = await Promise.all([
     prisma.project.findMany({
       orderBy: {
         updatedAt: "desc",
@@ -35,6 +36,17 @@ export default async function HomePage() {
     }),
   ]);
 
+  const activitySummaries = await loadProjectActivitySummaries(rawProjects);
+  const projects = rawProjects
+    .map((project) => ({
+      ...project,
+      activitySummary: activitySummaries.get(project.id),
+    }))
+    .sort(
+      (left, right) =>
+        (right.activitySummary?.latestActivityAt ?? right.updatedAt).getTime() -
+        (left.activitySummary?.latestActivityAt ?? left.updatedAt).getTime(),
+    );
   const totalWordTarget = wordTargetAggregate._sum.totalWordTarget;
   const hasTotalWordTarget = totalWordTarget != null && totalWordTarget > 0;
 
@@ -156,7 +168,10 @@ export default async function HomePage() {
               </dl>
 
               <p className="mt-4 text-xs text-[#8d7b63]">
-                最近更新：{formatDate(project.updatedAt)}
+                最近活动：
+                {formatDate(
+                  project.activitySummary?.latestActivityAt ?? project.updatedAt,
+                )}
               </p>
             </Link>
           ))}
@@ -188,7 +203,9 @@ export default async function HomePage() {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-[#a99573]">
                   <Activity aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />
-                  {formatDate(project.updatedAt)}
+                  {formatDate(
+                    project.activitySummary?.latestActivityAt ?? project.updatedAt,
+                  )}
                 </div>
               </Link>
             ))}

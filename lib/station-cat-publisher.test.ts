@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   buildStationCatImportEndpoint,
   buildStationCatImportRequest,
@@ -230,6 +230,50 @@ describe("station cat publisher adapter", () => {
       statusCode: 401,
       message: "NOVELFORGE_TOKEN_INVALID: Invalid publish token.",
     } satisfies Partial<StationCatPublishError>);
+  });
+
+  it("adds endpoint, payload size, and network cause to fetch failures", async () => {
+    const request = buildStationCatImportRequest({
+      publishPackage,
+      changedItems,
+      mode: "draft",
+      onlyChanged: true,
+    });
+    const fetchError = Object.assign(new Error("fetch failed"), {
+      cause: {
+        code: "ENOTFOUND",
+        message: "getaddrinfo ENOTFOUND wwwstationcat.org",
+      },
+    });
+    const fetchImpl = vi.fn(async () => {
+      throw fetchError;
+    });
+    let thrownError: unknown;
+
+    try {
+      await publishToStationCat(
+        {
+          apiBaseUrl: "https://wwwstationcat.org",
+          token: "secret-token",
+          request,
+        },
+        {
+          fetchImpl,
+        },
+      );
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBeInstanceOf(Error);
+    expect((thrownError as Error).message).toContain(
+      "Station Cat 接口请求未收到响应：https://wwwstationcat.org/api/novelforge/import",
+    );
+    expect((thrownError as Error).message).toContain("请求体约");
+    expect((thrownError as Error).message).toContain(
+      "ENOTFOUND getaddrinfo ENOTFOUND wwwstationcat.org",
+    );
+    expect((thrownError as Error).message).toContain("DNS 解析失败");
   });
 
   it("parses snake_case response aliases and remote id mapping", () => {

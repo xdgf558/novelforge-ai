@@ -21,12 +21,15 @@ import {
   buildPublishSyncItems,
   buildStandardPublishPackage,
   diffPublishSyncItems,
+  filterPublishChangedItemsByUploadScope,
   normalizePublishMode,
+  normalizePublishUploadScope,
   publishModeLabel,
   publishPlatformOptions,
   stringifyStandardPublishPackage,
   type PublishChangedItem,
   type PublishMode,
+  type PublishUploadScope,
 } from "@/lib/publish-platforms";
 import { prisma } from "@/lib/prisma";
 import {
@@ -320,6 +323,7 @@ export async function preparePublishRun(
 ) {
   const mode = normalizePublishMode(formData.get("publishMode")?.toString());
   const onlyChanged = formData.get("onlyChanged") === "on";
+  const uploadSelection = parsePublishUploadSelection(formData);
   const [project, target] = await Promise.all([
     loadProjectForPublishRun(projectId),
     loadPublishTargetForRun(projectId, targetId),
@@ -335,6 +339,7 @@ export async function preparePublishRun(
     target,
     mode,
     onlyChanged,
+    uploadSelection,
   });
 
   revalidatePublishPaths(projectId);
@@ -350,6 +355,7 @@ export async function prepareGlobalStationCatPublishRun(
     formData.get("publishMode")?.toString() || stationCatSettings.defaultMode,
   );
   const onlyChanged = formData.get("onlyChanged") === "on";
+  const uploadSelection = parsePublishUploadSelection(formData);
   const project = await loadProjectForPublishRun(projectId);
 
   if (!project) {
@@ -373,6 +379,7 @@ export async function prepareGlobalStationCatPublishRun(
     target,
     mode,
     onlyChanged,
+    uploadSelection,
   });
 
   revalidatePublishPaths(projectId);
@@ -385,18 +392,29 @@ async function createPublishRun({
   target,
   mode,
   onlyChanged,
+  uploadSelection,
 }: {
   projectId: string;
   project: NonNullable<Awaited<ReturnType<typeof loadProjectForPublishRun>>>;
   target: NonNullable<Awaited<ReturnType<typeof loadPublishTargetForRun>>>;
   mode: PublishMode;
   onlyChanged: boolean;
+  uploadSelection: PublishUploadSelection;
 }) {
   const standardPackage = buildStandardPublishPackage(buildExportData(project));
   const syncItems = buildPublishSyncItems(standardPackage);
-  const changedItems = onlyChanged
+  const candidateChangedItems = onlyChanged
     ? diffPublishSyncItems(syncItems, target.syncStates)
     : markAllSyncItemsForUpload(syncItems, target.syncStates);
+  const changedItems = filterPublishChangedItemsByUploadScope(
+    candidateChangedItems,
+    uploadSelection.scope,
+    uploadSelection.chapterId,
+  );
+  const uploadDescription = describePublishUploadSelection(
+    uploadSelection,
+    standardPackage,
+  );
   const completedAt = new Date();
   const stationCatRequest =
     target.platformKey === "station_cat"
@@ -419,6 +437,7 @@ async function createPublishRun({
         mode,
         onlyChanged,
         changedCount: changedItems.length,
+        uploadDescription,
         endpoint: stationCatEndpoint,
       })
     : null;
@@ -435,6 +454,7 @@ async function createPublishRun({
       mode,
       onlyChanged,
       changedCount: changedItems.length,
+      uploadDescription,
       hasToken: Boolean(target.tokenSecret),
       hasApiBaseUrl: Boolean(target.apiBaseUrl),
     });
@@ -585,6 +605,7 @@ async function runStationCatPublishAttempt({
   mode,
   onlyChanged,
   changedCount,
+  uploadDescription,
   endpoint,
 }: {
   apiBaseUrl?: string | null;
@@ -593,6 +614,7 @@ async function runStationCatPublishAttempt({
   mode: PublishMode;
   onlyChanged: boolean;
   changedCount: number;
+  uploadDescription: string;
   endpoint: string | null;
 }): Promise<{
   status: "completed" | "failed";
@@ -604,7 +626,7 @@ async function runStationCatPublishAttempt({
     return {
       status: "completed",
       result: null,
-      resultMessage: `Station Cat 无需同步：${onlyChanged ? "仅变更" : "全量"}模式下没有检测到待上传条目，未调用网站 API。`,
+      resultMessage: `Station Cat 无需同步：${uploadDescription} / ${onlyChanged ? "仅上传变更" : "强制上传"}模式下没有检测到待上传条目，未调用网站 API。`,
       errorMessage: null,
     };
   }
@@ -839,17 +861,19 @@ function buildPublishRunMessage({
   mode,
   onlyChanged,
   changedCount,
+  uploadDescription,
   hasToken,
   hasApiBaseUrl,
 }: {
   mode: string;
   onlyChanged: boolean;
   changedCount: number;
+  uploadDescription: string;
   hasToken: boolean;
   hasApiBaseUrl: boolean;
 }) {
-  const uploadScope = onlyChanged ? "仅变更" : "全量";
-  const baseMessage = `${uploadScope}标准包已准备完成：${publishModeLabel(mode)}，检测到 ${changedCount} 个待上传条目。`;
+  const uploadScope = onlyChanged ? "仅上传变更" : "强制上传";
+  const baseMessage = `${uploadDescription} / ${uploadScope}标准包已准备完成：${publishModeLabel(mode)}，检测到 ${changedCount} 个待上传条目。`;
 
   if (!hasToken) {
     return `${baseMessage} 当前目标尚未保存 Token，等待补齐后再接入真实网站导入。`;
@@ -883,6 +907,42 @@ function buildStationCatSuccessMessage({
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+type PublishUploadSelection = {
+  scope: PublishUploadScope;
+  chapterId: string | null;
+};
+
+function parsePublishUploadSelection(formData: FormData): PublishUploadSelection {
+  const scope = normalizePublishUploadScope(
+    formData.get("uploadScope")?.toString(),
+  );
+  const chapterId = clean(formData.get("uploadChapterId")?.toString()) || null;
+
+  return {
+    scope,
+    chapterId: scope === "chapter" ? chapterId : null,
+  };
+}
+
+function describePublishUploadSelection(
+  selection: PublishUploadSelection,
+  standardPackage: ReturnType<typeof buildStandardPublishPackage>,
+) {
+  if (selection.scope !== "chapter") {
+    return "全部变更";
+  }
+
+  const chapter = standardPackage.chapters.find(
+    (item) => item.id === selection.chapterId,
+  );
+
+  if (!chapter) {
+    return "指定章节";
+  }
+
+  return `指定章节：第 ${chapter.chapterNumber ?? "?"} 章《${chapter.title}》`;
 }
 
 function stationCatResultErrorMessage(result: StationCatPublishResult) {

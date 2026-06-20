@@ -1,5 +1,118 @@
 # Development Log
 
+## 2026-06-20: Project Activity Timestamp Fix
+
+Status: completed.
+
+What was done:
+
+- Investigated the project dashboard showing both project creation and update time as `2026年6月18日 19:42` even after later chapter, AI, pending update, continuity, and publish activity.
+- Confirmed the installed desktop database had later activity records, while the project page only displayed `projects.createdAt` and `projects.updatedAt`.
+- Added `lib/project-activity.ts` to aggregate the latest project activity across chapters, settings, characters, AI tasks, pending updates, continuity reports, publish packages, publish targets/runs, and publish sync states.
+- Updated the project detail status card to show separate rows for `项目创建`, `首章创建`, `项目资料更新`, and `最近活动`, with helper text explaining the difference.
+- Updated the project list and recent activity section to sort and display by aggregated latest activity instead of only `projects.updatedAt`.
+- Bumped the app/package version to `0.1.19` and updated in-app release notes for project activity timestamps.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.19-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the formal PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/project-activity.test.ts` passed, 1 file and 2 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 27 files and 117 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped after rerunning outside the sandbox for electron-builder's GitHub metadata lookup.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.19"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the final expanded PKG payload app.
+- Packaged runtime still uses `runDesktopMigrations` from `desktop/runtime.cjs`, reads bundled `migration.sql`, and does not contain Prisma CLI `migrate deploy` startup code.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.19-mac-arm64.pkg`.
+- SHA-256: `2951c1a34aded93dbfce8c5c41ce089726da8f938a545e30088cdeb5acf54490`.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate.
+
+## 2026-06-20: Station Cat Selective Chapter Publish
+
+Status: completed.
+
+What was done:
+
+- Added an explicit upload scope to Station Cat publish forms: `全部变更` or `指定章节`.
+- The publish page now lists finalized chapters in the Station Cat send form, so the author can select chapter 2 and send only that chapter.
+- Publish actions now filter `changedItems` before creating the Station Cat request and before advancing sync state, preventing unrelated cover/project/chapter items from being marked uploaded during a selected-chapter run.
+- Standard publish package chapter bodies now strip AI draft structure labels before website upload, including leading duplicate chapter Markdown titles, leading `---`, and headings such as `开场钩子`, `节拍1`, and `节拍二`.
+- Added in-flight submit feedback for Station Cat publish buttons, including a spinner, “正在发送...” label, and helper text while the server action is running.
+
+Verification:
+
+- `npm run test -- lib/publish-platforms.test.ts` passed.
+- `npm run test -- lib/publish-platforms.test.ts lib/station-cat-publisher.test.ts` passed after final package metadata restoration, 2 files and 14 tests.
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run test` passed, 26 files and 115 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped after rerunning outside the sandbox for electron-builder's GitHub metadata lookup.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.18"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the final expanded PKG payload app.
+- Packaged runtime still uses `runDesktopMigrations` from `desktop/runtime.cjs`, reads bundled `migration.sql`, and does not contain Prisma CLI `migrate deploy` startup code.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.18-mac-arm64.pkg`.
+- SHA-256: `37a8633260e2d466dc33ca575177ecb3cd0ca109d154c6dae6f51beba37f2470`.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate.
+- `release/desktop` was cleaned after packaging so only the formal PKG handoff remains.
+
+## 2026-06-20: Personal macOS Installer 0.1.17
+
+Status: completed.
+
+What was done:
+
+- Bumped the app/package version to `0.1.17`.
+- Updated in-app release notes for Station Cat publish failure diagnostics.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.17-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the formal PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/station-cat-publisher.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed, 26 files and 113 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped after rerunning without the stale local proxy environment.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.17"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the final expanded PKG payload app.
+- Packaged runtime still uses `runDesktopMigrations` from `desktop/runtime.cjs`, reads bundled `migration.sql`, and does not contain Prisma CLI `migrate deploy` startup code.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.17-mac-arm64.pkg`.
+- SHA-256: `5a34842fad315ea4770000dedc55431bf5d0a2cfeac91df811ebfb80c90d9a05`.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate.
+- The final personal-use PKG uses the copied-and-ad-hoc-signed app payload path established in the `0.1.12` packaging pass, and the expanded payload passed codesign verification.
+
+## 2026-06-19: Station Cat Publish Failure Diagnostics
+
+Status: completed.
+
+What was done:
+
+- Investigated a Station Cat import failure for chapter 2 where the publish run only showed `fetch failed`.
+- Verified the local Station Cat global config has API Base URL and a saved publish token, and the latest failed run attempted to upload the changed cover, chapter 1 update, and new chapter 2.
+- Verified the website import endpoint is reachable from the host network and returns the expected JSON error shape when no token is provided.
+- Confirmed the local sandboxed Node fetch failure includes the lower-level `ENOTFOUND` cause, while host-network Node fetch reaches the endpoint.
+- Updated the Station Cat publisher client so network failures now record the endpoint, approximate request body size, low-level network cause, and a Chinese diagnostic hint such as DNS failure or interrupted socket instead of only `fetch failed`.
+
+Verification:
+
+- `npm run test -- lib/station-cat-publisher.test.ts` passed.
+
 ## 2026-06-19: Continuity Report One-Click Fix
 
 Status: completed.

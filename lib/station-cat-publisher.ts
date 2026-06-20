@@ -59,6 +59,8 @@ export type StationCatPublishResult = {
 
 type FetchLike = typeof fetch;
 
+const stationCatRequestTimeoutMs = 120_000;
+
 export class StationCatPublishError extends Error {
   statusCode: number;
   responseJson: unknown;
@@ -184,15 +186,31 @@ export async function publishToStationCat(
 
   const endpoint = buildStationCatImportEndpoint(apiBaseUrl);
   const fetchImpl = options.fetchImpl ?? fetch;
-  const response = await fetchImpl(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cleanToken}`,
-      "Content-Type": "application/json",
-      "X-NovelForge-Contract": `${stationCatImportContract}.v${stationCatImportContractVersion}`,
-    },
-    body: serializeStationCatImportRequest(request),
-  });
+  const requestBody = serializeStationCatImportRequest(request);
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(
+    () => abortController.abort(),
+    stationCatRequestTimeoutMs,
+  );
+  let response: Response;
+
+  try {
+    response = await fetchImpl(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cleanToken}`,
+        "Content-Type": "application/json",
+        "X-NovelForge-Contract": `${stationCatImportContract}.v${stationCatImportContractVersion}`,
+      },
+      body: requestBody,
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    throw new Error(formatStationCatRequestFailure(error, endpoint, requestBody.length));
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   const responseJson = await readJsonResponse(response);
 
   if (!response.ok) {
@@ -445,6 +463,74 @@ function normalizeResultItemStatus(value: unknown): StationCatResultItem["status
     value === "failed"
     ? value
     : "updated";
+}
+
+function formatStationCatRequestFailure(
+  error: unknown,
+  endpoint: string,
+  payloadLength: number,
+) {
+  if (isAbortError(error)) {
+    return `Station Cat 请求超时（${stationCatRequestTimeoutMs / 1000} 秒）：${endpoint}，请求体约 ${formatPayloadLength(payloadLength)}。请稍后重试，或改为仅上传变更。`;
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  const cause =
+    error instanceof Error
+      ? formatErrorCause((error as Error & { cause?: unknown }).cause)
+      : "";
+  const hint = stationCatNetworkHint(cause || message);
+
+  return [
+    `Station Cat 接口请求未收到响应：${endpoint}`,
+    `请求体约 ${formatPayloadLength(payloadLength)}`,
+    message,
+    cause ? `原因：${cause}` : "",
+    hint,
+  ]
+    .filter(Boolean)
+    .join("；");
+}
+
+function stationCatNetworkHint(details: string) {
+  if (/\bENOTFOUND\b/i.test(details)) {
+    return "提示：DNS 解析失败，请检查当前网络、DNS 或本地代理设置后重试。";
+  }
+
+  if (/\bECONNREFUSED\b/i.test(details)) {
+    return "提示：连接被拒绝，请确认本地代理或目标服务是否正在运行。";
+  }
+
+  if (/\bECONNRESET\b|\bUND_ERR_SOCKET\b/i.test(details)) {
+    return "提示：连接被远端或网络中断，请稍后重试；若持续发生，请检查网站端日志。";
+  }
+
+  return "";
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+function formatErrorCause(cause: unknown) {
+  if (!isRecord(cause)) {
+    return "";
+  }
+
+  const parts = [
+    typeof cause.code === "string" ? cause.code : "",
+    typeof cause.message === "string" ? cause.message : "",
+  ].filter(Boolean);
+
+  return parts.join(" ");
+}
+
+function formatPayloadLength(length: number) {
+  if (length < 1024) {
+    return `${length} 字符`;
+  }
+
+  return `${(length / 1024).toFixed(1)} KB`;
 }
 
 function firstString(...values: unknown[]) {

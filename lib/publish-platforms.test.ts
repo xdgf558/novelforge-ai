@@ -5,11 +5,15 @@ import { describe, expect, it } from "vitest";
 import {
   buildPublishSyncItems,
   buildStandardPublishPackage,
+  cleanChapterBodyForPublish,
   diffPublishSyncItems,
+  filterPublishChangedItemsByUploadScope,
   maskPublishToken,
   normalizePublishMode,
+  normalizePublishUploadScope,
   platformLabel,
   publishModeLabel,
+  publishUploadScopeLabel,
   stringifyStandardPublishPackage,
 } from "./publish-platforms";
 
@@ -167,6 +171,66 @@ describe("publish platform helpers", () => {
     expect(changedItems[0].changeType).toBe("create");
   });
 
+  it("filters changed content to a selected chapter", () => {
+    const publishPackage = buildStandardPublishPackage(exportData, {
+      generatedAt: "2026-06-18T01:00:00.000Z",
+    });
+    const items = buildPublishSyncItems(publishPackage);
+    const changedItems = diffPublishSyncItems(items, []);
+    const selectedItems = filterPublishChangedItemsByUploadScope(
+      changedItems,
+      "chapter",
+      "chapter_1",
+    );
+
+    expect(selectedItems).toHaveLength(1);
+    expect(selectedItems[0]).toMatchObject({
+      localType: "chapter",
+      localId: "chapter_1",
+      label: "第 1 章：第一封短信",
+    });
+    expect(filterPublishChangedItemsByUploadScope(changedItems, "all")).toHaveLength(
+      changedItems.length,
+    );
+    expect(
+      filterPublishChangedItemsByUploadScope(changedItems, "chapter", ""),
+    ).toEqual([]);
+  });
+
+  it("cleans AI beat structure headings from publish chapter bodies", () => {
+    const cleaned = cleanChapterBodyForPublish(
+      [
+        "# 第2章《谢勇出场》",
+        "",
+        "---",
+        "",
+        "## 【开场钩子】节拍1：1999年的街景·去见谢勇",
+        "",
+        "第二天上午，陈远骑着那辆老式二八大杠穿过县城街道。",
+        "",
+        "## 节拍2：兄弟叙旧·谢勇的现状",
+        "",
+        "谢勇家的客厅不大，但收拾得干净。",
+        "",
+        "## 一、正式小节标题",
+        "",
+        "这个标题不是节拍，应该保留。",
+      ].join("\n"),
+      {
+        chapterNumber: 2,
+        title: "谢勇出场",
+      },
+    );
+
+    expect(cleaned).not.toContain("# 第2章");
+    expect(cleaned).not.toContain("---");
+    expect(cleaned).not.toContain("开场钩子");
+    expect(cleaned).not.toContain("节拍1");
+    expect(cleaned).not.toContain("节拍2");
+    expect(cleaned).toContain("第二天上午，陈远骑着那辆老式二八大杠穿过县城街道。");
+    expect(cleaned).toContain("## 一、正式小节标题");
+  });
+
   it("serializes the standard package as deterministic JSON", () => {
     const publishPackage = buildStandardPublishPackage(exportData, {
       generatedAt: "2026-06-18T01:00:00.000Z",
@@ -183,6 +247,8 @@ describe("publish platform helpers", () => {
     expect(platformLabel("unknown")).toBe("自定义网站");
     expect(publishModeLabel("publish")).toBe("直接发布");
     expect(normalizePublishMode("bad")).toBe("draft");
+    expect(publishUploadScopeLabel("chapter")).toBe("指定章节");
+    expect(normalizePublishUploadScope("unknown")).toBe("all");
   });
 
   it("masks saved publish tokens", () => {
