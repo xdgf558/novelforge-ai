@@ -381,7 +381,7 @@ function ChapterBeatAiPanel({
           {tasks.map((task) => {
             const canAdopt =
               task.status === "completed" &&
-              task.adoptionState !== "adopted" &&
+              task.adoptionState === "not_reviewed" &&
               Boolean(task.outputText?.trim());
 
             return (

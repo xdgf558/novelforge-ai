@@ -14,12 +14,20 @@ What was done:
 - Updated word counting, chapter snapshots, chapter list preview, and project exports to include polished text.
 - Bumped the source app/package version to `0.1.21` and updated in-app release notes.
 
+Review hardening:
+
+- Changed polish source priority to `polishedText -> finalText -> draftText`, so repeated polish uses the current polished candidate before falling back to older text.
+- Added single-call polish prompt length protection: overlong chapters are sent as head/middle/tail excerpts with a clear task summary note instead of silently exceeding model context.
+- Made `adoptChapterPolish` server-side idempotent by only moving tasks from `not_reviewed` to `adopted` before writing `polishedText` and chapter versions.
+- Added UI and server feedback for empty “用精修稿一键定稿” / “用草稿一键定稿” submissions.
+- Updated the AI task page copy to include `正文精修`.
+
 Verification:
 
 - `npx prisma generate` passed.
 - `npm run typecheck` passed.
-- `npm run test -- lib/ai/chapter-polishes.test.ts lib/chapter-fields.test.ts lib/ai/prompt-templates.test.ts` passed, 3 files and 14 tests.
-- `npm run test` passed, 28 files and 123 tests.
+- `npm run test -- lib/ai/chapter-polishes.test.ts app/projects/[projectId]/chapters/actions.test.ts` passed, 2 files and 10 tests.
+- `npm run test` passed, 29 files and 130 tests.
 - `git diff --check` passed.
 - `npm run build` passed.
 

@@ -51,6 +51,15 @@ export type BuiltChapterPolishContext = {
 };
 
 type PolishSettingField = readonly [ProjectSettingFieldName, string];
+type PolishPromptSourceText = {
+  text: string;
+  wasExcerpted: boolean;
+  sourceLength: number;
+  promptLength: number;
+  maxLength: number;
+};
+
+const polishPromptMaxLength = 18000;
 
 const polishStyleSettingFields = [
   ["styleSample", "文风样例"],
@@ -78,6 +87,7 @@ export function buildChapterPolishContext(
 ): BuiltChapterPolishContext {
   const sourceText = polishableChapterText(input.chapter);
   const sourceKind = polishableChapterTextSource(input.chapter);
+  const promptSourceText = buildPolishPromptSourceText(sourceText);
   const styleConstraints = [
     ...buildLabeledSettingLines(input.setting, polishStyleSettingFields),
     input.project.wechatPositioning
@@ -117,6 +127,8 @@ export function buildChapterPolishContext(
       notes: clean(input.chapter.notes),
       sourceKind,
       sourceTextLength: sourceText.length,
+      sourceTextPromptLength: promptSourceText.promptLength,
+      sourceTextPromptWasExcerpted: promptSourceText.wasExcerpted,
       sourceTextPreview: clipText(sourceText, 1200),
     },
     styleConstraints,
@@ -124,7 +136,9 @@ export function buildChapterPolishContext(
     characterRules,
     forbiddenItems,
     outputRequirements: [
-      "输出完整精修正文，不要输出分析过程。",
+      promptSourceText.wasExcerpted
+        ? "正文超过精修输入预算，当前只对首/中/尾摘录提供精修；必须提示作者拆章或分段精修完整正文。"
+        : "输出完整精修正文，不要输出分析过程。",
       "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
       "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
       "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
@@ -161,10 +175,12 @@ export function buildChapterPolishContext(
     forbiddenItems || "未设置。",
     "",
     "# 待精修正文",
-    sourceText || "未填写可精修正文。禁止凭空生成。",
+    promptSourceText.text || "未填写可精修正文。禁止凭空生成。",
     "",
     "# 输出要求",
-    "- 直接输出完整精修正文，不要输出解释、提纲、修改清单或 JSON。",
+    promptSourceText.wasExcerpted
+      ? "- 当前章节正文过长，只能看到首/中/尾摘录。请只精修提供的摘录，并在开头用一句话提示作者需要拆章或分段精修完整正文。"
+      : "- 直接输出完整精修正文，不要输出解释、提纲、修改清单或 JSON。",
     "- 删除“【开场钩子】”“节拍1”“情绪作用”等写作过程标记，让正文变成读者可直接阅读的章节。",
     "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
@@ -183,10 +199,15 @@ export function buildChapterPolishContextSummary(
 ) {
   const sourceText = polishableChapterText(input.chapter);
   const sourceKind = polishableChapterTextSource(input.chapter);
+  const promptSourceText = buildPolishPromptSourceText(sourceText);
 
   return [
     `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
-    sourceText ? `${sourceKind} ${sourceText.length} 字` : "缺少可精修正文",
+    sourceText
+      ? promptSourceText.wasExcerpted
+        ? `${sourceKind} ${sourceText.length} 字，模型输入首/中/尾摘录 ${promptSourceText.promptLength} 字`
+        : `${sourceKind} ${sourceText.length} 字`
+      : "缺少可精修正文",
     `角色 ${input.characters.length} 个`,
     input.setting ? "包含项目设定" : "无项目设定",
   ].join("；");
@@ -198,17 +219,13 @@ export function hasPolishableChapterText(chapter: ChapterPolishChapterContext) {
 
 export function polishableChapterText(chapter: ChapterPolishChapterContext) {
   return (
-    clean(chapter.draftText) ||
     clean(chapter.polishedText) ||
-    clean(chapter.finalText)
+    clean(chapter.finalText) ||
+    clean(chapter.draftText)
   );
 }
 
 export function polishableChapterTextSource(chapter: ChapterPolishChapterContext) {
-  if (clean(chapter.draftText)) {
-    return "草稿正文";
-  }
-
   if (clean(chapter.polishedText)) {
     return "精修正文";
   }
@@ -217,7 +234,56 @@ export function polishableChapterTextSource(chapter: ChapterPolishChapterContext
     return "定稿正文";
   }
 
+  if (clean(chapter.draftText)) {
+    return "草稿正文";
+  }
+
   return "无正文";
+}
+
+export function buildPolishPromptSourceText(
+  sourceText: string,
+): PolishPromptSourceText {
+  if (sourceText.length <= polishPromptMaxLength) {
+    return {
+      text: sourceText,
+      wasExcerpted: false,
+      sourceLength: sourceText.length,
+      promptLength: sourceText.length,
+      maxLength: polishPromptMaxLength,
+    };
+  }
+
+  const sectionLength = Math.floor(polishPromptMaxLength / 3);
+  const middleStart = Math.max(
+    sectionLength,
+    Math.floor(sourceText.length / 2 - sectionLength / 2),
+  );
+  const head = sourceText.slice(0, sectionLength).trim();
+  const middle = sourceText
+    .slice(middleStart, middleStart + sectionLength)
+    .trim();
+  const tail = sourceText.slice(-sectionLength).trim();
+  const text = [
+    `【超长正文提示】原文 ${sourceText.length} 字，超过单次精修输入预算 ${polishPromptMaxLength} 字。以下仅提供首/中/尾摘录，禁止假装已经完整精修全章。`,
+    "",
+    "【开头摘录】",
+    head,
+    "",
+    "【中段摘录】",
+    middle,
+    "",
+    "【结尾摘录】",
+    tail,
+  ].join("\n");
+
+  return {
+    text,
+    wasExcerpted: true,
+    sourceLength: sourceText.length,
+    promptLength: text.length,
+    maxLength: polishPromptMaxLength,
+  };
 }
 
 function buildCharacterRuleLine(character: ChapterPolishCharacterContext) {

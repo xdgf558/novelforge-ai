@@ -66,15 +66,50 @@ describe("chapter polish context builder", () => {
     );
   });
 
-  it("falls back to polished text before final text when draft is missing", () => {
+  it("prefers polished text over draft and final text", () => {
     const chapter = {
       ...baseInput.chapter,
-      draftText: " ",
+      draftText: "旧草稿。",
       polishedText: "已有精修稿。",
       finalText: "已有定稿。",
     };
 
     expect(polishableChapterText(chapter)).toBe("已有精修稿。");
     expect(polishableChapterTextSource(chapter)).toBe("精修正文");
+  });
+
+  it("falls back to final text before draft text when polish is missing", () => {
+    const chapter = {
+      ...baseInput.chapter,
+      draftText: "旧草稿。",
+      polishedText: " ",
+      finalText: "已有定稿。",
+    };
+
+    expect(polishableChapterText(chapter)).toBe("已有定稿。");
+    expect(polishableChapterTextSource(chapter)).toBe("定稿正文");
+  });
+
+  it("marks overlong source text as excerpted in the prompt and summary", () => {
+    const longDraft = Array.from({ length: 21000 }, (_, index) =>
+      index % 2 === 0 ? "甲" : "乙",
+    ).join("");
+    const context = buildChapterPolishContext({
+      ...baseInput,
+      chapter: {
+        ...baseInput.chapter,
+        draftText: longDraft,
+      },
+    });
+
+    expect(context.inputText).toContain("【超长正文提示】");
+    expect(context.inputText).toContain("【开头摘录】");
+    expect(context.inputText).toContain("【中段摘录】");
+    expect(context.inputText).toContain("【结尾摘录】");
+    expect(context.inputJson.chapter).toMatchObject({
+      sourceTextLength: 21000,
+      sourceTextPromptWasExcerpted: true,
+    });
+    expect(context.inputContextSummary).toContain("模型输入首/中/尾摘录");
   });
 });

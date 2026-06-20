@@ -10,10 +10,17 @@ type EditChapterPageProps = {
     projectId: string;
     chapterId: string;
   }>;
+  searchParams?: Promise<{
+    finalizeError?: string;
+  }>;
 };
 
-export default async function EditChapterPage({ params }: EditChapterPageProps) {
+export default async function EditChapterPage({
+  params,
+  searchParams,
+}: EditChapterPageProps) {
   const { projectId, chapterId } = await params;
+  const { finalizeError } = (await searchParams) ?? {};
   const chapter = await prisma.chapter.findFirst({
     where: {
       id: chapterId,
@@ -33,10 +40,18 @@ export default async function EditChapterPage({ params }: EditChapterPageProps) 
     notFound();
   }
 
+  const formMessage =
+    finalizeError === "missingPolishedText"
+      ? "精修正文为空，无法一键定稿。请先保存精修正文，或采用 AI 精修稿后再定稿。"
+      : finalizeError === "missingDraftText"
+        ? "草稿正文为空，无法一键定稿。请先保存草稿正文后再定稿。"
+        : undefined;
+
   return (
     <ChapterForm
       action={updateChapter.bind(null, chapter.project.id, chapter.id)}
       chapter={chapter}
+      formMessage={formMessage}
       project={chapter.project}
       submitLabel="保存并记录版本"
       subtitle="章节资料会作为后续摘要提取、AI 生成和连续性检查的重要记忆；保存后会生成新的章节快照。"

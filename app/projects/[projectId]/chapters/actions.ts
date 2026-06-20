@@ -94,6 +94,12 @@ function parseChapterForm(formData: FormData) {
   };
 
   const submitIntent = formData.get("submitIntent");
+  const finalizeError =
+    submitIntent === "finalizeFromPolished" && !values.polishedText.trim()
+      ? "missingPolishedText"
+      : submitIntent === "finalizeFromDraft" && !values.draftText.trim()
+        ? "missingDraftText"
+        : null;
   const finalTextSource =
     submitIntent === "finalizeFromPolished"
       ? values.polishedText
@@ -119,6 +125,7 @@ function parseChapterForm(formData: FormData) {
   return {
     values,
     changeReason,
+    finalizeError,
   };
 }
 
@@ -189,7 +196,18 @@ export async function updateChapter(
     notFound();
   }
 
-  const { values, changeReason } = parseChapterForm(formData);
+  const { values, changeReason, finalizeError } = parseChapterForm(formData);
+
+  if (finalizeError) {
+    const targetHash =
+      finalizeError === "missingPolishedText" ? "polishedText" : "draftText";
+
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}/edit`);
+    redirect(
+      `/projects/${projectId}/chapters/${chapterId}/edit?finalizeError=${finalizeError}#${targetHash}`,
+    );
+  }
+
   const snapshot = chapterSnapshot(values);
 
   await prisma.$transaction(async (tx) => {
@@ -636,6 +654,7 @@ export async function adoptChapterPolish(
       select: {
         id: true,
         outputText: true,
+        adoptionState: true,
       },
     }),
   ]);
@@ -646,6 +665,11 @@ export async function adoptChapterPolish(
     notFound();
   }
 
+  if (task.adoptionState !== "not_reviewed") {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
   const snapshot = chapterSnapshot({
     ...chapterValuesFromRecord(chapter),
     polishedText,
@@ -653,6 +677,20 @@ export async function adoptChapterPolish(
   });
 
   await prisma.$transaction(async (tx) => {
+    const adoptedTask = await tx.aiTask.updateMany({
+      where: {
+        id: task.id,
+        adoptionState: "not_reviewed",
+      },
+      data: {
+        adoptionState: "adopted",
+      },
+    });
+
+    if (adoptedTask.count !== 1) {
+      return;
+    }
+
     await tx.chapter.update({
       where: {
         id: chapterId,
@@ -674,15 +712,6 @@ export async function adoptChapterPolish(
         snapshotJson: JSON.stringify(snapshot),
         changeReason: `采用 AI 正文精修任务 ${task.id}`,
         sourceType: "ai_chapter_polish",
-      },
-    });
-
-    await tx.aiTask.update({
-      where: {
-        id: task.id,
-      },
-      data: {
-        adoptionState: "adopted",
       },
     });
   });
