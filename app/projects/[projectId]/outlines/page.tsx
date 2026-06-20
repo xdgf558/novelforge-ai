@@ -8,7 +8,6 @@ import {
   Layers3,
   Pencil,
   Route,
-  Sparkles,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -18,6 +17,7 @@ import {
   generateOutlineDraft,
 } from "@/app/projects/[projectId]/outlines/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { OutlineAiGenerateForm } from "@/components/outlines/outline-ai-generate-form";
 import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
 import {
   aiTaskAdoptionLabel,
@@ -28,7 +28,6 @@ import { readAiConnectionSettings } from "@/lib/ai/local-config";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
   outlineLevelLabel,
-  outlineLevelOptions,
   outlineRangeLabel,
   outlineStatusLabel,
   outlineValidationErrorMessages,
@@ -260,45 +259,11 @@ function OutlineAiPanel({
           </p>
         </div>
 
-        <form action={generateAction} className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
-            目标层级
-            <select
-              className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
-              defaultValue="chapter"
-              name="targetLevel"
-            >
-              {outlineLevelOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
-            章节条目数
-            <input
-              className="min-h-10 w-28 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
-              defaultValue={10}
-              max={30}
-              min={1}
-              name="chapterCount"
-              type="number"
-            />
-          </label>
-          <button
-            className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
-              canGenerate
-                ? "bg-ink-950 text-white hover:bg-ink-800"
-                : "cursor-not-allowed border border-ink-950/15 bg-paper-100 text-ink-700"
-            }`}
-            disabled={!canGenerate}
-            type="submit"
-          >
-            <Sparkles aria-hidden="true" className="h-4 w-4" />
-            {hasActiveTask ? "生成中" : "生成大纲草案"}
-          </button>
-        </form>
+        <OutlineAiGenerateForm
+          action={generateAction}
+          canGenerate={canGenerate}
+          hasActiveTask={hasActiveTask}
+        />
       </div>
 
       {!hasApiKey ? (

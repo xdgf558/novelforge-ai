@@ -20,6 +20,7 @@ Review hardening:
 - Added outline-page auto-refresh while an outline AI task is pending/running, matching the chapter AI task UX.
 - Changed chapter generation outline selection from first-match to specificity-first matching: closed chapter ranges beat open ranges, shorter ranges beat wider ones, active status is preferred after specificity, and multiple story-unit outlines can be included.
 - Forced outline draft `chapterCount` to apply only to chapter-level outline generation, so volume and story-unit prompts do not receive misleading "chapter-level item" instructions.
+- Moved the outline AI generation controls into a small client component so the "chapter count" field is visible only when generating chapter-level outlines.
 - Added server-side outline consistency validation for invalid chapter ranges and missing chapter numbers on chapter outlines, with visible redirect feedback instead of a server error.
 - Added server action tests for outline create/update validation, stale task expiry, duplicate-task prevention, and draft-only AI task creation.
 
