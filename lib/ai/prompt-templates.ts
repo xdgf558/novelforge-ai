@@ -65,6 +65,19 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
       "输入应包含已确认节拍、文风样本、角色说话规则、上一章结尾、目标字数和禁写项。",
   },
   {
+    key: "chapter_polish_generation",
+    name: "正文精修",
+    taskType: "chapter_polish_generation",
+    version: 1,
+    outputFormat: "text",
+    systemPrompt:
+      "你是长篇连载小说正文精修助手。只优化表达、节奏、段落衔接和可读性，不改变作者已确认的剧情事实和正式设定。",
+    userPrompt:
+      "根据章节草稿或已有精修稿、章节目标、文风样本、角色说话规则和禁写事项，输出完整精修正文。",
+    contextNotes:
+      "输入应包含待精修正文、章节目标、章节节拍、文风样本、角色说话规则、世界观边界和禁写项。输出必须是读者可直接阅读的完整正文，不得保留节拍标题或创作过程说明。",
+  },
+  {
     key: "chapter_summary_extraction",
     name: "章节摘要提取",
     taskType: "chapter_summary_extraction",

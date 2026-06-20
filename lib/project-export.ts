@@ -62,6 +62,7 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["目标", chapter.goal],
         ["节拍", chapter.beats],
         ["草稿", chapter.draftText],
+        ["精修", chapter.polishedText],
         ["定稿", chapter.finalText],
         ["备注", chapter.notes],
       ]),

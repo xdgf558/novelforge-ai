@@ -145,7 +145,10 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
               </dl>
 
               <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink-700">
-                {chapter.finalText || chapter.draftText || "暂未填写正文。"}
+                {chapter.finalText ||
+                  chapter.polishedText ||
+                  chapter.draftText ||
+                  "暂未填写正文。"}
               </p>
               <p className="mt-4 text-xs text-ink-700">
                 最近更新：{formatDate(chapter.updatedAt)}

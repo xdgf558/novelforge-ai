@@ -37,6 +37,7 @@ export type ChapterDraftChapterContext = {
   goal?: string | null;
   beats?: string | null;
   draftText?: string | null;
+  polishedText?: string | null;
   finalText?: string | null;
   notes?: string | null;
 };

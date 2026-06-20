@@ -13,6 +13,7 @@ import {
 type ChapterFormProps = {
   action: (formData: FormData) => Promise<void>;
   chapter?: Chapter;
+  formMessage?: string;
   initialValues?: Partial<ChapterValues>;
   project: Project;
   submitLabel: string;
@@ -29,6 +30,7 @@ const labelClass = "text-sm font-medium text-ink-800";
 export function ChapterForm({
   action,
   chapter,
+  formMessage,
   initialValues,
   project,
   submitLabel,
@@ -38,6 +40,8 @@ export function ChapterForm({
 }: ChapterFormProps) {
   const values = chapterValuesFromRecord(chapter ?? initialValues);
   const isCreateForm = !chapter;
+  const canFinalizeFromPolished = Boolean(values.polishedText.trim());
+  const canFinalizeFromDraft = Boolean(values.draftText.trim());
   const createHiddenTextFields = chapterTextFields.filter(
     (field) => field.name !== "goal",
   );
@@ -80,6 +84,15 @@ export function ChapterForm({
       </div>
 
       <form action={action} className="space-y-5">
+        {formMessage ? (
+          <div
+            className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+            role="status"
+          >
+            {formMessage}
+          </div>
+        ) : null}
+
         {isCreateForm ? (
           <>
             <input
@@ -189,14 +202,44 @@ export function ChapterForm({
                       {field.label}
                     </label>
                     {!isCreateForm && field.name === "finalText" ? (
-                      <button
-                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-signal-500/40 bg-signal-500/10 px-3 py-2 text-sm font-semibold text-signal-700 transition hover:bg-signal-500/15"
-                        name="submitIntent"
-                        type="submit"
-                        value="finalizeFromDraft"
-                      >
-                        用草稿一键定稿
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          className={`inline-flex min-h-10 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition ${
+                            canFinalizeFromPolished
+                              ? "border-signal-500/40 bg-signal-500/10 text-signal-700 hover:bg-signal-500/15"
+                              : "cursor-not-allowed border-ink-950/10 bg-paper-50 text-ink-700/50"
+                          }`}
+                          disabled={!canFinalizeFromPolished}
+                          name="submitIntent"
+                          title={
+                            canFinalizeFromPolished
+                              ? "将精修正文写入定稿正文"
+                              : "精修正文为空，先保存精修正文后再定稿"
+                          }
+                          type="submit"
+                          value="finalizeFromPolished"
+                        >
+                          用精修稿一键定稿
+                        </button>
+                        <button
+                          className={`inline-flex min-h-10 items-center justify-center rounded-md border px-3 py-2 text-sm font-semibold transition ${
+                            canFinalizeFromDraft
+                              ? "border-ink-950/15 bg-white text-ink-800 hover:bg-paper-100"
+                              : "cursor-not-allowed border-ink-950/10 bg-paper-50 text-ink-700/50"
+                          }`}
+                          disabled={!canFinalizeFromDraft}
+                          name="submitIntent"
+                          title={
+                            canFinalizeFromDraft
+                              ? "将草稿正文写入定稿正文"
+                              : "草稿正文为空，先保存草稿正文后再定稿"
+                          }
+                          type="submit"
+                          value="finalizeFromDraft"
+                        >
+                          用草稿一键定稿
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                   <textarea
@@ -208,9 +251,17 @@ export function ChapterForm({
                     rows={field.rows}
                   />
                   {!isCreateForm && field.name === "finalText" ? (
-                    <p className="text-xs leading-5 text-ink-700">
-                      点击后会把当前草稿正文写入定稿正文、把章节状态设为“已定稿”，并保存新的章节快照。
-                    </p>
+                    <div className="space-y-1 text-xs leading-5 text-ink-700">
+                      <p>
+                        点击后会把当前精修稿或草稿正文写入定稿正文、把章节状态设为“已定稿”，并保存新的章节快照。
+                      </p>
+                      {!canFinalizeFromPolished ? (
+                        <p>精修正文为空时，“用精修稿一键定稿”会保持禁用。</p>
+                      ) : null}
+                      {!canFinalizeFromDraft ? (
+                        <p>草稿正文为空时，“用草稿一键定稿”会保持禁用。</p>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               ))}

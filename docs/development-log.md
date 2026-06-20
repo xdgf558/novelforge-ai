@@ -1,5 +1,43 @@
 # Development Log
 
+## 2026-06-20: Phase 20 AI Chapter Polish
+
+Status: completed.
+
+What was done:
+
+- Added a dedicated `Chapter.polishedText` field and SQLite migration so AI-polished prose is stored separately from draft and final text.
+- Added the `chapter_polish_generation` default prompt template and pure chapter polish context builder.
+- Added server actions to start non-blocking polish AI tasks, prevent duplicate active polish tasks, and explicitly adopt completed polish output into `Chapter.polishedText`.
+- Added the chapter detail `AI 正文精修` panel with generate, running-state, auto-refresh, empty-state, task output, and “采用到精修正文” controls.
+- Updated the chapter edit form so authors can finalize from either polished text or draft text; final text is still only written by explicit author action.
+- Updated word counting, chapter snapshots, chapter list preview, and project exports to include polished text.
+- Bumped the source app/package version to `0.1.21` and updated in-app release notes.
+
+Review hardening:
+
+- Changed polish source priority to `polishedText -> finalText -> draftText`, so repeated polish uses the current polished candidate before falling back to older text.
+- Added single-call polish prompt length protection: overlong chapters are sent as head/middle/tail excerpts with a clear task summary note instead of silently exceeding model context.
+- Made `adoptChapterPolish` server-side idempotent by only moving tasks from `not_reviewed` to `adopted` before writing `polishedText` and chapter versions.
+- Added UI and server feedback for empty “用精修稿一键定稿” / “用草稿一键定稿” submissions.
+- Updated the AI task page copy to include `正文精修`.
+- Blocked adoption of excerpt-only long-text polish tasks so a head/middle/tail preview cannot overwrite the complete `polishedText` field.
+- Changed polish adoption status handling so `draft` and `final` chapters become `revising` after a new polish candidate is adopted; `published` chapters remain published.
+- Tightened the polish task card adopt button to only show for `not_reviewed` non-excerpt completed tasks.
+
+Verification:
+
+- `npx prisma generate` passed.
+- `npm run typecheck` passed.
+- `npm run test -- lib/ai/chapter-polishes.test.ts app/projects/[projectId]/chapters/actions.test.ts` passed, 2 files and 12 tests.
+- `npm run test` passed, 29 files and 132 tests.
+- `git diff --check` passed.
+- `npm run build` passed.
+
+Packaging note:
+
+- No desktop installer was built in this phase. The user requested a PR for review first, with deployment/packaging after review approval.
+
 ## 2026-06-20: Desktop Startup Date Compatibility Hotfix
 
 Status: completed.
