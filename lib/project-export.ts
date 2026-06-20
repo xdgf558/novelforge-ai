@@ -4,6 +4,7 @@ export type ProjectExportData = {
   project: Record<string, Scalar>;
   setting?: Record<string, Scalar> | null;
   characters?: readonly Record<string, Scalar>[];
+  outlines?: readonly Record<string, Scalar>[];
   chapters?: readonly Record<string, Scalar>[];
   worldRules?: readonly Record<string, Scalar>[];
   foreshadows?: readonly Record<string, Scalar>[];
@@ -50,6 +51,32 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["行为规则", character.behaviorRules],
         ["最近出场", character.latestAppearance],
         ["备注", character.notes],
+      ]),
+    ]),
+    buildRecordSection("大纲", data.outlines, (outline) => [
+      `### ${formatScalar(outline.title) || "未命名大纲"}`,
+      buildKeyValueList([
+        ["层级", outline.level],
+        ["状态", outline.status],
+        ["卷号", outline.volumeNumber],
+        ["单元号", outline.unitNumber],
+        ["章节号", outline.chapterNumber],
+        ["起始章节", outline.startChapter],
+        ["结束章节", outline.endChapter],
+        ["预计章节数", outline.expectedChapters],
+        ["预计字数", outline.expectedWords],
+        ["目标", outline.goal],
+        ["主线推进", outline.mainlineProgression],
+        ["核心冲突", outline.mainConflict],
+        ["核心事件", outline.coreEvents],
+        ["角色变化", outline.characterChanges],
+        ["爽点设计", outline.pleasureDesign],
+        ["章节冲突", outline.chapterConflict],
+        ["章节爽点", outline.chapterPleasurePoint],
+        ["埋设伏笔", outline.foreshadow],
+        ["回收伏笔", outline.resolvedForeshadow],
+        ["章末钩子", outline.endingHook],
+        ["补充备注", outline.content],
       ]),
     ]),
     buildRecordSection("章节", data.chapters, (chapter) => [

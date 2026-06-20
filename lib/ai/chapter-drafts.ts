@@ -1,5 +1,6 @@
 import { clipText, excerptChapterEnding } from "./chapter-beats";
 import { formatWordRange } from "../format";
+import { outlineLevelLabel, outlineRangeLabel, type OutlineLike } from "../outline-fields";
 import type { ProjectSettingFieldName } from "../project-setting-fields";
 
 export type ChapterDraftProjectContext = {
@@ -46,6 +47,7 @@ export type ChapterDraftContextInput = {
   project: ChapterDraftProjectContext;
   setting?: ChapterDraftSettingContext | null;
   chapter: ChapterDraftChapterContext;
+  outlines?: readonly OutlineLike[];
   characters: readonly ChapterDraftCharacterContext[];
   previousChapter?: ChapterDraftChapterContext | null;
 };
@@ -84,6 +86,7 @@ export function buildChapterDraftContext(
   input: ChapterDraftContextInput,
 ): BuiltChapterDraftContext {
   const confirmedBeats = clean(input.chapter.beats);
+  const outlineItems = (input.outlines ?? []).map(buildOutlineLine);
   const previousChapterEnding = input.previousChapter
     ? excerptChapterEnding(input.previousChapter)
     : "";
@@ -125,6 +128,7 @@ export function buildChapterDraftContext(
       confirmedBeats,
       notes: clean(input.chapter.notes),
     },
+    outlines: outlineItems,
     styleConstraints,
     characterRules,
     worldConstraints,
@@ -152,6 +156,11 @@ export function buildChapterDraftContext(
     "",
     "# 已确认章节节拍",
     confirmedBeats || "未填写已确认节拍。禁止在没有节拍时自由生成正文。",
+    "",
+    "# 当前大纲",
+    outlineItems.length > 0
+      ? outlineItems.join("\n")
+      : "暂无匹配当前章节的卷、剧情单元或章节大纲。",
     "",
     "# 文风与发布约束",
     styleConstraints.length > 0 ? styleConstraints.join("\n") : "未设置。",
@@ -188,6 +197,7 @@ export function buildChapterDraftContextSummary(
   return [
     `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节草稿生成`,
     clean(input.chapter.beats) ? "包含已确认节拍" : "缺少已确认节拍",
+    `大纲 ${(input.outlines ?? []).length} 条`,
     `角色 ${input.characters.length} 个`,
     input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
   ].join("；");
@@ -215,6 +225,22 @@ function buildCharacterRuleLine(character: ChapterDraftCharacterContext) {
     .join("；");
 
   return `- ${character.name}${details ? `：${details}` : ""}`;
+}
+
+function buildOutlineLine(outline: OutlineLike) {
+  return `- ${outlineLevelLabel(outline.level)} ${outlineRangeLabel(outline)}《${clean(
+    outline.title,
+  ) || "未命名"}》：${compact([
+    outline.goal ? `目标：${clipText(outline.goal, 500)}` : "",
+    outline.mainConflict ? `冲突：${clipText(outline.mainConflict, 400)}` : "",
+    outline.coreEvents ? `事件：${clipText(outline.coreEvents, 500)}` : "",
+    outline.chapterConflict ? `章节冲突：${clipText(outline.chapterConflict, 400)}` : "",
+    outline.chapterPleasurePoint
+      ? `章节爽点：${clipText(outline.chapterPleasurePoint, 400)}`
+      : "",
+    outline.foreshadow ? `伏笔：${clipText(outline.foreshadow, 300)}` : "",
+    outline.endingHook ? `钩子：${clipText(outline.endingHook, 300)}` : "",
+  ]).join("；") || "暂无摘要"}`;
 }
 
 function lines(items: readonly (readonly [string, string | number | null | undefined])[]) {

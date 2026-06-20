@@ -33,6 +33,7 @@ import {
   chapterStatusOptions,
   type ChapterValues,
 } from "@/lib/chapter-fields";
+import { selectRelevantOutlinesForChapter } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
 
 const optionalChapterText = z
@@ -780,11 +781,30 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     notFound();
   }
 
-  const [setting, characters, recentChapters, previousChapter] = await Promise.all([
+  const [setting, outlines, characters, recentChapters, previousChapter] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
       },
+    }),
+    prisma.outline.findMany({
+      where: {
+        projectId,
+        status: {
+          not: "archived",
+        },
+      },
+      orderBy: [
+        {
+          level: "asc",
+        },
+        {
+          sortOrder: "asc",
+        },
+        {
+          createdAt: "asc",
+        },
+      ],
     }),
     prisma.character.findMany({
       where: {
@@ -825,6 +845,7 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     project: chapter.project,
     setting,
     chapter: pickChapterContext(chapter),
+    outlines: selectRelevantOutlinesForChapter(outlines, chapter.chapterNumber),
     characters,
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
@@ -858,11 +879,30 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     notFound();
   }
 
-  const [setting, characters, previousChapter] = await Promise.all([
+  const [setting, outlines, characters, previousChapter] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
       },
+    }),
+    prisma.outline.findMany({
+      where: {
+        projectId,
+        status: {
+          not: "archived",
+        },
+      },
+      orderBy: [
+        {
+          level: "asc",
+        },
+        {
+          sortOrder: "asc",
+        },
+        {
+          createdAt: "asc",
+        },
+      ],
     }),
     prisma.character.findMany({
       where: {
@@ -891,6 +931,7 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     project: chapter.project,
     setting,
     chapter: pickChapterDraftContext(chapter),
+    outlines: selectRelevantOutlinesForChapter(outlines, chapter.chapterNumber),
     characters,
     previousChapter: previousChapter
       ? pickChapterDraftContext(previousChapter)

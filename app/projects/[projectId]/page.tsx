@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   FileText,
   History,
+  Layers3,
   ListChecks,
   Pencil,
   Send,
@@ -43,6 +44,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             characterVersions: true,
             chapters: true,
             chapterVersions: true,
+            outlines: true,
             worldRules: true,
             foreshadows: true,
             timelineEvents: true,
@@ -181,6 +183,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               </h2>
               <p className="mt-1 text-sm leading-6 text-ink-700">
                 已保存 {project._count.chapters} 个章节，{project._count.chapterVersions} 个章节快照。
+              </p>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+          href={`/projects/${project.id}/outlines`}
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
+              <Layers3 aria-hidden="true" className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-ink-950">
+                大纲模块
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-ink-700">
+                已保存 {project._count.outlines} 条卷、剧情单元和章节大纲。
               </p>
             </div>
           </div>

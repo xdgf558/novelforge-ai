@@ -52,6 +52,19 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
       "输入应限制为任务相关上下文：项目设定摘要、相关角色、最近 3 章摘要、上一章结尾、当前章节目标。",
   },
   {
+    key: "outline_generation",
+    name: "大纲草案生成",
+    taskType: "outline_generation",
+    version: 1,
+    outputFormat: "markdown",
+    systemPrompt:
+      "你是长篇连载小说的大纲策划助手。只输出供作者审核和手动整理的规划草案，不得宣称已经写入正式大纲或正式故事记忆。",
+    userPrompt:
+      "根据项目设定、已有大纲、角色资料和已完成章节，生成卷大纲、剧情单元大纲或章节大纲草案。",
+    contextNotes:
+      "输入应包含项目基础信息、项目设定摘要、已有大纲、主要角色、已有章节和本次目标层级。输出应提供可复制进大纲表单的结构化字段。",
+  },
+  {
     key: "chapter_draft_generation",
     name: "章节草稿生成",
     taskType: "chapter_draft_generation",

@@ -1,5 +1,32 @@
 # Development Log
 
+## 2026-06-20: Phase 21 Outline Module
+
+Status: completed pending review.
+
+What was done:
+
+- Added the `outlines` SQLite table and Prisma model for three outline levels: volume, story unit, and chapter.
+- Added `/projects/[projectId]/outlines` with quick-create forms, grouped outline lists, edit/delete controls, and an edit page for structured outline fields.
+- Added `outline_generation` as a default AI prompt template and an AI outline draft panel. AI-generated outline text is saved only as an `ai_tasks` record; formal outline rows still require author manual creation or editing.
+- Updated the project dashboard and left navigation so the outline module is reachable as a first-class creative tool.
+- Injected matching volume/unit/chapter outline context into chapter beat generation and chapter draft generation.
+- Updated project JSON/Markdown export to include outline records.
+- Bumped the source app/package version to `0.1.22` and updated in-app release notes.
+
+Verification:
+
+- `npx prisma generate` passed.
+- `npm run test -- lib/outline-fields.test.ts lib/ai/outlines.test.ts lib/ai/chapter-beats.test.ts lib/ai/chapter-drafts.test.ts lib/ai/prompt-templates.test.ts lib/project-export.test.ts` passed, 6 files and 15 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 31 files and 136 tests.
+- `git diff --check` passed.
+- `npm run build` passed.
+
+Packaging note:
+
+- No desktop installer should be built before review approval. Phase 21 is intended for PR review first.
+
 ## 2026-06-20: Phase 20 AI Chapter Polish
 
 Status: completed.
