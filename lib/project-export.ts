@@ -98,8 +98,13 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
       `### ${formatScalar(rule.title) || "未命名规则"}`,
       buildKeyValueList([
         ["分类", rule.category],
+        ["核心规则", rule.isCore ? "是" : ""],
         ["风险", rule.riskLevel],
         ["状态", rule.status],
+        ["适用范围", rule.scope],
+        ["相关人物", rule.relatedCharacters],
+        ["相关地点", rule.relatedLocations],
+        ["相关组织", rule.relatedOrganizations],
         ["内容", rule.content],
       ]),
     ]),
@@ -108,6 +113,10 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
       buildKeyValueList([
         ["状态", foreshadow.status],
         ["重要度", foreshadow.importance],
+        ["预计回收章节", foreshadow.expectedResolveChapter],
+        ["相关人物", foreshadow.relatedCharacters],
+        ["相关地点", foreshadow.relatedLocations],
+        ["相关势力", foreshadow.relatedFactions],
         ["埋设章节", foreshadow.plantedChapterId],
         ["回收章节", foreshadow.resolvedChapterId],
       ]),
@@ -116,6 +125,8 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
       `### ${formatScalar(event.title) || "未命名事件"}`,
       buildKeyValueList([
         ["故事时间", event.storyTime],
+        ["相关人物", event.relatedCharacters],
+        ["地点", event.location],
         ["章节", event.chapterId],
         ["影响", event.impact],
         ["描述", event.description],

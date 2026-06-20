@@ -50,6 +50,11 @@ export type ContinuityWorldRuleContext = {
   title: string;
   content: string;
   category?: string | null;
+  scope?: string | null;
+  relatedCharacters?: string | null;
+  relatedLocations?: string | null;
+  relatedOrganizations?: string | null;
+  isCore?: boolean | null;
   riskLevel?: string | null;
   status?: string | null;
 };
@@ -58,12 +63,18 @@ export type ContinuityForeshadowContext = {
   content: string;
   status?: string | null;
   importance?: string | null;
+  expectedResolveChapter?: number | null;
+  relatedCharacters?: string | null;
+  relatedLocations?: string | null;
+  relatedFactions?: string | null;
 };
 
 export type ContinuityTimelineEventContext = {
   title: string;
   description: string;
   storyTime?: string | null;
+  relatedCharacters?: string | null;
+  location?: string | null;
   impact?: string | null;
 };
 
@@ -367,19 +378,50 @@ function buildCharacterLine(character: ContinuityCharacterContext) {
 }
 
 function buildWorldRuleLine(rule: ContinuityWorldRuleContext) {
+  const details = [
+    rule.isCore ? "核心规则" : "",
+    rule.category,
+    rule.scope ? `适用范围：${rule.scope}` : "",
+    rule.relatedCharacters ? `人物：${rule.relatedCharacters}` : "",
+    rule.relatedLocations ? `地点：${rule.relatedLocations}` : "",
+    rule.relatedOrganizations ? `组织：${rule.relatedOrganizations}` : "",
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join("；");
+
   return `- ${rule.title}：${clipText(rule.content, 500)}${
-    rule.category ? `（${rule.category}）` : ""
+    details ? `（${clipText(details, 260)}）` : ""
   }`;
 }
 
 function buildForeshadowLine(foreshadow: ContinuityForeshadowContext) {
+  const details = [
+    foreshadow.expectedResolveChapter
+      ? `预计第 ${foreshadow.expectedResolveChapter} 章回收`
+      : "",
+    foreshadow.relatedCharacters ? `人物：${foreshadow.relatedCharacters}` : "",
+    foreshadow.relatedLocations ? `地点：${foreshadow.relatedLocations}` : "",
+    foreshadow.relatedFactions ? `势力：${foreshadow.relatedFactions}` : "",
+  ]
+    .map(clean)
+    .filter(Boolean)
+    .join("；");
+
   return `- ${foreshadow.status || "unknown"} / ${
     foreshadow.importance || "medium"
-  }：${clipText(foreshadow.content, 400)}`;
+  }：${clipText(foreshadow.content, 400)}${
+    details ? `（${clipText(details, 240)}）` : ""
+  }`;
 }
 
 function buildTimelineEventLine(event: ContinuityTimelineEventContext) {
-  const details = [event.storyTime, event.impact]
+  const details = [
+    event.storyTime,
+    event.location ? `地点：${event.location}` : "",
+    event.relatedCharacters ? `人物：${event.relatedCharacters}` : "",
+    event.impact,
+  ]
     .map(clean)
     .filter(Boolean)
     .join("；");

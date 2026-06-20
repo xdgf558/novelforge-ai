@@ -9,6 +9,7 @@ import {
   Layers3,
   NotebookTabs,
   Plus,
+  ShieldCheck,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -46,6 +47,11 @@ const projectToolItems = [
     path: "chapters",
     label: "章节",
     icon: NotebookTabs,
+  },
+  {
+    path: "memory",
+    label: "记忆",
+    icon: ShieldCheck,
   },
   {
     path: "ai",

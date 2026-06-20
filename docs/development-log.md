@@ -1,5 +1,32 @@
 # Development Log
 
+## 2026-06-20: Phase 22 Structured Memory Management Pages
+
+Status: completed pending review.
+
+What was done:
+
+- Added `/projects/[projectId]/memory` as the dedicated structured memory workbench for world rules, foreshadows, and timeline events.
+- Added author-controlled create/edit/delete server actions for world rules, foreshadows, and timeline events. These actions update formal memory only after explicit user submission.
+- Expanded structured memory metadata: core world-rule flag, rule scope, related characters/locations/organizations, foreshadow expected resolution chapter and related story metadata, plus timeline related characters and location.
+- Linked the project dashboard structured-memory card and sidebar navigation to the new memory workbench.
+- Updated project exports and continuity context assembly so the richer memory metadata is backed up and available to checks.
+- Bumped the source app/package version to `0.1.23` and updated in-app release notes.
+
+Verification:
+
+- `npx prisma format` passed.
+- `npx prisma generate` passed.
+- `npm run test -- app/projects/[projectId]/memory/actions.test.ts` passed, 1 file and 5 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 33 files and 152 tests.
+- `git diff --check` passed.
+- `npm run build` passed.
+
+Packaging note:
+
+- No desktop installer should be built before review approval. Phase 22 is intended for PR review first.
+
 ## 2026-06-20: Phase 21 Outline Module
 
 Status: completed pending review.
