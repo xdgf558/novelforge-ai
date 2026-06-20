@@ -125,6 +125,7 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
       `### ${formatScalar(event.title) || "未命名事件"}`,
       buildKeyValueList([
         ["故事时间", event.storyTime],
+        ["状态", event.status],
         ["相关人物", event.relatedCharacters],
         ["地点", event.location],
         ["章节", event.chapterId],

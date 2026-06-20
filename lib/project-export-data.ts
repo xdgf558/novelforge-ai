@@ -314,6 +314,7 @@ export function buildExportData(project: PublishProject) {
         "relatedCharacters",
         "location",
         "impact",
+        "status",
         "chapterId",
         "sourceChapterId",
         "pendingUpdateId",

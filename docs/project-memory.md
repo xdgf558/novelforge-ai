@@ -202,7 +202,7 @@ Recommended implementation order:
 - Phase 19A: project cover image upload, local cover asset storage, project-level cover metadata, publish-page cover preview/removal, and Station Cat standard package cover payload with base64 image data.
 - Phase 20: AI chapter polish generation, independent `Chapter.polishedText` storage, explicit adoption into polished text, and author-controlled finalization from polished text.
 - Phase 21: outline module with volume, story-unit, and chapter outlines; logged AI outline draft generation; project dashboard/sidebar entry; project export coverage; and outline context injection into chapter beat and draft generation.
-- Phase 22: structured memory management pages for world rules, foreshadows, and timeline events, including richer metadata fields, dashboard/sidebar entry, project export coverage, and continuity context enrichment.
+- Phase 22: structured memory management pages for world rules, foreshadows, and timeline events, including richer metadata fields, dashboard/sidebar entry, project export coverage, continuity context enrichment, current-project chapter relation validation, and soft archive/abandon flows for formal memory records.
 - Continuity one-click repair: open continuity reports can offer an author-triggered “一键修复正文” button when the suggested fix contains an explicit replacement such as “将 A 改为 B”; the action updates the linked chapter final text, creates a chapter version snapshot, and marks the report resolved. Vague fixes stay manual-only.
 
 ## UI Direction

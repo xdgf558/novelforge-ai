@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
     project: {
       findUnique: vi.fn(),
     },
+    chapter: {
+      count: vi.fn(),
+    },
     worldRule: {
       create: vi.fn(),
       delete: vi.fn(),
@@ -79,6 +82,7 @@ describe("story memory actions", () => {
     mocks.prisma.worldRule.findFirst.mockResolvedValue({
       id: "rule_1",
     });
+    mocks.prisma.chapter.count.mockResolvedValue(1);
     mocks.prisma.worldRule.create.mockResolvedValue({
       id: "rule_1",
     });
@@ -125,6 +129,45 @@ describe("story memory actions", () => {
     });
   });
 
+  it("normalizes invalid world rule categories to other", async () => {
+    await expect(
+      createWorldRule(
+        "project_1",
+        formData({
+          title: "自定义规则",
+          content: "自定义表单值不会污染分类枚举。",
+          category: "custom_category",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.worldRule.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        category: "other",
+      }),
+    });
+  });
+
+  it("rejects cross-project chapter references before creating world rules", async () => {
+    mocks.prisma.chapter.count.mockResolvedValue(0);
+
+    await expect(
+      createWorldRule(
+        "project_1",
+        formData({
+          title: "跨项目规则",
+          content: "这条规则不应该写入。",
+          sourceChapterId: "chapter_from_other_project",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.worldRule.create).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/memory?memoryError=invalidChapterReference",
+    );
+  });
+
   it("creates a foreshadow with expected resolution and related story metadata", async () => {
     await expect(
       createForeshadow(
@@ -168,7 +211,7 @@ describe("story memory actions", () => {
 
     expect(mocks.prisma.foreshadow.create).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
-      "/projects/project_1/memory?memoryError=invalidForm",
+      "/projects/project_1/memory?memoryError=invalidExpectedResolveChapter",
     );
   });
 
@@ -179,6 +222,7 @@ describe("story memory actions", () => {
         formData({
           title: "陈远重生",
           description: "陈远在 1999 年夏天醒来，确认自己重生。",
+          status: "active",
           storyTime: "1999年6月15日上午",
           relatedCharacters: "陈远",
           location: "县城家中",
@@ -192,6 +236,7 @@ describe("story memory actions", () => {
       data: expect.objectContaining({
         projectId: "project_1",
         title: "陈远重生",
+        status: "active",
         relatedCharacters: "陈远",
         location: "县城家中",
         chapterId: "chapter_1",
@@ -206,9 +251,25 @@ describe("story memory actions", () => {
       "NEXT_REDIRECT",
     );
 
-    expect(mocks.prisma.worldRule.delete).not.toHaveBeenCalled();
+    expect(mocks.prisma.worldRule.update).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/memory?memoryError=recordNotFound",
     );
+  });
+
+  it("archives a world rule instead of hard-deleting formal memory", async () => {
+    await expect(deleteWorldRule("project_1", "rule_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.worldRule.update).toHaveBeenCalledWith({
+      where: {
+        id: "rule_1",
+      },
+      data: {
+        status: "archived",
+      },
+    });
+    expect(mocks.prisma.worldRule.delete).not.toHaveBeenCalled();
   });
 });

@@ -38,9 +38,18 @@ export const foreshadowImportanceOptions = [
   { value: "high", label: "高" },
 ] as const;
 
+export const timelineEventStatusOptions = [
+  { value: "active", label: "生效中" },
+  { value: "archived", label: "已归档" },
+] as const;
+
 export const storyMemoryValidationErrorMessages = {
   invalidForm: "表单内容不完整，请检查必填字段。",
-  invalidChapterNumber: "章节号必须是大于 0 的整数。",
+  missingTitle: "标题不能为空，请填写标题后再保存。",
+  missingContent: "正文内容不能为空，请填写内容后再保存。",
+  bodyTooLong: "内容过长，请压缩到允许长度内再保存。",
+  invalidExpectedResolveChapter: "预计回收章节必须是大于 0 的整数。",
+  invalidChapterReference: "关联章节不属于当前项目，请重新选择章节。",
   recordNotFound: "没有找到这条结构化记忆记录。",
 } as const;
 
@@ -72,6 +81,10 @@ export function foreshadowImportanceLabel(value?: string | null) {
   return optionLabel(foreshadowImportanceOptions, value, "中");
 }
 
+export function timelineEventStatusLabel(value?: string | null) {
+  return optionLabel(timelineEventStatusOptions, value, "生效中");
+}
+
 export function normalizeWorldRuleStatus(value: unknown) {
   return normalizeOption(worldRuleStatusOptions, value, "active");
 }
@@ -90,6 +103,10 @@ export function normalizeForeshadowStatus(value: unknown) {
 
 export function normalizeForeshadowImportance(value: unknown) {
   return normalizeOption(foreshadowImportanceOptions, value, "medium");
+}
+
+export function normalizeTimelineEventStatus(value: unknown) {
+  return normalizeOption(timelineEventStatusOptions, value, "active");
 }
 
 function optionLabel(

@@ -374,6 +374,7 @@ model TimelineEvent {
   relatedCharacters String?
   location          String?
   impact            String?
+  status            String   @default("active")
   chapterId         String?
   sourceChapterId   String?
   pendingUpdateId   String?
@@ -384,7 +385,7 @@ model TimelineEvent {
   chapter       Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   pendingUpdate PendingUpdate? @relation(fields: [pendingUpdateId], references: [id], onDelete: SetNull)
 
-  @@index([projectId])
+  @@index([projectId, status])
   @@index([chapterId])
   @@index([pendingUpdateId])
   @@map("timeline_events")

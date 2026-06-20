@@ -322,6 +322,7 @@ async function loadContinuityContext(projectId: string, chapterId: string) {
     prisma.timelineEvent.findMany({
       where: {
         projectId,
+        status: "active",
       },
       orderBy: {
         createdAt: "desc",

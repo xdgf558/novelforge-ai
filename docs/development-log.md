@@ -13,11 +13,20 @@ What was done:
 - Updated project exports and continuity context assembly so the richer memory metadata is backed up and available to checks.
 - Bumped the source app/package version to `0.1.23` and updated in-app release notes.
 
+Review hardening:
+
+- Added server-side validation that every chapter relation written from the structured-memory forms belongs to the current project, preventing cross-project memory references.
+- Changed world-rule, foreshadow, and timeline "delete" actions into soft status transitions: world rules and timeline events are archived, while foreshadows are marked abandoned.
+- Added `TimelineEvent.status` so timeline items can be archived without losing history, and filtered archived timeline events out of continuity-check context.
+- Reduced the structured-memory page's default render weight by listing summary cards and expanding only the selected record's edit form, with each memory type capped to the latest 50 rows on the page.
+- Split key validation feedback into dedicated messages for missing titles, missing content, overlong body text, invalid expected resolve chapter, and invalid chapter references.
+- Normalized world-rule categories through the server-side whitelist so arbitrary submitted category values fall back to `other`.
+
 Verification:
 
 - `npx prisma format` passed.
 - `npx prisma generate` passed.
-- `npm run test -- app/projects/[projectId]/memory/actions.test.ts` passed, 1 file and 5 tests.
+- `npm run test -- app/projects/[projectId]/memory/actions.test.ts` passed, 1 file and 8 tests.
 - `npm run typecheck` passed.
 - `npm run test` passed, 33 files and 152 tests.
 - `git diff --check` passed.

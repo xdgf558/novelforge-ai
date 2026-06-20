@@ -12,3 +12,4 @@ ALTER TABLE "foreshadows" ADD COLUMN "relatedFactions" TEXT;
 
 ALTER TABLE "timeline_events" ADD COLUMN "relatedCharacters" TEXT;
 ALTER TABLE "timeline_events" ADD COLUMN "location" TEXT;
+ALTER TABLE "timeline_events" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'active';

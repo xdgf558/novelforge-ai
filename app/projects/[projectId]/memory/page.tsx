@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  Archive,
   ArrowLeft,
   FileText,
   ListChecks,
   Route,
   ShieldCheck,
-  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -30,6 +30,8 @@ import {
   memoryRiskLevelLabel,
   memoryRiskLevelOptions,
   storyMemoryValidationErrorMessages,
+  timelineEventStatusLabel,
+  timelineEventStatusOptions,
   worldRuleCategoryLabel,
   worldRuleCategoryOptions,
   worldRuleStatusLabel,
@@ -44,6 +46,8 @@ type MemoryPageProps = {
     projectId: string;
   }>;
   searchParams?: Promise<{
+    editId?: string;
+    editType?: string;
     memoryError?: string;
   }>;
 };
@@ -77,6 +81,7 @@ export default async function MemoryPage({
       },
       worldRules: {
         orderBy: [{ isCore: "desc" }, { status: "asc" }, { updatedAt: "desc" }],
+        take: 50,
       },
       foreshadows: {
         include: {
@@ -96,6 +101,7 @@ export default async function MemoryPage({
           },
         },
         orderBy: [{ status: "asc" }, { importance: "desc" }, { updatedAt: "desc" }],
+        take: 50,
       },
       timelineEvents: {
         include: {
@@ -107,7 +113,8 @@ export default async function MemoryPage({
             },
           },
         },
-        orderBy: [{ storyTime: "asc" }, { createdAt: "asc" }],
+        orderBy: [{ status: "asc" }, { storyTime: "asc" }, { createdAt: "asc" }],
+        take: 50,
       },
     },
   });
@@ -124,6 +131,8 @@ export default async function MemoryPage({
     storyMemoryValidationErrorMessages[
       query.memoryError as StoryMemoryValidationErrorCode
     ];
+  const editType = query.editType;
+  const editId = query.editId;
   const activeWorldRuleCount = project.worldRules.filter(
     (rule) => rule.status === "active",
   ).length;
@@ -234,22 +243,37 @@ export default async function MemoryPage({
                       来源章节：{chapterLabelById.get(rule.sourceChapterId || "") || "未指定"} / 更新：{formatDate(rule.updatedAt)}
                     </p>
                   </div>
-                  <form action={deleteWorldRule.bind(null, project.id, rule.id)}>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/10 bg-white px-3 py-2 text-xs font-semibold text-ink-800 transition hover:border-signal-500/45 hover:text-signal-700"
+                      href={`/projects/${project.id}/memory?editType=worldRule&editId=${rule.id}#world-rules`}
+                    >
+                      编辑
+                    </Link>
+                    <form action={deleteWorldRule.bind(null, project.id, rule.id)}>
                     <button
-                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
                       type="submit"
                     >
-                      <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
-                      删除
+                      <Archive aria-hidden="true" className="h-3.5 w-3.5" />
+                      归档
                     </button>
-                  </form>
+                    </form>
+                  </div>
                 </div>
-                <WorldRuleForm
-                  action={updateWorldRule.bind(null, project.id, rule.id)}
-                  chapters={chapters}
-                  rule={rule}
-                  submitLabel="保存规则"
-                />
+                <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
+                  {rule.content}
+                </p>
+                {editType === "worldRule" && editId === rule.id ? (
+                  <div className="mt-4 rounded-lg border border-signal-500/20 bg-signal-500/5 p-4">
+                    <WorldRuleForm
+                      action={updateWorldRule.bind(null, project.id, rule.id)}
+                      chapters={chapters}
+                      rule={rule}
+                      submitLabel="保存规则"
+                    />
+                  </div>
+                ) : null}
               </article>
             ))
           )}
@@ -294,24 +318,39 @@ export default async function MemoryPage({
                       埋设：{foreshadow.plantedChapter ? chapterLabel(foreshadow.plantedChapter) : "未指定"} / 回收：{foreshadow.resolvedChapter ? chapterLabel(foreshadow.resolvedChapter) : "未指定"}
                     </p>
                   </div>
-                  <form
-                    action={deleteForeshadow.bind(null, project.id, foreshadow.id)}
-                  >
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/10 bg-white px-3 py-2 text-xs font-semibold text-ink-800 transition hover:border-signal-500/45 hover:text-signal-700"
+                      href={`/projects/${project.id}/memory?editType=foreshadow&editId=${foreshadow.id}#foreshadows`}
+                    >
+                      编辑
+                    </Link>
+                    <form
+                      action={deleteForeshadow.bind(null, project.id, foreshadow.id)}
+                    >
                     <button
-                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
                       type="submit"
                     >
-                      <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
-                      删除
+                      <Archive aria-hidden="true" className="h-3.5 w-3.5" />
+                      废弃
                     </button>
-                  </form>
+                    </form>
+                  </div>
                 </div>
-                <ForeshadowForm
-                  action={updateForeshadow.bind(null, project.id, foreshadow.id)}
-                  chapters={chapters}
-                  foreshadow={foreshadow}
-                  submitLabel="保存伏笔"
-                />
+                <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
+                  {foreshadow.content}
+                </p>
+                {editType === "foreshadow" && editId === foreshadow.id ? (
+                  <div className="mt-4 rounded-lg border border-signal-500/20 bg-signal-500/5 p-4">
+                    <ForeshadowForm
+                      action={updateForeshadow.bind(null, project.id, foreshadow.id)}
+                      chapters={chapters}
+                      foreshadow={foreshadow}
+                      submitLabel="保存伏笔"
+                    />
+                  </div>
+                ) : null}
               </article>
             ))
           )}
@@ -341,6 +380,7 @@ export default async function MemoryPage({
                 <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap gap-2">
+                      <Badge>{timelineEventStatusLabel(event.status)}</Badge>
                       {event.storyTime ? <Badge>{event.storyTime}</Badge> : null}
                       {event.location ? <Badge tone="cyan">{event.location}</Badge> : null}
                       {event.chapter ? (
@@ -354,24 +394,44 @@ export default async function MemoryPage({
                       更新：{formatDate(event.updatedAt)}
                     </p>
                   </div>
-                  <form
-                    action={deleteTimelineEvent.bind(null, project.id, event.id)}
-                  >
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/10 bg-white px-3 py-2 text-xs font-semibold text-ink-800 transition hover:border-signal-500/45 hover:text-signal-700"
+                      href={`/projects/${project.id}/memory?editType=timelineEvent&editId=${event.id}#timeline`}
+                    >
+                      编辑
+                    </Link>
+                    <form
+                      action={deleteTimelineEvent.bind(null, project.id, event.id)}
+                    >
                     <button
-                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
                       type="submit"
                     >
-                      <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
-                      删除
+                      <Archive aria-hidden="true" className="h-3.5 w-3.5" />
+                      归档
                     </button>
-                  </form>
+                    </form>
+                  </div>
                 </div>
-                <TimelineEventForm
-                  action={updateTimelineEvent.bind(null, project.id, event.id)}
-                  chapters={chapters}
-                  event={event}
-                  submitLabel="保存事件"
-                />
+                <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
+                  {event.description}
+                </p>
+                {event.impact ? (
+                  <p className="mt-2 whitespace-pre-wrap rounded-md bg-ink-950/[0.03] p-3 text-xs leading-5 text-ink-700">
+                    影响：{event.impact}
+                  </p>
+                ) : null}
+                {editType === "timelineEvent" && editId === event.id ? (
+                  <div className="mt-4 rounded-lg border border-signal-500/20 bg-signal-500/5 p-4">
+                    <TimelineEventForm
+                      action={updateTimelineEvent.bind(null, project.id, event.id)}
+                      chapters={chapters}
+                      event={event}
+                      submitLabel="保存事件"
+                    />
+                  </div>
+                ) : null}
               </article>
             ))
           )}
@@ -601,6 +661,7 @@ function TimelineEventForm({
     relatedCharacters: string | null;
     location: string | null;
     impact: string | null;
+    status: string;
     chapterId: string | null;
     sourceChapterId: string | null;
   };
@@ -645,6 +706,12 @@ function TimelineEventForm({
           label="相关人物"
           name="relatedCharacters"
           placeholder="例如：陈远、李淑兰"
+        />
+        <SelectField
+          defaultValue={event?.status || "active"}
+          label="状态"
+          name="status"
+          options={timelineEventStatusOptions}
         />
       </div>
       <TextareaField

@@ -7,6 +7,8 @@ import {
   normalizeForeshadowImportance,
   normalizeForeshadowStatus,
   normalizeRiskLevel,
+  normalizeTimelineEventStatus,
+  normalizeWorldRuleCategory,
   normalizeWorldRuleStatus,
 } from "@/lib/story-memory-fields";
 import { prisma } from "@/lib/prisma";
@@ -51,7 +53,10 @@ const optionalRelationId = z
 const worldRuleSchema = z.object({
   title: requiredTitle,
   content: requiredBody,
-  category: optionalText.transform((value) => value || "other"),
+  category: z
+    .string()
+    .optional()
+    .transform((value) => normalizeWorldRuleCategory(value)),
   riskLevel: z
     .string()
     .optional()
@@ -94,6 +99,10 @@ const timelineEventSchema = z.object({
   relatedCharacters: optionalText,
   location: optionalText,
   impact: optionalText,
+  status: z
+    .string()
+    .optional()
+    .transform((value) => normalizeTimelineEventStatus(value)),
   chapterId: optionalRelationId,
   sourceChapterId: optionalRelationId,
 });
@@ -116,7 +125,8 @@ async function assertProject(projectId: string) {
 export async function createWorldRule(projectId: string, formData: FormData) {
   await assertProject(projectId);
 
-  const values = parseMemoryForm(worldRuleSchema, formData, projectId);
+  const values = parseWorldRuleForm(formData, projectId);
+  await assertChapterIdsBelongToProject(projectId, [values.sourceChapterId]);
 
   await prisma.worldRule.create({
     data: {
@@ -136,7 +146,8 @@ export async function updateWorldRule(
 ) {
   await assertProject(projectId);
 
-  const values = parseMemoryForm(worldRuleSchema, formData, projectId);
+  const values = parseWorldRuleForm(formData, projectId);
+  await assertChapterIdsBelongToProject(projectId, [values.sourceChapterId]);
   const rule = await prisma.worldRule.findFirst({
     where: {
       id: ruleId,
@@ -166,9 +177,12 @@ export async function deleteWorldRule(projectId: string, ruleId: string) {
   await assertProject(projectId);
   await assertWorldRule(projectId, ruleId);
 
-  await prisma.worldRule.delete({
+  await prisma.worldRule.update({
     where: {
       id: ruleId,
+    },
+    data: {
+      status: "archived",
     },
   });
 
@@ -179,7 +193,12 @@ export async function deleteWorldRule(projectId: string, ruleId: string) {
 export async function createForeshadow(projectId: string, formData: FormData) {
   await assertProject(projectId);
 
-  const values = parseMemoryForm(foreshadowSchema, formData, projectId);
+  const values = parseForeshadowForm(formData, projectId);
+  await assertChapterIdsBelongToProject(projectId, [
+    values.plantedChapterId,
+    values.resolvedChapterId,
+    values.sourceChapterId,
+  ]);
 
   await prisma.foreshadow.create({
     data: {
@@ -199,7 +218,12 @@ export async function updateForeshadow(
 ) {
   await assertProject(projectId);
 
-  const values = parseMemoryForm(foreshadowSchema, formData, projectId);
+  const values = parseForeshadowForm(formData, projectId);
+  await assertChapterIdsBelongToProject(projectId, [
+    values.plantedChapterId,
+    values.resolvedChapterId,
+    values.sourceChapterId,
+  ]);
   const foreshadow = await prisma.foreshadow.findFirst({
     where: {
       id: foreshadowId,
@@ -229,9 +253,12 @@ export async function deleteForeshadow(projectId: string, foreshadowId: string) 
   await assertProject(projectId);
   await assertForeshadow(projectId, foreshadowId);
 
-  await prisma.foreshadow.delete({
+  await prisma.foreshadow.update({
     where: {
       id: foreshadowId,
+    },
+    data: {
+      status: "abandoned",
     },
   });
 
@@ -245,7 +272,11 @@ export async function createTimelineEvent(
 ) {
   await assertProject(projectId);
 
-  const values = parseMemoryForm(timelineEventSchema, formData, projectId);
+  const values = parseTimelineEventForm(formData, projectId);
+  await assertChapterIdsBelongToProject(projectId, [
+    values.chapterId,
+    values.sourceChapterId,
+  ]);
 
   await prisma.timelineEvent.create({
     data: {
@@ -265,7 +296,11 @@ export async function updateTimelineEvent(
 ) {
   await assertProject(projectId);
 
-  const values = parseMemoryForm(timelineEventSchema, formData, projectId);
+  const values = parseTimelineEventForm(formData, projectId);
+  await assertChapterIdsBelongToProject(projectId, [
+    values.chapterId,
+    values.sourceChapterId,
+  ]);
   const event = await prisma.timelineEvent.findFirst({
     where: {
       id: eventId,
@@ -295,9 +330,12 @@ export async function deleteTimelineEvent(projectId: string, eventId: string) {
   await assertProject(projectId);
   await assertTimelineEvent(projectId, eventId);
 
-  await prisma.timelineEvent.delete({
+  await prisma.timelineEvent.update({
     where: {
       id: eventId,
+    },
+    data: {
+      status: "archived",
     },
   });
 
@@ -305,19 +343,78 @@ export async function deleteTimelineEvent(projectId: string, eventId: string) {
   redirect(`/projects/${projectId}/memory#timeline`);
 }
 
+function parseWorldRuleForm(formData: FormData, projectId: string) {
+  return parseMemoryForm(worldRuleSchema, formData, projectId, {
+    title: "missingTitle",
+    content: "missingContent",
+  });
+}
+
+function parseForeshadowForm(formData: FormData, projectId: string) {
+  return parseMemoryForm(foreshadowSchema, formData, projectId, {
+    content: "missingContent",
+    expectedResolveChapter: "invalidExpectedResolveChapter",
+  });
+}
+
+function parseTimelineEventForm(formData: FormData, projectId: string) {
+  return parseMemoryForm(timelineEventSchema, formData, projectId, {
+    title: "missingTitle",
+    description: "missingContent",
+  });
+}
+
 function parseMemoryForm<T extends z.ZodTypeAny>(
   schema: T,
   formData: FormData,
   projectId: string,
+  fieldErrorCodes: Record<string, string>,
 ): z.infer<T> {
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse(raw);
 
   if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const field = issue?.path[0];
+    if (issue?.code === "too_big") {
+      redirectMemoryError(projectId, "bodyTooLong");
+    }
+
+    const code =
+      typeof field === "string" ? fieldErrorCodes[field] : undefined;
+
+    if (code) {
+      redirectMemoryError(projectId, code);
+    }
+
     redirectMemoryError(projectId, "invalidForm");
   }
 
   return parsed.data;
+}
+
+async function assertChapterIdsBelongToProject(
+  projectId: string,
+  ids: Array<string | null | undefined>,
+) {
+  const cleanIds = [...new Set(ids.filter(Boolean))] as string[];
+
+  if (cleanIds.length === 0) {
+    return;
+  }
+
+  const count = await prisma.chapter.count({
+    where: {
+      projectId,
+      id: {
+        in: cleanIds,
+      },
+    },
+  });
+
+  if (count !== cleanIds.length) {
+    redirectMemoryError(projectId, "invalidChapterReference");
+  }
 }
 
 async function assertWorldRule(projectId: string, ruleId: string) {
