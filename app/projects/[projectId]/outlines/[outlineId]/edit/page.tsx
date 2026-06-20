@@ -7,7 +7,9 @@ import {
   outlineNumberFields,
   outlineStatusOptions,
   outlineTextFields,
+  outlineValidationErrorMessages,
   outlineValuesFromRecord,
+  type OutlineValidationErrorCode,
 } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
 
@@ -18,6 +20,9 @@ type EditOutlinePageProps = {
     projectId: string;
     outlineId: string;
   }>;
+  searchParams?: Promise<{
+    outlineError?: string;
+  }>;
 };
 
 const inputClass =
@@ -25,8 +30,12 @@ const inputClass =
 
 const labelClass = "text-sm font-medium text-ink-800";
 
-export default async function EditOutlinePage({ params }: EditOutlinePageProps) {
+export default async function EditOutlinePage({
+  params,
+  searchParams,
+}: EditOutlinePageProps) {
   const { projectId, outlineId } = await params;
+  const query = (await searchParams) ?? {};
   const [project, outline] = await Promise.all([
     prisma.project.findUnique({
       where: {
@@ -50,6 +59,10 @@ export default async function EditOutlinePage({ params }: EditOutlinePageProps) 
   }
 
   const values = outlineValuesFromRecord(outline);
+  const outlineErrorMessage =
+    outlineValidationErrorMessages[
+      query.outlineError as OutlineValidationErrorCode
+    ];
   const visibleNumberFields = outlineNumberFields.filter((field) =>
     field.levels.includes(values.level),
   );
@@ -81,6 +94,12 @@ export default async function EditOutlinePage({ params }: EditOutlinePageProps) 
           大纲是正式创作记忆的一部分。AI 草案需要作者整理确认后，才会通过这里保存进正式大纲。
         </p>
       </div>
+
+      {outlineErrorMessage ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+          {outlineErrorMessage}
+        </div>
+      ) : null}
 
       <form
         action={updateOutline.bind(null, project.id, outline.id)}

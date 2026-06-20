@@ -33,6 +33,14 @@ export const outlineStatusOptions = [
 
 export type OutlineStatus = (typeof outlineStatusOptions)[number]["value"];
 
+export const outlineValidationErrorMessages = {
+  invalidChapterRange: "结束章节不能小于起始章节。",
+  missingChapterNumber: "章节大纲必须填写章节号，才能参与章节生成匹配。",
+} as const;
+
+export type OutlineValidationErrorCode =
+  keyof typeof outlineValidationErrorMessages;
+
 export const outlineTextFieldNames = [
   "content",
   "goal",
@@ -378,23 +386,21 @@ export function selectRelevantOutlinesForChapter(
   outlines: readonly OutlineLike[],
   chapterNumber: number,
 ) {
-  const byLevel = new Map<OutlineLevel, OutlineLike>();
+  const limits = {
+    volume: 1,
+    unit: 2,
+    chapter: 1,
+  } satisfies Record<OutlineLevel, number>;
 
-  for (const outline of outlines) {
-    const level = normalizeOutlineLevel(outline.level);
-
-    if (!outlineMatchesChapter(outline, chapterNumber)) {
-      continue;
-    }
-
-    if (!byLevel.has(level)) {
-      byLevel.set(level, outline);
-    }
-  }
-
-  return outlineLevels
-    .map((level) => byLevel.get(level))
-    .filter((outline): outline is OutlineLike => Boolean(outline));
+  return outlineLevels.flatMap((level) =>
+    outlines
+      .filter((outline) => normalizeOutlineLevel(outline.level) === level)
+      .filter((outline) => outlineMatchesChapter(outline, chapterNumber))
+      .sort((left, right) =>
+        compareOutlineSpecificity(left, right, chapterNumber),
+      )
+      .slice(0, limits[level]),
+  );
 }
 
 export function outlineMatchesChapter(
@@ -423,6 +429,28 @@ export function outlineMatchesChapter(
   return false;
 }
 
+export function validateOutlineValues(
+  values: Pick<
+    OutlineValues,
+    "level" | "chapterNumber" | "startChapter" | "endChapter"
+  >,
+): OutlineValidationErrorCode | null {
+  if (
+    (values.level === "volume" || values.level === "unit") &&
+    values.startChapter &&
+    values.endChapter &&
+    values.endChapter < values.startChapter
+  ) {
+    return "invalidChapterRange";
+  }
+
+  if (values.level === "chapter" && !values.chapterNumber) {
+    return "missingChapterNumber";
+  }
+
+  return null;
+}
+
 export function normalizeOutlineLevel(value?: string | null): OutlineLevel {
   return outlineLevels.includes(value as OutlineLevel)
     ? (value as OutlineLevel)
@@ -447,4 +475,43 @@ function normalizeNumber(value: unknown) {
 function optionalText(value?: string | null) {
   const trimmed = value?.trim() ?? "";
   return trimmed || null;
+}
+
+function compareOutlineSpecificity(
+  left: OutlineLike,
+  right: OutlineLike,
+  chapterNumber: number,
+) {
+  return (
+    outlineSpecificityScore(left, chapterNumber) -
+    outlineSpecificityScore(right, chapterNumber)
+  );
+}
+
+function outlineSpecificityScore(outline: OutlineLike, chapterNumber: number) {
+  const level = normalizeOutlineLevel(outline.level);
+  const activePenalty = normalizeOutlineStatus(outline.status) === "active" ? 0 : 1;
+  const sortOrder = normalizeNumber(outline.sortOrder) ?? Number.MAX_SAFE_INTEGER;
+  const createdAt = outline.createdAt?.getTime() ?? 0;
+
+  if (level === "chapter") {
+    const exactPenalty = outline.chapterNumber === chapterNumber ? 0 : 100;
+    return exactPenalty * 1_000_000_000 + activePenalty * 1_000_000 + sortOrder + createdAt / 1_000_000_000;
+  }
+
+  const start = normalizeNumber(outline.startChapter);
+  const end = normalizeNumber(outline.endChapter);
+  const hasClosedRange = start !== null && end !== null;
+  const rangePenalty = hasClosedRange ? 0 : 1;
+  const span = hasClosedRange
+    ? Math.max(0, end - start)
+    : Number.MAX_SAFE_INTEGER / 4;
+
+  return (
+    rangePenalty * 1_000_000_000 +
+    span * 1_000_000 +
+    activePenalty * 10_000 +
+    sortOrder +
+    createdAt / 1_000_000_000
+  );
 }

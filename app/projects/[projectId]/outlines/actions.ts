@@ -8,6 +8,10 @@ import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
+  expireStaleOutlineAiTasks,
+  outlineGenerationTaskType,
+} from "@/lib/ai/outline-task-maintenance";
+import {
   inferOutlineSortOrder,
   normalizeOutlineLevel,
   normalizeOutlineStatus,
@@ -16,12 +20,13 @@ import {
   outlineSnapshot,
   outlineStatusOptions,
   outlineTextFieldNames,
+  validateOutlineValues,
   type OutlineLevel,
   type OutlineValues,
 } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
 
-const outlineTemplateKey = "outline_generation";
+const outlineTemplateKey = outlineGenerationTaskType;
 
 const outlineStatusValues = outlineStatusOptions.map((option) => option.value) as [
   string,
@@ -93,7 +98,10 @@ const generationRequestSchema = z.object({
       return Number.isFinite(parsed) ? parsed : value;
     }, z.number().int().min(1).max(30).nullable())
     .default(null),
-});
+}).transform((request) => ({
+  ...request,
+  chapterCount: request.targetLevel === "chapter" ? request.chapterCount : null,
+}));
 
 function parseOutlineForm(formData: FormData) {
   const raw = {
@@ -172,6 +180,12 @@ export async function createOutline(projectId: string, formData: FormData) {
   await assertProject(projectId);
 
   const values = parseOutlineForm(formData);
+  const validationError = validateOutlineValues(values);
+
+  if (validationError) {
+    revalidateOutlinePaths(projectId);
+    redirect(`/projects/${projectId}/outlines?outlineError=${validationError}`);
+  }
 
   await prisma.outline.create({
     data: {
@@ -206,6 +220,14 @@ export async function updateOutline(
   }
 
   const values = parseOutlineForm(formData);
+  const validationError = validateOutlineValues(values);
+
+  if (validationError) {
+    revalidatePath(`/projects/${projectId}/outlines/${outlineId}/edit`);
+    redirect(
+      `/projects/${projectId}/outlines/${outlineId}/edit?outlineError=${validationError}`,
+    );
+  }
 
   await prisma.outline.update({
     where: {
@@ -245,6 +267,7 @@ export async function deleteOutline(projectId: string, outlineId: string) {
 
 export async function generateOutlineDraft(projectId: string, formData: FormData) {
   await assertProject(projectId);
+  await expireStaleOutlineAiTasks(projectId);
 
   const activeTask = await findActiveOutlineGenerationTask(projectId);
 

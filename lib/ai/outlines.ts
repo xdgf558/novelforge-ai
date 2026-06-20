@@ -76,7 +76,7 @@ export function buildOutlineGenerationContext(
   const chapterCount =
     input.request.targetLevel === "chapter"
       ? (input.request.chapterCount ?? 10)
-      : input.request.chapterCount;
+      : null;
 
   const inputJson = {
     project: {

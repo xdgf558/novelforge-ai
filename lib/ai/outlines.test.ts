@@ -67,4 +67,38 @@ describe("outline generation context builder", () => {
       "《离线未来》章节大纲生成；已有大纲 1 条；角色 1 个；已有章节 1 个；目标 10 个章节条目",
     );
   });
+
+  it("does not include chapter item counts for volume outline requests", () => {
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      request: {
+        targetLevel: "volume",
+        chapterCount: 10,
+      },
+    });
+
+    expect(context.inputText).toContain("生成卷大纲草案");
+    expect(context.inputText).not.toContain("章节级条目");
+    expect(context.inputJson.request).toMatchObject({
+      targetLevel: "volume",
+      chapterCount: null,
+    });
+  });
+
+  it("does not include chapter item counts for story-unit outline requests", () => {
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      request: {
+        targetLevel: "unit",
+        chapterCount: 8,
+      },
+    });
+
+    expect(context.inputText).toContain("生成剧情单元大纲草案");
+    expect(context.inputText).not.toContain("章节级条目");
+    expect(context.inputJson.request).toMatchObject({
+      targetLevel: "unit",
+      chapterCount: null,
+    });
+  });
 });

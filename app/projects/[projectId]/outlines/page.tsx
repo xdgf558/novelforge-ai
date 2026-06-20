@@ -17,6 +17,8 @@ import {
   deleteOutline,
   generateOutlineDraft,
 } from "@/app/projects/[projectId]/outlines/actions";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
 import {
   aiTaskAdoptionLabel,
   aiTaskStatusLabel,
@@ -29,8 +31,10 @@ import {
   outlineLevelOptions,
   outlineRangeLabel,
   outlineStatusLabel,
+  outlineValidationErrorMessages,
   type OutlineLevel,
   type OutlineLike,
+  type OutlineValidationErrorCode,
 } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
 
@@ -40,10 +44,20 @@ type OutlinesPageProps = {
   params: Promise<{
     projectId: string;
   }>;
+  searchParams?: Promise<{
+    outlineError?: string;
+  }>;
 };
 
-export default async function OutlinesPage({ params }: OutlinesPageProps) {
+export default async function OutlinesPage({
+  params,
+  searchParams,
+}: OutlinesPageProps) {
   const { projectId } = await params;
+  const query = (await searchParams) ?? {};
+
+  await expireStaleOutlineAiTasks(projectId);
+
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -87,6 +101,10 @@ export default async function OutlinesPage({ params }: OutlinesPageProps) {
   }
 
   const aiSettings = readAiConnectionSettings();
+  const outlineErrorMessage =
+    outlineValidationErrorMessages[
+      query.outlineError as OutlineValidationErrorCode
+    ];
   const groupedOutlines = {
     volume: project.outlines.filter((outline) => outline.level === "volume"),
     unit: project.outlines.filter((outline) => outline.level === "unit"),
@@ -98,6 +116,7 @@ export default async function OutlinesPage({ params }: OutlinesPageProps) {
 
   return (
     <div className="space-y-6">
+      <AutoRefresh enabled={hasActiveOutlineTask} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <Link
@@ -136,6 +155,12 @@ export default async function OutlinesPage({ params }: OutlinesPageProps) {
           value={`${groupedOutlines.chapter.length} 条`}
         />
       </section>
+
+      {outlineErrorMessage ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+          {outlineErrorMessage}
+        </div>
+      ) : null}
 
       <OutlineAiPanel
         generateAction={generateOutlineDraft.bind(null, project.id)}
@@ -371,6 +396,7 @@ function QuickCreateOutlineForm({
               className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
               min={1}
               name={isChapter ? "chapterNumber" : "startChapter"}
+              required={isChapter}
               type="number"
             />
           </label>

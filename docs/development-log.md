@@ -14,12 +14,21 @@ What was done:
 - Updated project JSON/Markdown export to include outline records.
 - Bumped the source app/package version to `0.1.22` and updated in-app release notes.
 
+Review hardening:
+
+- Added stale `outline_generation` task cleanup so old pending/running outline draft jobs older than 15 minutes are marked failed before the outline page or generation action checks active locks.
+- Added outline-page auto-refresh while an outline AI task is pending/running, matching the chapter AI task UX.
+- Changed chapter generation outline selection from first-match to specificity-first matching: closed chapter ranges beat open ranges, shorter ranges beat wider ones, active status is preferred after specificity, and multiple story-unit outlines can be included.
+- Forced outline draft `chapterCount` to apply only to chapter-level outline generation, so volume and story-unit prompts do not receive misleading "chapter-level item" instructions.
+- Added server-side outline consistency validation for invalid chapter ranges and missing chapter numbers on chapter outlines, with visible redirect feedback instead of a server error.
+- Added server action tests for outline create/update validation, stale task expiry, duplicate-task prevention, and draft-only AI task creation.
+
 Verification:
 
 - `npx prisma generate` passed.
-- `npm run test -- lib/outline-fields.test.ts lib/ai/outlines.test.ts lib/ai/chapter-beats.test.ts lib/ai/chapter-drafts.test.ts lib/ai/prompt-templates.test.ts lib/project-export.test.ts` passed, 6 files and 15 tests.
+- `npm run test -- lib/outline-fields.test.ts lib/ai/outlines.test.ts app/projects/[projectId]/outlines/actions.test.ts` passed, 3 files and 15 tests.
 - `npm run typecheck` passed.
-- `npm run test` passed, 31 files and 136 tests.
+- `npm run test` passed, 32 files and 147 tests.
 - `git diff --check` passed.
 - `npm run build` passed.
 
