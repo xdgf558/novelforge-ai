@@ -1,4 +1,5 @@
 import { formatWordRange } from "../format";
+import { outlineLevelLabel, outlineRangeLabel, type OutlineLike } from "../outline-fields";
 import { projectSettingFields } from "../project-setting-fields";
 
 export type ChapterBeatProjectContext = {
@@ -49,6 +50,7 @@ export type ChapterBeatContextInput = {
   project: ChapterBeatProjectContext;
   setting?: ChapterBeatSettingContext | null;
   chapter: ChapterBeatChapterContext;
+  outlines?: readonly OutlineLike[];
   characters: readonly ChapterBeatCharacterContext[];
   recentChapters: readonly ChapterBeatChapterContext[];
   previousChapter?: ChapterBeatChapterContext | null;
@@ -74,6 +76,7 @@ export function buildChapterBeatContext(
     ? excerptChapterEnding(input.previousChapter)
     : "";
   const settingItems = buildSettingItems(input.setting);
+  const outlineItems = (input.outlines ?? []).map(buildOutlineLine);
   const characterItems = input.characters
     .map((character) => buildCharacterLine(character))
     .filter(Boolean);
@@ -97,6 +100,7 @@ export function buildChapterBeatContext(
       notes: clean(input.chapter.notes),
       existingBeats: clean(input.chapter.beats),
     },
+    outlines: outlineItems,
     characters: characterItems,
     recentChapters: recentChapterItems,
     previousChapterEnding,
@@ -139,6 +143,11 @@ export function buildChapterBeatContext(
           .join("\n")
       : "未填写项目设定。",
     "",
+    "# 当前大纲",
+    outlineItems.length > 0
+      ? outlineItems.join("\n")
+      : "暂无匹配当前章节的卷、剧情单元或章节大纲。",
+    "",
     "# 相关角色",
     characterItems.length > 0 ? characterItems.join("\n") : "暂无角色资料。",
     "",
@@ -170,6 +179,7 @@ export function buildChapterBeatContext(
 export function buildChapterBeatContextSummary(input: ChapterBeatContextInput) {
   return [
     `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节节拍生成`,
+    `大纲 ${(input.outlines ?? []).length} 条`,
     `角色 ${input.characters.length} 个`,
     `最近章节 ${input.recentChapters.length} 个`,
     input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
@@ -253,6 +263,21 @@ function buildCharacterLine(character: ChapterBeatCharacterContext) {
     .join("；");
 
   return `- ${character.name}${details ? `：${details}` : ""}`;
+}
+
+function buildOutlineLine(outline: OutlineLike) {
+  return `- ${outlineLevelLabel(outline.level)} ${outlineRangeLabel(outline)}《${clean(
+    outline.title,
+  ) || "未命名"}》：${compact([
+    outline.goal ? `目标：${clipText(outline.goal, 500)}` : "",
+    outline.mainConflict ? `冲突：${clipText(outline.mainConflict, 400)}` : "",
+    outline.coreEvents ? `事件：${clipText(outline.coreEvents, 500)}` : "",
+    outline.chapterConflict ? `章节冲突：${clipText(outline.chapterConflict, 400)}` : "",
+    outline.chapterPleasurePoint
+      ? `章节爽点：${clipText(outline.chapterPleasurePoint, 400)}`
+      : "",
+    outline.endingHook ? `钩子：${clipText(outline.endingHook, 300)}` : "",
+  ]).join("；") || "暂无摘要"}`;
 }
 
 function buildRecentChapterLine(chapter: ChapterBeatChapterContext) {

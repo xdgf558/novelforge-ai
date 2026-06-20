@@ -1,5 +1,42 @@
 # Development Log
 
+## 2026-06-20: Phase 21 Outline Module
+
+Status: completed pending review.
+
+What was done:
+
+- Added the `outlines` SQLite table and Prisma model for three outline levels: volume, story unit, and chapter.
+- Added `/projects/[projectId]/outlines` with quick-create forms, grouped outline lists, edit/delete controls, and an edit page for structured outline fields.
+- Added `outline_generation` as a default AI prompt template and an AI outline draft panel. AI-generated outline text is saved only as an `ai_tasks` record; formal outline rows still require author manual creation or editing.
+- Updated the project dashboard and left navigation so the outline module is reachable as a first-class creative tool.
+- Injected matching volume/unit/chapter outline context into chapter beat generation and chapter draft generation.
+- Updated project JSON/Markdown export to include outline records.
+- Bumped the source app/package version to `0.1.22` and updated in-app release notes.
+
+Review hardening:
+
+- Added stale `outline_generation` task cleanup so old pending/running outline draft jobs older than 15 minutes are marked failed before the outline page or generation action checks active locks.
+- Added outline-page auto-refresh while an outline AI task is pending/running, matching the chapter AI task UX.
+- Changed chapter generation outline selection from first-match to specificity-first matching: closed chapter ranges beat open ranges, shorter ranges beat wider ones, active status is preferred after specificity, and multiple story-unit outlines can be included.
+- Forced outline draft `chapterCount` to apply only to chapter-level outline generation, so volume and story-unit prompts do not receive misleading "chapter-level item" instructions.
+- Moved the outline AI generation controls into a small client component so the "chapter count" field is visible only when generating chapter-level outlines.
+- Added server-side outline consistency validation for invalid chapter ranges and missing chapter numbers on chapter outlines, with visible redirect feedback instead of a server error.
+- Added server action tests for outline create/update validation, stale task expiry, duplicate-task prevention, and draft-only AI task creation.
+
+Verification:
+
+- `npx prisma generate` passed.
+- `npm run test -- lib/outline-fields.test.ts lib/ai/outlines.test.ts app/projects/[projectId]/outlines/actions.test.ts` passed, 3 files and 15 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 32 files and 147 tests.
+- `git diff --check` passed.
+- `npm run build` passed.
+
+Packaging note:
+
+- No desktop installer should be built before review approval. Phase 21 is intended for PR review first.
+
 ## 2026-06-20: Phase 20 AI Chapter Polish
 
 Status: completed.

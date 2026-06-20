@@ -22,6 +22,15 @@ const exportData = {
       status: "active",
     },
   ],
+  outlines: [
+    {
+      level: "chapter",
+      title: "第一章大纲",
+      chapterNumber: 1,
+      goal: "建立借命契约钩子。",
+      endingHook: "死者短信再次出现。",
+    },
+  ],
   chapters: [
     {
       chapterNumber: 1,
@@ -69,6 +78,8 @@ describe("project export builders", () => {
     expect(markdown).toContain("寿命交易带来高压反转");
     expect(markdown).toContain("## 角色库");
     expect(markdown).toContain("林野");
+    expect(markdown).toContain("## 大纲");
+    expect(markdown).toContain("第一章大纲");
     expect(markdown).toContain("## 章节");
     expect(markdown).toContain("短信来自一个死人");
     expect(markdown).toContain("## 公众号发布包装");

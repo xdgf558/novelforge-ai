@@ -29,6 +29,16 @@ const baseInput = {
       "1. 林野翻出旧合同。\n2. 第三个名字对应死者。\n3. 短信再次出现。",
     notes: "结尾保留短信来源。",
   },
+  outlines: [
+    {
+      level: "unit",
+      title: "死亡合同调查",
+      startChapter: 3,
+      endChapter: 5,
+      goal: "逼主角确认借命契约不是个案。",
+      coreEvents: "死者短信、合同线索、医院旧档案。",
+    },
+  ],
   characters: [
     {
       name: "林野",
@@ -52,6 +62,8 @@ describe("chapter draft context builder", () => {
     expect(context.inputText).toContain("第三个名字对应死者");
     expect(context.inputText).toContain("短句推进，悬疑压迫感强");
     expect(context.inputText).toContain("林野");
+    expect(context.inputText).toContain("死亡合同调查");
+    expect(context.inputText).toContain("医院旧档案");
     expect(context.inputText).toContain("不能让 AI 直接改写正式设定");
     expect(context.inputJson.chapter).toMatchObject({
       chapterNumber: 4,
@@ -70,7 +82,7 @@ describe("chapter draft context builder", () => {
 
   it("summarizes draft context scope and detects confirmed beats", () => {
     expect(buildChapterDraftContextSummary(baseInput)).toBe(
-      "第 4 章《死者发来的短信》章节草稿生成；包含已确认节拍；角色 1 个；包含上一章结尾",
+      "第 4 章《死者发来的短信》章节草稿生成；包含已确认节拍；大纲 1 条；角色 1 个；包含上一章结尾",
     );
     expect(hasConfirmedChapterBeats(baseInput.chapter)).toBe(true);
     expect(hasConfirmedChapterBeats({ ...baseInput.chapter, beats: "   " })).toBe(

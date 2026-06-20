@@ -6,6 +6,7 @@ import {
   BookOpenText,
   ClipboardList,
   LayoutDashboard,
+  Layers3,
   NotebookTabs,
   Plus,
   Sparkles,
@@ -35,6 +36,11 @@ const projectToolItems = [
     path: "characters",
     label: "角色",
     icon: Users,
+  },
+  {
+    path: "outlines",
+    label: "大纲",
+    icon: Layers3,
   },
   {
     path: "chapters",
