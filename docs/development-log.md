@@ -1,5 +1,42 @@
 # Development Log
 
+## 2026-06-20: Desktop Startup Date Compatibility Hotfix
+
+Status: completed.
+
+What was done:
+
+- Investigated the installed `0.1.19` app showing `Timed out while starting the local NovelForge server`.
+- Reproduced the real packaged-server failure: the local Next server started, but `/` returned HTTP 500 while loading the project dashboard.
+- Found the root cause in `lib/project-activity.ts`: Prisma `DateTime` aggregates failed on existing local SQLite rows with mixed historical timestamp formats, including millisecond timestamps and SQLite `YYYY-MM-DD HH:mm:ss` strings.
+- Reworked project activity summary loading to read activity timestamps via SQLite rows and parse `Date`, millisecond numbers, numeric strings, and SQLite timestamp strings safely in application code.
+- Kept existing user data untouched; the fix is read-compatible and does not require clearing or migrating the local novel database.
+- Updated desktop startup waiting diagnostics so future startup timeouts report the last observed check such as HTTP 500 instead of only a generic timeout.
+- Bumped the app/package version to `0.1.20` and updated in-app release notes.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.20-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the formal PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/project-activity.test.ts` passed, 1 file and 5 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 27 files and 120 tests.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- With the user's current desktop SQLite database, the fixed production server returned `HTTP/1.1 200 OK` for `/`.
+- The packaged `0.1.20` app payload also returned `HTTP/1.1 200 OK` for `/` and showed `v0.1.20` plus the new release title on `/ai-settings`.
+- `npm run desktop:dist:mac` completed with notarization skipped after rerunning outside the sandbox without stale proxy environment.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.20"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the final expanded PKG payload app.
+- Packaged desktop startup still uses `runDesktopMigrations` from `desktop/runtime.cjs`, reads bundled migration SQL from `app.asar.unpacked`, and does not use Prisma CLI `migrate deploy` as the app startup path.
+
+Packaging note:
+
+- Final handoff package: `release/desktop/NovelForge-AI-0.1.20-mac-arm64.pkg`.
+- SHA-256: `5b371bf201b786cdc25e1dca5c79db09f186431d62a11fca138c59c7f4afd0f5`.
+- `pkgutil --check-signature` still reports `Status: no signature` because this machine has no Developer ID Installer certificate.
+
 ## 2026-06-20: Project Activity Timestamp Fix
 
 Status: completed.

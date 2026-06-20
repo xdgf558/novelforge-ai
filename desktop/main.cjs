@@ -316,6 +316,7 @@ function findOpenPort(startPort) {
 function waitForServer(url) {
   const startedAt = Date.now();
   const timeoutMs = 45000;
+  let lastFailure = "no response yet";
 
   return new Promise((resolve, reject) => {
     const poll = () => {
@@ -325,12 +326,17 @@ function waitForServer(url) {
         if (response.statusCode && response.statusCode < 500) {
           resolve();
         } else {
+          lastFailure = `HTTP ${response.statusCode || "unknown"}`;
           retry();
         }
       });
 
-      request.on("error", retry);
+      request.on("error", (error) => {
+        lastFailure = error.message;
+        retry();
+      });
       request.setTimeout(1500, () => {
+        lastFailure = "request timed out";
         request.destroy();
         retry();
       });
@@ -338,7 +344,11 @@ function waitForServer(url) {
 
     const retry = () => {
       if (Date.now() - startedAt > timeoutMs) {
-        reject(new Error("Timed out while starting the local NovelForge server."));
+        reject(
+          new Error(
+            `Timed out while starting the local NovelForge server. Last check: ${lastFailure}.`,
+          ),
+        );
         return;
       }
 
