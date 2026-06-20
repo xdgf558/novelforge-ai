@@ -2,11 +2,11 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.20 桌面启动兼容性修复";
+export const appReleaseTitle = "0.1.21 Phase 20 正文精修";
 
 export const appReleaseNotes = [
-  "修复旧 SQLite 数据中混用毫秒时间戳和 SQLite 时间字符串时，项目首页可能返回 500 并导致桌面端启动超时的问题。",
-  "项目最近活动读取现在兼容历史时间格式，不需要改动或清空现有小说数据。",
-  "桌面端等待本地服务启动时会记录最后一次检查状态，未来同类启动失败会更容易定位。",
-  "Station Cat 指定章节上传、上传按钮反馈、以及上传正文自动清理开场钩子/节拍标题功能继续保留。",
+  "新增 AI 正文精修流程：从草稿、已有精修稿或定稿正文生成可审阅精修稿。",
+  "章节数据新增独立精修正文槽，采用 AI 精修结果后只写入精修正文，不会直接覆盖定稿。",
+  "章节编辑页支持用精修稿一键定稿，并继续保存章节版本快照。",
+  "章节列表、快照和项目导出现在都会显示或备份精修正文。",
 ];

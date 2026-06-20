@@ -5,6 +5,7 @@ export const chapterFieldNames = [
   "goal",
   "beats",
   "draftText",
+  "polishedText",
   "finalText",
   "notes",
   "wordCount",
@@ -21,7 +22,7 @@ type ChapterStringFieldName = Exclude<ChapterFieldName, ChapterNumberFieldName>;
 
 export type ChapterTextFieldName = Extract<
   ChapterFieldName,
-  "goal" | "beats" | "draftText" | "finalText" | "notes"
+  "goal" | "beats" | "draftText" | "polishedText" | "finalText" | "notes"
 >;
 
 export type ChapterValues = Record<ChapterStringFieldName, string> &
@@ -90,12 +91,18 @@ export const chapterFieldGroups: readonly ChapterFieldGroup[] = [
   },
   {
     title: "正文内容",
-    description: "先支持人工输入草稿与定稿，AI 生成正文会在后续 AI 服务阶段接入。",
+    description: "草稿、精修稿和定稿分层保存，AI 产物必须由作者采用后才进入对应正文槽。",
     fields: [
       {
         name: "draftText",
         label: "草稿正文",
         placeholder: "这里保存章节草稿，可由作者手写或后续 AI 生成后再编辑。",
+        rows: 14,
+      },
+      {
+        name: "polishedText",
+        label: "精修正文",
+        placeholder: "这里保存 AI 精修或作者修订后的正文候选。确认后可一键写入定稿正文。",
         rows: 14,
       },
       {
@@ -132,9 +139,15 @@ export function chapterStatusLabel(status?: string | null) {
 
 export function countChapterWords(
   finalText?: string | null,
+  polishedText?: string | null,
   draftText?: string | null,
 ) {
-  const source = (finalText && finalText.trim() ? finalText : draftText) ?? "";
+  const source =
+    (finalText && finalText.trim()
+      ? finalText
+      : polishedText && polishedText.trim()
+        ? polishedText
+        : draftText) ?? "";
   return source.replace(/\s/g, "").length;
 }
 
@@ -154,6 +167,7 @@ export function emptyChapterValues(): ChapterValues {
     goal: "",
     beats: "",
     draftText: "",
+    polishedText: "",
     finalText: "",
     notes: "",
     wordCount: 0,
@@ -201,7 +215,11 @@ export function chapterSnapshot(values: ChapterValues): ChapterValues {
     snapshot[field.name] = values[field.name]?.trim() ?? "";
   }
 
-  snapshot.wordCount = countChapterWords(snapshot.finalText, snapshot.draftText);
+  snapshot.wordCount = countChapterWords(
+    snapshot.finalText,
+    snapshot.polishedText,
+    snapshot.draftText,
+  );
 
   return snapshot;
 }

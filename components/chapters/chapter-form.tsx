@@ -189,14 +189,24 @@ export function ChapterForm({
                       {field.label}
                     </label>
                     {!isCreateForm && field.name === "finalText" ? (
-                      <button
-                        className="inline-flex min-h-10 items-center justify-center rounded-md border border-signal-500/40 bg-signal-500/10 px-3 py-2 text-sm font-semibold text-signal-700 transition hover:bg-signal-500/15"
-                        name="submitIntent"
-                        type="submit"
-                        value="finalizeFromDraft"
-                      >
-                        用草稿一键定稿
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          className="inline-flex min-h-10 items-center justify-center rounded-md border border-signal-500/40 bg-signal-500/10 px-3 py-2 text-sm font-semibold text-signal-700 transition hover:bg-signal-500/15"
+                          name="submitIntent"
+                          type="submit"
+                          value="finalizeFromPolished"
+                        >
+                          用精修稿一键定稿
+                        </button>
+                        <button
+                          className="inline-flex min-h-10 items-center justify-center rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                          name="submitIntent"
+                          type="submit"
+                          value="finalizeFromDraft"
+                        >
+                          用草稿一键定稿
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                   <textarea
@@ -209,7 +219,7 @@ export function ChapterForm({
                   />
                   {!isCreateForm && field.name === "finalText" ? (
                     <p className="text-xs leading-5 text-ink-700">
-                      点击后会把当前草稿正文写入定稿正文、把章节状态设为“已定稿”，并保存新的章节快照。
+                      点击后会把当前精修稿或草稿正文写入定稿正文、把章节状态设为“已定稿”，并保存新的章节快照。
                     </p>
                   ) : null}
                 </div>

@@ -18,6 +18,7 @@ describe("default AI prompt templates", () => {
         "project_setting_generation",
         "chapter_beat_generation",
         "chapter_draft_generation",
+        "chapter_polish_generation",
         "chapter_summary_extraction",
         "pending_update_extraction",
         "continuity_check",

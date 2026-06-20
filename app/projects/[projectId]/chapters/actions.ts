@@ -13,6 +13,11 @@ import {
   type ChapterDraftChapterContext,
 } from "@/lib/ai/chapter-drafts";
 import {
+  buildChapterPolishContext,
+  hasPolishableChapterText,
+  type ChapterPolishChapterContext,
+} from "@/lib/ai/chapter-polishes";
+import {
   buildChapterSummaryContext,
   hasConfirmedChapterText,
   type ChapterSummaryChapterContext,
@@ -57,6 +62,7 @@ const chapterSchema = z.object({
   goal: optionalChapterText,
   beats: optionalChapterText,
   draftText: optionalChapterText,
+  polishedText: optionalChapterText,
   finalText: optionalChapterText,
   notes: optionalChapterText,
 });
@@ -70,6 +76,7 @@ const changeReasonSchema = z
 
 const chapterBeatTemplateKey = "chapter_beat_generation";
 const chapterDraftTemplateKey = "chapter_draft_generation";
+const chapterPolishTemplateKey = "chapter_polish_generation";
 const chapterSummaryTemplateKey = "chapter_summary_extraction";
 
 function parseChapterForm(formData: FormData) {
@@ -86,17 +93,26 @@ function parseChapterForm(formData: FormData) {
     wordCount: 0,
   };
 
-  const shouldFinalizeFromDraft =
-    formData.get("submitIntent") === "finalizeFromDraft";
+  const submitIntent = formData.get("submitIntent");
+  const finalTextSource =
+    submitIntent === "finalizeFromPolished"
+      ? values.polishedText
+      : submitIntent === "finalizeFromDraft"
+        ? values.draftText
+        : "";
+  const shouldFinalize = Boolean(finalTextSource.trim());
   const parsedChangeReason = changeReasonSchema.parse(
     formData.get("changeReason"),
   );
-  const changeReason = shouldFinalizeFromDraft
-    ? (parsedChangeReason ?? "一键定稿：将草稿正文保存为定稿正文")
+  const changeReason = shouldFinalize
+    ? (parsedChangeReason ??
+      (submitIntent === "finalizeFromPolished"
+        ? "一键定稿：将精修正文保存为定稿正文"
+        : "一键定稿：将草稿正文保存为定稿正文"))
     : parsedChangeReason;
 
-  if (shouldFinalizeFromDraft) {
-    values.finalText = values.draftText;
+  if (shouldFinalize) {
+    values.finalText = finalTextSource;
     values.status = "final";
   }
 
@@ -303,6 +319,56 @@ export async function generateChapterDraft(projectId: string, chapterId: string)
     chapterDraftTemplateKey,
   );
   const context = buildChapterDraftContext(contextInput);
+
+  await startLoggedOpenAITextTask(
+    {
+      projectId,
+      chapterId,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    },
+    {
+      systemPrompt: template.systemPrompt,
+      developerPrompt: [template.userPrompt, template.contextNotes]
+        .filter(Boolean)
+        .join("\n\n"),
+      input: context.inputText,
+    },
+  );
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/ai`);
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+}
+
+export async function generateChapterPolish(projectId: string, chapterId: string) {
+  const activeTask = await findActiveChapterAiTask(
+    projectId,
+    chapterId,
+    "chapter_polish_generation",
+  );
+
+  if (activeTask) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
+  const contextInput = await loadChapterPolishContext(projectId, chapterId);
+
+  if (!hasPolishableChapterText(contextInput.chapter)) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    chapterPolishTemplateKey,
+  );
+  const context = buildChapterPolishContext(contextInput);
 
   await startLoggedOpenAITextTask(
     {
@@ -547,6 +613,88 @@ export async function adoptChapterDraft(
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
+export async function adoptChapterPolish(
+  projectId: string,
+  chapterId: string,
+  taskId: string,
+) {
+  const [chapter, task] = await Promise.all([
+    prisma.chapter.findFirst({
+      where: {
+        id: chapterId,
+        projectId,
+      },
+    }),
+    prisma.aiTask.findFirst({
+      where: {
+        id: taskId,
+        projectId,
+        chapterId,
+        taskType: "chapter_polish_generation",
+        status: "completed",
+      },
+      select: {
+        id: true,
+        outputText: true,
+      },
+    }),
+  ]);
+
+  const polishedText = task?.outputText?.trim();
+
+  if (!chapter || !task || !polishedText) {
+    notFound();
+  }
+
+  const snapshot = chapterSnapshot({
+    ...chapterValuesFromRecord(chapter),
+    polishedText,
+    status: chapter.status === "draft" ? "revising" : chapter.status,
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.chapter.update({
+      where: {
+        id: chapterId,
+      },
+      data: snapshot,
+    });
+
+    const versionCount = await tx.chapterVersion.count({
+      where: {
+        chapterId,
+      },
+    });
+
+    await tx.chapterVersion.create({
+      data: {
+        projectId,
+        chapterId,
+        versionNumber: versionCount + 1,
+        snapshotJson: JSON.stringify(snapshot),
+        changeReason: `采用 AI 正文精修任务 ${task.id}`,
+        sourceType: "ai_chapter_polish",
+      },
+    });
+
+    await tx.aiTask.update({
+      where: {
+        id: task.id,
+      },
+      data: {
+        adoptionState: "adopted",
+      },
+    });
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/ai`);
+  revalidatePath(`/projects/${projectId}/chapters`);
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}/history`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+}
+
 async function findActiveChapterAiTask(
   projectId: string,
   chapterId: string,
@@ -712,6 +860,58 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
   };
 }
 
+async function loadChapterPolishContext(projectId: string, chapterId: string) {
+  const chapter = await prisma.chapter.findFirst({
+    where: {
+      id: chapterId,
+      projectId,
+    },
+    include: {
+      project: {
+        select: {
+          title: true,
+          genre: true,
+          targetAudience: true,
+          platform: true,
+          chapterWordMin: true,
+          chapterWordMax: true,
+          description: true,
+          wechatPositioning: true,
+        },
+      },
+    },
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
+  const [setting, characters] = await Promise.all([
+    prisma.projectSetting.findUnique({
+      where: {
+        projectId,
+      },
+    }),
+    prisma.character.findMany({
+      where: {
+        projectId,
+        status: "active",
+      },
+      orderBy: {
+        name: "asc",
+      },
+      take: 12,
+    }),
+  ]);
+
+  return {
+    project: chapter.project,
+    setting,
+    chapter: pickChapterPolishContext(chapter),
+    characters,
+  };
+}
+
 async function loadChapterSummaryContext(projectId: string, chapterId: string) {
   const chapter = await prisma.chapter.findFirst({
     where: {
@@ -769,6 +969,20 @@ function pickChapterSummaryContext(chapter: ChapterSummaryChapterContext) {
     goal: chapter.goal,
     beats: chapter.beats,
     draftText: chapter.draftText,
+    polishedText: chapter.polishedText,
+    finalText: chapter.finalText,
+    notes: chapter.notes,
+  };
+}
+
+function pickChapterPolishContext(chapter: ChapterPolishChapterContext) {
+  return {
+    chapterNumber: chapter.chapterNumber,
+    title: chapter.title,
+    goal: chapter.goal,
+    beats: chapter.beats,
+    draftText: chapter.draftText,
+    polishedText: chapter.polishedText,
     finalText: chapter.finalText,
     notes: chapter.notes,
   };
@@ -781,6 +995,7 @@ function pickChapterDraftContext(chapter: ChapterDraftChapterContext) {
     goal: chapter.goal,
     beats: chapter.beats,
     draftText: chapter.draftText,
+    polishedText: chapter.polishedText,
     finalText: chapter.finalText,
     notes: chapter.notes,
   };
@@ -793,6 +1008,7 @@ function pickChapterContext(chapter: ChapterBeatChapterContext) {
     goal: chapter.goal,
     beats: chapter.beats,
     draftText: chapter.draftText,
+    polishedText: chapter.polishedText,
     finalText: chapter.finalText,
     notes: chapter.notes,
   };

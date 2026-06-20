@@ -210,6 +210,7 @@ export function buildExportData(project: PublishProject) {
         "goal",
         "beats",
         "draftText",
+        "polishedText",
         "finalText",
         "notes",
         "wordCount",

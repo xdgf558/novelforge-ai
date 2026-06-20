@@ -40,6 +40,7 @@ export type ChapterBeatChapterContext = {
   goal?: string | null;
   beats?: string | null;
   draftText?: string | null;
+  polishedText?: string | null;
   finalText?: string | null;
   notes?: string | null;
 };
@@ -176,7 +177,10 @@ export function buildChapterBeatContextSummary(input: ChapterBeatContextInput) {
 }
 
 export function excerptChapterEnding(chapter: ChapterBeatChapterContext) {
-  const source = clean(chapter.finalText) || clean(chapter.draftText);
+  const source =
+    clean(chapter.finalText) ||
+    clean(chapter.polishedText) ||
+    clean(chapter.draftText);
 
   if (!source) {
     return "";

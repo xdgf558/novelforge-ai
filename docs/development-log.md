@@ -1,5 +1,32 @@
 # Development Log
 
+## 2026-06-20: Phase 20 AI Chapter Polish
+
+Status: completed.
+
+What was done:
+
+- Added a dedicated `Chapter.polishedText` field and SQLite migration so AI-polished prose is stored separately from draft and final text.
+- Added the `chapter_polish_generation` default prompt template and pure chapter polish context builder.
+- Added server actions to start non-blocking polish AI tasks, prevent duplicate active polish tasks, and explicitly adopt completed polish output into `Chapter.polishedText`.
+- Added the chapter detail `AI 正文精修` panel with generate, running-state, auto-refresh, empty-state, task output, and “采用到精修正文” controls.
+- Updated the chapter edit form so authors can finalize from either polished text or draft text; final text is still only written by explicit author action.
+- Updated word counting, chapter snapshots, chapter list preview, and project exports to include polished text.
+- Bumped the source app/package version to `0.1.21` and updated in-app release notes.
+
+Verification:
+
+- `npx prisma generate` passed.
+- `npm run typecheck` passed.
+- `npm run test -- lib/ai/chapter-polishes.test.ts lib/chapter-fields.test.ts lib/ai/prompt-templates.test.ts` passed, 3 files and 14 tests.
+- `npm run test` passed, 28 files and 123 tests.
+- `git diff --check` passed.
+- `npm run build` passed.
+
+Packaging note:
+
+- No desktop installer was built in this phase. The user requested a PR for review first, with deployment/packaging after review approval.
+
 ## 2026-06-20: Desktop Startup Date Compatibility Hotfix
 
 Status: completed.

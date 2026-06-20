@@ -69,9 +69,10 @@ describe("chapter fields", () => {
     expect(chapterStatusLabel("")).toBe("未知");
   });
 
-  it("counts words from final text first and ignores whitespace", () => {
-    expect(countChapterWords(" 定 稿\n正文 ", " 草稿正文很长 ")).toBe(4);
-    expect(countChapterWords("", " 草稿\n正文 ")).toBe(4);
+  it("counts words from final, polished, then draft text and ignores whitespace", () => {
+    expect(countChapterWords(" 定 稿\n正文 ", " 精修正文 ", " 草稿正文很长 ")).toBe(4);
+    expect(countChapterWords("", " 精 修\n正文 ", " 草稿正文很长 ")).toBe(4);
+    expect(countChapterWords("", "", " 草稿\n正文 ")).toBe(4);
   });
 
   it("formats missing chapter word counts as uncounted", () => {
@@ -86,6 +87,7 @@ describe("chapter fields", () => {
     values.title = " 雨夜借命 ";
     values.status = " final ";
     values.draftText = " 草稿正文 ";
+    values.polishedText = " 精修正文 ";
     values.finalText = " 定 稿\n正文 ";
     values.notes = " 伏笔：短信来源 ";
     values.wordCount = 9999;
@@ -97,6 +99,7 @@ describe("chapter fields", () => {
       title: "雨夜借命",
       status: "final",
       draftText: "草稿正文",
+      polishedText: "精修正文",
       finalText: "定 稿\n正文",
       notes: "伏笔：短信来源",
       wordCount: 4,

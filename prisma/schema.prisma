@@ -163,6 +163,7 @@ model Chapter {
   goal          String?
   beats         String?
   draftText     String?
+  polishedText  String?
   finalText     String?
   notes         String?
   wordCount     Int      @default(0)

@@ -1,37 +1,32 @@
-import { clipText, excerptChapterEnding } from "./chapter-beats";
+import { clipText } from "./chapter-beats";
 import { formatWordRange } from "../format";
 import type { ProjectSettingFieldName } from "../project-setting-fields";
 
-export type ChapterDraftProjectContext = {
+export type ChapterPolishProjectContext = {
   title: string;
   genre?: string | null;
   targetAudience?: string | null;
   platform?: string | null;
-  totalWordTarget?: number | null;
   chapterWordMin?: number | null;
   chapterWordMax?: number | null;
   description?: string | null;
   wechatPositioning?: string | null;
 };
 
-export type ChapterDraftSettingContext = Partial<
+export type ChapterPolishSettingContext = Partial<
   Record<ProjectSettingFieldName, string | null>
 >;
 
-export type ChapterDraftCharacterContext = {
+export type ChapterPolishCharacterContext = {
   name: string;
   roleInStory?: string | null;
   identity?: string | null;
   speakingStyle?: string | null;
-  desire?: string | null;
-  fear?: string | null;
-  relationToProtagonist?: string | null;
-  abilityBoundary?: string | null;
   behaviorRules?: string | null;
   latestAppearance?: string | null;
 };
 
-export type ChapterDraftChapterContext = {
+export type ChapterPolishChapterContext = {
   chapterNumber: number;
   title: string;
   goal?: string | null;
@@ -42,68 +37,64 @@ export type ChapterDraftChapterContext = {
   notes?: string | null;
 };
 
-export type ChapterDraftContextInput = {
-  project: ChapterDraftProjectContext;
-  setting?: ChapterDraftSettingContext | null;
-  chapter: ChapterDraftChapterContext;
-  characters: readonly ChapterDraftCharacterContext[];
-  previousChapter?: ChapterDraftChapterContext | null;
+export type ChapterPolishContextInput = {
+  project: ChapterPolishProjectContext;
+  setting?: ChapterPolishSettingContext | null;
+  chapter: ChapterPolishChapterContext;
+  characters: readonly ChapterPolishCharacterContext[];
 };
 
-export type BuiltChapterDraftContext = {
+export type BuiltChapterPolishContext = {
   inputText: string;
   inputJson: Record<string, unknown>;
   inputContextSummary: string;
 };
 
-type DraftSettingField = readonly [ProjectSettingFieldName, string];
+type PolishSettingField = readonly [ProjectSettingFieldName, string];
 
-const draftStyleSettingFields = [
+const polishStyleSettingFields = [
   ["styleSample", "文风样例"],
   ["emotionalTone", "情绪基调"],
   ["readerExpectation", "读者期待"],
   ["commercialHook", "商业钩子"],
-] as const satisfies readonly DraftSettingField[];
+] as const satisfies readonly PolishSettingField[];
 
-const draftWorldSettingFields = [
+const polishStorySettingFields = [
   ["sellingPoint", "卖点"],
   ["mainConflict", "主线矛盾"],
   ["worldviewRules", "世界观规则"],
   ["protagonistDesire", "主角欲望"],
   ["protagonistFlaw", "主角缺陷"],
-  ["villainLogic", "反派逻辑"],
   ["pleasureMechanism", "爽点机制"],
-] as const satisfies readonly DraftSettingField[];
+] as const satisfies readonly PolishSettingField[];
 
-const draftForbiddenSettingFields = [
+const polishForbiddenSettingFields = [
   "forbiddenItems",
   "sensitiveContentRules",
 ] as const satisfies readonly ProjectSettingFieldName[];
 
-export function buildChapterDraftContext(
-  input: ChapterDraftContextInput,
-): BuiltChapterDraftContext {
-  const confirmedBeats = clean(input.chapter.beats);
-  const previousChapterEnding = input.previousChapter
-    ? excerptChapterEnding(input.previousChapter)
-    : "";
-  const characterRules = input.characters
-    .map(buildCharacterRuleLine)
-    .filter(Boolean);
+export function buildChapterPolishContext(
+  input: ChapterPolishContextInput,
+): BuiltChapterPolishContext {
+  const sourceText = polishableChapterText(input.chapter);
+  const sourceKind = polishableChapterTextSource(input.chapter);
   const styleConstraints = [
-    ...buildLabeledSettingLines(input.setting, draftStyleSettingFields),
+    ...buildLabeledSettingLines(input.setting, polishStyleSettingFields),
     input.project.wechatPositioning
       ? `公众号定位：${input.project.wechatPositioning}`
       : "",
   ].filter(Boolean);
-  const worldConstraints = buildLabeledSettingLines(
+  const storyConstraints = buildLabeledSettingLines(
     input.setting,
-    draftWorldSettingFields,
+    polishStorySettingFields,
   );
   const forbiddenItems = buildSettingValues(
     input.setting,
-    draftForbiddenSettingFields,
+    polishForbiddenSettingFields,
   ).join("\n");
+  const characterRules = input.characters
+    .map(buildCharacterRuleLine)
+    .filter(Boolean);
   const wordRange = formatWordRange(
     input.project.chapterWordMin,
     input.project.chapterWordMax,
@@ -122,93 +113,119 @@ export function buildChapterDraftContext(
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
       goal: clean(input.chapter.goal),
-      confirmedBeats,
+      beats: clipText(input.chapter.beats),
       notes: clean(input.chapter.notes),
+      sourceKind,
+      sourceTextLength: sourceText.length,
+      sourceTextPreview: clipText(sourceText, 1200),
     },
     styleConstraints,
+    storyConstraints,
     characterRules,
-    worldConstraints,
-    previousChapterEnding,
     forbiddenItems,
     outputRequirements: [
-      "输出完整章节草稿正文。",
-      "严格遵循已确认章节节拍。",
-      "保持角色说话规则和世界观边界。",
-      "不得宣称已经修改正式设定或正式章节。",
+      "输出完整精修正文，不要输出分析过程。",
+      "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
+      "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
+      "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
+      "不得宣称已经写入定稿或正式故事记忆。",
     ],
   };
 
   const inputText = [
     "# 任务",
-    `根据已确认节拍，为第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》生成章节草稿正文。`,
-    "输出只作为作者审核草稿，不得视为已写入正式章节。",
+    `精修第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文。`,
+    "输出只作为作者审阅的精修稿，不得视为已写入定稿正文。",
     "",
     "# 当前章节",
     lines([
       ["章节目标", input.chapter.goal],
       ["目标字数", wordRange],
       ["作者备注", input.chapter.notes],
+      ["正文来源", sourceKind],
     ]),
     "",
     "# 已确认章节节拍",
-    confirmedBeats || "未填写已确认节拍。禁止在没有节拍时自由生成正文。",
+    clean(input.chapter.beats) || "未填写章节节拍。",
     "",
-    "# 文风与发布约束",
+    "# 文风与读者约束",
     styleConstraints.length > 0 ? styleConstraints.join("\n") : "未设置。",
     "",
     "# 角色说话与行为规则",
     characterRules.length > 0 ? characterRules.join("\n") : "暂无角色资料。",
     "",
-    "# 世界观与剧情约束",
-    worldConstraints.length > 0 ? worldConstraints.join("\n") : "未设置。",
-    "",
-    "# 上一章结尾",
-    previousChapterEnding || "暂无上一章正文结尾。",
+    "# 世界观与剧情边界",
+    storyConstraints.length > 0 ? storyConstraints.join("\n") : "未设置。",
     "",
     "# 禁写事项",
     forbiddenItems || "未设置。",
     "",
+    "# 待精修正文",
+    sourceText || "未填写可精修正文。禁止凭空生成。",
+    "",
     "# 输出要求",
-    "- 直接输出章节草稿正文，不要输出分析过程。",
-    "- 按已确认节拍推进，不要新增未经作者确认的核心设定。",
-    "- 保持人物语气、行动边界、世界观规则和禁写事项。",
-    "- 使用适合连载阅读的开场推进、段落节奏和章末钩子。",
+    "- 直接输出完整精修正文，不要输出解释、提纲、修改清单或 JSON。",
+    "- 删除“【开场钩子】”“节拍1”“情绪作用”等写作过程标记，让正文变成读者可直接阅读的章节。",
+    "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
+    "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
+    "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
   ].join("\n");
 
   return {
     inputText,
     inputJson,
-    inputContextSummary: buildChapterDraftContextSummary(input),
+    inputContextSummary: buildChapterPolishContextSummary(input),
   };
 }
 
-export function buildChapterDraftContextSummary(
-  input: ChapterDraftContextInput,
+export function buildChapterPolishContextSummary(
+  input: ChapterPolishContextInput,
 ) {
+  const sourceText = polishableChapterText(input.chapter);
+  const sourceKind = polishableChapterTextSource(input.chapter);
+
   return [
-    `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节草稿生成`,
-    clean(input.chapter.beats) ? "包含已确认节拍" : "缺少已确认节拍",
+    `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
+    sourceText ? `${sourceKind} ${sourceText.length} 字` : "缺少可精修正文",
     `角色 ${input.characters.length} 个`,
-    input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
+    input.setting ? "包含项目设定" : "无项目设定",
   ].join("；");
 }
 
-export function hasConfirmedChapterBeats(chapter: ChapterDraftChapterContext) {
-  return Boolean(clean(chapter.beats));
+export function hasPolishableChapterText(chapter: ChapterPolishChapterContext) {
+  return Boolean(polishableChapterText(chapter));
 }
 
-function buildCharacterRuleLine(character: ChapterDraftCharacterContext) {
+export function polishableChapterText(chapter: ChapterPolishChapterContext) {
+  return (
+    clean(chapter.draftText) ||
+    clean(chapter.polishedText) ||
+    clean(chapter.finalText)
+  );
+}
+
+export function polishableChapterTextSource(chapter: ChapterPolishChapterContext) {
+  if (clean(chapter.draftText)) {
+    return "草稿正文";
+  }
+
+  if (clean(chapter.polishedText)) {
+    return "精修正文";
+  }
+
+  if (clean(chapter.finalText)) {
+    return "定稿正文";
+  }
+
+  return "无正文";
+}
+
+function buildCharacterRuleLine(character: ChapterPolishCharacterContext) {
   const details = compact([
     character.roleInStory,
     character.identity,
     character.speakingStyle ? `说话风格：${character.speakingStyle}` : "",
     character.behaviorRules ? `行为规则：${character.behaviorRules}` : "",
-    character.desire ? `欲望：${character.desire}` : "",
-    character.fear ? `恐惧：${character.fear}` : "",
-    character.relationToProtagonist
-      ? `与主角：${character.relationToProtagonist}`
-      : "",
-    character.abilityBoundary ? `能力边界：${character.abilityBoundary}` : "",
     character.latestAppearance ? `最近出场：${character.latestAppearance}` : "",
   ])
     .map((value) => clipText(value, 400))
@@ -228,8 +245,8 @@ function compact(values: readonly (string | null | undefined)[]) {
 }
 
 function buildLabeledSettingLines(
-  setting: ChapterDraftSettingContext | null | undefined,
-  fields: readonly DraftSettingField[],
+  setting: ChapterPolishSettingContext | null | undefined,
+  fields: readonly PolishSettingField[],
 ) {
   if (!setting) {
     return [];
@@ -244,7 +261,7 @@ function buildLabeledSettingLines(
 }
 
 function buildSettingValues(
-  setting: ChapterDraftSettingContext | null | undefined,
+  setting: ChapterPolishSettingContext | null | undefined,
   fields: readonly ProjectSettingFieldName[],
 ) {
   if (!setting) {
