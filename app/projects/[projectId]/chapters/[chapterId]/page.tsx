@@ -28,7 +28,10 @@ import { generatePublishPackage } from "@/app/projects/[projectId]/publish/actio
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
 import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
-import { hasPolishableChapterText } from "@/lib/ai/chapter-polishes";
+import {
+  hasPolishableChapterText,
+  isExcerptedChapterPolishInputJson,
+} from "@/lib/ai/chapter-polishes";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import {
   activeAiTaskStatuses,
@@ -52,10 +55,17 @@ type ChapterPageProps = {
     projectId: string;
     chapterId: string;
   }>;
+  searchParams?: Promise<{
+    polishError?: string;
+  }>;
 };
 
-export default async function ChapterPage({ params }: ChapterPageProps) {
+export default async function ChapterPage({
+  params,
+  searchParams,
+}: ChapterPageProps) {
   const { projectId, chapterId } = await params;
+  const { polishError } = (await searchParams) ?? {};
   await expireStaleChapterAiTasks(projectId, chapterId);
 
   const chapter = await prisma.chapter.findFirst({
@@ -216,6 +226,7 @@ export default async function ChapterPage({ params }: ChapterPageProps) {
         chapterId={chapter.id}
         hasApiKey={hasApiKey}
         hasPolishableText={hasPolishableText}
+        polishError={polishError}
         projectId={chapter.project.id}
         tasks={polishTasks}
       />
@@ -299,6 +310,7 @@ type ChapterAiTask = {
   status: string;
   adoptionState: string;
   inputContextSummary: string;
+  inputJson: string | null;
   outputText: string | null;
   errorMessage: string | null;
   model: string;
@@ -589,12 +601,14 @@ function ChapterPolishAiPanel({
   chapterId,
   hasApiKey,
   hasPolishableText,
+  polishError,
   projectId,
   tasks,
 }: {
   chapterId: string;
   hasApiKey: boolean;
   hasPolishableText: boolean;
+  polishError?: string;
   projectId: string;
   tasks: readonly ChapterAiTask[];
 }) {
@@ -656,6 +670,12 @@ function ChapterPolishAiPanel({
         </div>
       ) : null}
 
+      {polishError === "excerptedTaskCannotAdopt" ? (
+        <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+          该精修任务只基于超长正文的首/中/尾摘录，不能直接采用到完整精修正文。请拆章或等待后续分段精修功能。
+        </p>
+      ) : null}
+
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           当前章节已有正文精修任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
@@ -672,9 +692,11 @@ function ChapterPolishAiPanel({
       ) : (
         <div className="mt-5 space-y-4">
           {tasks.map((task) => {
+            const isExcerpted = isExcerptedChapterPolishInputJson(task.inputJson);
             const canAdopt =
               task.status === "completed" &&
-              task.adoptionState !== "adopted" &&
+              task.adoptionState === "not_reviewed" &&
+              !isExcerpted &&
               Boolean(task.outputText?.trim());
 
             return (
@@ -702,6 +724,11 @@ function ChapterPolishAiPanel({
                     <p className="mt-1 text-xs text-ink-700">
                       {task.inputContextSummary}
                     </p>
+                    {isExcerpted ? (
+                      <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium leading-5 text-amber-900">
+                        超长摘录预览任务：可查看模型建议，但不能直接采用到完整精修正文。
+                      </p>
+                    ) : null}
                   </div>
 
                   {canAdopt ? (

@@ -15,6 +15,7 @@ import {
 import {
   buildChapterPolishContext,
   hasPolishableChapterText,
+  isExcerptedChapterPolishInputJson,
   type ChapterPolishChapterContext,
 } from "@/lib/ai/chapter-polishes";
 import {
@@ -653,6 +654,7 @@ export async function adoptChapterPolish(
       },
       select: {
         id: true,
+        inputJson: true,
         outputText: true,
         adoptionState: true,
       },
@@ -670,10 +672,17 @@ export async function adoptChapterPolish(
     redirect(`/projects/${projectId}/chapters/${chapterId}`);
   }
 
+  if (isExcerptedChapterPolishInputJson(task.inputJson)) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(
+      `/projects/${projectId}/chapters/${chapterId}?polishError=excerptedTaskCannotAdopt`,
+    );
+  }
+
   const snapshot = chapterSnapshot({
     ...chapterValuesFromRecord(chapter),
     polishedText,
-    status: chapter.status === "draft" ? "revising" : chapter.status,
+    status: chapter.status === "published" ? "published" : "revising",
   });
 
   await prisma.$transaction(async (tx) => {

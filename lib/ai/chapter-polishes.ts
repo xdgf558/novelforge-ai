@@ -286,6 +286,24 @@ export function buildPolishPromptSourceText(
   };
 }
 
+export function isExcerptedChapterPolishInputJson(inputJson?: string | null) {
+  if (!inputJson) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(inputJson) as {
+      chapter?: {
+        sourceTextPromptWasExcerpted?: unknown;
+      };
+    };
+
+    return parsed.chapter?.sourceTextPromptWasExcerpted === true;
+  } catch {
+    return false;
+  }
+}
+
 function buildCharacterRuleLine(character: ChapterPolishCharacterContext) {
   const details = compact([
     character.roleInStory,

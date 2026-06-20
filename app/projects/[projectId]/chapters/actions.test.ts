@@ -172,6 +172,32 @@ describe("chapter actions", () => {
     expect(mocks.tx.chapterVersion.create).not.toHaveBeenCalled();
   });
 
+  it("does not adopt excerpt-only polish tasks", async () => {
+    mocks.prisma.chapter.findFirst.mockResolvedValue(baseChapter);
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "task_1",
+      inputJson: JSON.stringify({
+        chapter: {
+          sourceTextPromptWasExcerpted: true,
+        },
+      }),
+      outputText: "这只是摘录精修预览。",
+      adoptionState: "not_reviewed",
+    });
+
+    await expect(
+      adoptChapterPolish("project_1", "chapter_1", "task_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/chapters/chapter_1?polishError=excerptedTaskCannotAdopt",
+    );
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.tx.aiTask.updateMany).not.toHaveBeenCalled();
+    expect(mocks.tx.chapter.update).not.toHaveBeenCalled();
+    expect(mocks.tx.chapterVersion.create).not.toHaveBeenCalled();
+  });
+
   it("keeps polish adoption idempotent when the transaction loses the race", async () => {
     mocks.prisma.chapter.findFirst.mockResolvedValue(baseChapter);
     mocks.prisma.aiTask.findFirst.mockResolvedValue({
@@ -189,6 +215,32 @@ describe("chapter actions", () => {
 
     expect(mocks.tx.chapter.update).not.toHaveBeenCalled();
     expect(mocks.tx.chapterVersion.create).not.toHaveBeenCalled();
+  });
+
+  it("moves final chapters back to revising when adopting a new polish candidate", async () => {
+    mocks.prisma.chapter.findFirst.mockResolvedValue({
+      ...baseChapter,
+      status: "final",
+    });
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "task_1",
+      outputText: "AI 新精修正文",
+      adoptionState: "not_reviewed",
+    });
+
+    await expect(
+      adoptChapterPolish("project_1", "chapter_1", "task_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.tx.chapter.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          polishedText: "AI 新精修正文",
+          finalText: "旧定稿正文",
+          status: "revising",
+        }),
+      }),
+    );
   });
 
   it("finalizes from polished text and creates a chapter version", async () => {

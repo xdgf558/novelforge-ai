@@ -21,13 +21,16 @@ Review hardening:
 - Made `adoptChapterPolish` server-side idempotent by only moving tasks from `not_reviewed` to `adopted` before writing `polishedText` and chapter versions.
 - Added UI and server feedback for empty “用精修稿一键定稿” / “用草稿一键定稿” submissions.
 - Updated the AI task page copy to include `正文精修`.
+- Blocked adoption of excerpt-only long-text polish tasks so a head/middle/tail preview cannot overwrite the complete `polishedText` field.
+- Changed polish adoption status handling so `draft` and `final` chapters become `revising` after a new polish candidate is adopted; `published` chapters remain published.
+- Tightened the polish task card adopt button to only show for `not_reviewed` non-excerpt completed tasks.
 
 Verification:
 
 - `npx prisma generate` passed.
 - `npm run typecheck` passed.
-- `npm run test -- lib/ai/chapter-polishes.test.ts app/projects/[projectId]/chapters/actions.test.ts` passed, 2 files and 10 tests.
-- `npm run test` passed, 29 files and 130 tests.
+- `npm run test -- lib/ai/chapter-polishes.test.ts app/projects/[projectId]/chapters/actions.test.ts` passed, 2 files and 12 tests.
+- `npm run test` passed, 29 files and 132 tests.
 - `git diff --check` passed.
 - `npm run build` passed.
 
