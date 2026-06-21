@@ -15,12 +15,16 @@ import {
   Sparkles,
   Trash2,
   UploadCloud,
+  XCircle,
 } from "lucide-react";
 import {
+  adoptGeneratedProjectCover,
+  generateProjectCoverImage,
   generatePublishPackage,
   markPublishPackageExported,
   prepareGlobalStationCatPublishRun,
   preparePublishRun,
+  rejectGeneratedProjectCover,
   removeProjectCover,
   savePublishTarget,
   uploadProjectCover,
@@ -28,10 +32,23 @@ import {
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyExportPanel } from "@/components/copy-export-panel";
 import { PublishSubmitButton } from "@/components/publish-submit-button";
-import { readStationCatPublishSettings } from "@/lib/ai/local-config";
+import { expireStaleCoverImageTasks } from "@/lib/ai/cover-image-task-maintenance";
+import {
+  readImageGenerationSettings,
+  readStationCatPublishSettings,
+} from "@/lib/ai/local-config";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
-import { isActiveAiTaskStatus } from "@/lib/ai/status";
+import {
+  aiTaskAdoptionLabel,
+  aiTaskStatusLabel,
+  isActiveAiTaskStatus,
+} from "@/lib/ai/status";
+import {
+  coverImageGenerationTaskType,
+  coverImageTargets,
+  parseCoverImageTaskOutput,
+} from "@/lib/ai/cover-images";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
   buildPublishMarkdown,
@@ -66,10 +83,20 @@ type PublishPageProps = {
   params: Promise<{
     projectId: string;
   }>;
+  searchParams?: Promise<{
+    coverImageError?: string;
+  }>;
 };
 
-export default async function PublishPage({ params }: PublishPageProps) {
+export default async function PublishPage({
+  params,
+  searchParams,
+}: PublishPageProps) {
   const { projectId } = await params;
+  const resolvedSearchParams = await searchParams;
+
+  await expireStaleCoverImageTasks(projectId);
+
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -82,6 +109,7 @@ export default async function PublishPage({ params }: PublishPageProps) {
   }
 
   const hasApiKey = hasConfiguredOpenAIKey();
+  const imageSettings = readImageGenerationSettings();
   const stationCatSettings = readStationCatPublishSettings();
   const canUseGlobalStationCat = Boolean(
     stationCatSettings.apiBaseUrl && stationCatSettings.hasToken,
@@ -94,7 +122,19 @@ export default async function PublishPage({ params }: PublishPageProps) {
     publishPackageForExport,
   );
   const cover = publishPackageForExport.cover;
+  const coverPromptDefault =
+    project.publishPackages.find((publishPackage) => publishPackage.coverPrompt)
+      ?.coverPrompt ||
+    cover.prompt ||
+    project.description ||
+    project.title;
   const baseFilename = safeFilename(project.title || "novelforge-project");
+  const coverImageTasks = project.aiTasks
+    .filter((task) => task.taskType === coverImageGenerationTaskType)
+    .slice(0, 5);
+  const hasActiveCoverImageTask = coverImageTasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
   const hasActivePublishPackageTask = project.chapters.some((chapter) =>
     chapter.aiTasks.some((task) => isActiveAiTaskStatus(task.status)),
   );
@@ -108,7 +148,7 @@ export default async function PublishPage({ params }: PublishPageProps) {
 
   return (
     <div className="space-y-6">
-      <AutoRefresh enabled={hasActivePublishPackageTask} />
+      <AutoRefresh enabled={hasActivePublishPackageTask || hasActiveCoverImageTask} />
 
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
@@ -241,6 +281,129 @@ export default async function PublishPage({ params }: PublishPageProps) {
                 </button>
               </form>
             ) : null}
+
+            <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-ink-950">
+                    AI 生成封面候选图
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-ink-700">
+                    生成结果只作为候选图展示。点击“采用为封面”后，才会写入项目封面并随 Station Cat 发布包上传。
+                  </p>
+                </div>
+                <Link
+                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                  href="/ai-settings"
+                >
+                  图片模型设置
+                </Link>
+              </div>
+
+              <div className="mt-3 grid gap-3 text-sm text-ink-700 sm:grid-cols-2">
+                <InfoBlock label="图片模型" value={imageSettings.model} />
+                <InfoBlock
+                  label="图片 API"
+                  value={
+                    imageSettings.hasApiKey
+                      ? `${imageSettings.apiBaseUrl} / ${imageSettings.maskedApiKey}`
+                      : "未配置"
+                  }
+                />
+              </div>
+
+              {coverImageErrorMessage(resolvedSearchParams?.coverImageError) ? (
+                <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
+                  {coverImageErrorMessage(resolvedSearchParams?.coverImageError)}
+                </p>
+              ) : null}
+
+              {!imageSettings.hasApiKey ? (
+                <p className="mt-3 rounded-md bg-white px-3 py-2 text-sm leading-6 text-ink-700">
+                  未配置图片生成 API Key，暂不能生成新的封面图。你仍然可以上传本机封面。
+                </p>
+              ) : null}
+
+              <form
+                action={generateProjectCoverImage.bind(null, project.id)}
+                className="mt-4 grid gap-3"
+              >
+                <label className="space-y-1.5">
+                  <span className="text-xs font-semibold text-ink-700">
+                    封面提示词
+                  </span>
+                  <textarea
+                    className="min-h-28 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950"
+                    defaultValue={coverPromptDefault}
+                    maxLength={3000}
+                    name="coverPrompt"
+                    placeholder="可复用发布包装里的封面提示词，也可以手动改写。"
+                  />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-semibold text-ink-700">
+                      用途
+                    </span>
+                    <select
+                      className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                      defaultValue="book_cover"
+                      name="coverTarget"
+                    >
+                      {coverImageTargets.map((target) => (
+                        <option key={target.key} value={target.key}>
+                          {target.label} / {target.aspectRatio}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-semibold text-ink-700">
+                      候选图数量
+                    </span>
+                    <select
+                      className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                      defaultValue="1"
+                      name="imageCount"
+                    >
+                      {[1, 2, 3, 4].map((count) => (
+                        <option key={count} value={count}>
+                          {count} 张
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    className={`inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md px-4 py-2 text-sm font-semibold transition ${
+                      imageSettings.hasApiKey && !hasActiveCoverImageTask
+                        ? "bg-ink-950 text-white hover:bg-ink-800"
+                        : "cursor-not-allowed border border-ink-950/15 bg-white text-ink-700"
+                    }`}
+                    disabled={!imageSettings.hasApiKey || hasActiveCoverImageTask}
+                    type="submit"
+                  >
+                    <Sparkles aria-hidden="true" className="h-4 w-4" />
+                    {hasActiveCoverImageTask ? "生成中" : "生成候选图"}
+                  </button>
+                </div>
+              </form>
+
+              {coverImageTasks.length > 0 ? (
+                <div className="mt-5 space-y-3">
+                  <h3 className="text-sm font-semibold text-ink-950">
+                    最近封面生成任务
+                  </h3>
+                  {coverImageTasks.map((task) => (
+                    <CoverImageTaskCard
+                      key={task.id}
+                      projectId={project.id}
+                      projectTitle={project.title}
+                      task={task}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </section>
@@ -855,6 +1018,18 @@ type PublishChapterOption = {
   title: string;
 };
 
+type CoverImageTaskRecord = {
+  adoptionState?: string | null;
+  createdAt: Date;
+  errorMessage?: string | null;
+  id: string;
+  inputContextSummary?: string | null;
+  model?: string | null;
+  outputJson?: string | null;
+  outputText?: string | null;
+  status?: string | null;
+};
+
 function PublishRunFormControls({
   canSubmit,
   chapters,
@@ -945,6 +1120,124 @@ function PublishRunFormControls({
   );
 }
 
+function CoverImageTaskCard({
+  projectId,
+  projectTitle,
+  task,
+}: {
+  projectId: string;
+  projectTitle: string;
+  task: CoverImageTaskRecord;
+}) {
+  const output = parseCoverImageTaskOutput(task.outputJson);
+  const images = output?.images ?? [];
+  const canAdopt =
+    task.status === "completed" &&
+    task.adoptionState === "not_reviewed" &&
+    images.length > 0;
+
+  return (
+    <article className="rounded-lg border border-ink-950/10 bg-white p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+            <span className="rounded-md bg-paper-100 px-2.5 py-1">
+              {aiTaskStatusLabel(task.status)}
+            </span>
+            <span className="rounded-md bg-paper-100 px-2.5 py-1">
+              {aiTaskAdoptionLabel(task.adoptionState)}
+            </span>
+            <span>{formatDate(task.createdAt)}</span>
+          </div>
+          <p className="mt-2 text-sm font-semibold text-ink-950">
+            {task.model || "未记录模型"} / 封面图生成
+          </p>
+          <p className="mt-1 text-sm leading-6 text-ink-700">
+            {task.inputContextSummary || "暂无上下文摘要。"}
+          </p>
+          {task.outputText ? (
+            <p className="mt-1 text-sm leading-6 text-ink-700">{task.outputText}</p>
+          ) : null}
+          {task.errorMessage ? (
+            <p className="mt-1 text-sm leading-6 text-red-700">
+              {task.errorMessage}
+            </p>
+          ) : null}
+        </div>
+
+        {canAdopt ? (
+          <form action={rejectGeneratedProjectCover.bind(null, projectId, task.id)}>
+            <button
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+              type="submit"
+            >
+              <XCircle aria-hidden="true" className="h-4 w-4" />
+              拒绝整组
+            </button>
+          </form>
+        ) : null}
+      </div>
+
+      {images.length > 0 ? (
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {images.map((image, index) => {
+            const previewSrc = coverImagePreviewSrc(image);
+
+            return (
+              <div
+                className="rounded-lg border border-ink-950/10 bg-paper-50 p-3"
+                key={`${task.id}:${index}`}
+              >
+                {previewSrc ? (
+                  <img
+                    alt={`封面候选图 ${index + 1}`}
+                    className="aspect-[2/3] w-full rounded-md bg-white object-cover"
+                    src={previewSrc}
+                  />
+                ) : (
+                  <div className="flex aspect-[2/3] items-center justify-center rounded-md bg-white p-4 text-center text-sm text-ink-700">
+                    图片数据不可预览，但仍可尝试采用。
+                  </div>
+                )}
+                {image.revisedPrompt ? (
+                  <p className="mt-2 line-clamp-3 text-xs leading-5 text-ink-700">
+                    {image.revisedPrompt}
+                  </p>
+                ) : null}
+                {canAdopt ? (
+                  <form
+                    action={adoptGeneratedProjectCover.bind(
+                      null,
+                      projectId,
+                      task.id,
+                    )}
+                    className="mt-3 space-y-2"
+                  >
+                    <input name="imageIndex" type="hidden" value={index} />
+                    <input
+                      className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                      defaultValue={projectTitle}
+                      name="coverAltText"
+                      placeholder="封面说明"
+                    />
+                    <button
+                      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+                      type="submit"
+                    >
+                      <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                      采用为封面
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
 function InfoBlock({
   label,
   value,
@@ -960,6 +1253,35 @@ function InfoBlock({
       </p>
     </div>
   );
+}
+
+function coverImagePreviewSrc(image: {
+  dataBase64?: string | null;
+  dataUrl?: string | null;
+  mimeType?: string | null;
+  url?: string | null;
+}) {
+  if (image.dataUrl) {
+    return image.dataUrl;
+  }
+
+  if (image.dataBase64) {
+    return `data:${image.mimeType || "image/png"};base64,${image.dataBase64}`;
+  }
+
+  return image.url ?? null;
+}
+
+function coverImageErrorMessage(error?: string | null) {
+  if (error === "missingImageApiKey") {
+    return "图片生成 API Key 尚未配置，请先到本机接入设置里填写。";
+  }
+
+  if (error === "missingGeneratedImage") {
+    return "没有找到可采用的封面候选图，请重新生成。";
+  }
+
+  return null;
 }
 
 function ResultLink({

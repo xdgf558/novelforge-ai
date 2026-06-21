@@ -5,19 +5,23 @@ import {
   CheckCircle2,
   Database,
   Globe2,
+  Image as ImageIcon,
   KeyRound,
   PackageCheck,
   Save,
   ServerCog,
   ShieldCheck,
+  type LucideIcon,
   UploadCloud,
 } from "lucide-react";
 import {
   saveAiConnectionSettingsAction,
+  saveImageGenerationSettingsAction,
   saveStationCatPublishSettingsAction,
 } from "@/app/ai-settings/actions";
 import {
   readAiConnectionSettings,
+  readImageGenerationSettings,
   readStationCatPublishSettings,
 } from "@/lib/ai/local-config";
 import { appReleaseNotes, appReleaseTitle, appVersion } from "@/lib/app-version";
@@ -36,6 +40,7 @@ export default async function AiSettingsPage({
 }: AiSettingsPageProps) {
   const resolvedSearchParams = await searchParams;
   const settings = readAiConnectionSettings();
+  const imageSettings = readImageGenerationSettings();
   const stationCatSettings = readStationCatPublishSettings();
   const savedMessage = settingsSavedMessage(resolvedSearchParams?.saved);
 
@@ -89,6 +94,18 @@ export default async function AiSettingsPage({
           value={settings.baseUrl}
         />
         <InfoTile
+          icon={ImageIcon}
+          label="图片模型"
+          value={imageSettings.model}
+        />
+        <InfoTile
+          icon={KeyRound}
+          label="图片 API Key"
+          value={
+            imageSettings.hasApiKey ? imageSettings.maskedApiKey : "未配置"
+          }
+        />
+        <InfoTile
           icon={Globe2}
           label="Station Cat"
           value={stationCatSettings.apiBaseUrl}
@@ -104,6 +121,123 @@ export default async function AiSettingsPage({
           value={publishModeLabel(stationCatSettings.defaultMode)}
         />
         <InfoTile icon={PackageCheck} label="当前版本" value={`v${appVersion}`} />
+      </section>
+
+      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <div className="mb-5 flex items-center gap-2 text-base font-semibold text-ink-950">
+          <ImageIcon aria-hidden="true" className="h-5 w-5 text-signal-600" />
+          封面图片生成参数
+        </div>
+
+        <form action={saveImageGenerationSettingsAction} className="space-y-5">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink-800">
+                图片 API Base URL
+              </span>
+              <input
+                className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+                defaultValue={imageSettings.apiBaseUrl}
+                name="imageApiBaseUrl"
+                placeholder="https://api.ppq.ai/v1"
+                type="url"
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink-800">
+                图片模型
+              </span>
+              <input
+                className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+                defaultValue={imageSettings.model}
+                name="imageModel"
+                placeholder="qwen-image-2"
+                type="text"
+              />
+            </label>
+          </div>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-semibold text-ink-800">
+              图片 API Key
+            </span>
+            <input
+              autoComplete="off"
+              className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+              name="imageApiKey"
+              placeholder={
+                imageSettings.hasApiKey
+                  ? "留空则保留当前图片 API Key"
+                  : "输入 PPQ 或兼容图片接口的 API Key"
+              }
+              type="password"
+            />
+          </label>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink-800">
+                图片尺寸
+              </span>
+              <input
+                className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+                defaultValue={imageSettings.size}
+                name="imageSize"
+                placeholder="default / 1024x1536"
+                type="text"
+              />
+              <span className="block text-xs leading-5 text-ink-700">
+                填 default 时，作品封面会按用途自动使用建议尺寸。
+              </span>
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink-800">
+                图片质量
+              </span>
+              <input
+                className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+                defaultValue={imageSettings.quality}
+                name="imageQuality"
+                placeholder="default / standard / high"
+                type="text"
+              />
+            </label>
+          </div>
+
+          <label className="flex items-start gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4 text-sm text-ink-700">
+            <input
+              className="mt-1 h-4 w-4 rounded border-ink-950/20 text-signal-600"
+              name="clearImageApiKey"
+              type="checkbox"
+            />
+            <span>
+              <span className="block font-semibold text-ink-950">
+                清除已保存的图片 API Key
+              </span>
+              <span className="mt-1 block leading-6">
+                勾选后保存会移除本机配置文件中的图片 key，模型、接口地址、尺寸和质量仍会保存。
+              </span>
+            </span>
+          </label>
+
+          <div className="flex flex-col gap-3 border-t border-ink-950/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm leading-6 text-ink-700">
+              <span className="font-semibold text-ink-950">图片接口：</span>
+              <span className="break-all">
+                {imageSettings.apiBaseUrl}/images/generations
+              </span>
+            </div>
+            <button
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+              type="submit"
+            >
+              <Save aria-hidden="true" className="h-4 w-4" />
+              保存图片生成设置
+            </button>
+          </div>
+        </form>
       </section>
 
       <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
@@ -282,6 +416,7 @@ export default async function AiSettingsPage({
             <p className="mt-2 text-sm leading-6 text-ink-700">
               当前来源：{sourceLabel(settings.source)}；配置文件
               {settings.fileExists ? "已存在" : "尚未创建"}。
+              图片生成来源：{sourceLabel(imageSettings.source)}。
               Station Cat 来源：{sourceLabel(stationCatSettings.source)}。
             </p>
           </div>
@@ -327,7 +462,7 @@ function InfoTile({
   label,
   value,
 }: {
-  icon: typeof Bot;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {
@@ -366,6 +501,13 @@ function settingsSavedMessage(saved?: string) {
     return {
       title: "个人网站发布参数已保存",
       description: "Station Cat 接口、发布 Token 和默认发布模式已写入本机配置。",
+    };
+  }
+
+  if (saved === "image") {
+    return {
+      title: "图片生成参数已保存",
+      description: "新的图片模型、接口地址、尺寸、质量和 API Key 设置会用于后续封面图生成。",
     };
   }
 

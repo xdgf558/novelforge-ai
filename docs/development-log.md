@@ -1,5 +1,55 @@
 # Development Log
 
+## 2026-06-21: Phase 24 AI Cover Image Generation
+
+Status: PR review handoff.
+
+Scope:
+
+- Add AI-assisted cover image generation on top of the existing local cover upload and Station Cat cover payload flow while preserving author control.
+
+What was done:
+
+- Added global image generation settings to `/ai-settings`:
+  - `IMAGE_API_KEY`,
+  - `IMAGE_API_BASE_URL`,
+  - `IMAGE_MODEL`,
+  - `IMAGE_SIZE`,
+  - `IMAGE_QUALITY`.
+- Defaulted the image endpoint to PPQ-compatible `https://api.ppq.ai/v1` and the model to `qwen-image-2`.
+- Added an OpenAI-compatible image generation client for `POST /images/generations`, supporting both base64 and URL image responses.
+- Added `cover_image_generation` default prompt template and task type.
+- Added a publish-page AI cover generation panel:
+  - reuses the latest publish-package cover prompt by default,
+  - allows author-edited prompts,
+  - supports book cover, website banner, and square thumbnail targets,
+  - creates logged background `ai_tasks`,
+  - auto-refreshes while tasks are pending/running,
+  - expires stale pending/running cover tasks after the shared timeout window.
+- Kept generated images draft-only until explicit author adoption:
+  - task output displays candidate images,
+  - “采用为封面” writes the selected image into the existing local cover asset storage,
+  - rejected tasks do not alter project cover fields.
+- Extended local cover asset storage with a buffer-saving helper so generated images and uploaded files use the same validation, 8MB limit, and Station Cat payload path.
+- Updated desktop runtime config parsing, `.env.example`, and desktop smoke coverage for `IMAGE_*` settings.
+- Updated the AI task page copy and in-app release notes.
+- Bumped the source app/package version to `0.1.25`.
+
+Verification:
+
+- `npm run test -- lib/ai/local-config.test.ts lib/ai/image-client.test.ts lib/ai/cover-images.test.ts lib/project-cover-assets.test.ts lib/ai/prompt-templates.test.ts` passed: 5 files, 30 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed: 39 files, 191 tests.
+- `npm run desktop:smoke` passed.
+- `npm run build` passed.
+- `git diff --check` passed.
+
+Notes:
+
+- This phase does not auto-generate a cover during Station Cat upload; authors generate and adopt a cover before publishing.
+- Generated cover images remain local assets until included in a Station Cat publish request through the existing standard package flow.
+- No desktop installer should be built before review approval.
+
 ## 2026-06-21: Phase 23 Character Network and Character AI
 
 Status: PR review handoff.

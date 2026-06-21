@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   saveAiConnectionSettings,
+  saveImageGenerationSettings,
   saveStationCatPublishSettings,
 } from "@/lib/ai/local-config";
 
@@ -31,4 +32,19 @@ export async function saveStationCatPublishSettingsAction(formData: FormData) {
   revalidatePath("/ai-settings");
   revalidatePath("/");
   redirect("/ai-settings?saved=station-cat");
+}
+
+export async function saveImageGenerationSettingsAction(formData: FormData) {
+  saveImageGenerationSettings({
+    apiBaseUrl: formData.get("imageApiBaseUrl")?.toString(),
+    apiKey: formData.get("imageApiKey")?.toString(),
+    clearApiKey: formData.get("clearImageApiKey") === "on",
+    model: formData.get("imageModel")?.toString(),
+    size: formData.get("imageSize")?.toString(),
+    quality: formData.get("imageQuality")?.toString(),
+  });
+
+  revalidatePath("/ai-settings");
+  revalidatePath("/");
+  redirect("/ai-settings?saved=image");
 }

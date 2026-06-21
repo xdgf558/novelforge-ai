@@ -67,26 +67,54 @@ export async function saveProjectCoverAsset({
   projectId: string;
 }): Promise<StoredProjectCoverAsset> {
   const mimeType = normalizeMimeType(file.type);
-  const extension = allowedImageTypes.get(mimeType);
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  return saveProjectCoverAssetFromBuffer({
+    buffer,
+    fileName: file.name,
+    mimeType,
+    previousRelativePath,
+    projectId,
+  });
+}
+
+export async function saveProjectCoverAssetFromBuffer({
+  buffer,
+  fileName,
+  mimeType,
+  previousRelativePath,
+  projectId,
+}: {
+  buffer: Buffer;
+  fileName?: string | null;
+  mimeType: string;
+  previousRelativePath?: string | null;
+  projectId: string;
+}): Promise<StoredProjectCoverAsset> {
+  const cleanMimeType = normalizeMimeType(mimeType);
+  const extension = allowedImageTypes.get(cleanMimeType);
 
   if (!extension) {
     throw new Error("封面图片只支持 PNG、JPEG、WebP 或 GIF。");
   }
 
-  if (file.size <= 0) {
+  if (buffer.byteLength <= 0) {
     throw new Error("请选择有效的封面图片文件。");
   }
 
-  if (file.size > maxCoverImageBytes) {
+  if (buffer.byteLength > maxCoverImageBytes) {
     throw new Error("封面图片不能超过 8MB。");
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   const root = getProjectCoverAssetRoot();
   const projectDir = path.join(root, "covers", safePathSegment(projectId));
-  const originalName = cleanFileName(file.name) || `cover.${extension}`;
-  const fileName = `${Date.now()}-${randomUUID()}.${extension}`;
-  const relativePath = path.join("covers", safePathSegment(projectId), fileName);
+  const originalName = cleanFileName(fileName) || `cover.${extension}`;
+  const storedFileName = `${Date.now()}-${randomUUID()}.${extension}`;
+  const relativePath = path.join(
+    "covers",
+    safePathSegment(projectId),
+    storedFileName,
+  );
   const absolutePath = resolveCoverAssetPath(relativePath);
 
   await fs.promises.mkdir(projectDir, {
@@ -100,7 +128,7 @@ export async function saveProjectCoverAsset({
 
   return {
     relativePath,
-    mimeType,
+    mimeType: cleanMimeType,
     fileName: originalName,
     sizeBytes: buffer.byteLength,
     updatedAt: new Date(),
