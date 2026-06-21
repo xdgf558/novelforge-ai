@@ -18,6 +18,7 @@ import {
 } from "@/app/projects/[projectId]/outlines/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { OutlineAiGenerateForm } from "@/components/outlines/outline-ai-generate-form";
+import { OutlineDraftCopyButton } from "@/components/outlines/outline-draft-copy-button";
 import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
 import {
   aiTaskAdoptionLabel,
@@ -292,22 +293,32 @@ function OutlineAiPanel({
               className="rounded-lg border border-ink-950/10 bg-paper-50 p-4 text-sm"
               key={task.id}
             >
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
-                <span className="rounded-md bg-white px-2.5 py-1">
-                  {aiTaskStatusLabel(task.status)}
-                </span>
-                <span className="rounded-md bg-white px-2.5 py-1">
-                  {aiTaskAdoptionLabel(task.adoptionState)}
-                </span>
-                <span>{formatDate(task.createdAt)}</span>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                    <span className="rounded-md bg-white px-2.5 py-1">
+                      {aiTaskStatusLabel(task.status)}
+                    </span>
+                    <span className="rounded-md bg-white px-2.5 py-1">
+                      {aiTaskAdoptionLabel(task.adoptionState)}
+                    </span>
+                    <span>{formatDate(task.createdAt)}</span>
+                  </div>
+                  <p className="mt-3 font-semibold text-ink-950">
+                    {task.model} / {task.promptTemplate?.name ?? "大纲草案"} v
+                    {task.promptTemplate?.version ?? 1}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-ink-700">
+                    {task.inputContextSummary}
+                  </p>
+                </div>
+                {task.status === "completed" && task.outputText?.trim() ? (
+                  <OutlineDraftCopyButton
+                    inputContextSummary={task.inputContextSummary}
+                    outputText={task.outputText}
+                  />
+                ) : null}
               </div>
-              <p className="mt-3 font-semibold text-ink-950">
-                {task.model} / {task.promptTemplate?.name ?? "大纲草案"} v
-                {task.promptTemplate?.version ?? 1}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-ink-700">
-                {task.inputContextSummary}
-              </p>
               <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-3 text-xs leading-6 text-ink-800">
                 {task.outputText || task.errorMessage || "任务尚未产生输出。"}
               </pre>
@@ -336,7 +347,11 @@ function QuickCreateOutlineForm({
         : "例如：第 3 章 抢设备";
 
   return (
-    <form action={action} className="rounded-lg border border-ink-950/10 p-4">
+    <form
+      action={action}
+      className="rounded-lg border border-ink-950/10 p-4"
+      data-outline-level={level}
+    >
       <input name="level" type="hidden" value={level} />
       <input name="status" type="hidden" value="planned" />
       <div className="flex items-center gap-2 text-sm font-semibold text-ink-950">

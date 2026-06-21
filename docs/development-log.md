@@ -1,5 +1,28 @@
 # Development Log
 
+## 2026-06-21: 0.1.26 Outline Copy Helper Packaging
+
+Status: completed.
+
+What was done:
+
+- Added a client-side "复制到表单" action to completed outline AI task cards. It parses common volume, story-unit, and chapter outline draft formats and fills the matching quick-create form.
+- Preserved the outline author-control boundary: copied drafts only populate form fields; authors still click save before formal `outlines` rows are written.
+- Bumped the source app/package version to `0.1.26` and updated in-app release notes.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.26-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the formal PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/outline-draft-copy.test.ts` passed.
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed with notarization skipped.
+- `pkgutil --expand-full` confirmed the final PKG metadata has `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.26"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the generated app payload and the final expanded PKG payload app.
+
 ## 2026-06-21: Phase 24 AI Cover Image Generation
 
 Status: PR review handoff.
@@ -206,6 +229,11 @@ Verification:
 - `npm run test` passed, 32 files and 147 tests.
 - `git diff --check` passed.
 - `npm run build` passed.
+
+Follow-up UX fix:
+
+- Added a client-side "复制到表单" action on completed outline AI tasks. It parses common volume/story-unit/chapter draft fields and fills the matching quick-create form, but still requires the author to review and click save before a formal outline is created.
+- Added focused parser coverage for volume, story-unit, and chapter outline draft formats.
 
 Packaging note:
 
