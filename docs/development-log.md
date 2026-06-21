@@ -1,5 +1,34 @@
 # Development Log
 
+## 2026-06-21: 0.1.27 Outline Save Feedback Follow-up
+
+Status: completed.
+
+What was done:
+
+- Diagnosed the packaged 0.1.26 outline page after a reported case where a copied volume outline appeared not to persist.
+- Verified the running desktop server action can write a temporary diagnostic outline into the local SQLite `outlines` table, then removed that diagnostic row.
+- Added explicit quick-create save feedback:
+  - submit buttons now show a pending "保存中..." state,
+  - successful creates redirect back with a visible "已保存..." message,
+  - invalid quick-create form submissions redirect back with a visible form-error message instead of falling through to an opaque server failure.
+- Bumped the source app/package version to `0.1.27` and updated in-app release notes.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.27-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+
+Verification:
+
+- Added regression coverage for successful outline create redirects and invalid quick-create form handling.
+- `npm run test -- app/projects/[projectId]/outlines/actions.test.ts lib/outline-draft-copy.test.ts` passed.
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed after clearing stale proxy environment variables.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.27"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Final PKG SHA-256: `18f1f4ca5599a7f94e1c1ef71bca37ffc9e6a0d695128f23438758e005374869`.
+
 ## 2026-06-21: 0.1.26 Outline Copy Helper Packaging
 
 Status: completed.

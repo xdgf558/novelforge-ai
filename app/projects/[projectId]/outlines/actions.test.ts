@@ -143,6 +143,25 @@ describe("outline actions", () => {
         goal: "抢到培训班设备。",
       }),
     });
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/outlines?outlineSaved=chapter",
+    );
+  });
+
+  it("redirects invalid quick-create form data without writing formal memory", async () => {
+    await expect(
+      createOutline(
+        "project_1",
+        buildOutlineFormData({
+          title: "",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/outlines?outlineError=invalidForm",
+    );
+    expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
   });
 
   it("rejects invalid outline chapter ranges without writing formal memory", async () => {

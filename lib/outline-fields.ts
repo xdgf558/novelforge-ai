@@ -34,6 +34,7 @@ export const outlineStatusOptions = [
 export type OutlineStatus = (typeof outlineStatusOptions)[number]["value"];
 
 export const outlineValidationErrorMessages = {
+  invalidForm: "大纲表单内容不完整，请检查标题、章节号和章节范围。",
   invalidChapterRange: "结束章节不能小于起始章节。",
   missingChapterNumber: "章节大纲必须填写章节号，才能参与章节生成匹配。",
 } as const;

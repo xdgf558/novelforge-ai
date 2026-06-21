@@ -19,6 +19,7 @@ import {
 import { AutoRefresh } from "@/components/auto-refresh";
 import { OutlineAiGenerateForm } from "@/components/outlines/outline-ai-generate-form";
 import { OutlineDraftCopyButton } from "@/components/outlines/outline-draft-copy-button";
+import { OutlineSaveButton } from "@/components/outlines/outline-save-button";
 import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
 import {
   aiTaskAdoptionLabel,
@@ -29,6 +30,7 @@ import { readAiConnectionSettings } from "@/lib/ai/local-config";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
   outlineLevelLabel,
+  outlineLevels,
   outlineRangeLabel,
   outlineStatusLabel,
   outlineValidationErrorMessages,
@@ -46,6 +48,7 @@ type OutlinesPageProps = {
   }>;
   searchParams?: Promise<{
     outlineError?: string;
+    outlineSaved?: string;
   }>;
 };
 
@@ -105,6 +108,11 @@ export default async function OutlinesPage({
     outlineValidationErrorMessages[
       query.outlineError as OutlineValidationErrorCode
     ];
+  const savedOutlineLevel = outlineLevels.includes(
+    query.outlineSaved as OutlineLevel,
+  )
+    ? (query.outlineSaved as OutlineLevel)
+    : null;
   const groupedOutlines = {
     volume: project.outlines.filter((outline) => outline.level === "volume"),
     unit: project.outlines.filter((outline) => outline.level === "unit"),
@@ -159,6 +167,12 @@ export default async function OutlinesPage({
       {outlineErrorMessage ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
           {outlineErrorMessage}
+        </div>
+      ) : null}
+
+      {savedOutlineLevel ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+          已保存{outlineLevelLabel(savedOutlineLevel)}，下方列表已更新。
         </div>
       ) : null}
 
@@ -422,12 +436,7 @@ function QuickCreateOutlineForm({
           />
         </label>
       </div>
-      <button
-        className="mt-4 inline-flex min-h-10 items-center rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-        type="submit"
-      >
-        保存{outlineLevelLabel(level)}
-      </button>
+      <OutlineSaveButton label={outlineLevelLabel(level)} />
     </form>
   );
 }

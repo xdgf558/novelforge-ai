@@ -20,6 +20,7 @@ import {
   outlineSnapshot,
   outlineStatusOptions,
   outlineTextFieldNames,
+  type OutlineValidationErrorCode,
   validateOutlineValues,
   type OutlineLevel,
   type OutlineValues,
@@ -103,7 +104,17 @@ const generationRequestSchema = z.object({
   chapterCount: request.targetLevel === "chapter" ? request.chapterCount : null,
 }));
 
-function parseOutlineForm(formData: FormData) {
+type ParseOutlineFormResult =
+  | {
+      ok: true;
+      values: OutlineValues;
+    }
+  | {
+      ok: false;
+      error: OutlineValidationErrorCode;
+    };
+
+function parseOutlineForm(formData: FormData): ParseOutlineFormResult {
   const raw = {
     level: formData.get("level"),
     title: formData.get("title"),
@@ -118,15 +129,27 @@ function parseOutlineForm(formData: FormData) {
     ...Object.fromEntries(
       outlineNumberFieldNames
         .filter((fieldName) => fieldName !== "sortOrder")
-        .map((fieldName) => [fieldName, formData.get(fieldName)]),
+      .map((fieldName) => [fieldName, formData.get(fieldName)]),
     ),
   };
-  const parsed = outlineSchema.parse(raw);
+  const parsedResult = outlineSchema.safeParse(raw);
+
+  if (!parsedResult.success) {
+    return {
+      ok: false,
+      error: "invalidForm",
+    };
+  }
+
+  const parsed = parsedResult.data;
   const values = outlineValuesFromParsed(parsed);
 
   return {
-    ...values,
-    sortOrder: values.sortOrder ?? inferOutlineSortOrder(values),
+    ok: true,
+    values: {
+      ...values,
+      sortOrder: values.sortOrder ?? inferOutlineSortOrder(values),
+    },
   };
 }
 
@@ -179,7 +202,14 @@ async function assertProject(projectId: string) {
 export async function createOutline(projectId: string, formData: FormData) {
   await assertProject(projectId);
 
-  const values = parseOutlineForm(formData);
+  const parsed = parseOutlineForm(formData);
+
+  if (!parsed.ok) {
+    revalidateOutlinePaths(projectId);
+    redirect(`/projects/${projectId}/outlines?outlineError=${parsed.error}`);
+  }
+
+  const values = parsed.values;
   const validationError = validateOutlineValues(values);
 
   if (validationError) {
@@ -195,7 +225,7 @@ export async function createOutline(projectId: string, formData: FormData) {
   });
 
   revalidateOutlinePaths(projectId);
-  redirect(`/projects/${projectId}/outlines`);
+  redirect(`/projects/${projectId}/outlines?outlineSaved=${values.level}`);
 }
 
 export async function updateOutline(
@@ -219,7 +249,16 @@ export async function updateOutline(
     notFound();
   }
 
-  const values = parseOutlineForm(formData);
+  const parsed = parseOutlineForm(formData);
+
+  if (!parsed.ok) {
+    revalidatePath(`/projects/${projectId}/outlines/${outlineId}/edit`);
+    redirect(
+      `/projects/${projectId}/outlines/${outlineId}/edit?outlineError=${parsed.error}`,
+    );
+  }
+
+  const values = parsed.values;
   const validationError = validateOutlineValues(values);
 
   if (validationError) {
