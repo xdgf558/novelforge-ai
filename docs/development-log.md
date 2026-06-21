@@ -1,5 +1,89 @@
 # Development Log
 
+## 2026-06-21: Phase 24 AI Cover Image Generation
+
+Status: PR review handoff.
+
+Scope:
+
+- Add AI-assisted cover image generation on top of the existing local cover upload and Station Cat cover payload flow while preserving author control.
+
+What was done:
+
+- Added global image generation settings to `/ai-settings`:
+  - `IMAGE_API_KEY`,
+  - `IMAGE_API_BASE_URL`,
+  - `IMAGE_MODEL`,
+  - `IMAGE_SIZE`,
+  - `IMAGE_QUALITY`.
+- Defaulted the image endpoint to PPQ-compatible `https://api.ppq.ai/v1` and the model to `qwen-image-2`.
+- Added an OpenAI-compatible image generation client for `POST /images/generations`, supporting both base64 and URL image responses.
+- Added `cover_image_generation` default prompt template and task type.
+- Added a publish-page AI cover generation panel:
+  - reuses the latest publish-package cover prompt by default,
+  - allows author-edited prompts,
+  - supports book cover, website banner, and square thumbnail targets,
+  - creates logged background `ai_tasks`,
+  - auto-refreshes while tasks are pending/running,
+  - expires stale pending/running cover tasks after the shared timeout window.
+- Kept generated images draft-only until explicit author adoption:
+  - task output displays candidate images,
+  - “采用为封面” writes the selected image into the existing local cover asset storage,
+  - rejected tasks do not alter project cover fields.
+- Extended local cover asset storage with a buffer-saving helper so generated images and uploaded files use the same validation, 8MB limit, and Station Cat payload path.
+- Updated desktop runtime config parsing, `.env.example`, and desktop smoke coverage for `IMAGE_*` settings.
+- Updated the AI task page copy and in-app release notes.
+- Bumped the source app/package version to `0.1.25`.
+
+Review hardening:
+
+- Removed the URL-candidate adoption path for generated covers. Image providers
+  must return base64 image data; URL-only results are skipped or fail the task so
+  external API output cannot make the local server download arbitrary URLs.
+- Changed generated-cover task output to store local candidate asset references
+  only. Full base64 image payloads and raw provider responses are no longer
+  written to `ai_tasks.outputJson`.
+- Saved generated cover candidates immediately into a local candidate asset
+  directory; adopting a cover now copies from that local candidate asset into
+  the formal project cover slot.
+- Added magic-byte validation for PNG/JPEG/WebP/GIF before saving any manual or
+  generated cover image, and restored upload-size preflight before reading a
+  selected manual file into memory.
+- Limited "拒绝整组" to completed cover-generation tasks and added friendly
+  feedback for invalid image API Base URL settings.
+- Added lifecycle cleanup for generated cover candidate assets:
+  - adopting a generated cover removes that task's candidate directory after
+    the selected image is copied into the formal cover slot,
+  - rejecting a generated cover task removes that task's candidate directory,
+  - AI task retention removes cover candidate directories before pruning old
+    `cover_image_generation` task records.
+- Moved cover-candidate previews behind a controlled project asset route so the
+  publish page no longer synchronously embeds large base64 data URLs during SSR.
+- Added server-side cover-prompt length validation so forged requests over 3000
+  characters return visible feedback instead of creating oversized image tasks.
+- Added a direct regression test that `createAiTask` triggers project AI task
+  retention after task creation, so pruning old `cover_image_generation` records
+  also runs the candidate-directory cleanup path.
+
+Verification:
+
+- `npm run test -- lib/ai/local-config.test.ts lib/ai/image-client.test.ts lib/ai/cover-images.test.ts lib/project-cover-assets.test.ts lib/ai/prompt-templates.test.ts` passed: 5 files, 30 tests.
+- `npm run test -- lib/project-cover-assets.test.ts lib/ai/cover-images.test.ts lib/ai/task-retention.test.ts app/projects/[projectId]/publish/actions.test.ts` passed: 4 files, 18 tests.
+- `npm run test -- lib/ai/task-logger.test.ts lib/ai/task-retention.test.ts lib/project-cover-assets.test.ts app/projects/[projectId]/publish/actions.test.ts` passed: 4 files, 16 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed: 40 files, 200 tests.
+- `npm run desktop:smoke` passed.
+- `npm run build` passed.
+- `git diff --check` passed.
+- PR #24 was checked against `origin/main`; the branch is up to date and GitHub
+  reports it as mergeable.
+
+Notes:
+
+- This phase does not auto-generate a cover during Station Cat upload; authors generate and adopt a cover before publishing.
+- Generated cover images remain local assets until included in a Station Cat publish request through the existing standard package flow.
+- No desktop installer should be built before review approval.
+
 ## 2026-06-21: Phase 23 Character Network and Character AI
 
 Status: PR review handoff.

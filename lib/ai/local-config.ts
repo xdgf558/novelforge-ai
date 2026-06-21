@@ -8,6 +8,11 @@ export type AiRuntimeEnv = {
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   OPENAI_BASE_URL?: string;
+  IMAGE_API_KEY?: string;
+  IMAGE_API_BASE_URL?: string;
+  IMAGE_MODEL?: string;
+  IMAGE_SIZE?: string;
+  IMAGE_QUALITY?: string;
   STATION_CAT_API_BASE_URL?: string;
   STATION_CAT_PUBLISH_TOKEN?: string;
   STATION_CAT_DEFAULT_MODE?: string;
@@ -30,6 +35,35 @@ export type SaveAiConnectionSettingsInput = {
   clearApiKey?: boolean;
   model?: string | null;
   baseUrl?: string | null;
+};
+
+export type ImageGenerationSettings = {
+  configPath: string;
+  fileExists: boolean;
+  hasApiKey: boolean;
+  maskedApiKey: string;
+  apiBaseUrl: string;
+  model: string;
+  size: string;
+  quality: string;
+  source: "file" | "environment" | "default";
+};
+
+export type ImageGenerationSecrets = {
+  apiBaseUrl: string;
+  apiKey: string;
+  model: string;
+  size: string;
+  quality: string;
+};
+
+export type SaveImageGenerationSettingsInput = {
+  apiBaseUrl?: string | null;
+  apiKey?: string | null;
+  clearApiKey?: boolean;
+  model?: string | null;
+  size?: string | null;
+  quality?: string | null;
 };
 
 export type StationCatPublishSettings = {
@@ -56,11 +90,16 @@ export type SaveStationCatPublishSettingsInput = {
 };
 
 type AiConfigKey = (typeof aiConfigKeys)[number];
+type ImageConfigKey = (typeof imageConfigKeys)[number];
 type StationCatConfigKey = (typeof stationCatConfigKeys)[number];
-type LocalConfigKey = AiConfigKey | StationCatConfigKey;
+type LocalConfigKey = AiConfigKey | ImageConfigKey | StationCatConfigKey;
 
 export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+export const DEFAULT_IMAGE_API_BASE_URL = "https://api.ppq.ai/v1";
+export const DEFAULT_IMAGE_MODEL = "qwen-image-2";
+export const DEFAULT_IMAGE_SIZE = "default";
+export const DEFAULT_IMAGE_QUALITY = "default";
 export const DEFAULT_STATION_CAT_API_BASE_URL = "https://wwwstationcat.org";
 export const DEFAULT_STATION_CAT_DEFAULT_MODE: PublishMode = "draft";
 export const aiConfigKeys = [
@@ -68,16 +107,22 @@ export const aiConfigKeys = [
   "OPENAI_MODEL",
   "OPENAI_BASE_URL",
 ] as const;
+export const imageConfigKeys = [
+  "IMAGE_API_KEY",
+  "IMAGE_API_BASE_URL",
+  "IMAGE_MODEL",
+  "IMAGE_SIZE",
+  "IMAGE_QUALITY",
+] as const;
 export const stationCatConfigKeys = [
   "STATION_CAT_API_BASE_URL",
   "STATION_CAT_PUBLISH_TOKEN",
   "STATION_CAT_DEFAULT_MODE",
 ] as const;
 
-const aiConfigKeySet = new Set<string>(aiConfigKeys);
-const stationCatConfigKeySet = new Set<string>(stationCatConfigKeys);
 const localConfigKeySet = new Set<string>([
   ...aiConfigKeys,
+  ...imageConfigKeys,
   ...stationCatConfigKeys,
 ]);
 
@@ -138,6 +183,78 @@ export function saveAiConnectionSettings(
   process.env.OPENAI_BASE_URL = nextEnv.OPENAI_BASE_URL;
 
   return readAiConnectionSettings(env);
+}
+
+export function readImageGenerationSettings(
+  env: AiRuntimeEnv = process.env,
+): ImageGenerationSettings {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactImageEnv(fileEnv),
+  };
+  const apiKey = runtimeEnv.IMAGE_API_KEY?.trim() ?? "";
+
+  return {
+    configPath,
+    fileExists: fs.existsSync(configPath),
+    hasApiKey: Boolean(apiKey),
+    maskedApiKey: maskApiKey(apiKey),
+    apiBaseUrl: normalizeImageApiBaseUrl(runtimeEnv.IMAGE_API_BASE_URL),
+    model: normalizeImageModel(runtimeEnv.IMAGE_MODEL),
+    size: normalizeImageSize(runtimeEnv.IMAGE_SIZE),
+    quality: normalizeImageQuality(runtimeEnv.IMAGE_QUALITY),
+    source: detectImageConfigSource(fileEnv, env),
+  };
+}
+
+export function readImageGenerationSecrets(
+  env: AiRuntimeEnv = process.env,
+): ImageGenerationSecrets {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactImageEnv(fileEnv),
+  };
+
+  return {
+    apiBaseUrl: normalizeImageApiBaseUrl(runtimeEnv.IMAGE_API_BASE_URL),
+    apiKey: runtimeEnv.IMAGE_API_KEY?.trim() ?? "",
+    model: normalizeImageModel(runtimeEnv.IMAGE_MODEL),
+    size: normalizeImageSize(runtimeEnv.IMAGE_SIZE),
+    quality: normalizeImageQuality(runtimeEnv.IMAGE_QUALITY),
+  };
+}
+
+export function saveImageGenerationSettings(
+  input: SaveImageGenerationSettingsInput,
+  env: AiRuntimeEnv = process.env,
+) {
+  const configPath = getAiConfigPath(env);
+  const currentFileEnv = readLocalConfigFile(configPath);
+  const apiKeyInput = input.apiKey?.trim() ?? "";
+  const currentApiKey =
+    currentFileEnv.IMAGE_API_KEY?.trim() || env.IMAGE_API_KEY?.trim() || "";
+  const nextApiKey = input.clearApiKey ? "" : apiKeyInput || currentApiKey;
+  const nextEnv: Partial<Record<ImageConfigKey, string>> = {
+    IMAGE_API_KEY: nextApiKey,
+    IMAGE_API_BASE_URL: normalizeImageApiBaseUrl(input.apiBaseUrl),
+    IMAGE_MODEL: normalizeImageModel(input.model),
+    IMAGE_SIZE: normalizeImageSize(input.size),
+    IMAGE_QUALITY: normalizeImageQuality(input.quality),
+  };
+
+  writeLocalConfigFile(configPath, nextEnv, imageConfigKeys);
+
+  process.env.IMAGE_API_KEY = nextApiKey || "";
+  process.env.IMAGE_API_BASE_URL = nextEnv.IMAGE_API_BASE_URL;
+  process.env.IMAGE_MODEL = nextEnv.IMAGE_MODEL;
+  process.env.IMAGE_SIZE = nextEnv.IMAGE_SIZE;
+  process.env.IMAGE_QUALITY = nextEnv.IMAGE_QUALITY;
+
+  return readImageGenerationSettings(env);
 }
 
 export function readStationCatPublishSettings(
@@ -258,6 +375,19 @@ export function parseStationCatEnv(content: string) {
   return env;
 }
 
+export function parseImageGenerationEnv(content: string) {
+  const localEnv = parseLocalConfigEnv(content);
+  const env: Partial<Record<ImageConfigKey, string>> = {};
+
+  for (const key of imageConfigKeys) {
+    if (localEnv[key] !== undefined) {
+      env[key] = localEnv[key];
+    }
+  }
+
+  return env;
+}
+
 function parseLocalConfigEnv(content: string) {
   const env: Partial<Record<LocalConfigKey, string>> = {};
 
@@ -312,6 +442,31 @@ export function normalizeStationCatApiBaseUrl(apiBaseUrl?: string | null) {
   }
 
   return normalized;
+}
+
+export function normalizeImageApiBaseUrl(apiBaseUrl?: string | null) {
+  const normalized = (apiBaseUrl?.trim() || DEFAULT_IMAGE_API_BASE_URL).replace(
+    /\/+$/,
+    "",
+  );
+
+  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
+    throw new Error("图片生成 API Base URL 必须是 http 或 https URL。");
+  }
+
+  return normalized;
+}
+
+export function normalizeImageModel(model?: string | null) {
+  return model?.trim() || DEFAULT_IMAGE_MODEL;
+}
+
+export function normalizeImageSize(size?: string | null) {
+  return size?.trim() || DEFAULT_IMAGE_SIZE;
+}
+
+export function normalizeImageQuality(quality?: string | null) {
+  return quality?.trim() || DEFAULT_IMAGE_QUALITY;
 }
 
 export function maskApiKey(apiKey?: string | null) {
@@ -407,6 +562,20 @@ function compactStationCatEnv(env: Partial<Record<LocalConfigKey, string>>) {
   return compacted;
 }
 
+function compactImageEnv(env: Partial<Record<LocalConfigKey, string>>) {
+  const compacted: Partial<Record<ImageConfigKey, string>> = {};
+
+  for (const key of imageConfigKeys) {
+    const value = env[key]?.trim();
+
+    if (value) {
+      compacted[key] = value;
+    }
+  }
+
+  return compacted;
+}
+
 function detectConfigSource(
   fileEnv: Partial<Record<LocalConfigKey, string>>,
   env: AiRuntimeEnv,
@@ -419,6 +588,27 @@ function detectConfigSource(
     env.OPENAI_API_KEY?.trim() ||
     env.OPENAI_MODEL?.trim() ||
     env.OPENAI_BASE_URL?.trim()
+  ) {
+    return "environment";
+  }
+
+  return "default";
+}
+
+function detectImageConfigSource(
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+  env: AiRuntimeEnv,
+) {
+  if (Object.values(compactImageEnv(fileEnv)).length > 0) {
+    return "file";
+  }
+
+  if (
+    env.IMAGE_API_KEY?.trim() ||
+    env.IMAGE_API_BASE_URL?.trim() ||
+    env.IMAGE_MODEL?.trim() ||
+    env.IMAGE_SIZE?.trim() ||
+    env.IMAGE_QUALITY?.trim()
   ) {
     return "environment";
   }

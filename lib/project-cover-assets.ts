@@ -66,13 +66,6 @@ export async function saveProjectCoverAsset({
   previousRelativePath?: string | null;
   projectId: string;
 }): Promise<StoredProjectCoverAsset> {
-  const mimeType = normalizeMimeType(file.type);
-  const extension = allowedImageTypes.get(mimeType);
-
-  if (!extension) {
-    throw new Error("封面图片只支持 PNG、JPEG、WebP 或 GIF。");
-  }
-
   if (file.size <= 0) {
     throw new Error("请选择有效的封面图片文件。");
   }
@@ -81,12 +74,66 @@ export async function saveProjectCoverAsset({
     throw new Error("封面图片不能超过 8MB。");
   }
 
+  const mimeType = normalizeMimeType(file.type);
   const buffer = Buffer.from(await file.arrayBuffer());
+
+  return saveProjectCoverAssetFromBuffer({
+    buffer,
+    fileName: file.name,
+    mimeType,
+    previousRelativePath,
+    projectId,
+  });
+}
+
+export async function saveProjectCoverAssetFromBuffer({
+  buffer,
+  fileName,
+  mimeType,
+  previousRelativePath,
+  projectId,
+}: {
+  buffer: Buffer;
+  fileName?: string | null;
+  mimeType: string;
+  previousRelativePath?: string | null;
+  projectId: string;
+}): Promise<StoredProjectCoverAsset> {
+  const cleanMimeType = normalizeMimeType(mimeType);
+
+  if (buffer.byteLength <= 0) {
+    throw new Error("请选择有效的封面图片文件。");
+  }
+
+  if (buffer.byteLength > maxCoverImageBytes) {
+    throw new Error("封面图片不能超过 8MB。");
+  }
+
+  const detectedMimeType = detectCoverImageMimeType(buffer);
+
+  if (!detectedMimeType) {
+    throw new Error("封面图片内容不是有效的 PNG、JPEG、WebP 或 GIF。");
+  }
+
+  if (cleanMimeType && cleanMimeType !== detectedMimeType) {
+    throw new Error("封面图片内容与文件类型不一致。");
+  }
+
+  const extension = allowedImageTypes.get(detectedMimeType);
+
+  if (!extension) {
+    throw new Error("封面图片只支持 PNG、JPEG、WebP 或 GIF。");
+  }
+
   const root = getProjectCoverAssetRoot();
   const projectDir = path.join(root, "covers", safePathSegment(projectId));
-  const originalName = cleanFileName(file.name) || `cover.${extension}`;
-  const fileName = `${Date.now()}-${randomUUID()}.${extension}`;
-  const relativePath = path.join("covers", safePathSegment(projectId), fileName);
+  const originalName = cleanFileName(fileName) || `cover.${extension}`;
+  const storedFileName = `${Date.now()}-${randomUUID()}.${extension}`;
+  const relativePath = path.join(
+    "covers",
+    safePathSegment(projectId),
+    storedFileName,
+  );
   const absolutePath = resolveCoverAssetPath(relativePath);
 
   await fs.promises.mkdir(projectDir, {
@@ -100,7 +147,77 @@ export async function saveProjectCoverAsset({
 
   return {
     relativePath,
-    mimeType,
+    mimeType: detectedMimeType,
+    fileName: originalName,
+    sizeBytes: buffer.byteLength,
+    updatedAt: new Date(),
+  };
+}
+
+export async function saveProjectCoverCandidateAssetFromBuffer({
+  buffer,
+  fileName,
+  mimeType,
+  projectId,
+  taskId,
+}: {
+  buffer: Buffer;
+  fileName?: string | null;
+  mimeType?: string | null;
+  projectId: string;
+  taskId: string;
+}): Promise<StoredProjectCoverAsset> {
+  const cleanMimeType = normalizeMimeType(mimeType);
+
+  if (buffer.byteLength <= 0) {
+    throw new Error("请选择有效的封面图片文件。");
+  }
+
+  if (buffer.byteLength > maxCoverImageBytes) {
+    throw new Error("封面图片不能超过 8MB。");
+  }
+
+  const detectedMimeType = detectCoverImageMimeType(buffer);
+
+  if (!detectedMimeType) {
+    throw new Error("封面图片内容不是有效的 PNG、JPEG、WebP 或 GIF。");
+  }
+
+  if (cleanMimeType && cleanMimeType !== detectedMimeType) {
+    throw new Error("封面图片内容与文件类型不一致。");
+  }
+
+  const extension = allowedImageTypes.get(detectedMimeType);
+
+  if (!extension) {
+    throw new Error("封面图片只支持 PNG、JPEG、WebP 或 GIF。");
+  }
+
+  const root = getProjectCoverAssetRoot();
+  const projectDir = path.join(
+    root,
+    "cover-candidates",
+    safePathSegment(projectId),
+    safePathSegment(taskId),
+  );
+  const originalName = cleanFileName(fileName) || `generated-cover.${extension}`;
+  const storedFileName = `${Date.now()}-${randomUUID()}.${extension}`;
+  const relativePath = path.join(
+    "cover-candidates",
+    safePathSegment(projectId),
+    safePathSegment(taskId),
+    storedFileName,
+  );
+  const absolutePath = resolveCoverAssetPath(relativePath);
+
+  await fs.promises.mkdir(projectDir, {
+    recursive: true,
+  });
+  await fs.promises.writeFile(absolutePath, buffer);
+
+  return {
+    relativePath,
+    mimeType: detectedMimeType,
     fileName: originalName,
     sizeBytes: buffer.byteLength,
     updatedAt: new Date(),
@@ -119,6 +236,61 @@ export async function deleteProjectCoverAsset(relativePath?: string | null) {
       throw error;
     }
   }
+}
+
+export async function deleteProjectCoverCandidateAssetsForTask({
+  projectId,
+  taskId,
+}: {
+  projectId: string;
+  taskId: string;
+}) {
+  const relativeDir = path.join(
+    "cover-candidates",
+    safePathSegment(projectId),
+    safePathSegment(taskId),
+  );
+
+  await fs.promises.rm(resolveCoverAssetPath(relativeDir), {
+    force: true,
+    recursive: true,
+  });
+}
+
+export async function readProjectCoverAssetBuffer(relativePath: string) {
+  return fs.promises.readFile(resolveCoverAssetPath(relativePath));
+}
+
+export async function openProjectCoverCandidateAsset({
+  assetPath,
+  projectId,
+}: {
+  assetPath: string;
+  projectId: string;
+}) {
+  const relativePath = assertProjectCoverCandidateAssetPath(projectId, assetPath);
+  const mimeType = coverMimeTypeFromAssetPath(relativePath);
+
+  if (!mimeType) {
+    throw new Error("Unsupported cover candidate asset type.");
+  }
+
+  const absolutePath = resolveCoverAssetPath(relativePath);
+  const stats = await fs.promises.stat(absolutePath);
+
+  if (!stats.isFile()) {
+    throw new Error("Cover candidate asset is not a file.");
+  }
+
+  if (stats.size <= 0 || stats.size > maxCoverImageBytes) {
+    throw new Error("Cover candidate asset size is invalid.");
+  }
+
+  return {
+    mimeType,
+    sizeBytes: stats.size,
+    stream: fs.createReadStream(absolutePath),
+  };
 }
 
 export function buildProjectCoverPayload(
@@ -187,8 +359,101 @@ function resolveCoverAssetPath(relativePath: string) {
   return absolutePath;
 }
 
+function assertProjectCoverCandidateAssetPath(projectId: string, relativePath: string) {
+  const normalizedPath = normalizeRelativeAssetPath(relativePath);
+  const projectPrefix = path.join("cover-candidates", safePathSegment(projectId));
+
+  if (
+    normalizedPath === projectPrefix ||
+    !normalizedPath.startsWith(`${projectPrefix}${path.sep}`)
+  ) {
+    throw new Error("Invalid cover candidate asset path.");
+  }
+
+  return normalizedPath;
+}
+
+function normalizeRelativeAssetPath(relativePath: string) {
+  const normalizedPath = path.normalize(relativePath);
+
+  if (
+    path.isAbsolute(normalizedPath) ||
+    normalizedPath === ".." ||
+    normalizedPath.startsWith(`..${path.sep}`)
+  ) {
+    throw new Error("Invalid cover image path.");
+  }
+
+  return normalizedPath;
+}
+
+function coverMimeTypeFromAssetPath(relativePath: string) {
+  const extension = path.extname(relativePath).toLowerCase();
+
+  if (extension === ".jpg" || extension === ".jpeg") {
+    return "image/jpeg";
+  }
+
+  if (extension === ".png") {
+    return "image/png";
+  }
+
+  if (extension === ".webp") {
+    return "image/webp";
+  }
+
+  if (extension === ".gif") {
+    return "image/gif";
+  }
+
+  return null;
+}
+
 function normalizeMimeType(value?: string | null) {
   return value?.split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+function detectCoverImageMimeType(buffer: Buffer) {
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+
+  if (
+    buffer.length >= 6 &&
+    (buffer.subarray(0, 6).toString("ascii") === "GIF87a" ||
+      buffer.subarray(0, 6).toString("ascii") === "GIF89a")
+  ) {
+    return "image/gif";
+  }
+
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+
+  return null;
 }
 
 function safePathSegment(value: string) {

@@ -1,8 +1,28 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   aiTaskIdsToPrune,
+  pruneProjectAiTasks,
   projectAiTaskRetentionLimit,
 } from "./task-retention";
+
+const mocks = vi.hoisted(() => ({
+  deleteProjectCoverCandidateAssetsForTask: vi.fn(),
+  prisma: {
+    aiTask: {
+      deleteMany: vi.fn(),
+      findMany: vi.fn(),
+    },
+  },
+}));
+
+vi.mock("../prisma", () => ({
+  prisma: mocks.prisma,
+}));
+
+vi.mock("../project-cover-assets", () => ({
+  deleteProjectCoverCandidateAssetsForTask:
+    mocks.deleteProjectCoverCandidateAssetsForTask,
+}));
 
 function task(id: string, offset: number, status = "completed") {
   return {
@@ -13,6 +33,13 @@ function task(id: string, offset: number, status = "completed") {
 }
 
 describe("AI task retention", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.prisma.aiTask.deleteMany.mockResolvedValue({
+      count: 1,
+    });
+  });
+
   it("keeps the newest project task records within the retention limit", () => {
     const tasks = Array.from({ length: 12 }, (_, index) =>
       task(`task_${index}`, index),
@@ -31,5 +58,37 @@ describe("AI task retention", () => {
     tasks[1].status = "running";
 
     expect(aiTaskIdsToPrune(tasks)).toEqual([]);
+  });
+
+  it("cleans cover candidate assets before pruning old cover image tasks", async () => {
+    mocks.prisma.aiTask.findMany.mockResolvedValue([
+      {
+        id: "task_new",
+        createdAt: new Date("2026-01-01T00:00:02.000Z"),
+        status: "completed",
+        taskType: "chapter_beat_generation",
+      },
+      {
+        id: "task_old_cover",
+        createdAt: new Date("2026-01-01T00:00:01.000Z"),
+        status: "completed",
+        taskType: "cover_image_generation",
+      },
+    ]);
+
+    await expect(pruneProjectAiTasks("project_1", 1)).resolves.toBe(1);
+
+    expect(mocks.deleteProjectCoverCandidateAssetsForTask).toHaveBeenCalledWith({
+      projectId: "project_1",
+      taskId: "task_old_cover",
+    });
+    expect(mocks.prisma.aiTask.deleteMany).toHaveBeenCalledWith({
+      where: {
+        id: {
+          in: ["task_old_cover"],
+        },
+        projectId: "project_1",
+      },
+    });
   });
 });

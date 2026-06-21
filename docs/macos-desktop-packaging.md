@@ -30,6 +30,14 @@ The desktop shell reads only these keys from the optional desktop `.env` file:
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL`
 - `OPENAI_BASE_URL`
+- `IMAGE_API_KEY`
+- `IMAGE_API_BASE_URL`
+- `IMAGE_MODEL`
+- `IMAGE_SIZE`
+- `IMAGE_QUALITY`
+- `STATION_CAT_API_BASE_URL`
+- `STATION_CAT_PUBLISH_TOKEN`
+- `STATION_CAT_DEFAULT_MODE`
 
 The desktop shell ignores `DATABASE_URL` from that file because it owns the local desktop database path.
 The in-app AI connection settings page writes the same `.env` file, so packaged

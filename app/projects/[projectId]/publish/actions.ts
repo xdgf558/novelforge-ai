@@ -3,6 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import {
+  buildCoverImagePromptContext,
+  coverImageGenerationTaskType,
+  coverImageGenerationTemplateKey,
+  parseCoverImageTaskOutput,
+  parseCoverImageRequestPrompt,
+} from "@/lib/ai/cover-images";
+import {
+  createImageGeneration,
+  type GeneratedImageResult,
+} from "@/lib/ai/image-client";
+import { expireStaleCoverImageTasks } from "@/lib/ai/cover-image-task-maintenance";
+import {
   buildPublishPackageContext,
   parsePublishPackageOutput,
   type PublishPackageChapterContext,
@@ -10,12 +22,25 @@ import {
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
-import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
-import { readStationCatPublishSecrets } from "@/lib/ai/local-config";
+import {
+  createAiTask,
+  markAiTaskCompleted,
+  markAiTaskFailed,
+  markAiTaskRunning,
+  startLoggedOpenAITextTask,
+} from "@/lib/ai/task-logger";
+import {
+  readImageGenerationSecrets,
+  readStationCatPublishSecrets,
+} from "@/lib/ai/local-config";
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import {
   deleteProjectCoverAsset,
+  deleteProjectCoverCandidateAssetsForTask,
+  readProjectCoverAssetBuffer,
   saveProjectCoverAsset,
+  saveProjectCoverCandidateAssetFromBuffer,
+  saveProjectCoverAssetFromBuffer,
 } from "@/lib/project-cover-assets";
 import {
   buildPublishSyncItems,
@@ -115,6 +140,227 @@ export async function removeProjectCover(projectId: string) {
       coverAltText: null,
     },
   });
+
+  revalidatePublishPaths(projectId);
+  redirect(`/projects/${projectId}/publish`);
+}
+
+export async function generateProjectCoverImage(
+  projectId: string,
+  formData: FormData,
+) {
+  await expireStaleCoverImageTasks(projectId);
+
+  const [activeTask, project] = await Promise.all([
+    findActiveCoverImageTask(projectId),
+    loadProjectForCoverImage(projectId),
+  ]);
+
+  if (!project) {
+    notFound();
+  }
+
+  if (activeTask) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish`);
+  }
+
+  const imageSecrets = readImageGenerationSecrets();
+
+  if (!imageSecrets.apiKey) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish?coverImageError=missingImageApiKey`);
+  }
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    coverImageGenerationTemplateKey,
+  );
+  const latestCoverPrompt = project.publishPackages[0]?.coverPrompt ?? null;
+  const requestedPrompt = parseCoverImageRequestPrompt(
+    formData.get("coverPrompt")?.toString(),
+  );
+
+  if (!requestedPrompt.ok) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish?coverImageError=invalidPrompt`);
+  }
+
+  const context = buildCoverImagePromptContext({
+    imageCount: Number(formData.get("imageCount")?.toString()),
+    latestCoverPrompt,
+    project: {
+      title: project.title,
+      genre: project.genre,
+      targetAudience: project.targetAudience,
+      description: project.description,
+    },
+    requestPrompt: requestedPrompt.prompt,
+    setting: project.setting,
+    target: formData.get("coverTarget")?.toString(),
+  });
+  const task = await createAiTask({
+    projectId,
+    promptTemplateId: template.id,
+    taskType: coverImageGenerationTaskType,
+    model: imageSecrets.model,
+    inputContextSummary: context.inputContextSummary,
+    inputJson: context.inputJson,
+  });
+  const runningTask = await markAiTaskRunning(task.id);
+
+  void completeRunningCoverImageTask({
+    imageCount: context.imageCount,
+    projectId,
+    prompt: context.prompt,
+    quality: imageSecrets.quality,
+    size:
+      imageSecrets.size === "default" ? context.target.suggestedSize : imageSecrets.size,
+    taskId: runningTask.id,
+  }).catch((error) => {
+    console.error("Background cover image task failed after logging attempt:", error);
+  });
+
+  revalidatePublishPaths(projectId);
+  redirect(`/projects/${projectId}/publish`);
+}
+
+export async function adoptGeneratedProjectCover(
+  projectId: string,
+  taskId: string,
+  formData: FormData,
+) {
+  const imageIndex = normalizeImageIndex(formData.get("imageIndex")?.toString());
+  const [project, task] = await Promise.all([
+    prisma.project.findUnique({
+      where: {
+        id: projectId,
+      },
+      select: {
+        coverImagePath: true,
+        title: true,
+      },
+    }),
+    prisma.aiTask.findFirst({
+      where: {
+        id: taskId,
+        projectId,
+        taskType: coverImageGenerationTaskType,
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      select: {
+        id: true,
+        outputJson: true,
+      },
+    }),
+  ]);
+
+  if (!project || !task) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish`);
+  }
+
+  const output = parseCoverImageTaskOutput(task.outputJson);
+  const image = output?.images?.[imageIndex];
+
+  if (!image) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish?coverImageError=missingGeneratedImage`);
+  }
+
+  if (!image.assetPath || !image.mimeType) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish?coverImageError=missingGeneratedImage`);
+  }
+
+  const candidateBuffer = await readProjectCoverAssetBuffer(image.assetPath);
+  const savedCover = await saveProjectCoverAssetFromBuffer({
+    buffer: candidateBuffer,
+    fileName: image.fileName || `generated-cover-${imageIndex + 1}`,
+    mimeType: image.mimeType ?? "",
+    projectId,
+  });
+  const coverAltText =
+    clean(formData.get("coverAltText")?.toString()) ||
+    project.title ||
+    savedCover.fileName;
+  let shouldDeleteSavedCover = true;
+  const previousCoverPath = project.coverImagePath;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const adoptedTask = await tx.aiTask.updateMany({
+        where: {
+          id: task.id,
+          adoptionState: "not_reviewed",
+          status: "completed",
+        },
+        data: {
+          adoptionState: "adopted",
+        },
+      });
+
+      if (adoptedTask.count !== 1) {
+        throw new Error("Cover image task has already been reviewed.");
+      }
+
+      await tx.project.update({
+        where: {
+          id: projectId,
+        },
+        data: {
+          coverImagePath: savedCover.relativePath,
+          coverImageMimeType: savedCover.mimeType,
+          coverImageFileName: savedCover.fileName,
+          coverImageSizeBytes: savedCover.sizeBytes,
+          coverImageUpdatedAt: savedCover.updatedAt,
+          coverAltText,
+        },
+      });
+    });
+
+    shouldDeleteSavedCover = false;
+  } finally {
+    if (shouldDeleteSavedCover) {
+      await deleteProjectCoverAsset(savedCover.relativePath);
+    }
+  }
+
+  if (previousCoverPath && previousCoverPath !== savedCover.relativePath) {
+    await deleteProjectCoverAsset(previousCoverPath);
+  }
+  await deleteProjectCoverCandidateAssetsForTask({
+    projectId,
+    taskId: task.id,
+  });
+
+  revalidatePublishPaths(projectId);
+  redirect(`/projects/${projectId}/publish`);
+}
+
+export async function rejectGeneratedProjectCover(projectId: string, taskId: string) {
+  await assertProject(projectId);
+
+  const rejectedTask = await prisma.aiTask.updateMany({
+    where: {
+      id: taskId,
+      projectId,
+      taskType: coverImageGenerationTaskType,
+      status: "completed",
+      adoptionState: "not_reviewed",
+    },
+    data: {
+      adoptionState: "rejected",
+    },
+  });
+
+  if (rejectedTask.count === 1) {
+    await deleteProjectCoverCandidateAssetsForTask({
+      projectId,
+      taskId,
+    });
+  }
 
   revalidatePublishPaths(projectId);
   redirect(`/projects/${projectId}/publish`);
@@ -761,6 +1007,80 @@ async function loadPublishPackageContext(projectId: string, chapterId: string) {
   };
 }
 
+async function completeRunningCoverImageTask({
+  imageCount,
+  projectId,
+  prompt,
+  quality,
+  size,
+  taskId,
+}: {
+  imageCount: number;
+  projectId: string;
+  prompt: string;
+  quality: string;
+  size: string;
+  taskId: string;
+}) {
+  try {
+    const result = await createImageGeneration({
+      n: imageCount,
+      prompt,
+      quality,
+      size,
+    });
+    const persisted = await persistGeneratedCoverCandidates({
+      images: result.images,
+      projectId,
+      taskId,
+    });
+    const skippedUrlText =
+      persisted.skippedUrlCount > 0
+        ? ` 已跳过 ${persisted.skippedUrlCount} 张 URL 型候选图；请让图片接口返回 base64。`
+        : "";
+
+    await markAiTaskCompleted(taskId, {
+      outputText: `已保存 ${persisted.images.length} 张封面候选图，等待作者采用。${skippedUrlText}`,
+      outputJson: {
+        endpoint: result.endpoint,
+        images: persisted.images,
+        requestJson: result.requestJson,
+      },
+    });
+  } catch (error) {
+    await markAiTaskFailed(taskId, error);
+  } finally {
+    revalidatePublishPaths(projectId);
+  }
+}
+
+async function loadProjectForCoverImage(projectId: string) {
+  return prisma.project.findUnique({
+    where: {
+      id: projectId,
+    },
+    include: {
+      publishPackages: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          coverPrompt: true,
+        },
+        take: 1,
+      },
+      setting: {
+        select: {
+          forbiddenItems: true,
+          sellingPoint: true,
+          styleSample: true,
+          worldviewRules: true,
+        },
+      },
+    },
+  });
+}
+
 async function assertProject(projectId: string) {
   const project = await prisma.project.findUnique({
     where: {
@@ -774,6 +1094,21 @@ async function assertProject(projectId: string) {
   if (!project) {
     notFound();
   }
+}
+
+async function findActiveCoverImageTask(projectId: string) {
+  return prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      taskType: coverImageGenerationTaskType,
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
 }
 
 async function findActivePublishPackageTask(projectId: string, chapterId: string) {
@@ -790,6 +1125,167 @@ async function findActivePublishPackageTask(projectId: string, chapterId: string
       id: true,
     },
   });
+}
+
+async function persistGeneratedCoverCandidates({
+  images,
+  projectId,
+  taskId,
+}: {
+  images: GeneratedImageResult[];
+  projectId: string;
+  taskId: string;
+}) {
+  const savedPaths: string[] = [];
+  const persistedImages: Array<{
+    assetPath: string;
+    fileName: string;
+    mimeType: string;
+    revisedPrompt: string | null;
+    sizeBytes: number;
+  }> = [];
+  let skippedUrlCount = 0;
+
+  try {
+    for (const [index, image] of images.entries()) {
+      const source = generatedImageBufferFromBase64(image);
+
+      if (!source) {
+        if (image.url) {
+          skippedUrlCount += 1;
+        }
+
+        continue;
+      }
+
+      const saved = await saveProjectCoverCandidateAssetFromBuffer({
+        buffer: source.buffer,
+        fileName: `generated-cover-${index + 1}`,
+        mimeType: source.mimeType,
+        projectId,
+        taskId,
+      });
+
+      savedPaths.push(saved.relativePath);
+      persistedImages.push({
+        assetPath: saved.relativePath,
+        fileName: saved.fileName,
+        mimeType: saved.mimeType,
+        revisedPrompt: image.revisedPrompt,
+        sizeBytes: saved.sizeBytes,
+      });
+    }
+
+    if (persistedImages.length === 0 && skippedUrlCount > 0) {
+      throw new Error(
+        "图片生成接口只返回了 URL 型候选图。为保护本机安全，请改用返回 base64 图片数据的接口或模型配置。",
+      );
+    }
+
+    if (persistedImages.length === 0) {
+      throw new Error("图片生成接口没有返回可保存的图片数据。");
+    }
+
+    return {
+      images: persistedImages,
+      skippedUrlCount,
+    };
+  } catch (error) {
+    await Promise.all(savedPaths.map((assetPath) => deleteProjectCoverAsset(assetPath)));
+
+    throw error;
+  }
+}
+
+function generatedImageBufferFromBase64(image: GeneratedImageResult) {
+  if (image.dataBase64) {
+    const declaredMimeType = image.mimeType || mimeTypeFromDataUrl(image.dataUrl);
+    const mimeType = declaredMimeType
+      ? normalizeGeneratedImageMimeType(declaredMimeType)
+      : "";
+
+    return {
+      buffer: Buffer.from(image.dataBase64, "base64"),
+      mimeType,
+    };
+  }
+
+  if (image.dataUrl) {
+    const parsed = parseDataUrl(image.dataUrl);
+
+    return {
+      buffer: Buffer.from(parsed.base64, "base64"),
+      mimeType: parsed.mimeType,
+    };
+  }
+
+  return null;
+}
+
+function parseDataUrl(dataUrl: string) {
+  const match = /^data:([^;,]+);base64,(.+)$/i.exec(dataUrl.trim());
+
+  if (!match) {
+    throw new Error("图片数据 URL 格式无效。");
+  }
+
+  const mimeType = normalizeGeneratedImageMimeType(match[1]);
+
+  return {
+    base64: match[2],
+    mimeType,
+  };
+}
+
+function mimeTypeFromDataUrl(dataUrl?: string | null) {
+  if (!dataUrl) {
+    return null;
+  }
+
+  const match = /^data:([^;,]+);base64,/i.exec(dataUrl.trim());
+
+  return match ? normalizeGeneratedImageMimeType(match[1]) : null;
+}
+
+function normalizeGeneratedImageMimeType(value?: string | null) {
+  const mimeType = value?.split(";")[0]?.trim().toLowerCase() || "image/png";
+
+  if (
+    mimeType === "image/png" ||
+    mimeType === "image/jpeg" ||
+    mimeType === "image/webp" ||
+    mimeType === "image/gif"
+  ) {
+    return mimeType;
+  }
+
+  throw new Error("生成的封面图片格式不受支持。");
+}
+
+function coverExtensionFromMimeType(mimeType: string) {
+  if (mimeType === "image/jpeg") {
+    return "jpg";
+  }
+
+  if (mimeType === "image/webp") {
+    return "webp";
+  }
+
+  if (mimeType === "image/gif") {
+    return "gif";
+  }
+
+  return "png";
+}
+
+function normalizeImageIndex(value?: string | null) {
+  const index = Number(value);
+
+  if (!Number.isInteger(index) || index < 0) {
+    return 0;
+  }
+
+  return index;
 }
 
 function pickPublishPackageChapterContext(chapter: PublishPackageChapterContext) {
