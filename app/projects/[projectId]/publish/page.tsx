@@ -71,7 +71,6 @@ import {
   stringifyStandardPublishPackage,
 } from "@/lib/publish-platforms";
 import {
-  buildProjectCoverAssetDataUrl,
   coverImageAcceptAttribute,
   formatCoverImageSize,
 } from "@/lib/project-cover-assets";
@@ -1182,7 +1181,7 @@ function CoverImageTaskCard({
       {images.length > 0 ? (
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {images.map((image, index) => {
-            const previewSrc = coverImagePreviewSrc(image);
+            const previewSrc = coverImagePreviewSrc(projectId, image);
             const canAdoptImage = canAdopt && Boolean(previewSrc);
 
             return (
@@ -1257,11 +1256,20 @@ function InfoBlock({
   );
 }
 
-function coverImagePreviewSrc(image: {
+function coverImagePreviewSrc(
+  projectId: string,
+  image: {
   assetPath?: string | null;
   mimeType?: string | null;
-}) {
-  return buildProjectCoverAssetDataUrl(image.assetPath, image.mimeType);
+},
+) {
+  if (!image.assetPath || !image.mimeType) {
+    return null;
+  }
+
+  return `/projects/${projectId}/cover-assets?assetPath=${encodeURIComponent(
+    image.assetPath,
+  )}`;
 }
 
 function coverImageErrorMessage(error?: string | null) {
@@ -1271,6 +1279,10 @@ function coverImageErrorMessage(error?: string | null) {
 
   if (error === "missingGeneratedImage") {
     return "没有找到可采用的封面候选图，请重新生成。";
+  }
+
+  if (error === "invalidPrompt") {
+    return "封面提示词不能超过 3000 字，请缩短后重新生成。";
   }
 
   return null;

@@ -7,6 +7,7 @@ import {
   coverImageGenerationTaskType,
   coverImageGenerationTemplateKey,
   parseCoverImageTaskOutput,
+  parseCoverImageRequestPrompt,
 } from "@/lib/ai/cover-images";
 import {
   createImageGeneration,
@@ -35,6 +36,7 @@ import {
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import {
   deleteProjectCoverAsset,
+  deleteProjectCoverCandidateAssetsForTask,
   readProjectCoverAssetBuffer,
   saveProjectCoverAsset,
   saveProjectCoverCandidateAssetFromBuffer,
@@ -175,6 +177,15 @@ export async function generateProjectCoverImage(
     coverImageGenerationTemplateKey,
   );
   const latestCoverPrompt = project.publishPackages[0]?.coverPrompt ?? null;
+  const requestedPrompt = parseCoverImageRequestPrompt(
+    formData.get("coverPrompt")?.toString(),
+  );
+
+  if (!requestedPrompt.ok) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish?coverImageError=invalidPrompt`);
+  }
+
   const context = buildCoverImagePromptContext({
     imageCount: Number(formData.get("imageCount")?.toString()),
     latestCoverPrompt,
@@ -184,7 +195,7 @@ export async function generateProjectCoverImage(
       targetAudience: project.targetAudience,
       description: project.description,
     },
-    requestPrompt: formData.get("coverPrompt")?.toString(),
+    requestPrompt: requestedPrompt.prompt,
     setting: project.setting,
     target: formData.get("coverTarget")?.toString(),
   });
@@ -238,9 +249,9 @@ export async function adoptGeneratedProjectCover(
         status: "completed",
         adoptionState: "not_reviewed",
       },
-    select: {
-      id: true,
-      outputJson: true,
+      select: {
+        id: true,
+        outputJson: true,
       },
     }),
   ]);
@@ -319,6 +330,10 @@ export async function adoptGeneratedProjectCover(
   if (previousCoverPath && previousCoverPath !== savedCover.relativePath) {
     await deleteProjectCoverAsset(previousCoverPath);
   }
+  await deleteProjectCoverCandidateAssetsForTask({
+    projectId,
+    taskId: task.id,
+  });
 
   revalidatePublishPaths(projectId);
   redirect(`/projects/${projectId}/publish`);
@@ -327,7 +342,7 @@ export async function adoptGeneratedProjectCover(
 export async function rejectGeneratedProjectCover(projectId: string, taskId: string) {
   await assertProject(projectId);
 
-  await prisma.aiTask.updateMany({
+  const rejectedTask = await prisma.aiTask.updateMany({
     where: {
       id: taskId,
       projectId,
@@ -339,6 +354,13 @@ export async function rejectGeneratedProjectCover(projectId: string, taskId: str
       adoptionState: "rejected",
     },
   });
+
+  if (rejectedTask.count === 1) {
+    await deleteProjectCoverCandidateAssetsForTask({
+      projectId,
+      taskId,
+    });
+  }
 
   revalidatePublishPaths(projectId);
   redirect(`/projects/${projectId}/publish`);

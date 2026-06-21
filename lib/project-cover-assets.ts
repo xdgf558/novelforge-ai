@@ -238,27 +238,59 @@ export async function deleteProjectCoverAsset(relativePath?: string | null) {
   }
 }
 
+export async function deleteProjectCoverCandidateAssetsForTask({
+  projectId,
+  taskId,
+}: {
+  projectId: string;
+  taskId: string;
+}) {
+  const relativeDir = path.join(
+    "cover-candidates",
+    safePathSegment(projectId),
+    safePathSegment(taskId),
+  );
+
+  await fs.promises.rm(resolveCoverAssetPath(relativeDir), {
+    force: true,
+    recursive: true,
+  });
+}
+
 export async function readProjectCoverAssetBuffer(relativePath: string) {
   return fs.promises.readFile(resolveCoverAssetPath(relativePath));
 }
 
-export function buildProjectCoverAssetDataUrl(
-  relativePath?: string | null,
-  mimeType?: string | null,
-) {
-  if (!relativePath || !mimeType) {
-    return null;
+export async function openProjectCoverCandidateAsset({
+  assetPath,
+  projectId,
+}: {
+  assetPath: string;
+  projectId: string;
+}) {
+  const relativePath = assertProjectCoverCandidateAssetPath(projectId, assetPath);
+  const mimeType = coverMimeTypeFromAssetPath(relativePath);
+
+  if (!mimeType) {
+    throw new Error("Unsupported cover candidate asset type.");
   }
 
-  try {
-    const dataBase64 = fs
-      .readFileSync(resolveCoverAssetPath(relativePath))
-      .toString("base64");
+  const absolutePath = resolveCoverAssetPath(relativePath);
+  const stats = await fs.promises.stat(absolutePath);
 
-    return `data:${normalizeMimeType(mimeType)};base64,${dataBase64}`;
-  } catch {
-    return null;
+  if (!stats.isFile()) {
+    throw new Error("Cover candidate asset is not a file.");
   }
+
+  if (stats.size <= 0 || stats.size > maxCoverImageBytes) {
+    throw new Error("Cover candidate asset size is invalid.");
+  }
+
+  return {
+    mimeType,
+    sizeBytes: stats.size,
+    stream: fs.createReadStream(absolutePath),
+  };
 }
 
 export function buildProjectCoverPayload(
@@ -325,6 +357,56 @@ function resolveCoverAssetPath(relativePath: string) {
   }
 
   return absolutePath;
+}
+
+function assertProjectCoverCandidateAssetPath(projectId: string, relativePath: string) {
+  const normalizedPath = normalizeRelativeAssetPath(relativePath);
+  const projectPrefix = path.join("cover-candidates", safePathSegment(projectId));
+
+  if (
+    normalizedPath === projectPrefix ||
+    !normalizedPath.startsWith(`${projectPrefix}${path.sep}`)
+  ) {
+    throw new Error("Invalid cover candidate asset path.");
+  }
+
+  return normalizedPath;
+}
+
+function normalizeRelativeAssetPath(relativePath: string) {
+  const normalizedPath = path.normalize(relativePath);
+
+  if (
+    path.isAbsolute(normalizedPath) ||
+    normalizedPath === ".." ||
+    normalizedPath.startsWith(`..${path.sep}`)
+  ) {
+    throw new Error("Invalid cover image path.");
+  }
+
+  return normalizedPath;
+}
+
+function coverMimeTypeFromAssetPath(relativePath: string) {
+  const extension = path.extname(relativePath).toLowerCase();
+
+  if (extension === ".jpg" || extension === ".jpeg") {
+    return "image/jpeg";
+  }
+
+  if (extension === ".png") {
+    return "image/png";
+  }
+
+  if (extension === ".webp") {
+    return "image/webp";
+  }
+
+  if (extension === ".gif") {
+    return "image/gif";
+  }
+
+  return null;
 }
 
 function normalizeMimeType(value?: string | null) {

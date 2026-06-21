@@ -1,5 +1,6 @@
 export const coverImageGenerationTaskType = "cover_image_generation";
 export const coverImageGenerationTemplateKey = "cover_image_generation";
+export const coverImagePromptMaxLength = 3000;
 
 export type CoverImageTarget = {
   key: "book_cover" | "wide_banner" | "square";
@@ -152,6 +153,22 @@ export function buildCoverImagePromptContext(
     },
     prompt,
     target,
+  };
+}
+
+export function parseCoverImageRequestPrompt(value?: string | null) {
+  const prompt = clean(value);
+
+  if (prompt.length > coverImagePromptMaxLength) {
+    return {
+      ok: false as const,
+      prompt: "",
+    };
+  }
+
+  return {
+    ok: true as const,
+    prompt,
   };
 }
 

@@ -1,4 +1,6 @@
 import { prisma } from "../prisma";
+import { deleteProjectCoverCandidateAssetsForTask } from "../project-cover-assets";
+import { coverImageGenerationTaskType } from "./cover-images";
 import { isActiveAiTaskStatus } from "./status";
 
 export const projectAiTaskRetentionLimit = 10;
@@ -7,6 +9,7 @@ type AiTaskRetentionCandidate = {
   id: string;
   createdAt: Date;
   status: string;
+  taskType?: string | null;
 };
 
 export function aiTaskIdsToPrune(
@@ -51,6 +54,7 @@ export async function pruneProjectAiTasks(
       id: true,
       createdAt: true,
       status: true,
+      taskType: true,
     },
   });
 
@@ -59,6 +63,8 @@ export async function pruneProjectAiTasks(
   if (pruneIds.length === 0) {
     return 0;
   }
+
+  await cleanupPrunedAiTaskArtifacts(projectId, tasks, pruneIds);
 
   const result = await prisma.aiTask.deleteMany({
     where: {
@@ -70,4 +76,27 @@ export async function pruneProjectAiTasks(
   });
 
   return result.count;
+}
+
+async function cleanupPrunedAiTaskArtifacts(
+  projectId: string,
+  tasks: readonly AiTaskRetentionCandidate[],
+  pruneIds: readonly string[],
+) {
+  const pruneIdSet = new Set(pruneIds);
+  const coverTaskIds = tasks
+    .filter(
+      (task) =>
+        pruneIdSet.has(task.id) && task.taskType === coverImageGenerationTaskType,
+    )
+    .map((task) => task.id);
+
+  await Promise.all(
+    coverTaskIds.map((taskId) =>
+      deleteProjectCoverCandidateAssetsForTask({
+        projectId,
+        taskId,
+      }),
+    ),
+  );
 }

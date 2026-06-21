@@ -3,9 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  buildProjectCoverAssetDataUrl,
   buildProjectCoverPayload,
   deleteProjectCoverAsset,
+  deleteProjectCoverCandidateAssetsForTask,
+  openProjectCoverCandidateAsset,
   saveProjectCoverAsset,
   saveProjectCoverCandidateAssetFromBuffer,
   saveProjectCoverAssetFromBuffer,
@@ -126,11 +127,43 @@ describe("project cover assets", () => {
     });
 
     expect(candidate.relativePath).toContain("cover-candidates");
-    expect(buildProjectCoverAssetDataUrl(candidate.relativePath, candidate.mimeType)).toBe(
-      `data:image/png;base64,${imageBytes.toString("base64")}`,
-    );
 
-    await deleteProjectCoverAsset(candidate.relativePath);
+    const opened = await openProjectCoverCandidateAsset({
+      assetPath: candidate.relativePath,
+      projectId: "project_1",
+    });
+
+    expect(opened).toMatchObject({
+      mimeType: "image/png",
+      sizeBytes: imageBytes.length,
+    });
+    opened.stream.destroy();
+    await new Promise<void>((resolve) => {
+      opened.stream.once("close", () => resolve());
+    });
+  });
+
+  it("deletes every AI cover candidate asset for a task", async () => {
+    const dataDir = makeTempDataDir();
+    process.env.NOVELFORGE_DESKTOP_DATA_DIR = dataDir;
+
+    const candidate = await saveProjectCoverCandidateAssetFromBuffer({
+      buffer: pngBytes(),
+      fileName: "candidate.png",
+      mimeType: "image/png",
+      projectId: "project_1",
+      taskId: "task_1",
+    });
+    const absolutePath = path.join(dataDir, "assets", candidate.relativePath);
+
+    expect(fs.existsSync(absolutePath)).toBe(true);
+
+    await deleteProjectCoverCandidateAssetsForTask({
+      projectId: "project_1",
+      taskId: "task_1",
+    });
+
+    expect(fs.existsSync(absolutePath)).toBe(false);
   });
 });
 

@@ -51,13 +51,23 @@ Review hardening:
   selected manual file into memory.
 - Limited "拒绝整组" to completed cover-generation tasks and added friendly
   feedback for invalid image API Base URL settings.
+- Added lifecycle cleanup for generated cover candidate assets:
+  - adopting a generated cover removes that task's candidate directory after
+    the selected image is copied into the formal cover slot,
+  - rejecting a generated cover task removes that task's candidate directory,
+  - AI task retention removes cover candidate directories before pruning old
+    `cover_image_generation` task records.
+- Moved cover-candidate previews behind a controlled project asset route so the
+  publish page no longer synchronously embeds large base64 data URLs during SSR.
+- Added server-side cover-prompt length validation so forged requests over 3000
+  characters return visible feedback instead of creating oversized image tasks.
 
 Verification:
 
 - `npm run test -- lib/ai/local-config.test.ts lib/ai/image-client.test.ts lib/ai/cover-images.test.ts lib/project-cover-assets.test.ts lib/ai/prompt-templates.test.ts` passed: 5 files, 30 tests.
-- `npm run test -- lib/project-cover-assets.test.ts lib/ai/cover-images.test.ts app/projects/[projectId]/publish/actions.test.ts` passed: 3 files, 12 tests.
+- `npm run test -- lib/project-cover-assets.test.ts lib/ai/cover-images.test.ts lib/ai/task-retention.test.ts app/projects/[projectId]/publish/actions.test.ts` passed: 4 files, 18 tests.
 - `npm run typecheck` passed.
-- `npm run test` passed: 40 files, 196 tests.
+- `npm run test` passed: 40 files, 200 tests.
 - `npm run desktop:smoke` passed.
 - `npm run build` passed.
 - `git diff --check` passed.

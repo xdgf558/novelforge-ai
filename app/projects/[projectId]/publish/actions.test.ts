@@ -7,6 +7,15 @@ const mocks = vi.hoisted(() => ({
   readProjectCoverAssetBuffer: vi.fn(),
   saveProjectCoverAssetFromBuffer: vi.fn(),
   deleteProjectCoverAsset: vi.fn(),
+  deleteProjectCoverCandidateAssetsForTask: vi.fn(),
+  tx: {
+    aiTask: {
+      updateMany: vi.fn(),
+    },
+    project: {
+      update: vi.fn(),
+    },
+  },
   prisma: {
     project: {
       findUnique: vi.fn(),
@@ -15,6 +24,7 @@ const mocks = vi.hoisted(() => ({
       findFirst: vi.fn(),
       updateMany: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -40,6 +50,8 @@ vi.mock("@/lib/project-cover-assets", async (importOriginal) => {
   return {
     ...actual,
     deleteProjectCoverAsset: mocks.deleteProjectCoverAsset,
+    deleteProjectCoverCandidateAssetsForTask:
+      mocks.deleteProjectCoverCandidateAssetsForTask,
     readProjectCoverAssetBuffer: mocks.readProjectCoverAssetBuffer,
     saveProjectCoverAssetFromBuffer: mocks.saveProjectCoverAssetFromBuffer,
   };
@@ -58,6 +70,13 @@ describe("publish cover image actions", () => {
       id: "project_1",
       title: "离线未来",
     });
+    mocks.prisma.$transaction.mockImplementation(async (callback) =>
+      callback(mocks.tx),
+    );
+    mocks.tx.aiTask.updateMany.mockResolvedValue({
+      count: 1,
+    });
+    mocks.tx.project.update.mockResolvedValue({});
   });
 
   it("does not adopt URL-only generated image candidates", async () => {
@@ -106,6 +125,66 @@ describe("publish cover image actions", () => {
       data: {
         adoptionState: "rejected",
       },
+    });
+    expect(mocks.deleteProjectCoverCandidateAssetsForTask).toHaveBeenCalledWith({
+      projectId: "project_1",
+      taskId: "task_1",
+    });
+  });
+
+  it("adopts a local candidate asset and removes the candidate directory", async () => {
+    const formData = new FormData();
+    formData.set("coverAltText", "AI 封面");
+    formData.set("imageIndex", "0");
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "task_1",
+      outputJson: JSON.stringify({
+        images: [
+          {
+            assetPath: "cover-candidates/project_1/task_1/candidate.png",
+            fileName: "candidate.png",
+            mimeType: "image/png",
+            sizeBytes: 16,
+          },
+        ],
+      }),
+    });
+    mocks.readProjectCoverAssetBuffer.mockResolvedValue(Buffer.from("png"));
+    mocks.saveProjectCoverAssetFromBuffer.mockResolvedValue({
+      fileName: "candidate.png",
+      mimeType: "image/png",
+      relativePath: "covers/project_1/final.png",
+      sizeBytes: 16,
+      updatedAt: new Date("2026-06-21T00:00:00.000Z"),
+    });
+
+    await expect(
+      adoptGeneratedProjectCover("project_1", "task_1", formData),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.readProjectCoverAssetBuffer).toHaveBeenCalledWith(
+      "cover-candidates/project_1/task_1/candidate.png",
+    );
+    expect(mocks.saveProjectCoverAssetFromBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: "candidate.png",
+        mimeType: "image/png",
+        projectId: "project_1",
+      }),
+    );
+    expect(mocks.tx.aiTask.updateMany).toHaveBeenCalledWith({
+      where: {
+        adoptionState: "not_reviewed",
+        id: "task_1",
+        status: "completed",
+      },
+      data: {
+        adoptionState: "adopted",
+      },
+    });
+    expect(mocks.deleteProjectCoverCandidateAssetsForTask).toHaveBeenCalledWith({
+      projectId: "project_1",
+      taskId: "task_1",
     });
   });
 });

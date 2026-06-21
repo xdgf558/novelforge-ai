@@ -4,6 +4,7 @@ import {
   coverImageGenerationTaskType,
   normalizeCoverImageTarget,
   parseCoverImageTaskOutput,
+  parseCoverImageRequestPrompt,
 } from "./cover-images";
 
 describe("cover image generation helpers", () => {
@@ -104,6 +105,17 @@ describe("cover image generation helpers", () => {
   it("normalizes invalid targets to the book cover target", () => {
     expect(normalizeCoverImageTarget("unknown")).toMatchObject({
       key: "book_cover",
+    });
+  });
+
+  it("rejects forged overlong cover prompts on the server side", () => {
+    expect(parseCoverImageRequestPrompt("x".repeat(3001))).toEqual({
+      ok: false,
+      prompt: "",
+    });
+    expect(parseCoverImageRequestPrompt("  short prompt  ")).toEqual({
+      ok: true,
+      prompt: "short prompt",
     });
   });
 });
