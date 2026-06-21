@@ -1,5 +1,32 @@
 # Development Log
 
+## 2026-06-21: 0.1.29 Chapter Outline Prefill for New Chapters
+
+Status: completed.
+
+What was done:
+
+- Added automatic chapter-outline prefill on the new chapter page.
+- When the next chapter number has a matching non-archived formal chapter outline, the create form now preloads:
+  - the outline title as the chapter title,
+  - the outline goal plus chapter conflict, pleasure point, foreshadow, resolved foreshadow, characters, location, ending hook, and notes into the editable chapter goal field.
+- Kept author control intact: the outline only fills form defaults, and the chapter is still written only after the author clicks create.
+- Bumped the source app/package version to `0.1.29` and updated in-app release notes.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.29-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/chapter-outline-prefill.test.ts` passed.
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` passed with notarization skipped.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.29"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the expanded PKG payload app.
+- Final PKG SHA-256: `1b7a2e64faba6ec4f391abdaa3a47581a5e99fdb5b251fa7cfdd41d51366cdbe`.
+
 ## 2026-06-21: 0.1.28 Chapter Outline Single-Chapter Generation
 
 Status: completed.
