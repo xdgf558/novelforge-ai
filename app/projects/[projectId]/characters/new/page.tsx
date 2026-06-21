@@ -28,7 +28,7 @@ export default async function NewCharacterPage({ params }: NewCharacterPageProps
       action={createCharacter.bind(null, project.id)}
       project={project}
       submitLabel="创建角色"
-      subtitle="先手动确认角色资料。AI 生成角色会在 AI 服务和提示词模板阶段之后接入。"
+      subtitle="手动创建会立即写入正式角色库；AI 生成请回到角色库页面先生成草案，再由作者采用。"
       title="新建角色"
     />
   );

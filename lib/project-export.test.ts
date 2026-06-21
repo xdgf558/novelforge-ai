@@ -22,6 +22,16 @@ const exportData = {
       status: "active",
     },
   ],
+  characterRelationships: [
+    {
+      sourceCharacterName: "林野",
+      targetCharacterName: "许知夏",
+      relationshipType: "ally",
+      direction: "two_way",
+      status: "active",
+      summary: "两人共同追查借命契约。",
+    },
+  ],
   outlines: [
     {
       level: "chapter",
@@ -78,6 +88,8 @@ describe("project export builders", () => {
     expect(markdown).toContain("寿命交易带来高压反转");
     expect(markdown).toContain("## 角色库");
     expect(markdown).toContain("林野");
+    expect(markdown).toContain("## 人物关系网络");
+    expect(markdown).toContain("两人共同追查借命契约");
     expect(markdown).toContain("## 大纲");
     expect(markdown).toContain("第一章大纲");
     expect(markdown).toContain("## 章节");

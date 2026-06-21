@@ -121,7 +121,7 @@ export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) 
             AI 任务记录
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-            管理提示词模板和 AI 调用审计记录。后续大纲草案、章节节拍、草稿、正文精修、摘要、连续性检查和发布包装都会从这里追踪。
+            管理提示词模板和 AI 调用审计记录。后续大纲草案、人物生成、章节节拍、草稿、正文精修、摘要、连续性检查和发布包装都会从这里追踪。
           </p>
         </div>
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, History, Pencil, Trash2 } from "lucide-react";
-import { deleteCharacter } from "@/app/projects/[projectId]/characters/actions";
+import { Archive, ArrowLeft, History, Pencil } from "lucide-react";
+import { archiveCharacter } from "@/app/projects/[projectId]/characters/actions";
 import { CharacterSnapshot } from "@/components/characters/character-snapshot";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -78,21 +78,23 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
               <Pencil aria-hidden="true" className="h-4 w-4" />
               编辑
             </Link>
-            <form
-              action={deleteCharacter.bind(
-                null,
-                character.project.id,
-                character.id,
-              )}
-            >
-              <button
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                type="submit"
+            {character.status !== "archived" ? (
+              <form
+                action={archiveCharacter.bind(
+                  null,
+                  character.project.id,
+                  character.id,
+                )}
               >
-                <Trash2 aria-hidden="true" className="h-4 w-4" />
-                删除
-              </button>
-            </form>
+                <button
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                  type="submit"
+                >
+                  <Archive aria-hidden="true" className="h-4 w-4" />
+                  归档
+                </button>
+              </form>
+            ) : null}
           </div>
         </div>
       </header>

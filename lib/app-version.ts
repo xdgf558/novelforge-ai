@@ -2,11 +2,11 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.23 Phase 22 结构化记忆管理页";
+export const appReleaseTitle = "0.1.24 Phase 23 人物关系网络与人物 AI";
 
 export const appReleaseNotes = [
-  "新增结构化记忆管理页，集中维护世界观规则、伏笔池和时间线。",
-  "世界观规则支持核心规则、适用范围、相关人物、地点和组织等管理字段。",
-  "伏笔池支持状态、重要度、预计回收章节、埋设章节和回收章节维护。",
-  "时间线事件支持故事内时间、地点、相关人物、关联章节和事件影响维护。",
+  "新增人物关系网络，集中维护角色之间的同盟、冲突、隐秘关系和阶段变化。",
+  "人物关系支持来源章节、证据、关系方向、状态归档和项目导出。",
+  "新增 AI 人物草案生成，任务会进入 AI 审计记录，作者点击采用后才创建正式角色。",
+  "人物生成会参考项目设定、已有角色、人物关系和大纲，并释放超时任务避免按钮锁死。",
 ];
