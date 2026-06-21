@@ -10,12 +10,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  abandonForeshadow,
+  archiveTimelineEvent,
+  archiveWorldRule,
   createForeshadow,
   createTimelineEvent,
   createWorldRule,
-  deleteForeshadow,
-  deleteTimelineEvent,
-  deleteWorldRule,
   updateForeshadow,
   updateTimelineEvent,
   updateWorldRule,
@@ -58,6 +58,8 @@ type ChapterOption = {
   title: string;
 };
 
+const memoryListLimit = 50;
+
 export default async function MemoryPage({
   params,
   searchParams,
@@ -81,7 +83,7 @@ export default async function MemoryPage({
       },
       worldRules: {
         orderBy: [{ isCore: "desc" }, { status: "asc" }, { updatedAt: "desc" }],
-        take: 50,
+        take: memoryListLimit,
       },
       foreshadows: {
         include: {
@@ -101,7 +103,7 @@ export default async function MemoryPage({
           },
         },
         orderBy: [{ status: "asc" }, { importance: "desc" }, { updatedAt: "desc" }],
-        take: 50,
+        take: memoryListLimit,
       },
       timelineEvents: {
         include: {
@@ -114,7 +116,7 @@ export default async function MemoryPage({
           },
         },
         orderBy: [{ status: "asc" }, { storyTime: "asc" }, { createdAt: "asc" }],
-        take: 50,
+        take: memoryListLimit,
       },
     },
   });
@@ -122,6 +124,44 @@ export default async function MemoryPage({
   if (!project) {
     notFound();
   }
+
+  const [
+    worldRuleTotalCount,
+    activeWorldRuleCount,
+    foreshadowTotalCount,
+    unresolvedForeshadowCount,
+    timelineEventTotalCount,
+  ] = await Promise.all([
+    prisma.worldRule.count({
+      where: {
+        projectId,
+      },
+    }),
+    prisma.worldRule.count({
+      where: {
+        projectId,
+        status: "active",
+      },
+    }),
+    prisma.foreshadow.count({
+      where: {
+        projectId,
+      },
+    }),
+    prisma.foreshadow.count({
+      where: {
+        projectId,
+        status: {
+          notIn: ["resolved", "abandoned"],
+        },
+      },
+    }),
+    prisma.timelineEvent.count({
+      where: {
+        projectId,
+      },
+    }),
+  ]);
 
   const chapters = project.chapters;
   const chapterLabelById = new Map(
@@ -133,13 +173,6 @@ export default async function MemoryPage({
     ];
   const editType = query.editType;
   const editId = query.editId;
-  const activeWorldRuleCount = project.worldRules.filter(
-    (rule) => rule.status === "active",
-  ).length;
-  const unresolvedForeshadowCount = project.foreshadows.filter(
-    (foreshadow) => foreshadow.status !== "resolved",
-  ).length;
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -167,17 +200,17 @@ export default async function MemoryPage({
         <InfoTile
           icon={ShieldCheck}
           label="世界观规则"
-          value={`${activeWorldRuleCount} 条生效`}
+          value={`${activeWorldRuleCount} 条生效 / ${worldRuleTotalCount} 条总计`}
         />
         <InfoTile
           icon={ListChecks}
           label="伏笔池"
-          value={`${unresolvedForeshadowCount} 条待跟进`}
+          value={`${unresolvedForeshadowCount} 条待跟进 / ${foreshadowTotalCount} 条总计`}
         />
         <InfoTile
           icon={Route}
           label="时间线"
-          value={`${project.timelineEvents.length} 个事件`}
+          value={`${timelineEventTotalCount} 个事件`}
         />
       </section>
 
@@ -219,6 +252,11 @@ export default async function MemoryPage({
           chapters={chapters}
           submitLabel="新增规则"
         />
+        <ListLimitNotice
+          label="世界观规则"
+          loaded={project.worldRules.length}
+          total={worldRuleTotalCount}
+        />
         <div className="mt-5 space-y-4">
           {project.worldRules.length === 0 ? (
             <EmptyState text="还没有世界观规则。可以先录入技术规则、社会规则、代价机制或禁忌规则。" />
@@ -250,15 +288,17 @@ export default async function MemoryPage({
                     >
                       编辑
                     </Link>
-                    <form action={deleteWorldRule.bind(null, project.id, rule.id)}>
-                    <button
-                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-                      type="submit"
-                    >
-                      <Archive aria-hidden="true" className="h-3.5 w-3.5" />
-                      归档
-                    </button>
-                    </form>
+                    {rule.status !== "archived" ? (
+                      <form action={archiveWorldRule.bind(null, project.id, rule.id)}>
+                        <button
+                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                          type="submit"
+                        >
+                          <Archive aria-hidden="true" className="h-3.5 w-3.5" />
+                          归档
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
@@ -290,6 +330,11 @@ export default async function MemoryPage({
           action={createForeshadow.bind(null, project.id)}
           chapters={chapters}
           submitLabel="新增伏笔"
+        />
+        <ListLimitNotice
+          label="伏笔"
+          loaded={project.foreshadows.length}
+          total={foreshadowTotalCount}
         />
         <div className="mt-5 space-y-4">
           {project.foreshadows.length === 0 ? (
@@ -325,17 +370,23 @@ export default async function MemoryPage({
                     >
                       编辑
                     </Link>
-                    <form
-                      action={deleteForeshadow.bind(null, project.id, foreshadow.id)}
-                    >
-                    <button
-                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-                      type="submit"
-                    >
-                      <Archive aria-hidden="true" className="h-3.5 w-3.5" />
-                      废弃
-                    </button>
-                    </form>
+                    {foreshadow.status !== "abandoned" ? (
+                      <form
+                        action={abandonForeshadow.bind(
+                          null,
+                          project.id,
+                          foreshadow.id,
+                        )}
+                      >
+                        <button
+                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                          type="submit"
+                        >
+                          <Archive aria-hidden="true" className="h-3.5 w-3.5" />
+                          废弃
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
@@ -367,6 +418,11 @@ export default async function MemoryPage({
           action={createTimelineEvent.bind(null, project.id)}
           chapters={chapters}
           submitLabel="新增事件"
+        />
+        <ListLimitNotice
+          label="时间线事件"
+          loaded={project.timelineEvents.length}
+          total={timelineEventTotalCount}
         />
         <div className="mt-5 space-y-4">
           {project.timelineEvents.length === 0 ? (
@@ -401,17 +457,23 @@ export default async function MemoryPage({
                     >
                       编辑
                     </Link>
-                    <form
-                      action={deleteTimelineEvent.bind(null, project.id, event.id)}
-                    >
-                    <button
-                      className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
-                      type="submit"
-                    >
-                      <Archive aria-hidden="true" className="h-3.5 w-3.5" />
-                      归档
-                    </button>
-                    </form>
+                    {event.status !== "archived" ? (
+                      <form
+                        action={archiveTimelineEvent.bind(
+                          null,
+                          project.id,
+                          event.id,
+                        )}
+                      >
+                        <button
+                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                          type="submit"
+                        >
+                          <Archive aria-hidden="true" className="h-3.5 w-3.5" />
+                          归档
+                        </button>
+                      </form>
+                    ) : null}
                   </div>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
@@ -811,6 +873,27 @@ function InfoTile({
         {label}
       </div>
       <p className="mt-2 text-base font-semibold text-ink-950">{value}</p>
+    </div>
+  );
+}
+
+function ListLimitNotice({
+  label,
+  loaded,
+  total,
+}: {
+  label: string;
+  loaded: number;
+  total: number;
+}) {
+  const hiddenCount = Math.max(total - loaded, 0);
+
+  return (
+    <div className="mt-4 rounded-md border border-ink-950/10 bg-ink-950/[0.03] px-3 py-2 text-xs leading-5 text-ink-700">
+      当前展示按优先级排序的前 {loaded} 条{label}，全量共 {total} 条。
+      {hiddenCount > 0
+        ? ` 还有 ${hiddenCount} 条未在本页展示，后续可通过分页或筛选继续管理。`
+        : " 当前没有更多隐藏记录。"}
     </div>
   );
 }

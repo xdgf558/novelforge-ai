@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  archiveWorldRule,
   createForeshadow,
   createTimelineEvent,
   createWorldRule,
-  deleteWorldRule,
 } from "./actions";
 
 const mocks = vi.hoisted(() => ({
@@ -247,7 +247,7 @@ describe("story memory actions", () => {
   it("does not delete a world rule from another project", async () => {
     mocks.prisma.worldRule.findFirst.mockResolvedValue(null);
 
-    await expect(deleteWorldRule("project_1", "rule_other")).rejects.toThrow(
+    await expect(archiveWorldRule("project_1", "rule_other")).rejects.toThrow(
       "NEXT_REDIRECT",
     );
 
@@ -258,7 +258,7 @@ describe("story memory actions", () => {
   });
 
   it("archives a world rule instead of hard-deleting formal memory", async () => {
-    await expect(deleteWorldRule("project_1", "rule_1")).rejects.toThrow(
+    await expect(archiveWorldRule("project_1", "rule_1")).rejects.toThrow(
       "NEXT_REDIRECT",
     );
 

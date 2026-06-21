@@ -173,7 +173,7 @@ export async function updateWorldRule(
   redirect(`/projects/${projectId}/memory#world-rules`);
 }
 
-export async function deleteWorldRule(projectId: string, ruleId: string) {
+export async function archiveWorldRule(projectId: string, ruleId: string) {
   await assertProject(projectId);
   await assertWorldRule(projectId, ruleId);
 
@@ -249,7 +249,7 @@ export async function updateForeshadow(
   redirect(`/projects/${projectId}/memory#foreshadows`);
 }
 
-export async function deleteForeshadow(projectId: string, foreshadowId: string) {
+export async function abandonForeshadow(projectId: string, foreshadowId: string) {
   await assertProject(projectId);
   await assertForeshadow(projectId, foreshadowId);
 
@@ -326,7 +326,7 @@ export async function updateTimelineEvent(
   redirect(`/projects/${projectId}/memory#timeline`);
 }
 
-export async function deleteTimelineEvent(projectId: string, eventId: string) {
+export async function archiveTimelineEvent(projectId: string, eventId: string) {
   await assertProject(projectId);
   await assertTimelineEvent(projectId, eventId);
 

@@ -19,6 +19,8 @@ Review hardening:
 - Changed world-rule, foreshadow, and timeline "delete" actions into soft status transitions: world rules and timeline events are archived, while foreshadows are marked abandoned.
 - Added `TimelineEvent.status` so timeline items can be archived without losing history, and filtered archived timeline events out of continuity-check context.
 - Reduced the structured-memory page's default render weight by listing summary cards and expanding only the selected record's edit form, with each memory type capped to the latest 50 rows on the page.
+- Added full-count queries and per-section limit notices so the 50-row page cap is visible and top summary cards use full project counts rather than loaded-row counts.
+- Renamed soft-delete server actions to `archiveWorldRule`, `abandonForeshadow`, and `archiveTimelineEvent`, and hid archive/abandon buttons on records already in those states.
 - Split key validation feedback into dedicated messages for missing titles, missing content, overlong body text, invalid expected resolve chapter, and invalid chapter references.
 - Normalized world-rule categories through the server-side whitelist so arbitrary submitted category values fall back to `other`.
 
