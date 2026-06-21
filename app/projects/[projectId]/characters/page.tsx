@@ -12,6 +12,7 @@ import {
   aiTaskStatusLabel,
   isActiveAiTaskStatus,
 } from "@/lib/ai/status";
+import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { characterRelationshipErrorMessages } from "@/lib/character-relationship-fields";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -92,6 +93,7 @@ export default async function CharacterListPage({
   const hasActiveCharacterTask = generationTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
+  const hasApiKey = hasConfiguredOpenAIKey();
 
   return (
     <div className="space-y-6">
@@ -142,6 +144,7 @@ export default async function CharacterListPage({
       ) : null}
 
       <CharacterGenerationPanel
+        hasApiKey={hasApiKey}
         hasActiveTask={hasActiveCharacterTask}
         projectId={project.id}
         tasks={generationTasks}
@@ -224,10 +227,12 @@ export default async function CharacterListPage({
 }
 
 function CharacterGenerationPanel({
+  hasApiKey,
   hasActiveTask,
   projectId,
   tasks,
 }: {
+  hasApiKey: boolean;
   hasActiveTask: boolean;
   projectId: string;
   tasks: Array<{
@@ -244,6 +249,8 @@ function CharacterGenerationPanel({
     } | null;
   }>;
 }) {
+  const canGenerate = hasApiKey && !hasActiveTask;
+
   return (
     <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -285,7 +292,7 @@ function CharacterGenerationPanel({
         <div className="flex items-end">
           <button
             className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-55"
-            disabled={hasActiveTask}
+            disabled={!canGenerate}
             type="submit"
           >
             <Bot aria-hidden="true" className="h-4 w-4" />
@@ -293,6 +300,18 @@ function CharacterGenerationPanel({
           </button>
         </div>
       </form>
+
+      {!hasApiKey ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          未配置 API Key，暂不能调用模型；已有人物草案任务仍可查看和采用。
+        </p>
+      ) : null}
+
+      {hasActiveTask ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          当前已有人物生成任务在后台运行，完成前不会重复发起新的模型调用。
+        </p>
+      ) : null}
 
       {tasks.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed border-ink-950/15 bg-paper-50 p-5 text-sm text-ink-700">

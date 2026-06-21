@@ -65,6 +65,10 @@ export type ParsedCharacterDraft = {
   suggestedRelationships: string[];
 };
 
+export const characterDraftNameMaxLength = 120;
+export const characterDraftTextMaxLength = 8000;
+export const suggestedRelationshipMaxLength = 500;
+
 export function buildCharacterGenerationContext(
   input: CharacterGenerationInput,
 ) {
@@ -166,13 +170,36 @@ export function parseCharacterGenerationOutput(
   }
 
   return {
-    values: characterSnapshot(characterValuesFromRecord(values)),
+    values: sanitizeCharacterDraftValues(
+      characterSnapshot(characterValuesFromRecord(values)),
+    ),
     suggestedRelationships: parseSuggestedRelationships(parsed),
   };
 }
 
 export function hasCharacterDraftValues(values: Partial<CharacterValues>) {
   return Boolean(values.name?.trim());
+}
+
+export function sanitizeCharacterDraftValues(
+  values: Partial<CharacterValues>,
+): Partial<CharacterValues> {
+  const sanitized: Partial<CharacterValues> = {};
+
+  for (const fieldName of characterFieldNames) {
+    const value = values[fieldName]?.trim();
+
+    if (!value) {
+      continue;
+    }
+
+    sanitized[fieldName] =
+      fieldName === "name"
+        ? limitText(value, characterDraftNameMaxLength)
+        : limitText(value, characterDraftTextMaxLength);
+  }
+
+  return sanitized;
 }
 
 function parseSuggestedRelationships(parsed: unknown) {
@@ -184,8 +211,17 @@ function parseSuggestedRelationships(parsed: unknown) {
 
   return raw
     .map((item) => stringifyDraftValue(item))
+    .map((item) => limitText(item, suggestedRelationshipMaxLength))
     .filter(Boolean)
     .slice(0, 10);
+}
+
+function limitText(value: string, maxLength: number) {
+  const normalized = value.trim();
+
+  return normalized.length > maxLength
+    ? normalized.slice(0, maxLength).trimEnd()
+    : normalized;
 }
 
 function formatSetting(setting: CharacterGenerationSetting) {

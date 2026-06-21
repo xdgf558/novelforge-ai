@@ -174,8 +174,8 @@ model CharacterRelationship {
   updatedAt         DateTime @updatedAt
 
   project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sourceCharacter Character @relation("SourceCharacterRelationships", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
-  targetCharacter Character @relation("TargetCharacterRelationships", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  sourceCharacter Character @relation("SourceCharacterRelationships", fields: [sourceCharacterId], references: [id], onDelete: Restrict)
+  targetCharacter Character @relation("TargetCharacterRelationships", fields: [targetCharacterId], references: [id], onDelete: Restrict)
   sourceChapter   Chapter?  @relation(fields: [sourceChapterId], references: [id], onDelete: SetNull)
 
   @@index([projectId, status])

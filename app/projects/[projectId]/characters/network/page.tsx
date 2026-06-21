@@ -43,6 +43,7 @@ type CharacterOption = {
   id: string;
   name: string;
   roleInStory: string | null;
+  status: string;
 };
 
 type ChapterOption = {
@@ -93,9 +94,6 @@ export default async function CharacterRelationshipNetworkPage({
       prisma.character.findMany({
         where: {
           projectId,
-          status: {
-            not: "archived",
-          },
         },
         orderBy: {
           name: "asc",
@@ -104,6 +102,7 @@ export default async function CharacterRelationshipNetworkPage({
           id: true,
           name: true,
           roleInStory: true,
+          status: true,
         },
       }),
       prisma.chapter.findMany({
@@ -162,6 +161,9 @@ export default async function CharacterRelationshipNetworkPage({
     ? relationships.find((relationship) => relationship.id === editId)
     : null;
   const stats = summarizeRelationships(relationships);
+  const activeCharacters = characters.filter(
+    (character) => character.status !== "archived",
+  );
 
   return (
     <div className="space-y-6">
@@ -194,7 +196,11 @@ export default async function CharacterRelationshipNetworkPage({
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-4">
-        <InfoTile icon={Users} label="角色数量" value={`${characters.length} 个`} />
+        <InfoTile
+          icon={Users}
+          label="可用角色"
+          value={`${activeCharacters.length} 个`}
+        />
         <InfoTile icon={Network} label="关系总数" value={`${relationshipCount} 条`} />
         <InfoTile icon={GitFork} label="活跃关系" value={`${stats.active} 条`} />
         <InfoTile
@@ -213,14 +219,14 @@ export default async function CharacterRelationshipNetworkPage({
             至少需要两个角色才能建立关系。这里保存的是正式关系网络，不会由 AI 自动写入。
           </p>
 
-          {characters.length < 2 ? (
+          {activeCharacters.length < 2 ? (
             <div className="mt-5 rounded-lg border border-dashed border-ink-950/15 bg-paper-50 p-5 text-sm text-ink-700">
               角色数量不足。请先在角色库中创建至少两个角色。
             </div>
           ) : (
             <RelationshipForm
               action={createCharacterRelationship.bind(null, project.id)}
-              characters={characters}
+              characters={activeCharacters}
               chapters={chapters}
               submitLabel="新增关系"
             />
@@ -327,7 +333,11 @@ export default async function CharacterRelationshipNetworkPage({
                         project.id,
                         relationship.id,
                       )}
-                      characters={characters}
+                      characters={characterOptionsForRelationship(
+                        activeCharacters,
+                        characters,
+                        relationship,
+                      )}
                       chapters={chapters}
                       initial={relationship}
                       submitLabel="保存关系"
@@ -365,7 +375,7 @@ function RelationshipForm({
           name="sourceCharacterId"
           options={characters.map((character) => ({
             value: character.id,
-            label: `${character.name}${character.roleInStory ? ` / ${character.roleInStory}` : ""}`,
+            label: characterOptionLabel(character),
           }))}
         />
         <SelectField
@@ -374,7 +384,7 @@ function RelationshipForm({
           name="targetCharacterId"
           options={characters.map((character) => ({
             value: character.id,
-            label: `${character.name}${character.roleInStory ? ` / ${character.roleInStory}` : ""}`,
+            label: characterOptionLabel(character),
           }))}
         />
       </div>
@@ -538,6 +548,43 @@ function Badge({ children }: { children: ReactNode }) {
       {children}
     </span>
   );
+}
+
+function characterOptionLabel(character: CharacterOption) {
+  return [
+    character.name,
+    character.roleInStory,
+    character.status === "archived" ? "已归档" : "",
+  ]
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function characterOptionsForRelationship(
+  activeCharacters: readonly CharacterOption[],
+  allCharacters: readonly CharacterOption[],
+  relationship: RelationshipRecord,
+) {
+  const options = [...activeCharacters];
+
+  for (const characterId of [
+    relationship.sourceCharacterId,
+    relationship.targetCharacterId,
+  ]) {
+    if (options.some((character) => character.id === characterId)) {
+      continue;
+    }
+
+    const archivedCharacter = allCharacters.find(
+      (character) => character.id === characterId,
+    );
+
+    if (archivedCharacter) {
+      options.push(archivedCharacter);
+    }
+  }
+
+  return options;
 }
 
 function summarizeRelationships(relationships: readonly RelationshipRecord[]) {

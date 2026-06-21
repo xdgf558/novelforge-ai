@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
       count: vi.fn(),
     },
     characterRelationship: {
+      count: vi.fn(),
       create: vi.fn(),
       findFirst: vi.fn(),
       update: vi.fn(),
@@ -83,6 +84,7 @@ describe("character relationship actions", () => {
     mocks.prisma.characterRelationship.create.mockResolvedValue({
       id: "relationship_1",
     });
+    mocks.prisma.characterRelationship.count.mockResolvedValue(0);
     mocks.prisma.characterRelationship.findFirst.mockResolvedValue({
       id: "relationship_1",
     });
@@ -145,6 +147,19 @@ describe("character relationship actions", () => {
 
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/characters/network?relationshipError=invalidChapterReference",
+    );
+    expect(mocks.prisma.characterRelationship.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate active relationships for the same pair, type, and direction", async () => {
+    mocks.prisma.characterRelationship.count.mockResolvedValue(1);
+
+    await expect(
+      createCharacterRelationship("project_1", buildRelationshipFormData()),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/characters/network?relationshipError=duplicateRelationship",
     );
     expect(mocks.prisma.characterRelationship.create).not.toHaveBeenCalled();
   });

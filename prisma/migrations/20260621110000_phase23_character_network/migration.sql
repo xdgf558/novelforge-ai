@@ -14,8 +14,8 @@ CREATE TABLE "character_relationships" (
   "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "character_relationships_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "character_relationships_sourceCharacterId_fkey" FOREIGN KEY ("sourceCharacterId") REFERENCES "characters" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "character_relationships_targetCharacterId_fkey" FOREIGN KEY ("targetCharacterId") REFERENCES "characters" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "character_relationships_sourceCharacterId_fkey" FOREIGN KEY ("sourceCharacterId") REFERENCES "characters" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT "character_relationships_targetCharacterId_fkey" FOREIGN KEY ("targetCharacterId") REFERENCES "characters" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT "character_relationships_sourceChapterId_fkey" FOREIGN KEY ("sourceChapterId") REFERENCES "chapters" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 

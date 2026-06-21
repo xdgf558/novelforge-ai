@@ -23,11 +23,20 @@ What was done:
 - Added a project dashboard card for the relationship network.
 - Bumped the source app/package version to `0.1.24` and updated in-app release notes.
 
+Review hardening:
+
+- Changed role removal from hard delete to archive-first: character detail now archives the role, creates a `CharacterVersion`, and preserves relationship history.
+- Changed `character_relationships` character foreign keys from cascade delete to restrict delete so relationship records cannot be erased by deleting a character row.
+- Added API-key gating to character AI generation on both the UI and server action, matching the rest of the AI panels.
+- Clamped AI-adopted character draft fields to the manual character limits and capped suggested relationship notes before writing formal character records.
+- Added duplicate active/tension/hidden relationship detection for the same character pair, relationship type, and direction.
+- Made relationship editing preserve archived endpoint characters in the select options so older relationship records do not accidentally change endpoints.
+
 Verification:
 
 - `npx prisma generate` passed.
 - `npm run typecheck` passed.
-- `npm run test` passed: 36 files, 168 tests.
+- `npm run test` passed: 36 files, 172 tests.
 - `npm run build` passed.
 - `npm run desktop:smoke` passed.
 - `git diff --check` passed.

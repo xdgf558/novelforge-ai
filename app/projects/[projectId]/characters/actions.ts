@@ -7,12 +7,14 @@ import {
   buildCharacterGenerationContext,
   hasCharacterDraftValues,
   parseCharacterGenerationOutput,
+  sanitizeCharacterDraftValues,
 } from "@/lib/ai/characters";
 import {
   characterGenerationTaskType,
   expireStaleCharacterAiTasks,
 } from "@/lib/ai/character-task-maintenance";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
+import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
@@ -20,6 +22,7 @@ import {
   characterSnapshot,
   characterStatusOptions,
   characterTextFields,
+  characterValuesFromRecord,
   type CharacterFieldName,
   type CharacterTextFieldName,
   type CharacterValues,
@@ -203,14 +206,11 @@ export async function updateCharacter(
   redirect(`/projects/${projectId}/characters/${characterId}`);
 }
 
-export async function deleteCharacter(projectId: string, characterId: string) {
+export async function archiveCharacter(projectId: string, characterId: string) {
   const character = await prisma.character.findFirst({
     where: {
       id: characterId,
       projectId,
-    },
-    select: {
-      id: true,
     },
   });
 
@@ -218,14 +218,43 @@ export async function deleteCharacter(projectId: string, characterId: string) {
     notFound();
   }
 
-  await prisma.character.delete({
-    where: {
-      id: characterId,
-    },
+  const snapshot = characterSnapshot({
+    ...characterValuesFromRecord(character),
+    status: "archived",
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.character.update({
+      where: {
+        id: characterId,
+      },
+      data: {
+        status: "archived",
+      },
+    });
+
+    const versionCount = await tx.characterVersion.count({
+      where: {
+        characterId,
+      },
+    });
+
+    await tx.characterVersion.create({
+      data: {
+        projectId,
+        characterId,
+        versionNumber: versionCount + 1,
+        snapshotJson: JSON.stringify(snapshot),
+        changeReason: "归档角色，保留人物关系网络历史。",
+        sourceType: "manual_archive",
+      },
+    });
   });
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/characters`);
+  revalidatePath(`/projects/${projectId}/characters/${characterId}`);
+  revalidatePath(`/projects/${projectId}/characters/network`);
   redirect(`/projects/${projectId}/characters`);
 }
 
@@ -234,6 +263,12 @@ export async function generateCharacterDraft(
   formData: FormData,
 ) {
   await assertProject(projectId);
+
+  if (!hasConfiguredOpenAIKey()) {
+    revalidateCharacterPaths(projectId);
+    redirect(`/projects/${projectId}/characters?characterError=missingApiKey`);
+  }
+
   await expireStaleCharacterAiTasks(projectId);
 
   const activeTask = await findActiveCharacterGenerationTask(projectId);
@@ -396,19 +431,23 @@ export async function adoptCharacterDraft(projectId: string, taskId: string) {
     redirect(`/projects/${projectId}/characters?characterError=invalidCharacterDraft`);
   }
 
-  const draftValues = {
+  const draftValues = sanitizeCharacterDraftValues({
     ...Object.fromEntries(
       characterFieldNames.map((fieldName) => [fieldName, ""]),
     ),
     status: "active",
     ...draft.values,
-  } as CharacterValues;
+  } as CharacterValues) as CharacterValues;
 
   if (!statusValues.includes(draftValues.status)) {
     draftValues.status = "active";
   }
 
   const values = characterSnapshot(draftValues);
+  const notes = buildAdoptedCharacterNotes(
+    values.notes,
+    draft.suggestedRelationships,
+  );
 
   const createdCharacterId = await prisma.$transaction(async (tx) => {
     const adopted = await tx.aiTask.updateMany({
@@ -429,14 +468,7 @@ export async function adoptCharacterDraft(projectId: string, taskId: string) {
       data: {
         projectId,
         ...values,
-        notes: [
-          values.notes,
-          draft.suggestedRelationships.length > 0
-            ? `AI 建议关系：\n${draft.suggestedRelationships.join("\n")}`
-            : "",
-        ]
-          .filter(Boolean)
-          .join("\n\n"),
+        notes,
       },
     });
 
@@ -485,4 +517,30 @@ async function findActiveCharacterGenerationTask(projectId: string) {
 function revalidateCharacterPaths(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/characters`);
+}
+
+function buildAdoptedCharacterNotes(
+  originalNotes: string,
+  suggestedRelationships: readonly string[],
+) {
+  const relationshipNotes =
+    suggestedRelationships.length > 0
+      ? `AI 建议关系（未自动写入正式关系网络）：\n${suggestedRelationships.join("\n")}`
+      : "";
+  const notes = [relationshipNotes, originalNotes].filter(Boolean).join("\n\n");
+
+  return trimCharacterText(notes);
+}
+
+function trimCharacterText(value: string) {
+  const maxLength = 8000;
+  const normalized = value.trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  const suffix = "\n\n[系统提示：AI 草案内容过长，已截断部分备注。]";
+
+  return `${normalized.slice(0, maxLength - suffix.length).trimEnd()}${suffix}`;
 }

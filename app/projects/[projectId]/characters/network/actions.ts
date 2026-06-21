@@ -64,6 +64,7 @@ export async function createCharacterRelationship(
   await assertProject(projectId);
   const values = parseRelationshipForm(formData, projectId);
   await validateRelationshipReferences(projectId, values);
+  await assertNoDuplicateRelationship(projectId, values);
 
   await prisma.characterRelationship.create({
     data: {
@@ -98,6 +99,8 @@ export async function updateCharacterRelationship(
   if (!relationship) {
     redirectRelationshipError(projectId, "recordNotFound");
   }
+
+  await assertNoDuplicateRelationship(projectId, values, relationshipId);
 
   await prisma.characterRelationship.update({
     where: {
@@ -248,6 +251,53 @@ async function assertChapterIdsBelongToProject(
 
   if (count !== cleanIds.length) {
     redirectRelationshipError(projectId, "invalidChapterReference");
+  }
+}
+
+async function assertNoDuplicateRelationship(
+  projectId: string,
+  values: RelationshipValues,
+  relationshipId?: string,
+) {
+  const duplicateStatuses = ["active", "tension", "hidden"];
+  const sameDirectionPair = {
+    projectId,
+    sourceCharacterId: values.sourceCharacterId,
+    targetCharacterId: values.targetCharacterId,
+    relationshipType: values.relationshipType,
+    direction: values.direction,
+    status: {
+      in: duplicateStatuses,
+    },
+  };
+  const pairWhere =
+    values.direction === "two_way" || values.direction === "unclear"
+      ? {
+          OR: [
+            sameDirectionPair,
+            {
+              ...sameDirectionPair,
+              sourceCharacterId: values.targetCharacterId,
+              targetCharacterId: values.sourceCharacterId,
+            },
+          ],
+        }
+      : sameDirectionPair;
+  const duplicateCount = await prisma.characterRelationship.count({
+    where: {
+      ...(relationshipId
+        ? {
+            id: {
+              not: relationshipId,
+            },
+          }
+        : {}),
+      ...pairWhere,
+    },
+  });
+
+  if (duplicateCount > 0) {
+    redirectRelationshipError(projectId, "duplicateRelationship");
   }
 }
 
