@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Project {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   title               String
   genre               String?
   targetAudience      String?
@@ -25,9 +25,9 @@ model Project {
   coverImageSizeBytes Int?
   coverImageUpdatedAt DateTime?
   coverAltText        String?
-  status              String   @default("active")
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  status              String    @default("active")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   setting           ProjectSetting?
   settingVersions   SettingVersion[]
@@ -206,39 +206,39 @@ model ChapterVersion {
 }
 
 model Outline {
-  id                  String   @id @default(cuid())
-  projectId           String
-  level               String
-  title               String
-  status              String   @default("planned")
-  sortOrder           Int      @default(0)
-  content             String?
-  volumeNumber        Int?
-  unitNumber          Int?
-  chapterNumber       Int?
-  startChapter        Int?
-  endChapter          Int?
-  expectedChapters    Int?
-  expectedWords       Int?
-  goal                String?
-  mainlineProgression String?
-  mainConflict        String?
-  mainAntagonist      String?
-  keyTurns            String?
-  climax              String?
-  coreEvents          String?
-  characterChanges    String?
-  pleasureDesign      String?
-  suspenseDesign      String?
-  chapterConflict     String?
+  id                   String   @id @default(cuid())
+  projectId            String
+  level                String
+  title                String
+  status               String   @default("planned")
+  sortOrder            Int      @default(0)
+  content              String?
+  volumeNumber         Int?
+  unitNumber           Int?
+  chapterNumber        Int?
+  startChapter         Int?
+  endChapter           Int?
+  expectedChapters     Int?
+  expectedWords        Int?
+  goal                 String?
+  mainlineProgression  String?
+  mainConflict         String?
+  mainAntagonist       String?
+  keyTurns             String?
+  climax               String?
+  coreEvents           String?
+  characterChanges     String?
+  pleasureDesign       String?
+  suspenseDesign       String?
+  chapterConflict      String?
   chapterPleasurePoint String?
-  foreshadow          String?
-  resolvedForeshadow  String?
-  characters          String?
-  location            String?
-  endingHook          String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  foreshadow           String?
+  resolvedForeshadow   String?
+  characters           String?
+  location             String?
+  endingHook           String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -310,17 +310,22 @@ model AiTask {
 }
 
 model WorldRule {
-  id              String   @id @default(cuid())
-  projectId       String
-  title           String
-  content         String
-  category        String?
-  riskLevel       String   @default("medium")
-  status          String   @default("active")
-  sourceChapterId String?
-  pendingUpdateId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  projectId            String
+  title                String
+  content              String
+  category             String?
+  scope                String?
+  relatedCharacters    String?
+  relatedLocations     String?
+  relatedOrganizations String?
+  isCore               Boolean  @default(false)
+  riskLevel            String   @default("medium")
+  status               String   @default("active")
+  sourceChapterId      String?
+  pendingUpdateId      String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   pendingUpdate PendingUpdate? @relation(fields: [pendingUpdateId], references: [id], onDelete: SetNull)
@@ -332,17 +337,21 @@ model WorldRule {
 }
 
 model Foreshadow {
-  id                String   @id @default(cuid())
-  projectId         String
-  content           String
-  status            String   @default("planted")
-  importance        String   @default("medium")
-  plantedChapterId  String?
-  resolvedChapterId String?
-  sourceChapterId   String?
-  pendingUpdateId   String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  projectId              String
+  content                String
+  status                 String   @default("planted")
+  importance             String   @default("medium")
+  expectedResolveChapter Int?
+  relatedCharacters      String?
+  relatedLocations       String?
+  relatedFactions        String?
+  plantedChapterId       String?
+  resolvedChapterId      String?
+  sourceChapterId        String?
+  pendingUpdateId        String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   plantedChapter  Chapter?       @relation("PlantedChapter", fields: [plantedChapterId], references: [id], onDelete: SetNull)
@@ -357,23 +366,26 @@ model Foreshadow {
 }
 
 model TimelineEvent {
-  id              String   @id @default(cuid())
-  projectId       String
-  title           String
-  description     String
-  storyTime       String?
-  impact          String?
-  chapterId       String?
-  sourceChapterId String?
-  pendingUpdateId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  projectId         String
+  title             String
+  description       String
+  storyTime         String?
+  relatedCharacters String?
+  location          String?
+  impact            String?
+  status            String   @default("active")
+  chapterId         String?
+  sourceChapterId   String?
+  pendingUpdateId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   chapter       Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   pendingUpdate PendingUpdate? @relation(fields: [pendingUpdateId], references: [id], onDelete: SetNull)
 
-  @@index([projectId])
+  @@index([projectId, status])
   @@index([chapterId])
   @@index([pendingUpdateId])
   @@map("timeline_events")
@@ -475,17 +487,17 @@ model PublishPackage {
 }
 
 model PublishTarget {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   projectId      String
   name           String
-  platformKey    String   @default("station_cat")
+  platformKey    String    @default("station_cat")
   apiBaseUrl     String?
   tokenSecret    String?
   tokenUpdatedAt DateTime?
-  defaultMode    String   @default("draft")
-  status         String   @default("active")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  defaultMode    String    @default("draft")
+  status         String    @default("active")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   project    Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   runs       PublishRun[]

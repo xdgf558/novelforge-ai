@@ -1,5 +1,43 @@
 # Development Log
 
+## 2026-06-20: Phase 22 Structured Memory Management Pages
+
+Status: completed pending review.
+
+What was done:
+
+- Added `/projects/[projectId]/memory` as the dedicated structured memory workbench for world rules, foreshadows, and timeline events.
+- Added author-controlled create/edit/delete server actions for world rules, foreshadows, and timeline events. These actions update formal memory only after explicit user submission.
+- Expanded structured memory metadata: core world-rule flag, rule scope, related characters/locations/organizations, foreshadow expected resolution chapter and related story metadata, plus timeline related characters and location.
+- Linked the project dashboard structured-memory card and sidebar navigation to the new memory workbench.
+- Updated project exports and continuity context assembly so the richer memory metadata is backed up and available to checks.
+- Bumped the source app/package version to `0.1.23` and updated in-app release notes.
+
+Review hardening:
+
+- Added server-side validation that every chapter relation written from the structured-memory forms belongs to the current project, preventing cross-project memory references.
+- Changed world-rule, foreshadow, and timeline "delete" actions into soft status transitions: world rules and timeline events are archived, while foreshadows are marked abandoned.
+- Added `TimelineEvent.status` so timeline items can be archived without losing history, and filtered archived timeline events out of continuity-check context.
+- Reduced the structured-memory page's default render weight by listing summary cards and expanding only the selected record's edit form, with each memory type capped to the latest 50 rows on the page.
+- Added full-count queries and per-section limit notices so the 50-row page cap is visible and top summary cards use full project counts rather than loaded-row counts.
+- Renamed soft-delete server actions to `archiveWorldRule`, `abandonForeshadow`, and `archiveTimelineEvent`, and hid archive/abandon buttons on records already in those states.
+- Split key validation feedback into dedicated messages for missing titles, missing content, overlong body text, invalid expected resolve chapter, and invalid chapter references.
+- Normalized world-rule categories through the server-side whitelist so arbitrary submitted category values fall back to `other`.
+
+Verification:
+
+- `npx prisma format` passed.
+- `npx prisma generate` passed.
+- `npm run test -- app/projects/[projectId]/memory/actions.test.ts` passed, 1 file and 8 tests.
+- `npm run typecheck` passed.
+- `npm run test` passed, 33 files and 152 tests.
+- `git diff --check` passed.
+- `npm run build` passed.
+
+Packaging note:
+
+- No desktop installer should be built before review approval. Phase 22 is intended for PR review first.
+
 ## 2026-06-20: Phase 21 Outline Module
 
 Status: completed pending review.

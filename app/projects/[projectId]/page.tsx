@@ -264,7 +264,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </div>
         </Link>
 
-        <div className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <Link
+          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+          href={`/projects/${project.id}/memory`}
+        >
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
               <ShieldCheck aria-hidden="true" className="h-5 w-5" />
@@ -278,7 +281,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               </p>
             </div>
           </div>
-        </div>
+        </Link>
 
         <Link
           className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
