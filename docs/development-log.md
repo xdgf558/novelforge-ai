@@ -34,12 +34,14 @@ Review hardening:
 - Character archiving now also archives related active/tension/hidden relationship records, and character AI generation filters out relationships whose source or target character is already archived.
 - Character generation request input now has UI length limits and server-side safe validation that redirects to visible feedback instead of throwing Zod errors.
 - Relationship network summary stats now use full-project count queries instead of the currently loaded 80-row page slice.
+- New relationship creation now rejects archived character endpoints on the server, while editing remains able to preserve existing archived endpoints for historical maintenance.
+- Character archive revalidation now also refreshes the character history page because archiving creates a new `CharacterVersion`.
 
 Verification:
 
 - `npx prisma generate` passed.
 - `npm run typecheck` passed.
-- `npm run test` passed: 36 files, 173 tests.
+- `npm run test` passed: 36 files, 174 tests.
 - `npm run build` passed.
 - `npm run desktop:smoke` passed.
 - `git diff --check` passed.

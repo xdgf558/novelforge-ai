@@ -283,6 +283,7 @@ export async function archiveCharacter(projectId: string, characterId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/characters`);
   revalidatePath(`/projects/${projectId}/characters/${characterId}`);
+  revalidatePath(`/projects/${projectId}/characters/${characterId}/history`);
   revalidatePath(`/projects/${projectId}/characters/network`);
   redirect(`/projects/${projectId}/characters`);
 }

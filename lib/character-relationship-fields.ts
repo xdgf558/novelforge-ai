@@ -40,6 +40,7 @@ export const characterRelationshipErrorMessages: Record<string, string> = {
   missingCharacter: "请选择关系两端的人物。",
   sameCharacter: "人物关系两端不能是同一个角色。",
   invalidCharacterReference: "人物关系引用了当前项目外的角色。",
+  archivedCharacterReference: "不能为已归档角色新建人物关系；如需维护历史关系，请编辑已有记录。",
   invalidChapterReference: "人物关系引用了当前项目外的章节。",
   missingSummary: "请填写人物关系摘要。",
   bodyTooLong: "人物关系内容过长，请压缩后再保存。",

@@ -334,6 +334,9 @@ describe("character AI actions", () => {
         snapshotJson: expect.stringContaining('"status":"archived"'),
       }),
     });
+    expect(mocks.revalidatePath).toHaveBeenCalledWith(
+      "/projects/project_1/characters/character_1/history",
+    );
   });
 
   it("adopts a completed character draft into a formal character snapshot", async () => {

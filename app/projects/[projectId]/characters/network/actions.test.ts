@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
     },
     character: {
       count: vi.fn(),
+      findMany: vi.fn(),
     },
     chapter: {
       count: vi.fn(),
@@ -80,6 +81,16 @@ describe("character relationship actions", () => {
       id: "project_1",
     });
     mocks.prisma.character.count.mockResolvedValue(2);
+    mocks.prisma.character.findMany.mockResolvedValue([
+      {
+        id: "character_a",
+        status: "active",
+      },
+      {
+        id: "character_b",
+        status: "active",
+      },
+    ]);
     mocks.prisma.chapter.count.mockResolvedValue(1);
     mocks.prisma.characterRelationship.create.mockResolvedValue({
       id: "relationship_1",
@@ -147,6 +158,28 @@ describe("character relationship actions", () => {
 
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/characters/network?relationshipError=invalidChapterReference",
+    );
+    expect(mocks.prisma.characterRelationship.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects creating new relationships with archived character endpoints", async () => {
+    mocks.prisma.character.findMany.mockResolvedValue([
+      {
+        id: "character_a",
+        status: "active",
+      },
+      {
+        id: "character_b",
+        status: "archived",
+      },
+    ]);
+
+    await expect(
+      createCharacterRelationship("project_1", buildRelationshipFormData()),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/characters/network?relationshipError=archivedCharacterReference",
     );
     expect(mocks.prisma.characterRelationship.create).not.toHaveBeenCalled();
   });

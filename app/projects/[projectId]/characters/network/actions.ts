@@ -64,6 +64,7 @@ export async function createCharacterRelationship(
   await assertProject(projectId);
   const values = parseRelationshipForm(formData, projectId);
   await validateRelationshipReferences(projectId, values);
+  await assertCreateRelationshipCharactersAreActive(projectId, values);
   await assertNoDuplicateRelationship(projectId, values);
 
   await prisma.characterRelationship.create({
@@ -251,6 +252,35 @@ async function assertChapterIdsBelongToProject(
 
   if (count !== cleanIds.length) {
     redirectRelationshipError(projectId, "invalidChapterReference");
+  }
+}
+
+async function assertCreateRelationshipCharactersAreActive(
+  projectId: string,
+  values: RelationshipValues,
+) {
+  const characterIds = [
+    values.sourceCharacterId,
+    values.targetCharacterId,
+  ];
+  const characters = await prisma.character.findMany({
+    where: {
+      projectId,
+      id: {
+        in: characterIds,
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (
+    characters.length !== characterIds.length ||
+    characters.some((character) => character.status === "archived")
+  ) {
+    redirectRelationshipError(projectId, "archivedCharacterReference");
   }
 }
 
