@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { startLoggedOpenAITextTask } from "./task-logger";
+import { createAiTask, startLoggedOpenAITextTask } from "./task-logger";
 import { createOpenAITextResponse } from "@/lib/ai/openai-client";
 import { prisma } from "@/lib/prisma";
 
@@ -44,6 +44,21 @@ describe("AI task logger", () => {
       ...data,
     }));
     mocks.pruneProjectAiTasks.mockResolvedValue(0);
+  });
+
+  it("prunes old project AI tasks after creating a task", async () => {
+    await expect(
+      createAiTask({
+        projectId: "project_1",
+        taskType: "cover_image_generation",
+        inputContextSummary: "作品封面生成",
+      }),
+    ).resolves.toMatchObject({
+      id: "task_1",
+      status: "pending",
+    });
+
+    expect(mocks.pruneProjectAiTasks).toHaveBeenCalledWith("project_1");
   });
 
   it("starts a background text task and returns once the task is running", async () => {

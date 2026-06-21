@@ -61,16 +61,22 @@ Review hardening:
   publish page no longer synchronously embeds large base64 data URLs during SSR.
 - Added server-side cover-prompt length validation so forged requests over 3000
   characters return visible feedback instead of creating oversized image tasks.
+- Added a direct regression test that `createAiTask` triggers project AI task
+  retention after task creation, so pruning old `cover_image_generation` records
+  also runs the candidate-directory cleanup path.
 
 Verification:
 
 - `npm run test -- lib/ai/local-config.test.ts lib/ai/image-client.test.ts lib/ai/cover-images.test.ts lib/project-cover-assets.test.ts lib/ai/prompt-templates.test.ts` passed: 5 files, 30 tests.
 - `npm run test -- lib/project-cover-assets.test.ts lib/ai/cover-images.test.ts lib/ai/task-retention.test.ts app/projects/[projectId]/publish/actions.test.ts` passed: 4 files, 18 tests.
+- `npm run test -- lib/ai/task-logger.test.ts lib/ai/task-retention.test.ts lib/project-cover-assets.test.ts app/projects/[projectId]/publish/actions.test.ts` passed: 4 files, 16 tests.
 - `npm run typecheck` passed.
 - `npm run test` passed: 40 files, 200 tests.
 - `npm run desktop:smoke` passed.
 - `npm run build` passed.
 - `git diff --check` passed.
+- PR #24 was checked against `origin/main`; the branch is up to date and GitHub
+  reports it as mergeable.
 
 Notes:
 
