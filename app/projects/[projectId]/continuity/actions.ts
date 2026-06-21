@@ -15,6 +15,7 @@ import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import { chapterSnapshot, chapterValuesFromRecord } from "@/lib/chapter-fields";
 import {
   applyContinuityReplacement,
+  describeContinuityReplacementFix,
   parseContinuityReplacementFix,
 } from "@/lib/continuity-fixes";
 import { prisma } from "@/lib/prisma";
@@ -204,7 +205,11 @@ export async function applyContinuityReportFix(
     redirect(`/projects/${projectId}/continuity?fix=missing-chapter`);
   }
 
-  const replacementFix = parseContinuityReplacementFix(report.suggestedFix);
+  const replacementFix = parseContinuityReplacementFix(report.suggestedFix, {
+    description: report.description,
+    evidence: report.evidence,
+    sourceText: report.chapter.finalText,
+  });
 
   if (!replacementFix) {
     redirect(`/projects/${projectId}/continuity?fix=unsupported`);
@@ -256,7 +261,9 @@ export async function applyContinuityReportFix(
       },
       data: {
         status: "resolved",
-        resolutionNote: `一键修复定稿正文：将“${replacementFix.from}”替换为“${replacementFix.to}”（${replacementResult.count} 处）。`,
+        resolutionNote: `一键修复定稿正文：${describeContinuityReplacementFix(
+          replacementFix,
+        )}（${replacementResult.count} 处）。`,
         resolvedAt: new Date(),
       },
     });

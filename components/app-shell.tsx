@@ -8,6 +8,7 @@ import {
   Settings,
 } from "lucide-react";
 import { AppShellNavigation } from "@/components/app-shell-navigation";
+import { FormScrollRestoration } from "@/components/form-scroll-restoration";
 import { NovelForgeMark, SidebarNocturneArt } from "@/components/story-illustrations";
 import { appVersion } from "@/lib/app-version";
 import { prisma } from "@/lib/prisma";
@@ -21,6 +22,7 @@ export async function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="nocturne-shell min-h-screen overflow-hidden lg:flex">
+      <FormScrollRestoration />
       <aside className="nf-sidebar z-30 max-h-screen overflow-y-auto border-b border-amber-200/10 lg:fixed lg:inset-y-0 lg:left-0 lg:w-80 lg:border-b-0 lg:border-r">
         <div className="flex min-h-full flex-col">
           <div className="flex items-center gap-3 px-6 py-7">

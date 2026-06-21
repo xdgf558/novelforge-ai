@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-06-21: 0.1.30 Continuity Fix Suggestions and Scroll Restoration
+
+Status: completed.
+
+What was done:
+
+- Expanded continuity one-click fix parsing beyond quoted `将 A 改为 B` replacements.
+- The continuity page can now infer a safe date-time replacement when:
+  - the report suggestion states a corrected target time,
+  - the evidence/description/final text contains a unique matching old time with the same time-of-day suffix.
+- For date-time fixes, the system can apply multiple precise replacements in one author-triggered action, such as changing both a timestamp and a nearby `现在是...` sentence.
+- Added global form scroll restoration so same-page server-action form submissions return the author to the previous scroll position instead of jumping to the top.
+- Bumped the source app/package version to `0.1.30` and updated in-app release notes.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.30-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/continuity-fixes.test.ts` passed.
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` passed with notarization skipped.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.30"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the expanded PKG payload app.
+- Final PKG SHA-256: `8caf6efe21e1e3ddb4864b5dd487175f3cf74756483549142b6f026fd5faeb0d`.
+
 ## 2026-06-21: 0.1.29 Chapter Outline Prefill for New Chapters
 
 Status: completed.

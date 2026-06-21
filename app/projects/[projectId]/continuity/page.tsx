@@ -17,7 +17,10 @@ import {
   continuitySeverityLabel,
   continuityStatusLabel,
 } from "@/lib/continuity-reports";
-import { parseContinuityReplacementFix } from "@/lib/continuity-fixes";
+import {
+  describeContinuityReplacementFix,
+  parseContinuityReplacementFix,
+} from "@/lib/continuity-fixes";
 import { formatDate, formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -164,6 +167,10 @@ export default async function ContinuityPage({
           {project.continuityReports.map((report) => {
             const replacementFix = parseContinuityReplacementFix(
               report.suggestedFix,
+              {
+                description: report.description,
+                evidence: report.evidence,
+              },
             );
 
             return (
@@ -224,7 +231,8 @@ export default async function ContinuityPage({
                           可一键修复定稿正文
                         </p>
                         <p className="mt-2 text-xs leading-5 text-ink-700">
-                          {`将“${replacementFix.from}”替换为“${replacementFix.to}”，并保存章节快照。`}
+                          {describeContinuityReplacementFix(replacementFix)}
+                          ，并保存章节快照。
                         </p>
                         <button
                           className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-md border border-signal-600/30 bg-signal-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-signal-700"

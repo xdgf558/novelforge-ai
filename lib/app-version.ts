@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.29 章节大纲预填章节";
+export const appReleaseTitle = "0.1.30 修复建议与滚动体验";
 
 export const appReleaseNotes = [
-  "新建章节时会按下一章号自动读取匹配的正式章节大纲。",
-  "章节大纲标题会预填到章节标题，大纲里的目标、冲突、爽点、伏笔、地点和章末钩子会整理进章节目标。",
-  "预填内容仍然只是表单草稿，作者确认并点击创建后才会写入章节库。",
+  "连续性检查的一键修复可从证据和建议中推断安全的时间戳替换，例如把 6 月 24 日凌晨修正为 6 月 25 日凌晨。",
+  "一键修复仍然只在作者点击按钮后修改章节定稿正文，并会创建章节快照、标记报告已处理。",
+  "表单类功能按钮提交后会恢复到原滚动位置，减少保存、采用、标记处理后跳回页面顶部的问题。",
 ];
