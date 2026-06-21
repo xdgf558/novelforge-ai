@@ -65,6 +65,53 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
       "输入应包含项目基础信息、项目设定摘要、已有大纲、主要角色、已有章节和本次目标层级。输出应提供可复制进大纲表单的结构化字段。",
   },
   {
+    key: "character_generation",
+    name: "人物草案生成",
+    taskType: "character_generation",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是长篇连载小说的人物设定助手。只输出供作者审核的人物草案和关系建议，不得宣称已经写入正式角色库或人物关系网络。",
+    userPrompt:
+      "根据项目设定、已有角色、人物关系、大纲和作者补充需求，生成一个可审阅的新人物档案草案。",
+    contextNotes:
+      "输入应包含项目基础信息、总设定摘要、已有角色、已有关系、相关大纲和作者对新人物的定位要求。输出只能是 JSON。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["character"],
+      properties: {
+        character: {
+          type: "object",
+          required: ["name", "roleInStory", "identity"],
+          properties: {
+            name: { type: "string" },
+            roleInStory: { type: "string" },
+            identity: { type: "string" },
+            status: { type: "string" },
+            speakingStyle: { type: "string" },
+            desire: { type: "string" },
+            fear: { type: "string" },
+            secret: { type: "string" },
+            relationToProtagonist: { type: "string" },
+            relationToAntagonist: { type: "string" },
+            knownInfo: { type: "string" },
+            hiddenInfo: { type: "string" },
+            abilityBoundary: { type: "string" },
+            behaviorRules: { type: "string" },
+            characterArc: { type: "string" },
+            firstAppearance: { type: "string" },
+            latestAppearance: { type: "string" },
+            notes: { type: "string" },
+          },
+        },
+        suggestedRelationships: {
+          type: "array",
+          items: { type: "string" },
+        },
+      },
+    }),
+  },
+  {
     key: "chapter_draft_generation",
     name: "章节草稿生成",
     taskType: "chapter_draft_generation",

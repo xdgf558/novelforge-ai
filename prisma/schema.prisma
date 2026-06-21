@@ -29,24 +29,25 @@ model Project {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  setting           ProjectSetting?
-  settingVersions   SettingVersion[]
-  characters        Character[]
-  characterVersions CharacterVersion[]
-  chapters          Chapter[]
-  chapterVersions   ChapterVersion[]
-  outlines          Outline[]
-  worldRules        WorldRule[]
-  foreshadows       Foreshadow[]
-  timelineEvents    TimelineEvent[]
-  aiPromptTemplates AiPromptTemplate[]
-  aiTasks           AiTask[]
-  pendingUpdates    PendingUpdate[]
-  continuityReports ContinuityReport[]
-  publishPackages   PublishPackage[]
-  publishTargets    PublishTarget[]
-  publishRuns       PublishRun[]
-  publishSyncStates PublishSyncState[]
+  setting                ProjectSetting?
+  settingVersions        SettingVersion[]
+  characters             Character[]
+  characterVersions      CharacterVersion[]
+  chapters               Chapter[]
+  chapterVersions        ChapterVersion[]
+  outlines               Outline[]
+  worldRules             WorldRule[]
+  foreshadows            Foreshadow[]
+  timelineEvents         TimelineEvent[]
+  characterRelationships CharacterRelationship[]
+  aiPromptTemplates      AiPromptTemplate[]
+  aiTasks                AiTask[]
+  pendingUpdates         PendingUpdate[]
+  continuityReports      ContinuityReport[]
+  publishPackages        PublishPackage[]
+  publishTargets         PublishTarget[]
+  publishRuns            PublishRun[]
+  publishSyncStates      PublishSyncState[]
 
   @@index([status])
   @@map("projects")
@@ -128,8 +129,10 @@ model Character {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
-  project  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  versions CharacterVersion[]
+  project               Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions              CharacterVersion[]
+  outgoingRelationships CharacterRelationship[] @relation("SourceCharacterRelationships")
+  incomingRelationships CharacterRelationship[] @relation("TargetCharacterRelationships")
 
   @@index([projectId, status])
   @@index([projectId, name])
@@ -155,6 +158,34 @@ model CharacterVersion {
   @@map("character_versions")
 }
 
+model CharacterRelationship {
+  id                String   @id @default(cuid())
+  projectId         String
+  sourceCharacterId String
+  targetCharacterId String
+  relationshipType  String   @default("other")
+  direction         String   @default("two_way")
+  status            String   @default("active")
+  summary           String
+  dynamics          String?
+  evidence          String?
+  sourceChapterId   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sourceCharacter Character @relation("SourceCharacterRelationships", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter Character @relation("TargetCharacterRelationships", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  sourceChapter   Chapter?  @relation(fields: [sourceChapterId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status])
+  @@index([projectId, relationshipType])
+  @@index([sourceCharacterId])
+  @@index([targetCharacterId])
+  @@index([sourceChapterId])
+  @@map("character_relationships")
+}
+
 model Chapter {
   id            String   @id @default(cuid())
   projectId     String
@@ -171,15 +202,16 @@ model Chapter {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  project             Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  versions            ChapterVersion[]
-  aiTasks             AiTask[]
-  pendingUpdates      PendingUpdate[]
-  plantedForeshadows  Foreshadow[]       @relation("PlantedChapter")
-  resolvedForeshadows Foreshadow[]       @relation("ResolvedChapter")
-  timelineEvents      TimelineEvent[]
-  continuityReports   ContinuityReport[]
-  publishPackages     PublishPackage[]
+  project                Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions               ChapterVersion[]
+  aiTasks                AiTask[]
+  pendingUpdates         PendingUpdate[]
+  plantedForeshadows     Foreshadow[]            @relation("PlantedChapter")
+  resolvedForeshadows    Foreshadow[]            @relation("ResolvedChapter")
+  timelineEvents         TimelineEvent[]
+  characterRelationships CharacterRelationship[]
+  continuityReports      ContinuityReport[]
+  publishPackages        PublishPackage[]
 
   @@index([projectId, status])
   @@index([projectId, chapterNumber])

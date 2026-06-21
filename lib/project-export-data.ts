@@ -8,6 +8,28 @@ export const projectPublishInclude = {
       name: "asc",
     },
   },
+  characterRelationships: {
+    include: {
+      sourceCharacter: {
+        select: {
+          name: true,
+        },
+      },
+      targetCharacter: {
+        select: {
+          name: true,
+        },
+      },
+    },
+    orderBy: [
+      {
+        status: "asc",
+      },
+      {
+        updatedAt: "desc",
+      },
+    ],
+  },
   outlines: {
     orderBy: [
       {
@@ -215,6 +237,24 @@ export function buildExportData(project: PublishProject) {
         "updatedAt",
       ]),
     ),
+    characterRelationships: project.characterRelationships.map((relationship) => ({
+      ...pickScalarRecord(relationship, [
+        "id",
+        "sourceCharacterId",
+        "targetCharacterId",
+        "relationshipType",
+        "direction",
+        "status",
+        "summary",
+        "dynamics",
+        "evidence",
+        "sourceChapterId",
+        "createdAt",
+        "updatedAt",
+      ]),
+      sourceCharacterName: relationship.sourceCharacter.name,
+      targetCharacterName: relationship.targetCharacter.name,
+    })),
     chapters: project.chapters.map((chapter) =>
       pickScalarRecord(chapter, [
         "id",

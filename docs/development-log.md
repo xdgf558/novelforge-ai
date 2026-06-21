@@ -1,5 +1,43 @@
 # Development Log
 
+## 2026-06-21: Phase 23 Character Network and Character AI
+
+Status: PR review handoff.
+
+Scope:
+
+- Add a dedicated character relationship network and AI-assisted character draft generation while preserving author control.
+
+What was done:
+
+- Added the `character_relationships` table and Prisma relations to project, character, and chapter records.
+- Added `/projects/[projectId]/characters/network` for author-managed relationship creation, editing, and archive-first lifecycle.
+- Added server-side validation so relationship character and chapter references must belong to the current project.
+- Added `character_generation` default prompt template and AI context builder.
+- Added an AI character generation panel on the character library page:
+  - generation starts a logged background `ai_tasks` record,
+  - stale pending/running character tasks are failed after the shared timeout window,
+  - completed drafts can be explicitly adopted into a new formal character record,
+  - adoption creates a `CharacterVersion` snapshot and is idempotent.
+- Added character relationships to project JSON and Markdown exports.
+- Added a project dashboard card for the relationship network.
+- Bumped the source app/package version to `0.1.24` and updated in-app release notes.
+
+Verification:
+
+- `npx prisma generate` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed: 36 files, 168 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+
+Notes:
+
+- AI-generated character profiles remain draft-only until the author clicks "采用为新角色".
+- AI-generated suggested relationships are appended to the adopted character notes for author review; they do not directly create formal relationship records.
+- No desktop installer should be built before review approval. Phase 23 is intended for PR review first.
+
 ## 2026-06-20: Phase 22 Structured Memory Management Pages
 
 Status: completed pending review.

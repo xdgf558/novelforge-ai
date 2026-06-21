@@ -4,6 +4,7 @@ export type ProjectExportData = {
   project: Record<string, Scalar>;
   setting?: Record<string, Scalar> | null;
   characters?: readonly Record<string, Scalar>[];
+  characterRelationships?: readonly Record<string, Scalar>[];
   outlines?: readonly Record<string, Scalar>[];
   chapters?: readonly Record<string, Scalar>[];
   worldRules?: readonly Record<string, Scalar>[];
@@ -51,6 +52,20 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["行为规则", character.behaviorRules],
         ["最近出场", character.latestAppearance],
         ["备注", character.notes],
+      ]),
+    ]),
+    buildRecordSection("人物关系网络", data.characterRelationships, (item) => [
+      `### ${formatScalar(item.sourceCharacterName) || "未知"} -> ${formatScalar(
+        item.targetCharacterName,
+      ) || "未知"}`,
+      buildKeyValueList([
+        ["类型", item.relationshipType],
+        ["方向", item.direction],
+        ["状态", item.status],
+        ["摘要", item.summary],
+        ["阶段变化", item.dynamics],
+        ["证据", item.evidence],
+        ["来源章节", item.sourceChapterId],
       ]),
     ]),
     buildRecordSection("大纲", data.outlines, (outline) => [
