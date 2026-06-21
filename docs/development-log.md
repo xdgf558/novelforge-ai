@@ -35,11 +35,29 @@ What was done:
 - Updated the AI task page copy and in-app release notes.
 - Bumped the source app/package version to `0.1.25`.
 
+Review hardening:
+
+- Removed the URL-candidate adoption path for generated covers. Image providers
+  must return base64 image data; URL-only results are skipped or fail the task so
+  external API output cannot make the local server download arbitrary URLs.
+- Changed generated-cover task output to store local candidate asset references
+  only. Full base64 image payloads and raw provider responses are no longer
+  written to `ai_tasks.outputJson`.
+- Saved generated cover candidates immediately into a local candidate asset
+  directory; adopting a cover now copies from that local candidate asset into
+  the formal project cover slot.
+- Added magic-byte validation for PNG/JPEG/WebP/GIF before saving any manual or
+  generated cover image, and restored upload-size preflight before reading a
+  selected manual file into memory.
+- Limited "拒绝整组" to completed cover-generation tasks and added friendly
+  feedback for invalid image API Base URL settings.
+
 Verification:
 
 - `npm run test -- lib/ai/local-config.test.ts lib/ai/image-client.test.ts lib/ai/cover-images.test.ts lib/project-cover-assets.test.ts lib/ai/prompt-templates.test.ts` passed: 5 files, 30 tests.
+- `npm run test -- lib/project-cover-assets.test.ts lib/ai/cover-images.test.ts app/projects/[projectId]/publish/actions.test.ts` passed: 3 files, 12 tests.
 - `npm run typecheck` passed.
-- `npm run test` passed: 39 files, 191 tests.
+- `npm run test` passed: 40 files, 196 tests.
 - `npm run desktop:smoke` passed.
 - `npm run build` passed.
 - `git diff --check` passed.

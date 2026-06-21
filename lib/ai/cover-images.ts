@@ -1,5 +1,3 @@
-import type { GeneratedImageResult } from "./image-client";
-
 export const coverImageGenerationTaskType = "cover_image_generation";
 export const coverImageGenerationTemplateKey = "cover_image_generation";
 
@@ -48,9 +46,16 @@ export type CoverImagePromptContext = {
 
 export type CoverImageTaskOutput = {
   endpoint?: string;
-  images?: GeneratedImageResult[];
+  images?: StoredCoverImageCandidate[];
   requestJson?: unknown;
-  responseJson?: unknown;
+};
+
+export type StoredCoverImageCandidate = {
+  assetPath: string | null;
+  fileName: string | null;
+  mimeType: string | null;
+  revisedPrompt: string | null;
+  sizeBytes: number | null;
 };
 
 export const coverImageTargets: readonly CoverImageTarget[] = [
@@ -172,7 +177,6 @@ export function parseCoverImageTaskOutput(
       endpoint: clean(parsed.endpoint),
       images,
       requestJson: parsed.requestJson,
-      responseJson: parsed.responseJson,
     };
   } catch {
     return null;
@@ -199,28 +203,28 @@ export function coverPromptSourceLabel(
   return "项目基础信息";
 }
 
-function normalizeStoredImage(value: unknown): GeneratedImageResult[] {
+function normalizeStoredImage(value: unknown): StoredCoverImageCandidate[] {
   if (!isRecord(value)) {
     return [];
   }
 
-  const dataBase64 = clean(value.dataBase64) || null;
-  const dataUrl = clean(value.dataUrl) || null;
+  const assetPath = clean(value.assetPath) || null;
+  const fileName = clean(value.fileName) || null;
   const mimeType = clean(value.mimeType) || null;
   const revisedPrompt = clean(value.revisedPrompt) || null;
-  const url = clean(value.url) || null;
+  const sizeBytes = numberValue(value.sizeBytes);
 
-  if (!dataBase64 && !dataUrl && !url) {
+  if (!assetPath || !mimeType) {
     return [];
   }
 
   return [
     {
-      dataBase64,
-      dataUrl,
+      assetPath,
+      fileName,
       mimeType,
       revisedPrompt,
-      url,
+      sizeBytes,
     },
   ];
 }
@@ -254,4 +258,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function clean(value?: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function numberValue(value: unknown) {
+  const number = Number(value);
+
+  return Number.isFinite(number) && number >= 0 ? number : null;
 }

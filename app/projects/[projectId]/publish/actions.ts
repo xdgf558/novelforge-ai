@@ -35,7 +35,9 @@ import {
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import {
   deleteProjectCoverAsset,
+  readProjectCoverAssetBuffer,
   saveProjectCoverAsset,
+  saveProjectCoverCandidateAssetFromBuffer,
   saveProjectCoverAssetFromBuffer,
 } from "@/lib/project-cover-assets";
 import {
@@ -236,9 +238,9 @@ export async function adoptGeneratedProjectCover(
         status: "completed",
         adoptionState: "not_reviewed",
       },
-      select: {
-        id: true,
-        outputJson: true,
+    select: {
+      id: true,
+      outputJson: true,
       },
     }),
   ]);
@@ -256,11 +258,16 @@ export async function adoptGeneratedProjectCover(
     redirect(`/projects/${projectId}/publish?coverImageError=missingGeneratedImage`);
   }
 
-  const downloadedImage = await resolveGeneratedCoverImage(image);
+  if (!image.assetPath || !image.mimeType) {
+    revalidatePublishPaths(projectId);
+    redirect(`/projects/${projectId}/publish?coverImageError=missingGeneratedImage`);
+  }
+
+  const candidateBuffer = await readProjectCoverAssetBuffer(image.assetPath);
   const savedCover = await saveProjectCoverAssetFromBuffer({
-    buffer: downloadedImage.buffer,
-    fileName: `generated-cover-${imageIndex + 1}.${downloadedImage.extension}`,
-    mimeType: downloadedImage.mimeType,
+    buffer: candidateBuffer,
+    fileName: image.fileName || `generated-cover-${imageIndex + 1}`,
+    mimeType: image.mimeType ?? "",
     projectId,
   });
   const coverAltText =
@@ -325,6 +332,7 @@ export async function rejectGeneratedProjectCover(projectId: string, taskId: str
       id: taskId,
       projectId,
       taskType: coverImageGenerationTaskType,
+      status: "completed",
       adoptionState: "not_reviewed",
     },
     data: {
@@ -999,14 +1007,22 @@ async function completeRunningCoverImageTask({
       quality,
       size,
     });
+    const persisted = await persistGeneratedCoverCandidates({
+      images: result.images,
+      projectId,
+      taskId,
+    });
+    const skippedUrlText =
+      persisted.skippedUrlCount > 0
+        ? ` 已跳过 ${persisted.skippedUrlCount} 张 URL 型候选图；请让图片接口返回 base64。`
+        : "";
 
     await markAiTaskCompleted(taskId, {
-      outputText: `已生成 ${result.images.length} 张封面候选图，等待作者采用。`,
+      outputText: `已保存 ${persisted.images.length} 张封面候选图，等待作者采用。${skippedUrlText}`,
       outputJson: {
         endpoint: result.endpoint,
-        images: result.images,
+        images: persisted.images,
         requestJson: result.requestJson,
-        responseJson: result.responseJson,
       },
     });
   } catch (error) {
@@ -1089,13 +1105,85 @@ async function findActivePublishPackageTask(projectId: string, chapterId: string
   });
 }
 
-async function resolveGeneratedCoverImage(image: GeneratedImageResult) {
+async function persistGeneratedCoverCandidates({
+  images,
+  projectId,
+  taskId,
+}: {
+  images: GeneratedImageResult[];
+  projectId: string;
+  taskId: string;
+}) {
+  const savedPaths: string[] = [];
+  const persistedImages: Array<{
+    assetPath: string;
+    fileName: string;
+    mimeType: string;
+    revisedPrompt: string | null;
+    sizeBytes: number;
+  }> = [];
+  let skippedUrlCount = 0;
+
+  try {
+    for (const [index, image] of images.entries()) {
+      const source = generatedImageBufferFromBase64(image);
+
+      if (!source) {
+        if (image.url) {
+          skippedUrlCount += 1;
+        }
+
+        continue;
+      }
+
+      const saved = await saveProjectCoverCandidateAssetFromBuffer({
+        buffer: source.buffer,
+        fileName: `generated-cover-${index + 1}`,
+        mimeType: source.mimeType,
+        projectId,
+        taskId,
+      });
+
+      savedPaths.push(saved.relativePath);
+      persistedImages.push({
+        assetPath: saved.relativePath,
+        fileName: saved.fileName,
+        mimeType: saved.mimeType,
+        revisedPrompt: image.revisedPrompt,
+        sizeBytes: saved.sizeBytes,
+      });
+    }
+
+    if (persistedImages.length === 0 && skippedUrlCount > 0) {
+      throw new Error(
+        "图片生成接口只返回了 URL 型候选图。为保护本机安全，请改用返回 base64 图片数据的接口或模型配置。",
+      );
+    }
+
+    if (persistedImages.length === 0) {
+      throw new Error("图片生成接口没有返回可保存的图片数据。");
+    }
+
+    return {
+      images: persistedImages,
+      skippedUrlCount,
+    };
+  } catch (error) {
+    await Promise.all(savedPaths.map((assetPath) => deleteProjectCoverAsset(assetPath)));
+
+    throw error;
+  }
+}
+
+function generatedImageBufferFromBase64(image: GeneratedImageResult) {
   if (image.dataBase64) {
-    const mimeType = image.mimeType || mimeTypeFromDataUrl(image.dataUrl) || "image/png";
+    const declaredMimeType = image.mimeType || mimeTypeFromDataUrl(image.dataUrl);
+    const mimeType = declaredMimeType
+      ? normalizeGeneratedImageMimeType(declaredMimeType)
+      : "";
 
     return {
       buffer: Buffer.from(image.dataBase64, "base64"),
-      extension: coverExtensionFromMimeType(mimeType),
       mimeType,
     };
   }
@@ -1105,50 +1193,11 @@ async function resolveGeneratedCoverImage(image: GeneratedImageResult) {
 
     return {
       buffer: Buffer.from(parsed.base64, "base64"),
-      extension: coverExtensionFromMimeType(parsed.mimeType),
       mimeType: parsed.mimeType,
     };
   }
 
-  if (image.url) {
-    return downloadGeneratedCoverImage(image.url);
-  }
-
-  throw new Error("图片生成任务没有可采用的图片数据。");
-}
-
-async function downloadGeneratedCoverImage(url: string) {
-  const endpoint = new URL(url);
-
-  if (endpoint.protocol !== "https:" && endpoint.protocol !== "http:") {
-    throw new Error("图片下载地址必须是 http 或 https URL。");
-  }
-
-  const abortController = new AbortController();
-  const timeoutId = setTimeout(() => abortController.abort(), 60_000);
-  let response: Response;
-
-  try {
-    response = await fetch(endpoint, {
-      signal: abortController.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  if (!response.ok) {
-    throw new Error(`图片下载失败：HTTP ${response.status}`);
-  }
-
-  const mimeType = normalizeGeneratedImageMimeType(
-    response.headers.get("content-type"),
-  );
-
-  return {
-    buffer: Buffer.from(await response.arrayBuffer()),
-    extension: coverExtensionFromMimeType(mimeType),
-    mimeType,
-  };
+  return null;
 }
 
 function parseDataUrl(dataUrl: string) {

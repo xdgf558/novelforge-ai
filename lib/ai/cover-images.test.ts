@@ -74,9 +74,10 @@ describe("cover image generation helpers", () => {
           endpoint: "https://api.ppq.ai/v1/images/generations",
           images: [
             {
-              dataBase64: "image-bytes",
-              dataUrl: "data:image/png;base64,image-bytes",
+              assetPath: "cover-candidates/project/task/cover-1.png",
+              fileName: "cover-1.png",
               mimeType: "image/png",
+              sizeBytes: 1024,
             },
             {
               url: "https://cdn.example/cover.webp",
@@ -91,11 +92,10 @@ describe("cover image generation helpers", () => {
       endpoint: "https://api.ppq.ai/v1/images/generations",
       images: [
         {
-          dataBase64: "image-bytes",
+          assetPath: "cover-candidates/project/task/cover-1.png",
+          fileName: "cover-1.png",
           mimeType: "image/png",
-        },
-        {
-          url: "https://cdn.example/cover.webp",
+          sizeBytes: 1024,
         },
       ],
     });

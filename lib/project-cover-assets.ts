@@ -66,6 +66,14 @@ export async function saveProjectCoverAsset({
   previousRelativePath?: string | null;
   projectId: string;
 }): Promise<StoredProjectCoverAsset> {
+  if (file.size <= 0) {
+    throw new Error("请选择有效的封面图片文件。");
+  }
+
+  if (file.size > maxCoverImageBytes) {
+    throw new Error("封面图片不能超过 8MB。");
+  }
+
   const mimeType = normalizeMimeType(file.type);
   const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -92,11 +100,6 @@ export async function saveProjectCoverAssetFromBuffer({
   projectId: string;
 }): Promise<StoredProjectCoverAsset> {
   const cleanMimeType = normalizeMimeType(mimeType);
-  const extension = allowedImageTypes.get(cleanMimeType);
-
-  if (!extension) {
-    throw new Error("封面图片只支持 PNG、JPEG、WebP 或 GIF。");
-  }
 
   if (buffer.byteLength <= 0) {
     throw new Error("请选择有效的封面图片文件。");
@@ -104,6 +107,22 @@ export async function saveProjectCoverAssetFromBuffer({
 
   if (buffer.byteLength > maxCoverImageBytes) {
     throw new Error("封面图片不能超过 8MB。");
+  }
+
+  const detectedMimeType = detectCoverImageMimeType(buffer);
+
+  if (!detectedMimeType) {
+    throw new Error("封面图片内容不是有效的 PNG、JPEG、WebP 或 GIF。");
+  }
+
+  if (cleanMimeType && cleanMimeType !== detectedMimeType) {
+    throw new Error("封面图片内容与文件类型不一致。");
+  }
+
+  const extension = allowedImageTypes.get(detectedMimeType);
+
+  if (!extension) {
+    throw new Error("封面图片只支持 PNG、JPEG、WebP 或 GIF。");
   }
 
   const root = getProjectCoverAssetRoot();
@@ -128,7 +147,77 @@ export async function saveProjectCoverAssetFromBuffer({
 
   return {
     relativePath,
-    mimeType: cleanMimeType,
+    mimeType: detectedMimeType,
+    fileName: originalName,
+    sizeBytes: buffer.byteLength,
+    updatedAt: new Date(),
+  };
+}
+
+export async function saveProjectCoverCandidateAssetFromBuffer({
+  buffer,
+  fileName,
+  mimeType,
+  projectId,
+  taskId,
+}: {
+  buffer: Buffer;
+  fileName?: string | null;
+  mimeType?: string | null;
+  projectId: string;
+  taskId: string;
+}): Promise<StoredProjectCoverAsset> {
+  const cleanMimeType = normalizeMimeType(mimeType);
+
+  if (buffer.byteLength <= 0) {
+    throw new Error("请选择有效的封面图片文件。");
+  }
+
+  if (buffer.byteLength > maxCoverImageBytes) {
+    throw new Error("封面图片不能超过 8MB。");
+  }
+
+  const detectedMimeType = detectCoverImageMimeType(buffer);
+
+  if (!detectedMimeType) {
+    throw new Error("封面图片内容不是有效的 PNG、JPEG、WebP 或 GIF。");
+  }
+
+  if (cleanMimeType && cleanMimeType !== detectedMimeType) {
+    throw new Error("封面图片内容与文件类型不一致。");
+  }
+
+  const extension = allowedImageTypes.get(detectedMimeType);
+
+  if (!extension) {
+    throw new Error("封面图片只支持 PNG、JPEG、WebP 或 GIF。");
+  }
+
+  const root = getProjectCoverAssetRoot();
+  const projectDir = path.join(
+    root,
+    "cover-candidates",
+    safePathSegment(projectId),
+    safePathSegment(taskId),
+  );
+  const originalName = cleanFileName(fileName) || `generated-cover.${extension}`;
+  const storedFileName = `${Date.now()}-${randomUUID()}.${extension}`;
+  const relativePath = path.join(
+    "cover-candidates",
+    safePathSegment(projectId),
+    safePathSegment(taskId),
+    storedFileName,
+  );
+  const absolutePath = resolveCoverAssetPath(relativePath);
+
+  await fs.promises.mkdir(projectDir, {
+    recursive: true,
+  });
+  await fs.promises.writeFile(absolutePath, buffer);
+
+  return {
+    relativePath,
+    mimeType: detectedMimeType,
     fileName: originalName,
     sizeBytes: buffer.byteLength,
     updatedAt: new Date(),
@@ -146,6 +235,29 @@ export async function deleteProjectCoverAsset(relativePath?: string | null) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       throw error;
     }
+  }
+}
+
+export async function readProjectCoverAssetBuffer(relativePath: string) {
+  return fs.promises.readFile(resolveCoverAssetPath(relativePath));
+}
+
+export function buildProjectCoverAssetDataUrl(
+  relativePath?: string | null,
+  mimeType?: string | null,
+) {
+  if (!relativePath || !mimeType) {
+    return null;
+  }
+
+  try {
+    const dataBase64 = fs
+      .readFileSync(resolveCoverAssetPath(relativePath))
+      .toString("base64");
+
+    return `data:${normalizeMimeType(mimeType)};base64,${dataBase64}`;
+  } catch {
+    return null;
   }
 }
 
@@ -217,6 +329,49 @@ function resolveCoverAssetPath(relativePath: string) {
 
 function normalizeMimeType(value?: string | null) {
   return value?.split(";")[0]?.trim().toLowerCase() ?? "";
+}
+
+function detectCoverImageMimeType(buffer: Buffer) {
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return "image/png";
+  }
+
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
+    return "image/jpeg";
+  }
+
+  if (
+    buffer.length >= 6 &&
+    (buffer.subarray(0, 6).toString("ascii") === "GIF87a" ||
+      buffer.subarray(0, 6).toString("ascii") === "GIF89a")
+  ) {
+    return "image/gif";
+  }
+
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+
+  return null;
 }
 
 function safePathSegment(value: string) {

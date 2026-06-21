@@ -71,6 +71,7 @@ import {
   stringifyStandardPublishPackage,
 } from "@/lib/publish-platforms";
 import {
+  buildProjectCoverAssetDataUrl,
   coverImageAcceptAttribute,
   formatCoverImageSize,
 } from "@/lib/project-cover-assets";
@@ -1182,6 +1183,7 @@ function CoverImageTaskCard({
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {images.map((image, index) => {
             const previewSrc = coverImagePreviewSrc(image);
+            const canAdoptImage = canAdopt && Boolean(previewSrc);
 
             return (
               <div
@@ -1196,7 +1198,7 @@ function CoverImageTaskCard({
                   />
                 ) : (
                   <div className="flex aspect-[2/3] items-center justify-center rounded-md bg-white p-4 text-center text-sm text-ink-700">
-                    图片数据不可预览，但仍可尝试采用。
+                    候选图资产不可预览，请重新生成。
                   </div>
                 )}
                 {image.revisedPrompt ? (
@@ -1204,7 +1206,7 @@ function CoverImageTaskCard({
                     {image.revisedPrompt}
                   </p>
                 ) : null}
-                {canAdopt ? (
+                {canAdoptImage ? (
                   <form
                     action={adoptGeneratedProjectCover.bind(
                       null,
@@ -1256,20 +1258,10 @@ function InfoBlock({
 }
 
 function coverImagePreviewSrc(image: {
-  dataBase64?: string | null;
-  dataUrl?: string | null;
+  assetPath?: string | null;
   mimeType?: string | null;
-  url?: string | null;
 }) {
-  if (image.dataUrl) {
-    return image.dataUrl;
-  }
-
-  if (image.dataBase64) {
-    return `data:${image.mimeType || "image/png"};base64,${image.dataBase64}`;
-  }
-
-  return image.url ?? null;
+  return buildProjectCoverAssetDataUrl(image.assetPath, image.mimeType);
 }
 
 function coverImageErrorMessage(error?: string | null) {

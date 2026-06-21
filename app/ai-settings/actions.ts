@@ -35,14 +35,20 @@ export async function saveStationCatPublishSettingsAction(formData: FormData) {
 }
 
 export async function saveImageGenerationSettingsAction(formData: FormData) {
-  saveImageGenerationSettings({
-    apiBaseUrl: formData.get("imageApiBaseUrl")?.toString(),
-    apiKey: formData.get("imageApiKey")?.toString(),
-    clearApiKey: formData.get("clearImageApiKey") === "on",
-    model: formData.get("imageModel")?.toString(),
-    size: formData.get("imageSize")?.toString(),
-    quality: formData.get("imageQuality")?.toString(),
-  });
+  try {
+    saveImageGenerationSettings({
+      apiBaseUrl: formData.get("imageApiBaseUrl")?.toString(),
+      apiKey: formData.get("imageApiKey")?.toString(),
+      clearApiKey: formData.get("clearImageApiKey") === "on",
+      model: formData.get("imageModel")?.toString(),
+      size: formData.get("imageSize")?.toString(),
+      quality: formData.get("imageQuality")?.toString(),
+    });
+  } catch {
+    revalidatePath("/ai-settings");
+    revalidatePath("/");
+    redirect("/ai-settings?saved=image-error");
+  }
 
   revalidatePath("/ai-settings");
   revalidatePath("/");
