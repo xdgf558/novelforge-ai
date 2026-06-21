@@ -31,12 +31,15 @@ Review hardening:
 - Clamped AI-adopted character draft fields to the manual character limits and capped suggested relationship notes before writing formal character records.
 - Added duplicate active/tension/hidden relationship detection for the same character pair, relationship type, and direction.
 - Made relationship editing preserve archived endpoint characters in the select options so older relationship records do not accidentally change endpoints.
+- Character archiving now also archives related active/tension/hidden relationship records, and character AI generation filters out relationships whose source or target character is already archived.
+- Character generation request input now has UI length limits and server-side safe validation that redirects to visible feedback instead of throwing Zod errors.
+- Relationship network summary stats now use full-project count queries instead of the currently loaded 80-row page slice.
 
 Verification:
 
 - `npx prisma generate` passed.
 - `npm run typecheck` passed.
-- `npm run test` passed: 36 files, 172 tests.
+- `npm run test` passed: 36 files, 173 tests.
 - `npm run build` passed.
 - `npm run desktop:smoke` passed.
 - `git diff --check` passed.

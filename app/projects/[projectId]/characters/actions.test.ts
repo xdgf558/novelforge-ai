@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => {
       create: vi.fn(),
       update: vi.fn(),
     },
+    characterRelationship: {
+      updateMany: vi.fn(),
+    },
     characterVersion: {
       count: vi.fn(),
       create: vi.fn(),
@@ -127,6 +130,9 @@ describe("character AI actions", () => {
       id: "character_1",
       status: "archived",
     });
+    mocks.tx.characterRelationship.updateMany.mockResolvedValue({
+      count: 2,
+    });
     mocks.tx.character.create.mockResolvedValue({
       id: "character_1",
       notes: "AI 建议关系（未自动写入正式关系网络）：\n与主角形成早期冲突",
@@ -226,7 +232,41 @@ describe("character AI actions", () => {
         input: expect.stringContaining("阶段反派"),
       }),
     );
+    expect(mocks.prisma.characterRelationship.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: "project_1",
+          status: {
+            not: "archived",
+          },
+          sourceCharacter: {
+            status: {
+              not: "archived",
+            },
+          },
+          targetCharacter: {
+            status: {
+              not: "archived",
+            },
+          },
+        }),
+      }),
+    );
     expect(mocks.tx.character.create).not.toHaveBeenCalled();
+  });
+
+  it("redirects invalid character generation requests instead of throwing zod errors", async () => {
+    const formData = buildGenerationFormData();
+    formData.set("brief", "长".repeat(3001));
+
+    await expect(
+      generateCharacterDraft("project_1", formData),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/characters?characterError=invalidCharacterRequest",
+    );
+    expect(mocks.startLoggedOpenAITextTask).not.toHaveBeenCalled();
   });
 
   it("archives a character instead of hard deleting it", async () => {
@@ -261,6 +301,25 @@ describe("character AI actions", () => {
     expect(mocks.tx.character.update).toHaveBeenCalledWith({
       where: {
         id: "character_1",
+      },
+      data: {
+        status: "archived",
+      },
+    });
+    expect(mocks.tx.characterRelationship.updateMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        status: {
+          in: ["active", "tension", "hidden"],
+        },
+        OR: [
+          {
+            sourceCharacterId: "character_1",
+          },
+          {
+            targetCharacterId: "character_1",
+          },
+        ],
       },
       data: {
         status: "archived",

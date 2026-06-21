@@ -276,6 +276,7 @@ function CharacterGenerationPanel({
           目标定位
           <input
             className="mt-2 min-h-10 w-full rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+            maxLength={120}
             name="targetRole"
             placeholder="例如：阶段反派 / 早期客户 / 情感线"
           />
@@ -284,6 +285,7 @@ function CharacterGenerationPanel({
           作者补充
           <textarea
             className="mt-2 w-full rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm leading-6 text-ink-950 outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+            maxLength={3000}
             name="brief"
             placeholder="写明这个人物要承担的剧情功能、与主角/反派的关系、不能违背的设定。"
             rows={3}

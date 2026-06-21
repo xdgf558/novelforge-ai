@@ -45,6 +45,7 @@ export const characterRelationshipErrorMessages: Record<string, string> = {
   bodyTooLong: "人物关系内容过长，请压缩后再保存。",
   recordNotFound: "没有找到这条人物关系记录。",
   invalidCharacterDraft: "AI 人物草案无法解析为可创建的角色。",
+  invalidCharacterRequest: "人物生成需求过长或格式不正确，请压缩后再生成。",
   activeCharacterTask: "已有 AI 人物生成任务进行中，请等待完成后再生成。",
   missingApiKey: "未配置 API Key，暂不能调用模型；已有任务仍可查看和采用。",
   duplicateRelationship: "这两个角色之间已存在相同类型和方向的活跃关系，请编辑已有关系或先归档旧关系。",

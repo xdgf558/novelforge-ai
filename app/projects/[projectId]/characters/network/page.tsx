@@ -89,78 +89,102 @@ export default async function CharacterRelationshipNetworkPage({
     notFound();
   }
 
-  const [characters, chapters, relationships, relationshipCount] =
-    await Promise.all([
-      prisma.character.findMany({
-        where: {
-          projectId,
-        },
-        orderBy: {
-          name: "asc",
-        },
-        select: {
-          id: true,
-          name: true,
-          roleInStory: true,
-          status: true,
-        },
-      }),
-      prisma.chapter.findMany({
-        where: {
-          projectId,
-        },
-        orderBy: {
-          chapterNumber: "asc",
-        },
-        select: {
-          id: true,
-          chapterNumber: true,
-          title: true,
-        },
-      }),
-      prisma.characterRelationship.findMany({
-        where: {
-          projectId,
-        },
-        include: {
-          sourceCharacter: {
-            select: {
-              name: true,
-            },
-          },
-          targetCharacter: {
-            select: {
-              name: true,
-            },
-          },
-          sourceChapter: {
-            select: {
-              chapterNumber: true,
-              title: true,
-            },
+  const [
+    characters,
+    chapters,
+    relationships,
+    relationshipCount,
+    activeRelationshipCount,
+    hiddenRelationshipCount,
+    tensionRelationshipCount,
+  ] = await Promise.all([
+    prisma.character.findMany({
+      where: {
+        projectId,
+      },
+      orderBy: {
+        name: "asc",
+      },
+      select: {
+        id: true,
+        name: true,
+        roleInStory: true,
+        status: true,
+      },
+    }),
+    prisma.chapter.findMany({
+      where: {
+        projectId,
+      },
+      orderBy: {
+        chapterNumber: "asc",
+      },
+      select: {
+        id: true,
+        chapterNumber: true,
+        title: true,
+      },
+    }),
+    prisma.characterRelationship.findMany({
+      where: {
+        projectId,
+      },
+      include: {
+        sourceCharacter: {
+          select: {
+            name: true,
           },
         },
-        orderBy: [
-          {
-            status: "asc",
+        targetCharacter: {
+          select: {
+            name: true,
           },
-          {
-            updatedAt: "desc",
-          },
-        ],
-        take: 80,
-      }),
-      prisma.characterRelationship.count({
-        where: {
-          projectId,
         },
-      }),
-    ]);
+        sourceChapter: {
+          select: {
+            chapterNumber: true,
+            title: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          status: "asc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
+      take: 80,
+    }),
+    prisma.characterRelationship.count({
+      where: {
+        projectId,
+      },
+    }),
+    prisma.characterRelationship.count({
+      where: {
+        projectId,
+        status: "active",
+      },
+    }),
+    prisma.characterRelationship.count({
+      where: {
+        projectId,
+        status: "hidden",
+      },
+    }),
+    prisma.characterRelationship.count({
+      where: {
+        projectId,
+        status: "tension",
+      },
+    }),
+  ]);
 
   const editRelationship = editId
     ? relationships.find((relationship) => relationship.id === editId)
     : null;
-  const stats = summarizeRelationships(relationships);
   const activeCharacters = characters.filter(
     (character) => character.status !== "archived",
   );
@@ -202,11 +226,15 @@ export default async function CharacterRelationshipNetworkPage({
           value={`${activeCharacters.length} 个`}
         />
         <InfoTile icon={Network} label="关系总数" value={`${relationshipCount} 条`} />
-        <InfoTile icon={GitFork} label="活跃关系" value={`${stats.active} 条`} />
+        <InfoTile
+          icon={GitFork}
+          label="活跃关系"
+          value={`${activeRelationshipCount} 条`}
+        />
         <InfoTile
           icon={Archive}
           label="隐藏/紧张"
-          value={`${stats.hidden + stats.tension} 条`}
+          value={`${hiddenRelationshipCount + tensionRelationshipCount} 条`}
         />
       </section>
 
@@ -585,19 +613,4 @@ function characterOptionsForRelationship(
   }
 
   return options;
-}
-
-function summarizeRelationships(relationships: readonly RelationshipRecord[]) {
-  return relationships.reduce(
-    (stats, relationship) => ({
-      active: stats.active + (relationship.status === "active" ? 1 : 0),
-      hidden: stats.hidden + (relationship.status === "hidden" ? 1 : 0),
-      tension: stats.tension + (relationship.status === "tension" ? 1 : 0),
-    }),
-    {
-      active: 0,
-      hidden: 0,
-      tension: 0,
-    },
-  );
 }

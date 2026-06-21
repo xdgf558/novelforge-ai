@@ -96,11 +96,20 @@ function parseCharacterForm(formData: FormData) {
   };
 }
 
-function parseCharacterGenerationRequest(formData: FormData) {
-  return characterGenerationRequestSchema.parse({
+function parseCharacterGenerationRequest(formData: FormData, projectId: string) {
+  const parsed = characterGenerationRequestSchema.safeParse({
     targetRole: formData.get("targetRole"),
     brief: formData.get("brief"),
   });
+
+  if (!parsed.success) {
+    revalidateCharacterPaths(projectId);
+    redirect(
+      `/projects/${projectId}/characters?characterError=invalidCharacterRequest`,
+    );
+  }
+
+  return parsed.data;
 }
 
 async function assertProject(projectId: string) {
@@ -233,6 +242,26 @@ export async function archiveCharacter(projectId: string, characterId: string) {
       },
     });
 
+    await tx.characterRelationship.updateMany({
+      where: {
+        projectId,
+        status: {
+          in: ["active", "tension", "hidden"],
+        },
+        OR: [
+          {
+            sourceCharacterId: characterId,
+          },
+          {
+            targetCharacterId: characterId,
+          },
+        ],
+      },
+      data: {
+        status: "archived",
+      },
+    });
+
     const versionCount = await tx.characterVersion.count({
       where: {
         characterId,
@@ -278,7 +307,7 @@ export async function generateCharacterDraft(
     redirect(`/projects/${projectId}/characters?characterError=activeCharacterTask`);
   }
 
-  const request = parseCharacterGenerationRequest(formData);
+  const request = parseCharacterGenerationRequest(formData, projectId);
   const [project, characters, relationships, outlines] = await Promise.all([
     prisma.project.findUnique({
       where: {
@@ -310,6 +339,16 @@ export async function generateCharacterDraft(
         projectId,
         status: {
           not: "archived",
+        },
+        sourceCharacter: {
+          status: {
+            not: "archived",
+          },
+        },
+        targetCharacter: {
+          status: {
+            not: "archived",
+          },
         },
       },
       include: {
