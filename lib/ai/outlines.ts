@@ -42,6 +42,7 @@ export type OutlineGenerationChapterContext = {
 export type OutlineGenerationRequest = {
   targetLevel: OutlineLevel;
   chapterCount?: number | null;
+  targetChapterNumber?: number | null;
 };
 
 export type OutlineGenerationContextInput = {
@@ -75,7 +76,11 @@ export function buildOutlineGenerationContext(
   const targetLabel = outlineLevelLabel(input.request.targetLevel);
   const chapterCount =
     input.request.targetLevel === "chapter"
-      ? (input.request.chapterCount ?? 10)
+      ? 1
+      : null;
+  const targetChapterNumber =
+    input.request.targetLevel === "chapter"
+      ? (input.request.targetChapterNumber ?? null)
       : null;
 
   const inputJson = {
@@ -93,6 +98,7 @@ export function buildOutlineGenerationContext(
     request: {
       targetLevel: input.request.targetLevel,
       chapterCount,
+      targetChapterNumber,
     },
     setting: Object.fromEntries(settingItems),
     existingOutlines: outlineItems,
@@ -104,7 +110,11 @@ export function buildOutlineGenerationContext(
     "# 任务",
     `为《${input.project.title}》生成${targetLabel}草案。`,
     "输出只作为作者审核和手动整理的大纲建议，不得宣称已经写入正式大纲或正式故事记忆。",
-    chapterCount ? `本次优先生成 ${chapterCount} 个章节级条目。` : "",
+    input.request.targetLevel === "chapter"
+      ? targetChapterNumber
+        ? `本次只生成第 ${targetChapterNumber} 章的一条章节大纲，不要生成其他章节。`
+        : "本次只生成下一章的一条章节大纲，不要生成连续多章。"
+      : "",
     "",
     "# 项目基础信息",
     lines([
@@ -141,6 +151,7 @@ export function buildOutlineGenerationContext(
     "- 使用 Markdown 输出。",
     "- 保持三层结构清晰：卷大纲、剧情单元大纲、章节大纲。",
     "- 不要直接修改正式设定、角色、世界规则、时间线或伏笔。",
+    "- 如果任务是章节大纲，只输出目标章节这一章，不要输出连续章节列表。",
     "- 给出可复制到大纲表单的字段：标题、目标、章节范围、核心事件、冲突、爽点、伏笔和章末钩子。",
   ]
     .filter((item) => item !== "")
@@ -159,7 +170,9 @@ export function buildOutlineGenerationContextSummary(
   const targetLabel = outlineLevelLabel(input.request.targetLevel);
   const count =
     input.request.targetLevel === "chapter"
-      ? `；目标 ${input.request.chapterCount ?? 10} 个章节条目`
+      ? input.request.targetChapterNumber
+        ? `；目标第 ${input.request.targetChapterNumber} 章；固定 1 条章节大纲`
+        : "；固定 1 条章节大纲"
       : "";
 
   return [

@@ -282,6 +282,7 @@ describe("outline actions", () => {
           request: {
             targetLevel: "volume",
             chapterCount: null,
+            targetChapterNumber: null,
           },
         }),
       }),
@@ -290,5 +291,35 @@ describe("outline actions", () => {
       }),
     );
     expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
+  });
+
+  it("forces chapter outline generation to one target chapter", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "chapter");
+    formData.set("targetChapterNumber", "3");
+    formData.set("chapterCount", "10");
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project_1",
+        taskType: "outline_generation",
+        inputJson: expect.objectContaining({
+          request: {
+            targetLevel: "chapter",
+            chapterCount: 1,
+            targetChapterNumber: 3,
+          },
+        }),
+        inputContextSummary:
+          "《离线未来》章节大纲生成；已有大纲 0 条；角色 0 个；已有章节 0 个；目标第 3 章；固定 1 条章节大纲",
+      }),
+      expect.objectContaining({
+        input: expect.stringContaining("只生成第 3 章的一条章节大纲"),
+      }),
+    );
   });
 });

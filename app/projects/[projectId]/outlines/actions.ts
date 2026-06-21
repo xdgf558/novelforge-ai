@@ -99,9 +99,21 @@ const generationRequestSchema = z.object({
       return Number.isFinite(parsed) ? parsed : value;
     }, z.number().int().min(1).max(30).nullable())
     .default(null),
+  targetChapterNumber: z
+    .preprocess((value) => {
+      if (typeof value !== "string" || value.trim() === "") {
+        return null;
+      }
+
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : value;
+    }, z.number().int().min(1).nullable())
+    .default(null),
 }).transform((request) => ({
   ...request,
-  chapterCount: request.targetLevel === "chapter" ? request.chapterCount : null,
+  chapterCount: request.targetLevel === "chapter" ? 1 : null,
+  targetChapterNumber:
+    request.targetLevel === "chapter" ? request.targetChapterNumber : null,
 }));
 
 type ParseOutlineFormResult =
@@ -318,6 +330,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
   const rawRequest = {
     targetLevel: formData.get("targetLevel"),
     chapterCount: formData.get("chapterCount"),
+    targetChapterNumber: formData.get("targetChapterNumber"),
   };
   const request = generationRequestSchema.parse(rawRequest);
   const [project, outlines, characters, recentChapters] = await Promise.all([
@@ -373,6 +386,15 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     notFound();
   }
 
+  const resolvedRequest =
+    request.targetLevel === "chapter"
+      ? {
+          ...request,
+          targetChapterNumber:
+            request.targetChapterNumber ??
+            inferNextTargetChapterNumber(recentChapters, outlines),
+        }
+      : request;
   const template = await ensureDefaultPromptTemplate(
     projectId,
     outlineTemplateKey,
@@ -383,7 +405,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     outlines,
     characters,
     recentChapters: recentChapters.reverse(),
-    request,
+    request: resolvedRequest,
   });
 
   await startLoggedOpenAITextTask(
@@ -427,4 +449,19 @@ async function findActiveOutlineGenerationTask(projectId: string) {
 function revalidateOutlinePaths(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/outlines`);
+}
+
+function inferNextTargetChapterNumber(
+  chapters: readonly { chapterNumber: number }[],
+  outlines: readonly { level?: string | null; chapterNumber?: number | null }[],
+) {
+  const maxKnownChapterNumber = Math.max(
+    0,
+    ...chapters.map((chapter) => chapter.chapterNumber),
+    ...outlines
+      .filter((outline) => outline.level === "chapter")
+      .map((outline) => outline.chapterNumber ?? 0),
+  );
+
+  return maxKnownChapterNumber + 1;
 }

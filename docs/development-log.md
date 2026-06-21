@@ -1,5 +1,34 @@
 # Development Log
 
+## 2026-06-21: 0.1.28 Chapter Outline Single-Chapter Generation
+
+Status: completed.
+
+What was done:
+
+- Changed the outline AI form for chapter outlines from "章节条目数" to "目标章节号".
+- Chapter outline generation now always requests exactly one chapter outline:
+  - the UI asks for the target chapter number,
+  - the server forces `chapterCount` to `1` for chapter-level outline generation,
+  - the prompt explicitly says to generate only the target chapter and not a multi-chapter list.
+- The target chapter number defaults to the next chapter after the highest existing chapter or saved chapter outline.
+- Updated the outline generation task audit summary to record the target chapter number and the fixed single-chapter scope.
+- Bumped the source app/package version to `0.1.28` and updated in-app release notes.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.28-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/ai/outlines.test.ts app/projects/[projectId]/outlines/actions.test.ts lib/outline-draft-copy.test.ts` passed.
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed after retrying once because the first electron-builder run timed out on a request.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.28"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the expanded PKG payload app.
+- Final PKG SHA-256: `e4489218c899a590b9b1e8d2eb072b22f7e9c68d0a5e53e664d1e86383058677`.
+
 ## 2026-06-21: 0.1.27 Outline Save Feedback Follow-up
 
 Status: completed.

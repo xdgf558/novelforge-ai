@@ -44,7 +44,8 @@ const baseInput = {
   ],
   request: {
     targetLevel: "chapter" as const,
-    chapterCount: 10,
+    chapterCount: 1,
+    targetChapterNumber: 3,
   },
 };
 
@@ -56,15 +57,18 @@ describe("outline generation context builder", () => {
     expect(context.inputText).toContain("第一卷 县城起势");
     expect(context.inputText).toContain("陈远");
     expect(context.inputText).toContain("不要写成纯技术说明书");
+    expect(context.inputText).toContain("只生成第 3 章的一条章节大纲");
+    expect(context.inputText).not.toContain("3 个章节级条目");
     expect(context.inputJson.request).toMatchObject({
       targetLevel: "chapter",
-      chapterCount: 10,
+      chapterCount: 1,
+      targetChapterNumber: 3,
     });
   });
 
   it("summarizes outline context scope", () => {
     expect(buildOutlineGenerationContextSummary(baseInput)).toBe(
-      "《离线未来》章节大纲生成；已有大纲 1 条；角色 1 个；已有章节 1 个；目标 10 个章节条目",
+      "《离线未来》章节大纲生成；已有大纲 1 条；角色 1 个；已有章节 1 个；目标第 3 章；固定 1 条章节大纲",
     );
   });
 
@@ -82,6 +86,7 @@ describe("outline generation context builder", () => {
     expect(context.inputJson.request).toMatchObject({
       targetLevel: "volume",
       chapterCount: null,
+      targetChapterNumber: null,
     });
   });
 
@@ -99,6 +104,7 @@ describe("outline generation context builder", () => {
     expect(context.inputJson.request).toMatchObject({
       targetLevel: "unit",
       chapterCount: null,
+      targetChapterNumber: null,
     });
   });
 });

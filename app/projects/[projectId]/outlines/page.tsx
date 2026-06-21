@@ -79,6 +79,15 @@ export default async function OutlinesPage({
           },
         ],
       },
+      chapters: {
+        orderBy: {
+          chapterNumber: "desc",
+        },
+        select: {
+          chapterNumber: true,
+        },
+        take: 1,
+      },
       aiTasks: {
         where: {
           taskType: "outline_generation",
@@ -118,6 +127,12 @@ export default async function OutlinesPage({
     unit: project.outlines.filter((outline) => outline.level === "unit"),
     chapter: project.outlines.filter((outline) => outline.level === "chapter"),
   };
+  const defaultTargetChapterNumber =
+    Math.max(
+      0,
+      project.chapters[0]?.chapterNumber ?? 0,
+      ...groupedOutlines.chapter.map((outline) => outline.chapterNumber ?? 0),
+    ) + 1;
   const hasActiveOutlineTask = project.aiTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
@@ -177,6 +192,7 @@ export default async function OutlinesPage({
       ) : null}
 
       <OutlineAiPanel
+        defaultTargetChapterNumber={defaultTargetChapterNumber}
         generateAction={generateOutlineDraft.bind(null, project.id)}
         hasActiveTask={hasActiveOutlineTask}
         hasApiKey={aiSettings.hasApiKey}
@@ -233,11 +249,13 @@ export default async function OutlinesPage({
 }
 
 function OutlineAiPanel({
+  defaultTargetChapterNumber,
   generateAction,
   hasActiveTask,
   hasApiKey,
   tasks,
 }: {
+  defaultTargetChapterNumber: number;
   generateAction: (formData: FormData) => Promise<void>;
   hasActiveTask: boolean;
   hasApiKey: boolean;
@@ -277,6 +295,7 @@ function OutlineAiPanel({
         <OutlineAiGenerateForm
           action={generateAction}
           canGenerate={canGenerate}
+          defaultTargetChapterNumber={defaultTargetChapterNumber}
           hasActiveTask={hasActiveTask}
         />
       </div>
