@@ -1,5 +1,21 @@
 # Development Log
 
+## 2026-06-22: TTS Voice List Refresh Hardening
+
+Status: completed.
+
+What was done:
+
+- Confirmed the saved local PPQ TTS API Key can call `GET /audio/voices?language=zh` successfully.
+- Hardened PPQ voice list refresh so a language-filtered failure retries once without the language query.
+- Updated the settings page to show the actual sanitized voice-list error instead of a generic failure message.
+- Added pending-state feedback for TTS voice refresh, voice preview, TTS settings save, chapter audio export start, failed-segment retry, and export-folder opening buttons.
+
+Verification:
+
+- `npm run test -- lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run typecheck` passed.
+
 ## 2026-06-22: 0.1.36 Compact Settings Package
 
 Status: completed.

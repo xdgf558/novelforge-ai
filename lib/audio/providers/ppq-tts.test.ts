@@ -97,6 +97,64 @@ describe("PPQ TTS provider", () => {
     );
   });
 
+  it("retries voice listing without language when the filtered request fails", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "unsupported language" }), {
+          status: 400,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            object: "list",
+            data: [
+              {
+                id: "voice_1",
+                language: "multi",
+                model_id: "eleven_v3",
+                name: "Narrator",
+                provider: "elevenlabs",
+              },
+            ],
+          }),
+          {
+            status: 200,
+          },
+        ),
+      );
+    const provider = new PpqTtsProvider({
+      fetchImpl,
+      settings: {
+        apiBaseUrl: "https://api.ppq.ai/v1",
+        apiKey: "ppq-key",
+      },
+    });
+
+    await expect(
+      provider.listVoices({
+        languageCode: "zh",
+        modelId: "eleven_multilingual_v2",
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "voice_1",
+        name: "Narrator",
+      }),
+    ]);
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
+      "https://api.ppq.ai/v1/audio/voices?language=zh",
+      expect.any(Object),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://api.ppq.ai/v1/audio/voices",
+      expect.any(Object),
+    );
+  });
+
   it("rejects segments above the model safety limit", async () => {
     const provider = new PpqTtsProvider({
       fetchImpl: vi.fn(),

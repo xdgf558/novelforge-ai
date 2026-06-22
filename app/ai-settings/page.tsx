@@ -9,14 +9,11 @@ import {
   Image as ImageIcon,
   KeyRound,
   PackageCheck,
-  RefreshCw,
-  Save,
   ServerCog,
   ShieldCheck,
   TriangleAlert,
   type LucideIcon,
   UploadCloud,
-  Volume2,
 } from "lucide-react";
 import {
   previewTtsVoiceAction,
@@ -25,6 +22,7 @@ import {
   saveStationCatPublishSettingsAction,
   saveTtsGenerationSettingsAction,
 } from "@/app/ai-settings/actions";
+import { FormActionButton } from "@/components/form-action-button";
 import {
   readAiConnectionSettings,
   readImageGenerationSettings,
@@ -208,13 +206,14 @@ export default async function AiSettingsPage({
               placeholder="zh"
               type="text"
             />
-            <button
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-              type="submit"
-            >
-              <RefreshCw aria-hidden="true" className="h-4 w-4" />
-              刷新音色列表
-            </button>
+            <FormActionButton
+              icon="refresh"
+              idleLabel="刷新音色列表"
+              name="ttsVoiceLookupAction"
+              pendingLabel="刷新中..."
+              statusText="正在向 PPQ 读取可用音色，完成后会显示列表。"
+              value="refresh"
+            />
           </form>
         </div>
 
@@ -434,21 +433,24 @@ export default async function AiSettingsPage({
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+              <FormActionButton
                 formAction={previewTtsVoiceAction}
-                type="submit"
-              >
-                <Volume2 aria-hidden="true" className="h-4 w-4" />
-                试听音色
-              </button>
-              <button
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-                type="submit"
-              >
-                <Save aria-hidden="true" className="h-4 w-4" />
-                保存有声导出设置
-              </button>
+                icon="volume"
+                idleLabel="试听音色"
+                name="ttsSettingsAction"
+                pendingLabel="试听生成中..."
+                statusText="正在调用 PPQ TTS 生成试听音频。"
+                value="preview"
+              />
+              <FormActionButton
+                icon="save"
+                idleLabel="保存有声导出设置"
+                name="ttsSettingsAction"
+                pendingLabel="保存中..."
+                statusText="正在保存有声导出参数。"
+                value="save"
+                variant="dark"
+              />
             </div>
           </div>
         </form>
@@ -560,13 +562,15 @@ export default async function AiSettingsPage({
                 {imageSettings.apiBaseUrl}/images/generations
               </span>
             </div>
-            <button
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-              type="submit"
-            >
-              <Save aria-hidden="true" className="h-4 w-4" />
-              保存图片生成设置
-            </button>
+            <FormActionButton
+              icon="save"
+              idleLabel="保存图片生成设置"
+              name="imageSettingsAction"
+              pendingLabel="保存中..."
+              statusText="正在保存图片生成参数。"
+              value="save"
+              variant="dark"
+            />
           </div>
         </form>
       </section>
@@ -638,13 +642,15 @@ export default async function AiSettingsPage({
               <span className="font-semibold text-ink-950">配置文件：</span>
               <span className="break-all">{settings.configPath}</span>
             </div>
-            <button
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-              type="submit"
-            >
-              <Save aria-hidden="true" className="h-4 w-4" />
-              保存设置
-            </button>
+            <FormActionButton
+              icon="save"
+              idleLabel="保存设置"
+              name="aiSettingsAction"
+              pendingLabel="保存中..."
+              statusText="正在保存模型接入参数。"
+              value="save"
+              variant="dark"
+            />
           </div>
         </form>
       </section>
@@ -728,13 +734,15 @@ export default async function AiSettingsPage({
                 {stationCatSettings.apiBaseUrl}/api/novelforge/import
               </span>
             </div>
-            <button
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-              type="submit"
-            >
-              <Save aria-hidden="true" className="h-4 w-4" />
-              保存网站发布设置
-            </button>
+            <FormActionButton
+              icon="save"
+              idleLabel="保存网站发布设置"
+              name="stationCatSettingsAction"
+              pendingLabel="保存中..."
+              statusText="正在保存网站发布参数。"
+              value="save"
+              variant="dark"
+            />
           </div>
         </form>
       </section>
@@ -940,12 +948,21 @@ async function loadTtsVoicesForSettings({
       kind: "loaded",
       voices,
     };
-  } catch {
+  } catch (error) {
     return {
       kind: "error",
-      message:
-        "音色列表读取失败。请确认已保存 PPQ API Key，或稍后重试；你仍然可以手动填写 voice ID。",
+      message: formatTtsVoiceLookupError(error),
       voices: [],
     };
   }
+}
+
+function formatTtsVoiceLookupError(error: unknown) {
+  const rawMessage =
+    error instanceof Error ? error.message.trim() : "未知错误";
+  const message = rawMessage
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, "Bearer ***")
+    .slice(0, 180);
+
+  return `音色列表读取失败：${message}。你仍然可以手动填写 voice ID。`;
 }

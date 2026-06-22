@@ -3,13 +3,11 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
-  FolderOpen,
   Headphones,
-  Play,
-  RefreshCw,
   TriangleAlert,
 } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { FormActionButton } from "@/components/form-action-button";
 import {
   openAudioExportFolder,
   retryFailedAudioExportSegments,
@@ -314,14 +312,16 @@ export default async function AudiobookPage({
           </div>
 
           <div className="flex justify-end lg:col-span-2">
-            <button
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-55"
+            <FormActionButton
               disabled={!selectedChapter || !ttsSettings.hasApiKey || hasActiveExport}
-              type="submit"
-            >
-              <Play aria-hidden="true" className="h-4 w-4" />
-              {hasActiveExport ? "有导出进行中" : "开始导出有声章节"}
-            </button>
+              icon="play"
+              idleLabel={hasActiveExport ? "有导出进行中" : "开始导出有声章节"}
+              name="audioExportAction"
+              pendingLabel="正在创建导出..."
+              statusText="正在创建有声导出任务，页面随后会自动刷新进度。"
+              value="start"
+              variant="dark"
+            />
           </div>
         </form>
       </section>
@@ -390,13 +390,14 @@ export default async function AudiobookPage({
                         audioExport.id,
                       )}
                     >
-                      <button
-                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                        type="submit"
-                      >
-                        <RefreshCw aria-hidden="true" className="h-4 w-4" />
-                        重试失败分段
-                      </button>
+                      <FormActionButton
+                        icon="refresh"
+                        idleLabel="重试失败分段"
+                        name="audioExportAction"
+                        pendingLabel="正在重试..."
+                        statusText="正在重新排队失败分段，完成后页面会刷新。"
+                        value={`retry-${audioExport.id}`}
+                      />
                     </form>
                   ) : null}
                   <form
@@ -406,13 +407,13 @@ export default async function AudiobookPage({
                       audioExport.id,
                     )}
                   >
-                    <button
-                      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                      type="submit"
-                    >
-                      <FolderOpen aria-hidden="true" className="h-4 w-4" />
-                      打开目录
-                    </button>
+                    <FormActionButton
+                      icon="folder"
+                      idleLabel="打开目录"
+                      name="audioExportAction"
+                      pendingLabel="正在打开..."
+                      value={`open-${audioExport.id}`}
+                    />
                   </form>
                 </div>
               </div>

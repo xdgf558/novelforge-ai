@@ -61,6 +61,29 @@ export class PpqTtsProvider implements TtsProvider {
   } = {}): Promise<TtsVoice[]> {
     this.assertConfigured();
 
+    const languageCode = options.languageCode?.trim();
+
+    try {
+      return await this.fetchVoiceList({
+        languageCode,
+        modelId: options.modelId,
+      });
+    } catch (error) {
+      if (!languageCode || !shouldRetryVoiceListWithoutLanguage(error)) {
+        throw error;
+      }
+
+      return this.fetchVoiceList({
+        languageCode: null,
+        modelId: options.modelId,
+      });
+    }
+  }
+
+  private async fetchVoiceList(options: {
+    languageCode?: string | null;
+    modelId?: string | null;
+  }) {
     const endpoint = new URL(`${this.settings.apiBaseUrl}/audio/voices`);
     const languageCode = options.languageCode?.trim();
 
@@ -82,7 +105,10 @@ export class PpqTtsProvider implements TtsProvider {
     const responseJson = parseJsonResponse(responseText);
 
     if (!response.ok) {
-      throw new Error(extractTtsErrorMessage(responseJson, response.status));
+      throw new TtsHttpError(
+        extractTtsErrorMessage(responseJson, response.status),
+        response.status,
+      );
     }
 
     return extractPpqVoices(responseJson, options.modelId);
@@ -419,6 +445,24 @@ function extractTtsErrorMessage(responseJson: unknown, status: number) {
   }
 
   return `TTS 请求失败，状态码 ${status}。`;
+}
+
+class TtsHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "TtsHttpError";
+  }
+}
+
+function shouldRetryVoiceListWithoutLanguage(error: unknown) {
+  if (!(error instanceof TtsHttpError)) {
+    return true;
+  }
+
+  return [400, 404, 422].includes(error.status) || error.status >= 500;
 }
 
 function formatTtsRequestFailure(error: unknown) {
