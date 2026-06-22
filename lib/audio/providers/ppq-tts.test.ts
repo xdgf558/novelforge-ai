@@ -117,6 +117,33 @@ describe("PPQ TTS provider", () => {
     ).rejects.toThrow("超过当前模型");
   });
 
+  it("rejects successful non-audio responses", async () => {
+    const provider = new PpqTtsProvider({
+      fetchImpl: vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ error: "not audio" }), {
+          headers: {
+            "content-type": "application/json",
+          },
+          status: 200,
+        }),
+      ),
+      settings: {
+        apiBaseUrl: "https://api.ppq.ai/v1",
+        apiKey: "ppq-key",
+      },
+    });
+
+    await expect(
+      provider.synthesizeSegment({
+        providerId: "ppq_tts",
+        inputText: "一段正常文本。",
+        languageCode: "zh",
+        modelId: "eleven_multilingual_v2",
+        outputFormat: "mp3",
+      }),
+    ).rejects.toThrow("不是音频响应");
+  });
+
   it("rejects audio responses above the content-length limit", async () => {
     const response = new Response("audio", {
       headers: {

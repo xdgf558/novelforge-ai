@@ -381,7 +381,8 @@ export default async function AudiobookPage({
                   ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {audioExport.failedSegments > 0 ? (
+                  {audioExport.failedSegments > 0 &&
+                  !["pending", "running"].includes(audioExport.status) ? (
                     <form
                       action={retryFailedAudioExportSegments.bind(
                         null,

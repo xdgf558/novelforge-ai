@@ -135,21 +135,32 @@ export async function processAudioExport({
 
     await finalizeAudioExport(audioExportId);
   } catch (error) {
-    await prisma.audioExport.update({
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    await prisma.audioExportSegment.updateMany({
       where: {
-        id: audioExportId,
+        audioExportId,
+        status: {
+          in: ["pending", "running"],
+        },
       },
       data: {
-        completedAt: new Date(),
-        errorMessage: error instanceof Error ? error.message : String(error),
-        failedSegments: audioExport.totalSegments,
         status: "failed",
+        errorMessage,
       },
+    });
+    await finalizeAudioExport(audioExportId, {
+      fallbackErrorMessage: errorMessage,
     });
   }
 }
 
-export async function finalizeAudioExport(audioExportId: string) {
+export async function finalizeAudioExport(
+  audioExportId: string,
+  options: {
+    fallbackErrorMessage?: string;
+  } = {},
+) {
   const audioExport = await prisma.audioExport.findUnique({
     where: {
       id: audioExportId,
@@ -195,31 +206,38 @@ export async function finalizeAudioExport(audioExportId: string) {
     audioExport.projectId,
     audioExport.id,
   );
+  let metadataErrorMessage = "";
 
-  await writeAudioExportMetadata({
-    audioExportId: audioExport.id,
-    projectId: audioExport.projectId,
-    metadata: {
+  try {
+    await writeAudioExportMetadata({
       audioExportId: audioExport.id,
-      chapter: audioExport.chapter,
-      createdAt: audioExport.createdAt.toISOString(),
-      languageCode: audioExport.languageCode,
-      modelId: audioExport.modelId,
-      outputFormat: audioExport.outputFormat,
-      providerId: audioExport.providerId,
-      segments: audioExport.segments.map((segment) => ({
-        charCount: segment.charCount,
-        localPath: segment.localPath,
-        preview: segment.inputPreview,
-        segmentIndex: segment.segmentIndex,
-        status: segment.status,
-      })),
-      sourceTextHash: audioExport.sourceTextHash,
-      sourceTextType: audioExport.sourceTextType,
-      voiceId: audioExport.voiceId,
-      voiceName: audioExport.voiceName,
-    },
-  });
+      projectId: audioExport.projectId,
+      metadata: {
+        audioExportId: audioExport.id,
+        chapter: audioExport.chapter,
+        createdAt: audioExport.createdAt.toISOString(),
+        languageCode: audioExport.languageCode,
+        modelId: audioExport.modelId,
+        outputFormat: audioExport.outputFormat,
+        providerId: audioExport.providerId,
+        segments: audioExport.segments.map((segment) => ({
+          charCount: segment.charCount,
+          localPath: segment.localPath,
+          preview: segment.inputPreview,
+          segmentIndex: segment.segmentIndex,
+          status: segment.status,
+        })),
+        sourceTextHash: audioExport.sourceTextHash,
+        sourceTextType: audioExport.sourceTextType,
+        voiceId: audioExport.voiceId,
+        voiceName: audioExport.voiceName,
+      },
+    });
+  } catch (error) {
+    metadataErrorMessage = `导出元数据写入失败：${
+      error instanceof Error ? error.message : String(error)
+    }`;
+  }
 
   await prisma.audioExport.update({
     where: {
@@ -227,7 +245,11 @@ export async function finalizeAudioExport(audioExportId: string) {
     },
     data: {
       completedAt: runningSegments > 0 ? null : new Date(),
-      errorMessage: failedSegments > 0 ? "部分或全部音频分段生成失败。" : null,
+      errorMessage:
+        metadataErrorMessage ||
+        (failedSegments > 0
+          ? options.fallbackErrorMessage || "部分或全部音频分段生成失败。"
+          : null),
       failedSegments,
       outputDirectory,
       status,

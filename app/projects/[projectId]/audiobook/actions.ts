@@ -176,37 +176,17 @@ export async function retryFailedAudioExportSegments(
   projectId: string,
   audioExportId: string,
 ) {
-  const audioExport = await prisma.audioExport.findFirst({
-    where: {
-      id: audioExportId,
-      projectId,
-    },
-    include: {
-      segments: {
-        where: {
-          status: "failed",
-        },
-        select: {
-          id: true,
-          segmentIndex: true,
-        },
-      },
-    },
-  });
-
-  if (!audioExport) {
-    notFound();
-  }
-
-  if (audioExport.segments.length === 0) {
-    revalidateAudiobookPaths(projectId);
-    redirect(`/projects/${projectId}/audiobook`);
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.audioExport.update({
+  const retryLock = await prisma.$transaction(async (tx) => {
+    const locked = await tx.audioExport.updateMany({
       where: {
-        id: audioExport.id,
+        failedSegments: {
+          gt: 0,
+        },
+        id: audioExportId,
+        projectId,
+        status: {
+          in: ["failed", "partial_success"],
+        },
       },
       data: {
         completedAt: null,
@@ -215,22 +195,90 @@ export async function retryFailedAudioExportSegments(
       },
     });
 
+    if (locked.count !== 1) {
+      return {
+        locked: false,
+        segmentIndexes: [],
+      };
+    }
+
+    const failedSegments = await tx.audioExportSegment.findMany({
+      where: {
+        audioExportId,
+        projectId,
+        status: "failed",
+      },
+      select: {
+        id: true,
+        segmentIndex: true,
+      },
+    });
+
+    if (failedSegments.length === 0) {
+      await tx.audioExport.update({
+        where: {
+          id: audioExportId,
+        },
+        data: {
+          completedAt: new Date(),
+          errorMessage: "没有可重试的失败分段。",
+          failedSegments: 0,
+          status: "failed",
+        },
+      });
+
+      return {
+        locked: true,
+        segmentIndexes: [],
+      };
+    }
+
     await tx.audioExportSegment.updateMany({
       where: {
         id: {
-          in: audioExport.segments.map((segment) => segment.id),
+          in: failedSegments.map((segment) => segment.id),
         },
+        status: "failed",
       },
       data: {
         errorMessage: null,
         status: "pending",
       },
     });
+
+    return {
+      locked: true,
+      segmentIndexes: failedSegments.map((segment) => segment.segmentIndex),
+    };
   });
 
+  if (!retryLock.locked) {
+    const existingExport = await prisma.audioExport.findFirst({
+      where: {
+        id: audioExportId,
+        projectId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingExport) {
+      notFound();
+    }
+
+    revalidateAudiobookPaths(projectId);
+    redirect(`/projects/${projectId}/audiobook?audioError=activeExport`);
+  }
+
+  if (retryLock.segmentIndexes.length === 0) {
+    revalidateAudiobookPaths(projectId);
+    redirect(`/projects/${projectId}/audiobook`);
+  }
+
   void processAudioExport({
-    audioExportId: audioExport.id,
-    segmentIndexes: audioExport.segments.map((segment) => segment.segmentIndex),
+    audioExportId,
+    segmentIndexes: retryLock.segmentIndexes,
   }).catch((error) => {
     console.error("Background audiobook retry failed:", error);
   });

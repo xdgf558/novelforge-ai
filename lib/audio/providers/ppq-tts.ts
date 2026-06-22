@@ -3,7 +3,10 @@ import {
   type AiRuntimeEnv,
   type TtsGenerationSecrets,
 } from "@/lib/ai/local-config";
-import { maxAudioSegmentBytes } from "../audio-assets";
+import {
+  isSupportedAudioContentType,
+  maxAudioSegmentBytes,
+} from "../audio-assets";
 import { estimateAudioDurationSeconds, estimateTtsCostCents } from "../estimate-cost";
 import type {
   TtsCostEstimate,
@@ -137,9 +140,14 @@ export class PpqTtsProvider implements TtsProvider {
       );
     }
 
+    const responseContentType = response.headers.get("content-type");
     const contentType =
-      response.headers.get("content-type") ||
-      mimeTypeForAudioFormat(request.outputFormat);
+      responseContentType || mimeTypeForAudioFormat(request.outputFormat);
+
+    if (responseContentType && !isSupportedAudioContentType(responseContentType)) {
+      throw new Error("TTS 接口返回的不是音频响应。");
+    }
+
     const audioBytes = await readAudioResponseBytes(response);
 
     return {

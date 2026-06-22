@@ -17,6 +17,7 @@ const audioMimeByFormat = new Map([
   ["ogg", "audio/ogg"],
   ["pcm", "application/octet-stream"],
 ]);
+const supportedAudioMimeTypes = new Set(audioMimeByFormat.values());
 
 export const maxAudioSegmentBytes = 20 * 1024 * 1024;
 
@@ -164,6 +165,14 @@ export function isAudioPreviewPath(relativePath: string) {
   );
 }
 
+export function normalizeAudioContentType(contentType: string) {
+  return contentType.toLowerCase().split(";")[0].trim();
+}
+
+export function isSupportedAudioContentType(contentType: string) {
+  return supportedAudioMimeTypes.has(normalizeAudioContentType(contentType));
+}
+
 export function resolveAudioAssetPath(relativePath: string) {
   const cleanRelativePath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, "");
   const absolutePath = path.resolve(getAudioAssetRoot(), cleanRelativePath);
@@ -185,7 +194,7 @@ export function resolveAudioAssetPath(relativePath: string) {
 }
 
 function audioFormatFromContentType(contentType: string) {
-  const normalized = contentType.toLowerCase().split(";")[0].trim();
+  const normalized = normalizeAudioContentType(contentType);
 
   for (const [format, mimeType] of audioMimeByFormat.entries()) {
     if (mimeType === normalized) {
@@ -220,6 +229,20 @@ async function writeAudioAsset({
     throw new Error("TTS 音频分段超过本地保存上限。");
   }
 
+  const normalizedContentType = normalizeAudioContentType(contentType);
+  const detectedContentType = detectAudioMimeType(audioBytes);
+
+  if (!isSupportedAudioContentType(normalizedContentType)) {
+    throw new Error("TTS 接口返回的不是支持的音频格式。");
+  }
+
+  if (
+    normalizedContentType !== "application/octet-stream" &&
+    (!detectedContentType || detectedContentType !== normalizedContentType)
+  ) {
+    throw new Error("TTS 音频内容与响应格式不匹配。");
+  }
+
   const absolutePath = resolveAudioAssetPath(relativePath);
 
   await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
@@ -228,9 +251,40 @@ async function writeAudioAsset({
   return {
     relativePath,
     fileName,
-    mimeType: contentType.split(";")[0].trim() || "audio/mpeg",
+    mimeType:
+      detectedContentType ||
+      normalizeAudioContentType(contentType) ||
+      "application/octet-stream",
     sizeBytes: audioBytes.byteLength,
   };
+}
+
+function detectAudioMimeType(audioBytes: Buffer) {
+  if (audioBytes.length >= 3 && audioBytes.subarray(0, 3).toString("ascii") === "ID3") {
+    return "audio/mpeg";
+  }
+
+  if (
+    audioBytes.length >= 2 &&
+    audioBytes[0] === 0xff &&
+    (audioBytes[1] & 0xe0) === 0xe0
+  ) {
+    return "audio/mpeg";
+  }
+
+  if (
+    audioBytes.length >= 12 &&
+    audioBytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+    audioBytes.subarray(8, 12).toString("ascii") === "WAVE"
+  ) {
+    return "audio/wav";
+  }
+
+  if (audioBytes.length >= 4 && audioBytes.subarray(0, 4).toString("ascii") === "OggS") {
+    return "audio/ogg";
+  }
+
+  return null;
 }
 
 async function cleanupAudioPreviewAssets({

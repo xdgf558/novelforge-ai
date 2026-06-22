@@ -9,6 +9,8 @@ import {
   saveAudioPreviewAsset,
 } from "./audio-assets";
 
+const sampleMp3Bytes = Buffer.from([0xff, 0xfb, 0x90, 0x64]);
+
 describe("audio assets", () => {
   let previousDataDir: string | undefined;
   let tempDir: string;
@@ -41,7 +43,7 @@ describe("audio assets", () => {
   it("keeps only the latest preview files", async () => {
     for (let index = 0; index < 12; index += 1) {
       await saveAudioPreviewAsset({
-        audioBytes: Buffer.from([index + 1]),
+        audioBytes: sampleMp3Bytes,
         contentType: "audio/mpeg",
         modelId: "model",
         voiceId: `voice-${index}`,
@@ -64,5 +66,27 @@ describe("audio assets", () => {
         voiceId: "voice",
       }),
     ).rejects.toThrow("超过本地保存上限");
+  });
+
+  it("rejects non-audio content types", async () => {
+    await expect(
+      saveAudioPreviewAsset({
+        audioBytes: Buffer.from(JSON.stringify({ error: "no audio" })),
+        contentType: "application/json",
+        modelId: "model",
+        voiceId: "voice",
+      }),
+    ).rejects.toThrow("不是支持的音频格式");
+  });
+
+  it("rejects audio content with mismatched file signature", async () => {
+    await expect(
+      saveAudioPreviewAsset({
+        audioBytes: Buffer.from("<html>not audio</html>"),
+        contentType: "audio/mpeg",
+        modelId: "model",
+        voiceId: "voice",
+      }),
+    ).rejects.toThrow("内容与响应格式不匹配");
   });
 });

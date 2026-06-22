@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { startChapterAudioExport } from "./actions";
+import {
+  retryFailedAudioExportSegments,
+  startChapterAudioExport,
+} from "./actions";
 
 const mocks = vi.hoisted(() => ({
   processAudioExport: vi.fn(),
@@ -8,6 +11,12 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     audioExport: {
       findFirst: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    audioExportSegment: {
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
     },
     chapter: {
       findFirst: vi.fn(),
@@ -58,6 +67,7 @@ function buildAudioExportFormData() {
 describe("audiobook actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.processAudioExport.mockResolvedValue(undefined);
     mocks.redirect.mockImplementation((url: string) => {
       const error = new Error("NEXT_REDIRECT");
       Object.assign(error, { url });
@@ -82,6 +92,18 @@ describe("audiobook actions", () => {
       title: "第一章",
     });
     mocks.prisma.audioExport.findFirst.mockResolvedValue(null);
+    mocks.prisma.audioExport.updateMany.mockResolvedValue({
+      count: 1,
+    });
+    mocks.prisma.audioExportSegment.findMany.mockResolvedValue([
+      {
+        id: "segment_1",
+        segmentIndex: 1,
+      },
+    ]);
+    mocks.prisma.$transaction.mockImplementation(async (callback) =>
+      callback(mocks.prisma),
+    );
   });
 
   it("does not create another export when the chapter already has an active export", async () => {
@@ -110,5 +132,64 @@ describe("audiobook actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/audiobook?audioError=activeExport",
     );
+  });
+
+  it("locks retry so a second request does not start duplicate TTS work", async () => {
+    mocks.prisma.audioExport.updateMany.mockResolvedValue({
+      count: 0,
+    });
+    mocks.prisma.audioExport.findFirst.mockResolvedValue({
+      id: "audio_export_1",
+    });
+
+    await expect(
+      retryFailedAudioExportSegments("project_1", "audio_export_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.audioExport.updateMany).toHaveBeenCalledWith({
+      where: {
+        failedSegments: {
+          gt: 0,
+        },
+        id: "audio_export_1",
+        projectId: "project_1",
+        status: {
+          in: ["failed", "partial_success"],
+        },
+      },
+      data: {
+        completedAt: null,
+        errorMessage: null,
+        status: "running",
+      },
+    });
+    expect(mocks.prisma.audioExportSegment.updateMany).not.toHaveBeenCalled();
+    expect(mocks.processAudioExport).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/audiobook?audioError=activeExport",
+    );
+  });
+
+  it("starts retry only for failed segments after acquiring the export lock", async () => {
+    await expect(
+      retryFailedAudioExportSegments("project_1", "audio_export_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.audioExportSegment.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: {
+          in: ["segment_1"],
+        },
+        status: "failed",
+      },
+      data: {
+        errorMessage: null,
+        status: "pending",
+      },
+    });
+    expect(mocks.processAudioExport).toHaveBeenCalledWith({
+      audioExportId: "audio_export_1",
+      segmentIndexes: [1],
+    });
   });
 });
