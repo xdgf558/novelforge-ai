@@ -3,6 +3,7 @@ import {
   type AiRuntimeEnv,
   type ImageGenerationSecrets,
 } from "./local-config";
+import { createServerFetch } from "@/lib/server-fetch";
 
 type FetchLike = typeof fetch;
 
@@ -78,7 +79,7 @@ export async function createImageGeneration(
   const endpoint = `${settings.apiBaseUrl}/images/generations`;
   const payload = buildImageGenerationPayload(request, settings);
   const requestBody = JSON.stringify(payload);
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = options.fetchImpl ?? createServerFetch(options.env ?? process.env);
   const abortController = new AbortController();
   const timeoutId = setTimeout(
     () => abortController.abort(),

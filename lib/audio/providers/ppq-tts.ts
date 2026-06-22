@@ -3,6 +3,7 @@ import {
   type AiRuntimeEnv,
   type TtsGenerationSecrets,
 } from "@/lib/ai/local-config";
+import { createServerFetch } from "@/lib/server-fetch";
 import {
   isSupportedAudioContentType,
   maxAudioSegmentBytes,
@@ -37,7 +38,7 @@ export class PpqTtsProvider implements TtsProvider {
     fetchImpl?: FetchLike;
     settings: TtsProviderSettings;
   }) {
-    this.fetchImpl = fetchImpl ?? fetch;
+    this.fetchImpl = fetchImpl ?? createServerFetch();
     this.settings = settings;
   }
 

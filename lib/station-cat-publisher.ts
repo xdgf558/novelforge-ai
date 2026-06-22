@@ -4,6 +4,7 @@ import type {
   PublishMode,
   StandardPublishPackage,
 } from "./publish-platforms";
+import { createServerFetch } from "./server-fetch";
 
 export const stationCatImportContract = "station-cat-novelforge-import";
 export const stationCatImportContractVersion = 1;
@@ -185,7 +186,7 @@ export async function publishToStationCat(
   }
 
   const endpoint = buildStationCatImportEndpoint(apiBaseUrl);
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = options.fetchImpl ?? createServerFetch();
   const requestBody = serializeStationCatImportRequest(request);
   const abortController = new AbortController();
   const timeoutId = setTimeout(

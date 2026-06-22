@@ -18,14 +18,17 @@ import {
   maskApiKey,
   parseAiEnv,
   parseImageGenerationEnv,
+  parseNetworkProxyEnv,
   parseStationCatEnv,
   parseTtsGenerationEnv,
   readAiConnectionSettings,
   readImageGenerationSettings,
+  readNetworkProxySettings,
   readStationCatPublishSettings,
   readTtsGenerationSettings,
   saveAiConnectionSettings,
   saveImageGenerationSettings,
+  saveNetworkProxySettings,
   saveStationCatPublishSettings,
   saveTtsGenerationSettings,
 } from "./local-config";
@@ -52,6 +55,14 @@ const originalEnv = {
   STATION_CAT_API_BASE_URL: process.env.STATION_CAT_API_BASE_URL,
   STATION_CAT_PUBLISH_TOKEN: process.env.STATION_CAT_PUBLISH_TOKEN,
   STATION_CAT_DEFAULT_MODE: process.env.STATION_CAT_DEFAULT_MODE,
+  HTTP_PROXY: process.env.HTTP_PROXY,
+  HTTPS_PROXY: process.env.HTTPS_PROXY,
+  ALL_PROXY: process.env.ALL_PROXY,
+  NO_PROXY: process.env.NO_PROXY,
+  http_proxy: process.env.http_proxy,
+  https_proxy: process.env.https_proxy,
+  all_proxy: process.env.all_proxy,
+  no_proxy: process.env.no_proxy,
 };
 
 afterEach(() => {
@@ -79,6 +90,14 @@ afterEach(() => {
   process.env.STATION_CAT_API_BASE_URL = originalEnv.STATION_CAT_API_BASE_URL;
   process.env.STATION_CAT_PUBLISH_TOKEN = originalEnv.STATION_CAT_PUBLISH_TOKEN;
   process.env.STATION_CAT_DEFAULT_MODE = originalEnv.STATION_CAT_DEFAULT_MODE;
+  process.env.HTTP_PROXY = originalEnv.HTTP_PROXY;
+  process.env.HTTPS_PROXY = originalEnv.HTTPS_PROXY;
+  process.env.ALL_PROXY = originalEnv.ALL_PROXY;
+  process.env.NO_PROXY = originalEnv.NO_PROXY;
+  process.env.http_proxy = originalEnv.http_proxy;
+  process.env.https_proxy = originalEnv.https_proxy;
+  process.env.all_proxy = originalEnv.all_proxy;
+  process.env.no_proxy = originalEnv.no_proxy;
 });
 
 describe("AI local connection config", () => {
@@ -199,6 +218,86 @@ describe("AI local connection config", () => {
       hasApiKey: true,
       model: "env-model",
       baseUrl: "https://env.example/v1",
+      source: "environment",
+    });
+  });
+});
+
+describe("Network proxy local config", () => {
+  it("parses only supported proxy keys", () => {
+    expect(
+      parseNetworkProxyEnv(
+        [
+          "# network proxy config",
+          "HTTP_PROXY=http://127.0.0.1:1082",
+          "HTTPS_PROXY=http://127.0.0.1:1082",
+          "ALL_PROXY=http://127.0.0.1:1082",
+          "NO_PROXY=localhost,127.0.0.1,::1",
+          "OPENAI_API_KEY=ignored",
+          "http_proxy=ignored-lowercase",
+        ].join("\n"),
+      ),
+    ).toEqual({
+      HTTP_PROXY: "http://127.0.0.1:1082",
+      HTTPS_PROXY: "http://127.0.0.1:1082",
+      ALL_PROXY: "http://127.0.0.1:1082",
+      NO_PROXY: "localhost,127.0.0.1,::1",
+    });
+  });
+
+  it("saves proxy settings and exposes them through the runtime env", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "OPENAI_API_KEY=sk-existing",
+        "TTS_API_KEY=tts-existing",
+      ].join("\n"),
+    );
+
+    const settings = saveNetworkProxySettings(
+      {
+        noProxy: "localhost,127.0.0.1,::1",
+        proxyUrl: "http://127.0.0.1:1082/",
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const savedContent = fs.readFileSync(configPath, "utf8");
+    const runtimeEnv = getAiRuntimeEnv({
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+    });
+
+    expect(settings).toMatchObject({
+      proxyUrl: "http://127.0.0.1:1082",
+      noProxy: "localhost,127.0.0.1,::1",
+      source: "file",
+    });
+    expect(savedContent).toContain("OPENAI_API_KEY=sk-existing");
+    expect(savedContent).toContain("TTS_API_KEY=tts-existing");
+    expect(savedContent).toContain('HTTP_PROXY="http://127.0.0.1:1082"');
+    expect(savedContent).toContain('HTTPS_PROXY="http://127.0.0.1:1082"');
+    expect(savedContent).toContain('ALL_PROXY="http://127.0.0.1:1082"');
+    expect(savedContent).toContain('NO_PROXY="localhost,127.0.0.1,::1"');
+    expect(runtimeEnv).toMatchObject({
+      HTTP_PROXY: "http://127.0.0.1:1082",
+      HTTPS_PROXY: "http://127.0.0.1:1082",
+      ALL_PROXY: "http://127.0.0.1:1082",
+      NO_PROXY: "localhost,127.0.0.1,::1",
+    });
+  });
+
+  it("reports proxy environment config when no file config exists", () => {
+    const settings = readNetworkProxySettings({
+      NOVELFORGE_AI_CONFIG_PATH: makeTempConfigPath(),
+      HTTPS_PROXY: "http://127.0.0.1:1082",
+      NO_PROXY: "localhost,127.0.0.1",
+    });
+
+    expect(settings).toMatchObject({
+      proxyUrl: "http://127.0.0.1:1082",
+      noProxy: "localhost,127.0.0.1",
       source: "environment",
     });
   });

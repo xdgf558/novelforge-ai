@@ -13,6 +13,7 @@ import {
   normalizeTtsVoiceName,
   saveAiConnectionSettings,
   saveImageGenerationSettings,
+  saveNetworkProxySettings,
   saveStationCatPublishSettings,
   saveTtsGenerationSettings,
   readTtsGenerationSecrets,
@@ -21,12 +22,22 @@ import { saveAudioPreviewAsset } from "@/lib/audio/audio-assets";
 import { getConfiguredTtsProvider } from "@/lib/audio/providers/registry";
 
 export async function saveAiConnectionSettingsAction(formData: FormData) {
-  saveAiConnectionSettings({
-    apiKey: formData.get("apiKey")?.toString(),
-    clearApiKey: formData.get("clearApiKey") === "on",
-    model: formData.get("model")?.toString(),
-    baseUrl: formData.get("baseUrl")?.toString(),
-  });
+  try {
+    saveAiConnectionSettings({
+      apiKey: formData.get("apiKey")?.toString(),
+      clearApiKey: formData.get("clearApiKey") === "on",
+      model: formData.get("model")?.toString(),
+      baseUrl: formData.get("baseUrl")?.toString(),
+    });
+    saveNetworkProxySettings({
+      noProxy: formData.get("networkNoProxy")?.toString(),
+      proxyUrl: formData.get("networkProxyUrl")?.toString(),
+    });
+  } catch {
+    revalidatePath("/ai-settings");
+    revalidatePath("/");
+    redirect("/ai-settings?saved=ai-error");
+  }
 
   revalidatePath("/ai-settings");
   revalidatePath("/");

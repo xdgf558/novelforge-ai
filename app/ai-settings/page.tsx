@@ -26,6 +26,7 @@ import { FormActionButton } from "@/components/form-action-button";
 import {
   readAiConnectionSettings,
   readImageGenerationSettings,
+  readNetworkProxySettings,
   readStationCatPublishSettings,
   readTtsGenerationSettings,
 } from "@/lib/ai/local-config";
@@ -58,6 +59,7 @@ export default async function AiSettingsPage({
   const imageSettings = readImageGenerationSettings();
   const ttsSettings = readTtsGenerationSettings();
   const stationCatSettings = readStationCatPublishSettings();
+  const networkProxySettings = readNetworkProxySettings();
   const savedMessage = settingsSavedMessage(resolvedSearchParams?.saved);
   const ttsVoiceLookup = await loadTtsVoicesForSettings({
     enabled: resolvedSearchParams?.ttsVoices === "1",
@@ -131,6 +133,11 @@ export default async function AiSettingsPage({
           icon={ServerCog}
           label="接口地址"
           value={settings.baseUrl}
+        />
+        <InfoTile
+          icon={ServerCog}
+          label="网络代理"
+          value={networkProxySettings.proxyUrl || "未设置"}
         />
         <InfoTile
           icon={ImageIcon}
@@ -621,6 +628,37 @@ export default async function AiSettingsPage({
             />
           </label>
 
+          <div className="grid gap-5 lg:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink-800">
+                网络代理 URL（可选）
+              </span>
+              <input
+                className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+                defaultValue={networkProxySettings.proxyUrl}
+                name="networkProxyUrl"
+                placeholder="例如：http://127.0.0.1:1082"
+                type="url"
+              />
+              <span className="block text-xs leading-5 text-ink-700">
+                GUI 启动的桌面 App 不会继承终端代理；这里保存后，AI、图片、有声和发布请求都会走该代理。
+              </span>
+            </label>
+
+            <label className="space-y-2">
+              <span className="text-sm font-semibold text-ink-800">
+                不走代理地址
+              </span>
+              <input
+                className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+                defaultValue={networkProxySettings.noProxy}
+                name="networkNoProxy"
+                placeholder="localhost,127.0.0.1,::1"
+                type="text"
+              />
+            </label>
+          </div>
+
           <label className="flex items-start gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4 text-sm text-ink-700">
             <input
               className="mt-1 h-4 w-4 rounded border-ink-950/20 text-signal-600"
@@ -758,6 +796,7 @@ export default async function AiSettingsPage({
               图片生成来源：{sourceLabel(imageSettings.source)}。
               有声导出来源：{sourceLabel(ttsSettings.source)}。
               Station Cat 来源：{sourceLabel(stationCatSettings.source)}。
+              网络代理来源：{sourceLabel(networkProxySettings.source)}。
             </p>
           </div>
         </div>

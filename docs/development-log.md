@@ -1,5 +1,31 @@
 # Development Log
 
+## 2026-06-22: 0.1.38 Desktop Proxy Network Package
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.38`.
+- Added local network proxy settings to `/ai-settings`; the local `.env` now supports `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, and `NO_PROXY`.
+- Routed server-side model calls, image generation, PPQ TTS, and Station Cat publishing through `createServerFetch`, which reads the saved local proxy config for GUI-launched desktop builds.
+- Fixed the proxy + `AbortController.signal` interaction that caused PPQ voice refresh to fail with `Request was cancelled` / `fetch failed` by keeping timeout semantics in the wrapper instead of passing the signal directly into undici's proxy dispatcher.
+- Saved the current local proxy keys into the user's NovelForge `.env` so 0.1.38 can use the same local proxy after installation.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.38-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the final 0.1.38 PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/server-fetch.test.ts lib/ai/local-config.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Real PPQ provider smoke passed with terminal proxy env removed and `NOVELFORGE_AI_CONFIG_PATH` pointed at the desktop `.env`: `createConfiguredTtsProvider().listVoices(...)` returned 250 voices.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.38"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `e5b46697e6221a1b068bc072af92a0473f48d25dac764d5ef35d732e9893e6d2`.
+
 ## 2026-06-22: 0.1.37 TTS Voice Refresh Package
 
 Status: completed.

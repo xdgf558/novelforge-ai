@@ -4,6 +4,7 @@ import {
   getAiRuntimeEnv,
   normalizeAiBaseUrl,
 } from "./local-config";
+import { createServerFetch } from "@/lib/server-fetch";
 
 type EnvLike = {
   [key: string]: string | undefined;
@@ -147,7 +148,7 @@ export async function createOpenAITextResponse(
   }
 
   const baseUrl = getConfiguredOpenAIBaseUrl(env);
-  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchImpl = options.fetchImpl ?? createServerFetch(env);
   const resolvedRequest = {
     ...request,
     model: request.model ?? getConfiguredOpenAIModel(env),

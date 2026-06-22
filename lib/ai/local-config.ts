@@ -25,6 +25,14 @@ export type AiRuntimeEnv = {
   STATION_CAT_API_BASE_URL?: string;
   STATION_CAT_PUBLISH_TOKEN?: string;
   STATION_CAT_DEFAULT_MODE?: string;
+  HTTP_PROXY?: string;
+  HTTPS_PROXY?: string;
+  ALL_PROXY?: string;
+  NO_PROXY?: string;
+  http_proxy?: string;
+  https_proxy?: string;
+  all_proxy?: string;
+  no_proxy?: string;
   NOVELFORGE_AI_CONFIG_PATH?: string;
   NOVELFORGE_DESKTOP_DATA_DIR?: string;
 };
@@ -44,6 +52,19 @@ export type SaveAiConnectionSettingsInput = {
   clearApiKey?: boolean;
   model?: string | null;
   baseUrl?: string | null;
+};
+
+export type NetworkProxySettings = {
+  configPath: string;
+  fileExists: boolean;
+  proxyUrl: string;
+  noProxy: string;
+  source: "file" | "environment" | "default";
+};
+
+export type SaveNetworkProxySettingsInput = {
+  proxyUrl?: string | null;
+  noProxy?: string | null;
 };
 
 export type ImageGenerationSettings = {
@@ -143,11 +164,13 @@ type AiConfigKey = (typeof aiConfigKeys)[number];
 type ImageConfigKey = (typeof imageConfigKeys)[number];
 type TtsConfigKey = (typeof ttsConfigKeys)[number];
 type StationCatConfigKey = (typeof stationCatConfigKeys)[number];
+type NetworkProxyConfigKey = (typeof networkProxyConfigKeys)[number];
 type LocalConfigKey =
   | AiConfigKey
   | ImageConfigKey
   | TtsConfigKey
-  | StationCatConfigKey;
+  | StationCatConfigKey
+  | NetworkProxyConfigKey;
 
 export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
@@ -192,12 +215,19 @@ export const stationCatConfigKeys = [
   "STATION_CAT_PUBLISH_TOKEN",
   "STATION_CAT_DEFAULT_MODE",
 ] as const;
+export const networkProxyConfigKeys = [
+  "HTTP_PROXY",
+  "HTTPS_PROXY",
+  "ALL_PROXY",
+  "NO_PROXY",
+] as const;
 
 const localConfigKeySet = new Set<string>([
   ...aiConfigKeys,
   ...imageConfigKeys,
   ...ttsConfigKeys,
   ...stationCatConfigKeys,
+  ...networkProxyConfigKeys,
 ]);
 
 export function getAiRuntimeEnv(env: AiRuntimeEnv = process.env) {
@@ -205,6 +235,7 @@ export function getAiRuntimeEnv(env: AiRuntimeEnv = process.env) {
 
   return {
     ...env,
+    ...compactNetworkProxyEnv(fileEnv),
     ...compactAiEnv(fileEnv),
   };
 }
@@ -257,6 +288,61 @@ export function saveAiConnectionSettings(
   process.env.OPENAI_BASE_URL = nextEnv.OPENAI_BASE_URL;
 
   return readAiConnectionSettings(env);
+}
+
+export function readNetworkProxySettings(
+  env: AiRuntimeEnv = process.env,
+): NetworkProxySettings {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactNetworkProxyEnv(fileEnv),
+  };
+  const proxyUrl = normalizeNetworkProxyUrl(
+    runtimeEnv.HTTPS_PROXY ||
+      runtimeEnv.HTTP_PROXY ||
+      runtimeEnv.ALL_PROXY ||
+      runtimeEnv.https_proxy ||
+      runtimeEnv.http_proxy ||
+      runtimeEnv.all_proxy,
+  );
+
+  return {
+    configPath,
+    fileExists: fs.existsSync(configPath),
+    proxyUrl,
+    noProxy: normalizeNoProxy(runtimeEnv.NO_PROXY || runtimeEnv.no_proxy),
+    source: detectNetworkProxySource(fileEnv, env),
+  };
+}
+
+export function saveNetworkProxySettings(
+  input: SaveNetworkProxySettingsInput,
+  env: AiRuntimeEnv = process.env,
+) {
+  const configPath = getAiConfigPath(env);
+  const proxyUrl = normalizeNetworkProxyUrl(input.proxyUrl);
+  const noProxy = normalizeNoProxy(input.noProxy);
+  const nextEnv: Partial<Record<NetworkProxyConfigKey, string>> = {
+    HTTP_PROXY: proxyUrl,
+    HTTPS_PROXY: proxyUrl,
+    ALL_PROXY: proxyUrl,
+    NO_PROXY: noProxy,
+  };
+
+  writeLocalConfigFile(configPath, nextEnv, networkProxyConfigKeys);
+
+  process.env.HTTP_PROXY = proxyUrl;
+  process.env.HTTPS_PROXY = proxyUrl;
+  process.env.ALL_PROXY = proxyUrl;
+  process.env.NO_PROXY = noProxy;
+  process.env.http_proxy = proxyUrl;
+  process.env.https_proxy = proxyUrl;
+  process.env.all_proxy = proxyUrl;
+  process.env.no_proxy = noProxy;
+
+  return readNetworkProxySettings(env);
 }
 
 export function readImageGenerationSettings(
@@ -563,6 +649,19 @@ export function parseTtsGenerationEnv(content: string) {
   return env;
 }
 
+export function parseNetworkProxyEnv(content: string) {
+  const localEnv = parseLocalConfigEnv(content);
+  const env: Partial<Record<NetworkProxyConfigKey, string>> = {};
+
+  for (const key of networkProxyConfigKeys) {
+    if (localEnv[key] !== undefined) {
+      env[key] = localEnv[key];
+    }
+  }
+
+  return env;
+}
+
 function parseLocalConfigEnv(content: string) {
   const env: Partial<Record<LocalConfigKey, string>> = {};
 
@@ -698,6 +797,24 @@ export function normalizeTtsStylePrompt(stylePrompt?: string | null) {
   return (stylePrompt?.trim() || DEFAULT_TTS_STYLE_PROMPT).slice(0, 1200);
 }
 
+export function normalizeNetworkProxyUrl(proxyUrl?: string | null) {
+  const normalized = proxyUrl?.trim().replace(/\/+$/, "") ?? "";
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
+    throw new Error("网络代理地址必须是 http 或 https URL。");
+  }
+
+  return normalized;
+}
+
+export function normalizeNoProxy(noProxy?: string | null) {
+  return noProxy?.trim().slice(0, 500) || "localhost,127.0.0.1,::1";
+}
+
 export function maskApiKey(apiKey?: string | null) {
   return maskSecret(apiKey);
 }
@@ -819,6 +936,20 @@ function compactTtsEnv(env: Partial<Record<LocalConfigKey, string>>) {
   return compacted;
 }
 
+function compactNetworkProxyEnv(env: Partial<Record<LocalConfigKey, string>>) {
+  const compacted: Partial<Record<NetworkProxyConfigKey, string>> = {};
+
+  for (const key of networkProxyConfigKeys) {
+    const value = env[key]?.trim();
+
+    if (value) {
+      compacted[key] = value;
+    }
+  }
+
+  return compacted;
+}
+
 function detectConfigSource(
   fileEnv: Partial<Record<LocalConfigKey, string>>,
   env: AiRuntimeEnv,
@@ -896,6 +1027,30 @@ function detectStationCatConfigSource(
     env.STATION_CAT_API_BASE_URL?.trim() ||
     env.STATION_CAT_PUBLISH_TOKEN?.trim() ||
     env.STATION_CAT_DEFAULT_MODE?.trim()
+  ) {
+    return "environment";
+  }
+
+  return "default";
+}
+
+function detectNetworkProxySource(
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+  env: AiRuntimeEnv,
+) {
+  if (Object.values(compactNetworkProxyEnv(fileEnv)).length > 0) {
+    return "file";
+  }
+
+  if (
+    env.HTTP_PROXY?.trim() ||
+    env.HTTPS_PROXY?.trim() ||
+    env.ALL_PROXY?.trim() ||
+    env.NO_PROXY?.trim() ||
+    env.http_proxy?.trim() ||
+    env.https_proxy?.trim() ||
+    env.all_proxy?.trim() ||
+    env.no_proxy?.trim()
   ) {
     return "environment";
   }
