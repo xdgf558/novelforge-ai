@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-06-22: 0.1.35 Mainline Audiobook Export Package
+
+Status: completed.
+
+What was done:
+
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.35-mac-arm64.pkg`.
+- Used the current `main` code after Phase 25 was merged.
+- Built the macOS app payload with electron-builder's directory target, explicit signing disabled, then manually ad-hoc signed the app payload with the Electron entitlements.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run desktop:smoke` passed.
+- `npm run build` passed.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.35"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `c433e2680ae7bb82b94ca42609befd208f36a13f21784db5394b2ac42f792691`.
+
 ## 2026-06-22: 0.1.35 Audiobook Export MVP
 
 Status: completed for review.
