@@ -48,8 +48,12 @@ export const characterRelationshipErrorMessages: Record<string, string> = {
   invalidCharacterDraft: "AI 人物草案无法解析为可创建的角色。",
   invalidCharacterRequest: "人物生成需求过长或格式不正确，请压缩后再生成。",
   activeCharacterTask: "已有 AI 人物生成任务进行中，请等待完成后再生成。",
+  activeRelationshipTask: "已有 AI 人物关系生成任务进行中，请等待完成后再生成。",
   missingApiKey: "未配置 API Key，暂不能调用模型；已有任务仍可查看和采用。",
+  notEnoughCharacters: "至少需要两个未归档角色，才能生成或采用人物关系草案。",
+  invalidRelationshipDraft: "AI 人物关系草案无法解析为可采用的正式关系。",
   duplicateRelationship: "这两个角色之间已存在相同类型和方向的活跃关系，请编辑已有关系或先归档旧关系。",
+  adoptedNoRelationships: "没有可写入的新关系：草案可能已重复、缺少角色或引用了已归档角色。",
 };
 
 export function normalizeRelationshipType(

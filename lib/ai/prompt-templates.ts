@@ -112,6 +112,78 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     }),
   },
   {
+    key: "character_relationship_generation",
+    name: "人物关系草案生成",
+    taskType: "character_relationship_generation",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是长篇连载小说的人物关系网络助手。只输出供作者审核的人物关系草案，不得宣称已经写入正式人物关系网络。",
+    userPrompt:
+      "根据项目设定、已有角色、已有关系、大纲和最近章节摘要，生成可审阅的人物关系草案。",
+    contextNotes:
+      "输入应包含项目基础信息、总设定摘要、可用角色 ID、已有关系、相关大纲和最近章节摘要。输出只能是 JSON，且关系端点必须引用已有角色 ID。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["relationships"],
+      properties: {
+        relationships: {
+          type: "array",
+          items: {
+            type: "object",
+            required: [
+              "sourceCharacterId",
+              "targetCharacterId",
+              "relationshipType",
+              "direction",
+              "status",
+              "summary",
+            ],
+            properties: {
+              sourceCharacterId: { type: "string" },
+              sourceCharacterName: { type: "string" },
+              targetCharacterId: { type: "string" },
+              targetCharacterName: { type: "string" },
+              relationshipType: {
+                type: "string",
+                enum: [
+                  "family",
+                  "ally",
+                  "partner",
+                  "mentor",
+                  "rival",
+                  "enemy",
+                  "romantic",
+                  "business",
+                  "secret",
+                  "other",
+                ],
+              },
+              direction: {
+                type: "string",
+                enum: [
+                  "two_way",
+                  "source_to_target",
+                  "target_to_source",
+                  "unclear",
+                ],
+              },
+              status: {
+                type: "string",
+                enum: ["active", "tension", "hidden", "resolved"],
+              },
+              summary: { type: "string" },
+              dynamics: { type: "string" },
+              evidence: { type: "string" },
+              sourceChapterNumber: { type: "integer" },
+              rationale: { type: "string" },
+            },
+          },
+        },
+      },
+    }),
+  },
+  {
     key: "chapter_draft_generation",
     name: "章节草稿生成",
     taskType: "chapter_draft_generation",

@@ -17,6 +17,7 @@ describe("default AI prompt templates", () => {
       expect.arrayContaining([
         "project_setting_generation",
         "outline_generation",
+        "character_relationship_generation",
         "chapter_beat_generation",
         "chapter_draft_generation",
         "chapter_polish_generation",

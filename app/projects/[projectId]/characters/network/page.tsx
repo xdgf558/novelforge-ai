@@ -4,17 +4,37 @@ import type { ReactNode } from "react";
 import {
   Archive,
   ArrowLeft,
+  Bot,
+  CheckCircle,
   GitFork,
   Network,
   Pencil,
   Plus,
+  Sparkles,
   Users,
+  XCircle,
 } from "lucide-react";
+import { AutoRefresh } from "@/components/auto-refresh";
 import {
+  adoptCharacterRelationshipDrafts,
   archiveCharacterRelationship,
   createCharacterRelationship,
+  generateCharacterRelationshipDrafts,
+  rejectCharacterRelationshipDrafts,
   updateCharacterRelationship,
 } from "@/app/projects/[projectId]/characters/network/actions";
+import { expireStaleCharacterRelationshipAiTasks } from "@/lib/ai/character-relationship-task-maintenance";
+import {
+  characterRelationshipGenerationTaskType,
+  parseCharacterRelationshipGenerationOutput,
+  type ParsedCharacterRelationshipDraft,
+} from "@/lib/ai/character-relationships";
+import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
+import {
+  aiTaskAdoptionLabel,
+  aiTaskStatusLabel,
+  isActiveAiTaskStatus,
+} from "@/lib/ai/status";
 import {
   characterRelationshipDirectionOptions,
   characterRelationshipErrorMessages,
@@ -35,6 +55,7 @@ type CharacterRelationshipNetworkPageProps = {
   }>;
   searchParams: Promise<{
     editId?: string;
+    relationshipAdopted?: string;
     relationshipError?: string;
   }>;
 };
@@ -69,12 +90,26 @@ type RelationshipRecord = {
   sourceChapter: { chapterNumber: number; title: string } | null;
 };
 
+type RelationshipTaskRecord = {
+  id: string;
+  status: string;
+  adoptionState: string;
+  inputContextSummary: string;
+  outputText: string | null;
+  errorMessage: string | null;
+  createdAt: Date;
+  promptTemplate: {
+    name: string;
+    version: number;
+  } | null;
+};
+
 export default async function CharacterRelationshipNetworkPage({
   params,
   searchParams,
 }: CharacterRelationshipNetworkPageProps) {
   const { projectId } = await params;
-  const { editId, relationshipError } = await searchParams;
+  const { editId, relationshipAdopted, relationshipError } = await searchParams;
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -89,10 +124,13 @@ export default async function CharacterRelationshipNetworkPage({
     notFound();
   }
 
+  await expireStaleCharacterRelationshipAiTasks(projectId);
+
   const [
     characters,
     chapters,
     relationships,
+    relationshipTasks,
     relationshipCount,
     activeRelationshipCount,
     hiddenRelationshipCount,
@@ -157,6 +195,24 @@ export default async function CharacterRelationshipNetworkPage({
       ],
       take: 80,
     }),
+    prisma.aiTask.findMany({
+      where: {
+        projectId,
+        taskType: characterRelationshipGenerationTaskType,
+      },
+      include: {
+        promptTemplate: {
+          select: {
+            name: true,
+            version: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    }),
     prisma.characterRelationship.count({
       where: {
         projectId,
@@ -188,9 +244,14 @@ export default async function CharacterRelationshipNetworkPage({
   const activeCharacters = characters.filter(
     (character) => character.status !== "archived",
   );
+  const hasActiveRelationshipTask = relationshipTasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
+  const hasApiKey = hasConfiguredOpenAIKey();
 
   return (
     <div className="space-y-6">
+      <AutoRefresh enabled={hasActiveRelationshipTask} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <Link
@@ -219,6 +280,12 @@ export default async function CharacterRelationshipNetworkPage({
         </div>
       ) : null}
 
+      {relationshipAdopted ? (
+        <div className="rounded-lg border border-signal-500/30 bg-signal-500/10 p-4 text-sm font-medium text-signal-700">
+          已采用 {relationshipAdopted} 条 AI 人物关系草案，并写入正式关系网络。
+        </div>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-4">
         <InfoTile
           icon={Users}
@@ -237,6 +304,14 @@ export default async function CharacterRelationshipNetworkPage({
           value={`${hiddenRelationshipCount + tensionRelationshipCount} 条`}
         />
       </section>
+
+      <CharacterRelationshipAiPanel
+        activeCharacterCount={activeCharacters.length}
+        hasActiveTask={hasActiveRelationshipTask}
+        hasApiKey={hasApiKey}
+        projectId={project.id}
+        tasks={relationshipTasks}
+      />
 
       <section className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)]">
         <div className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
@@ -377,6 +452,212 @@ export default async function CharacterRelationshipNetworkPage({
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function CharacterRelationshipAiPanel({
+  activeCharacterCount,
+  hasActiveTask,
+  hasApiKey,
+  projectId,
+  tasks,
+}: {
+  activeCharacterCount: number;
+  hasActiveTask: boolean;
+  hasApiKey: boolean;
+  projectId: string;
+  tasks: readonly RelationshipTaskRecord[];
+}) {
+  const canGenerate = hasApiKey && !hasActiveTask && activeCharacterCount >= 2;
+
+  return (
+    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <Sparkles aria-hidden="true" className="h-4 w-4" />
+            AI 人物关系草案
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-ink-950">
+            一键生成可审阅关系网络建议
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
+            AI 会参考项目设定、已有角色、现有人物关系、大纲和最近章节摘要，生成候选关系。只有点击采用后，才会写入正式人物关系网络。
+          </p>
+        </div>
+
+        <form action={generateCharacterRelationshipDrafts.bind(null, projectId)}>
+          <button
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-55"
+            disabled={!canGenerate}
+            type="submit"
+          >
+            <Bot aria-hidden="true" className="h-4 w-4" />
+            {hasActiveTask ? "生成中" : "生成关系草案"}
+          </button>
+        </form>
+      </div>
+
+      {!hasApiKey ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          未配置 API Key，暂不能调用模型；已有关系草案任务仍可查看和采用。
+        </p>
+      ) : null}
+
+      {activeCharacterCount < 2 ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          至少需要两个未归档角色，才能生成关系草案。
+        </p>
+      ) : null}
+
+      {hasActiveTask ? (
+        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          当前已有人物关系生成任务在后台运行，完成前不会重复发起新的模型调用。
+        </p>
+      ) : null}
+
+      {tasks.length === 0 ? (
+        <div className="mt-5 rounded-lg border border-dashed border-ink-950/15 bg-paper-50 p-5 text-sm text-ink-700">
+          还没有人物关系草案任务。生成后会在这里显示模型、状态、输出和采用按钮。
+        </div>
+      ) : (
+        <div className="mt-5 space-y-3">
+          {tasks.map((task) => (
+            <CharacterRelationshipTaskCard
+              key={task.id}
+              projectId={projectId}
+              task={task}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CharacterRelationshipTaskCard({
+  projectId,
+  task,
+}: {
+  projectId: string;
+  task: RelationshipTaskRecord;
+}) {
+  const drafts = parseCharacterRelationshipGenerationOutput(task.outputText);
+  const canAdopt =
+    task.status === "completed" &&
+    task.adoptionState === "not_reviewed" &&
+    drafts.length > 0;
+  const canReject =
+    task.status === "completed" && task.adoptionState === "not_reviewed";
+
+  return (
+    <article className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap gap-2">
+            <Badge>{aiTaskStatusLabel(task.status)}</Badge>
+            <Badge>{aiTaskAdoptionLabel(task.adoptionState)}</Badge>
+            <Badge>{formatDate(task.createdAt)}</Badge>
+          </div>
+          <p className="mt-3 text-sm font-semibold text-ink-950">
+            {task.promptTemplate
+              ? `${task.promptTemplate.name} v${task.promptTemplate.version}`
+              : "人物关系草案生成"}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-ink-700">
+            {task.inputContextSummary}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {canAdopt ? (
+            <form
+              action={adoptCharacterRelationshipDrafts.bind(
+                null,
+                projectId,
+                task.id,
+              )}
+            >
+              <button
+                className="inline-flex min-h-9 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-ink-800"
+                type="submit"
+              >
+                <CheckCircle aria-hidden="true" className="h-4 w-4" />
+                采用全部可用关系
+              </button>
+            </form>
+          ) : null}
+
+          {canReject ? (
+            <form
+              action={rejectCharacterRelationshipDrafts.bind(
+                null,
+                projectId,
+                task.id,
+              )}
+            >
+              <button
+                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-xs font-semibold text-ink-800 transition hover:bg-paper-100"
+                type="submit"
+              >
+                <XCircle aria-hidden="true" className="h-4 w-4" />
+                拒绝草案
+              </button>
+            </form>
+          ) : null}
+        </div>
+      </div>
+
+      {drafts.length > 0 ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {drafts.map((draft, index) => (
+            <RelationshipDraftCard draft={draft} index={index} key={index} />
+          ))}
+        </div>
+      ) : (
+        <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-4 text-xs leading-5 text-ink-800">
+          {task.outputText || task.errorMessage || "任务尚未产生输出。"}
+        </pre>
+      )}
+    </article>
+  );
+}
+
+function RelationshipDraftCard({
+  draft,
+  index,
+}: {
+  draft: ParsedCharacterRelationshipDraft;
+  index: number;
+}) {
+  const source = draft.sourceCharacterName || draft.sourceCharacterId || "未知";
+  const target = draft.targetCharacterName || draft.targetCharacterId || "未知";
+
+  return (
+    <div className="rounded-md border border-ink-950/10 bg-white p-4">
+      <div className="flex flex-wrap gap-2">
+        <Badge>#{index + 1}</Badge>
+        <Badge>{relationshipTypeLabel(draft.relationshipType)}</Badge>
+        <Badge>{relationshipStatusLabel(draft.status)}</Badge>
+        <Badge>{relationshipDirectionLabel(draft.direction)}</Badge>
+      </div>
+      <h3 className="mt-3 text-sm font-semibold text-ink-950">
+        {source} → {target}
+      </h3>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-700">
+        {draft.summary}
+      </p>
+      {draft.dynamics ? (
+        <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-ink-700">
+          阶段变化：{draft.dynamics}
+        </p>
+      ) : null}
+      {draft.evidence || draft.rationale ? (
+        <p className="mt-3 whitespace-pre-wrap text-xs leading-5 text-ink-700">
+          {[draft.evidence, draft.rationale].filter(Boolean).join("\n")}
+        </p>
+      ) : null}
     </div>
   );
 }

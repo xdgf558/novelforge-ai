@@ -1,5 +1,42 @@
 # Development Log
 
+## 2026-06-22: 0.1.33 AI Character Relationship Drafts
+
+Status: completed.
+
+What was done:
+
+- Added AI-assisted character relationship draft generation to the character relationship network page.
+- Added the `character_relationship_generation` default prompt template and task type.
+- Relationship generation now reads project setting, active characters, existing relationships, outlines, and recent chapter summary task output, then stores draft-only suggestions in `ai_tasks`.
+- Added review controls on `/projects/[projectId]/characters/network`:
+  - generate relationship drafts,
+  - auto-refresh while a relationship task is active,
+  - display parsed candidate relationships,
+  - adopt all usable draft relationships,
+  - reject the draft task.
+- Preserved author control and formal-memory safety:
+  - AI generation does not write `character_relationships`,
+  - adoption revalidates active current-project characters,
+  - chapter references are resolved to current-project chapters,
+  - same-character, archived-character, invalid, and duplicate active/tension/hidden relationships are skipped.
+- Updated the AI task page copy, source version, release notes, and project memory.
+- Built the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.33-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/ai/character-relationships.test.ts lib/ai/prompt-templates.test.ts app/projects/[projectId]/characters/network/actions.test.ts` passed.
+- `npm run test` passed.
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- Built the macOS app payload with electron-builder's directory target and macOS identity disabled to avoid Apple timestamp stalls during personal-use packaging.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.33"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Final PKG SHA-256: `582fb941e56edba3bba06a0e84b086bc2a6cb5999e0f8ab77e8b7c4215eaa471`.
+
 ## 2026-06-22: 0.1.32 Publish Package Record Collapse
 
 Status: completed.
