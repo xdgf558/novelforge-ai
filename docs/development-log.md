@@ -1,5 +1,29 @@
 # Development Log
 
+## 2026-06-22: 0.1.31 Publish Target UI Simplification
+
+Status: completed.
+
+What was done:
+
+- Simplified the project publish page so the global Station Cat API is the single recommended publishing entry.
+- Hid the automatically maintained `Station Cat 全局配置` internal sync target from the normal custom target list.
+- Moved project-specific publish targets into an advanced optional section for alternate sites, test environments, or special endpoints.
+- Reused one publish-result card for both global and advanced targets so preview links, publish links, remote IDs, and changed items are shown consistently.
+- Bumped the source app/package version to `0.1.31` and updated in-app release notes.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed through build and app payload creation; Developer ID timestamp signing stalled on Apple's timestamp service, so the personal-use package flow used local ad-hoc app signing as documented for current PKG handoffs.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.31"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the expanded PKG payload app.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+- Final PKG SHA-256: `08e8cbc7a9cf1256774af68b61668d3ba04e66169c6b9a50d8932dbf0fc40a14`.
+
 ## 2026-06-21: 0.1.30 Continuity Fix Suggestions and Scroll Restoration
 
 Status: completed.

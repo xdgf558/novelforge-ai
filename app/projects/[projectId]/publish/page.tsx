@@ -145,6 +145,15 @@ export default async function PublishPage({
       chapterNumber: chapter.chapterNumber,
       title: chapter.title,
     }));
+  const globalStationCatTarget = project.publishTargets.find(
+    (target) =>
+      target.platformKey === "station_cat" &&
+      target.name === "Station Cat 全局配置",
+  );
+  const customPublishTargets = project.publishTargets.filter(
+    (target) => target.id !== globalStationCatTarget?.id,
+  );
+  const latestGlobalStationCatRun = globalStationCatTarget?.runs[0] ?? null;
 
   return (
     <div className="space-y-6">
@@ -415,10 +424,11 @@ export default async function PublishPage({
         </div>
         <div>
           <h2 className="text-base font-semibold text-ink-950">
-            目标网站与 Token
+            Station Cat 全局发布
           </h2>
           <p className="mt-1 text-sm leading-6 text-ink-700">
-            软件端会保存目标站点、Station Cat Publish Token、默认发布模式，并在 API URL 和 Token 齐全时调用网站导入接口，同时保存预览链接、发布链接和远端 ID。
+            这里是推荐使用的主发布入口：API Base URL、Station Cat Publish Token
+            和默认发布模式都从本机全局设置读取，所有项目共用同一套网站配置。
           </p>
         </div>
 
@@ -427,7 +437,7 @@ export default async function PublishPage({
             <div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
                 <span className="rounded-md bg-white px-2.5 py-1">
-                  全局 Station Cat 配置
+                  本机全局配置
                 </span>
                 <span>{publishModeLabel(stationCatSettings.defaultMode)}</span>
                 <span>
@@ -438,14 +448,14 @@ export default async function PublishPage({
                 </span>
               </div>
               <h3 className="mt-2 text-lg font-semibold text-ink-950">
-                使用全局网站 API 发布
+                发送到 Station Cat
               </h3>
               <p className="mt-1 break-all text-sm text-ink-700">
                 {stationCatSettings.apiBaseUrl}/api/novelforge/import
               </p>
               <p className="mt-2 text-sm leading-6 text-ink-700">
                 全局配置保存在本机设置中，所有项目共用同一套 API Base URL 和
-                Station Cat Publish Token。第一次使用时，本项目会自动建立一个内部发布目标来记录增量同步状态。
+                Station Cat Publish Token。软件会在后台维护一个内部同步记录，用来保存远端 ID、预览链接、发布链接和增量上传状态。
               </p>
             </div>
             <Link
@@ -465,103 +475,120 @@ export default async function PublishPage({
               chapters={publishableChapters}
               defaultMode={stationCatSettings.defaultMode}
               disabledMessage="需要先在本机设置中保存 Station Cat Publish Token，才能调用网站导入接口。"
-              submitLabel="使用全局配置发送到 Station Cat"
+              submitLabel="发送到 Station Cat"
             />
           </form>
+
+          {latestGlobalStationCatRun ? (
+            <PublishRunResultCard latestRun={latestGlobalStationCatRun} />
+          ) : (
+            <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-white p-4 text-sm leading-6 text-ink-700">
+              还没有全局发布记录。点击上方按钮后，会在这里显示最近一次同步结果、预览链接、发布链接和本次变更条目。
+            </div>
+          )}
         </article>
 
-        <form
-          action={savePublishTarget.bind(null, project.id)}
-          className="grid gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4 lg:grid-cols-[1fr_1fr_1fr_auto]"
-        >
-          <label className="space-y-1.5">
-            <span className="text-xs font-semibold text-ink-700">目标名称</span>
-            <input
-              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-              name="name"
-              placeholder="Station Cat 作品后台"
-            />
-          </label>
-          <label className="space-y-1.5">
-            <span className="text-xs font-semibold text-ink-700">目标平台</span>
-            <select
-              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-              name="platformKey"
-              defaultValue="station_cat"
-            >
-              {publishPlatformOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1.5">
-            <span className="text-xs font-semibold text-ink-700">默认模式</span>
-            <select
-              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-              name="defaultMode"
-              defaultValue="draft"
-            >
-              {publishModeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-            type="submit"
+        <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+            高级：项目专属发布目标（可选）
+          </summary>
+          <p className="mt-2 text-sm leading-6 text-ink-700">
+            一般只需要使用上面的全局 Station Cat 发布入口。只有当某个项目要发布到不同网站、测试环境或备用接口时，才需要在这里新增项目专属目标。
+          </p>
+
+          <form
+            action={savePublishTarget.bind(null, project.id)}
+            className="mt-4 grid gap-3 rounded-lg border border-ink-950/10 bg-white p-4 lg:grid-cols-[1fr_1fr_1fr_auto]"
           >
-            <PackageCheck aria-hidden="true" className="h-4 w-4" />
-            新增目标
-          </button>
-          <label className="space-y-1.5 lg:col-span-2">
-            <span className="text-xs font-semibold text-ink-700">API Base URL</span>
-            <input
-              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-              name="apiBaseUrl"
-              placeholder="https://wwwstationcat.org/api/novelforge"
-              type="url"
-            />
-          </label>
-          <label className="space-y-1.5 lg:col-span-2">
-            <span className="text-xs font-semibold text-ink-700">
-              发布 Token（Station Cat Publish Token）
-            </span>
-            <input
-              autoComplete="off"
-              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-              name="token"
-              placeholder="与网站端 NOVELFORGE_PUBLISH_TOKEN 保持一致"
-              type="password"
-            />
-          </label>
-        </form>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-ink-700">目标名称</span>
+              <input
+                className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                name="name"
+                placeholder="备用网站或测试环境"
+              />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-ink-700">目标平台</span>
+              <select
+                className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                name="platformKey"
+                defaultValue="station_cat"
+              >
+                {publishPlatformOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-xs font-semibold text-ink-700">默认模式</span>
+              <select
+                className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                name="defaultMode"
+                defaultValue="draft"
+              >
+                {publishModeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+              type="submit"
+            >
+              <PackageCheck aria-hidden="true" className="h-4 w-4" />
+              新增目标
+            </button>
+            <label className="space-y-1.5 lg:col-span-2">
+              <span className="text-xs font-semibold text-ink-700">
+                API Base URL
+              </span>
+              <input
+                className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                name="apiBaseUrl"
+                placeholder="https://wwwstationcat.org/api/novelforge"
+                type="url"
+              />
+            </label>
+            <label className="space-y-1.5 lg:col-span-2">
+              <span className="text-xs font-semibold text-ink-700">
+                发布 Token（Station Cat Publish Token）
+              </span>
+              <input
+                autoComplete="off"
+                className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                name="token"
+                placeholder="与目标网站端 NOVELFORGE_PUBLISH_TOKEN 保持一致"
+                type="password"
+              />
+            </label>
+          </form>
 
-        {project.publishTargets.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
-            还没有发布目标。先新增 Station Cat 或其它目标网站，再生成标准包和增量发布记录。
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {project.publishTargets.map((target) => {
-              const latestRun = target.runs[0];
-              const changedItems = parseChangedItems(latestRun?.changedItemsJson);
-              const canSubmitPublish =
-                target.platformKey !== "station_cat" ||
-                Boolean(target.apiBaseUrl && target.tokenSecret);
-              const submitLabel =
-                target.platformKey === "station_cat"
-                  ? "发送到 Station Cat"
-                  : "一键准备发布";
+          {customPublishTargets.length === 0 ? (
+            <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-white p-5 text-sm text-ink-700">
+              还没有自定义目标。当前项目会使用全局 Station Cat 配置发布。
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-4">
+              {customPublishTargets.map((target) => {
+                const latestRun = target.runs[0];
+                const canSubmitPublish =
+                  target.platformKey !== "station_cat" ||
+                  Boolean(target.apiBaseUrl && target.tokenSecret);
+                const submitLabel =
+                  target.platformKey === "station_cat"
+                    ? "发送到 Station Cat"
+                    : "一键准备发布";
 
-              return (
-                <article
-                  className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
-                  key={target.id}
-                >
+                return (
+                  <article
+                    className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+                    key={target.id}
+                  >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
@@ -690,55 +717,14 @@ export default async function PublishPage({
                   </form>
 
                   {latestRun ? (
-                    <div className="mt-4 rounded-lg border border-ink-950/10 bg-white p-4">
-                      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-ink-950">
-                            最近结果：{publishModeLabel(latestRun.mode)} /{" "}
-                            {publishRunStatusLabel(latestRun.status)}
-                          </p>
-                          <p className="mt-1 text-sm leading-6 text-ink-700">
-                            {latestRun.resultMessage || "暂无结果说明。"}
-                          </p>
-                          {latestRun.errorMessage ? (
-                            <p className="mt-1 text-sm leading-6 text-red-700">
-                              错误：{latestRun.errorMessage}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="text-sm text-ink-700">
-                          {formatDate(latestRun.createdAt)}
-                        </div>
-                      </div>
-                      <div className="mt-3 grid gap-2 text-sm text-ink-700 lg:grid-cols-2">
-                        <ResultLink label="预览链接" value={latestRun.previewUrl} />
-                        <ResultLink label="发布链接" value={latestRun.publishUrl} />
-                      </div>
-                      {changedItems.length > 0 ? (
-                        <div className="mt-3 rounded-md bg-paper-50 p-3">
-                          <p className="text-xs font-semibold text-ink-700">
-                            本次变更条目
-                          </p>
-                          <ul className="mt-2 space-y-1 text-sm text-ink-700">
-                            {changedItems.slice(0, 8).map((item) => (
-                              <li key={`${item.localType}:${item.localId}`}>
-                                {item.changeType === "update" ? "更新" : "新增"}：
-                                {item.label}
-                                {item.remoteId ? ` / 远端 ${item.remoteId}` : ""}
-                                {item.remoteStatus ? ` / ${item.remoteStatus}` : ""}
-                                {item.remoteMessage ? ` / ${item.remoteMessage}` : ""}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
+                    <PublishRunResultCard latestRun={latestRun} />
                   ) : null}
-                </article>
-              );
-            })}
-          </div>
-        )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </details>
       </section>
 
       <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
@@ -988,6 +974,69 @@ export default async function PublishPage({
           />
         </div>
       </section>
+    </div>
+  );
+}
+
+type PublishRunResultRecord = {
+  changedItemsJson?: string | null;
+  createdAt: Date;
+  errorMessage?: string | null;
+  mode?: string | null;
+  previewUrl?: string | null;
+  publishUrl?: string | null;
+  resultMessage?: string | null;
+  status?: string | null;
+};
+
+function PublishRunResultCard({
+  latestRun,
+}: {
+  latestRun: PublishRunResultRecord;
+}) {
+  const changedItems = parseChangedItems(latestRun.changedItemsJson);
+
+  return (
+    <div className="mt-4 rounded-lg border border-ink-950/10 bg-white p-4">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-ink-950">
+            最近结果：{publishModeLabel(latestRun.mode)} /{" "}
+            {publishRunStatusLabel(latestRun.status)}
+          </p>
+          <p className="mt-1 text-sm leading-6 text-ink-700">
+            {latestRun.resultMessage || "暂无结果说明。"}
+          </p>
+          {latestRun.errorMessage ? (
+            <p className="mt-1 text-sm leading-6 text-red-700">
+              错误：{latestRun.errorMessage}
+            </p>
+          ) : null}
+        </div>
+        <div className="text-sm text-ink-700">
+          {formatDate(latestRun.createdAt)}
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 text-sm text-ink-700 lg:grid-cols-2">
+        <ResultLink label="预览链接" value={latestRun.previewUrl} />
+        <ResultLink label="发布链接" value={latestRun.publishUrl} />
+      </div>
+      {changedItems.length > 0 ? (
+        <div className="mt-3 rounded-md bg-paper-50 p-3">
+          <p className="text-xs font-semibold text-ink-700">本次变更条目</p>
+          <ul className="mt-2 space-y-1 text-sm text-ink-700">
+            {changedItems.slice(0, 8).map((item) => (
+              <li key={`${item.localType}:${item.localId}`}>
+                {item.changeType === "update" ? "更新" : "新增"}：
+                {item.label}
+                {item.remoteId ? ` / 远端 ${item.remoteId}` : ""}
+                {item.remoteStatus ? ` / ${item.remoteStatus}` : ""}
+                {item.remoteMessage ? ` / ${item.remoteMessage}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
