@@ -102,6 +102,7 @@ export async function processAudioExport({
           chapterNumber: audioExport.chapter.chapterNumber,
           chapterTitle: audioExport.chapter.title,
           contentType: result.contentType,
+          outputFormat: audioExport.outputFormat,
           projectId: audioExport.projectId,
           segmentIndex: segment.segmentIndex,
         });

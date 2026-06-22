@@ -134,6 +134,21 @@ describe("audiobook actions", () => {
     );
   });
 
+  it("turns an active export unique constraint into a friendly redirect", async () => {
+    mocks.prisma.$transaction.mockRejectedValueOnce({
+      code: "P2002",
+    });
+
+    await expect(
+      startChapterAudioExport("project_1", buildAudioExportFormData()),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.processAudioExport).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/audiobook?audioError=activeExport",
+    );
+  });
+
   it("locks retry so a second request does not start duplicate TTS work", async () => {
     mocks.prisma.audioExport.updateMany.mockResolvedValue({
       count: 0,

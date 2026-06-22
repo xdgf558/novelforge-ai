@@ -121,6 +121,7 @@ export async function previewTtsVoiceAction(formData: FormData) {
         audioBytes: result.audioBytes,
         contentType: result.contentType,
         modelId: secrets.model,
+        outputFormat: secrets.outputFormat,
         voiceId: secrets.voiceId,
       });
 

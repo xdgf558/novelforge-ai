@@ -40,7 +40,9 @@ What was done:
   - the audiobook page shows the configured model's rough estimated cost instead of a placeholder,
   - failed-segment retry now atomically locks the parent export before moving failed segments back to pending, so double-clicks and multi-window retries do not duplicate paid TTS calls,
   - background export failures now mark pending/running segments as failed before finalizing the parent task, keeping retry state consistent,
-  - successful TTS responses must have a supported audio content type and matching MP3/WAV/OGG signature before they can be saved as local audio assets.
+  - concurrent chapter export creation handles the active-export unique index as a friendly `audioError=activeExport` redirect instead of surfacing a raw Prisma error,
+  - successful TTS responses must have a supported audio content type and matching MP3/WAV/OGG signature before they can be saved as local audio assets,
+  - `application/octet-stream` audio is only allowed without a detectable file signature when the requested output format is raw `pcm`; MP3/WAV/OGG exports served as octet-stream still need a matching file signature.
 - Added the sidebar and project dashboard entry for 有声小说导出.
 - Updated project activity summaries so completed audio exports can count toward recent project activity.
 - Kept the first version local-first and author-controlled: audio files are local export assets, not formal story memory, and no cloud sync or automatic publishing was added.
@@ -50,6 +52,7 @@ Verification:
 - `npm run test -- lib/audio/chunk-text.test.ts lib/audio/text-source.test.ts lib/audio/providers/ppq-tts.test.ts lib/ai/local-config.test.ts` passed.
 - `npm run test -- app/projects/[projectId]/audiobook/actions.test.ts lib/audio/audio-assets.test.ts lib/audio/providers/ppq-tts.test.ts` passed after review hardening.
 - `npm run test -- app/projects/[projectId]/audiobook/actions.test.ts lib/audio/audio-assets.test.ts lib/audio/providers/ppq-tts.test.ts lib/audio/export-runner.test.ts` passed after retry-lock and response-validation hardening.
+- `npm run test -- app/projects/[projectId]/audiobook/actions.test.ts lib/audio/audio-assets.test.ts` passed after active-export unique handling and octet-stream tightening.
 - `npm run typecheck` passed.
 
 ## 2026-06-22: 0.1.34 Mainline Character Relationship Package

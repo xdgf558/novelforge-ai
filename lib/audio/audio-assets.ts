@@ -10,6 +10,8 @@ export type StoredAudioAsset = {
   sizeBytes: number;
 };
 
+type AudioOutputFormat = "mp3" | "wav" | "pcm" | "ogg";
+
 const audioMimeByFormat = new Map([
   ["mp3", "audio/mpeg"],
   ["mpeg", "audio/mpeg"],
@@ -46,14 +48,17 @@ export async function saveAudioPreviewAsset({
   audioBytes,
   contentType,
   modelId,
+  outputFormat,
   voiceId,
 }: {
   audioBytes: Buffer;
   contentType: string;
   modelId: string;
+  outputFormat?: string | null;
   voiceId?: string | null;
 }) {
-  const format = audioFormatFromContentType(contentType);
+  const format =
+    normalizeAudioOutputFormat(outputFormat) ?? audioFormatFromContentType(contentType);
   const fileName = `${safeFileName(modelId)}-${safeFileName(voiceId || "voice")}-${Date.now()}.${format}`;
   const relativePath = path.join("previews", `${randomUUID()}-${fileName}`);
 
@@ -62,6 +67,7 @@ export async function saveAudioPreviewAsset({
     contentType,
     relativePath,
     fileName,
+    outputFormat: format,
   });
 
   await cleanupAudioPreviewAssets({
@@ -77,6 +83,7 @@ export async function saveAudioExportSegmentAsset({
   chapterNumber,
   chapterTitle,
   contentType,
+  outputFormat,
   projectId,
   segmentIndex,
 }: {
@@ -85,10 +92,12 @@ export async function saveAudioExportSegmentAsset({
   chapterNumber: number;
   chapterTitle: string;
   contentType: string;
+  outputFormat?: string | null;
   projectId: string;
   segmentIndex: number;
 }) {
-  const format = audioFormatFromContentType(contentType);
+  const format =
+    normalizeAudioOutputFormat(outputFormat) ?? audioFormatFromContentType(contentType);
   const chapterLabel = `${String(chapterNumber).padStart(3, "0")}-${safeFileName(chapterTitle)}`;
   const segmentLabel = `segment-${String(segmentIndex).padStart(3, "0")}`;
   const fileName = `${chapterLabel}.${segmentLabel}.${format}`;
@@ -103,6 +112,7 @@ export async function saveAudioExportSegmentAsset({
     contentType,
     relativePath,
     fileName,
+    outputFormat: format,
   });
 }
 
@@ -193,16 +203,39 @@ export function resolveAudioAssetPath(relativePath: string) {
   return absolutePath;
 }
 
-function audioFormatFromContentType(contentType: string) {
+function audioFormatFromContentType(contentType: string): AudioOutputFormat {
   const normalized = normalizeAudioContentType(contentType);
 
-  for (const [format, mimeType] of audioMimeByFormat.entries()) {
-    if (mimeType === normalized) {
-      return format === "mpeg" ? "mp3" : format;
-    }
+  if (normalized === "audio/wav") {
+    return "wav";
+  }
+
+  if (normalized === "audio/ogg") {
+    return "ogg";
+  }
+
+  if (normalized === "application/octet-stream") {
+    return "pcm";
   }
 
   return "mp3";
+}
+
+function normalizeAudioOutputFormat(
+  outputFormat?: string | null,
+): AudioOutputFormat | null {
+  const normalized = outputFormat?.trim().toLowerCase();
+
+  if (
+    normalized === "mp3" ||
+    normalized === "wav" ||
+    normalized === "pcm" ||
+    normalized === "ogg"
+  ) {
+    return normalized;
+  }
+
+  return null;
 }
 
 function audioMimeTypeFromPath(relativePath: string) {
@@ -214,11 +247,13 @@ async function writeAudioAsset({
   audioBytes,
   contentType,
   fileName,
+  outputFormat,
   relativePath,
 }: {
   audioBytes: Buffer;
   contentType: string;
   fileName: string;
+  outputFormat: AudioOutputFormat;
   relativePath: string;
 }): Promise<StoredAudioAsset> {
   if (audioBytes.byteLength <= 0) {
@@ -231,15 +266,17 @@ async function writeAudioAsset({
 
   const normalizedContentType = normalizeAudioContentType(contentType);
   const detectedContentType = detectAudioMimeType(audioBytes);
+  const expectedContentType = audioMimeByFormat.get(outputFormat);
 
   if (!isSupportedAudioContentType(normalizedContentType)) {
     throw new Error("TTS 接口返回的不是支持的音频格式。");
   }
 
-  if (
-    normalizedContentType !== "application/octet-stream" &&
-    (!detectedContentType || detectedContentType !== normalizedContentType)
-  ) {
+  if (normalizedContentType === "application/octet-stream") {
+    if (outputFormat !== "pcm" && detectedContentType !== expectedContentType) {
+      throw new Error("TTS 音频内容与响应格式不匹配。");
+    }
+  } else if (!detectedContentType || detectedContentType !== normalizedContentType) {
     throw new Error("TTS 音频内容与响应格式不匹配。");
   }
 

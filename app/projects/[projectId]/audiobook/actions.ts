@@ -3,6 +3,7 @@
 import { execFile } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { promisify } from "node:util";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -113,54 +114,65 @@ export async function startChapterAudioExport(
     redirect(`/projects/${projectId}/audiobook?audioError=missingChapterText`);
   }
 
-  const audioExport = await prisma.$transaction(async (tx) => {
-    const createdExport = await tx.audioExport.create({
-      data: {
-        chapterId: chapter.id,
-        estimatedCostCents: estimateTtsCostCents({
-          charCount: sourceText.text.length,
+  let audioExport;
+
+  try {
+    audioExport = await prisma.$transaction(async (tx) => {
+      const createdExport = await tx.audioExport.create({
+        data: {
+          chapterId: chapter.id,
+          estimatedCostCents: estimateTtsCostCents({
+            charCount: sourceText.text.length,
+            modelId: parsed.data.modelId,
+          }),
+          estimatedSeconds: estimateAudioDurationSeconds(sourceText.text.length),
+          failedSegments: 0,
+          languageCode: parsed.data.languageCode,
+          metadataJson: JSON.stringify({
+            chapterNumber: chapter.chapterNumber,
+            chapterTitle: chapter.title,
+            modelInputLimit: modelInputLimit(parsed.data.modelId),
+          }),
           modelId: parsed.data.modelId,
-        }),
-        estimatedSeconds: estimateAudioDurationSeconds(sourceText.text.length),
-        failedSegments: 0,
-        languageCode: parsed.data.languageCode,
-        metadataJson: JSON.stringify({
-          chapterNumber: chapter.chapterNumber,
-          chapterTitle: chapter.title,
-          modelInputLimit: modelInputLimit(parsed.data.modelId),
-        }),
-        modelId: parsed.data.modelId,
-        outputFormat: parsed.data.outputFormat,
-        projectId,
-        providerId: secrets.providerId,
-        scope: "chapter",
-        sourceTextHash: sourceText.hash,
-        sourceTextType: sourceText.type,
-        status: "running",
-        stylePrompt: parsed.data.stylePrompt,
-        succeededSegments: 0,
-        totalChars: sourceText.text.length,
-        totalSegments: chunks.length,
-        voiceId: parsed.data.voiceId,
-        voiceName: parsed.data.voiceName,
-      },
-    });
+          outputFormat: parsed.data.outputFormat,
+          projectId,
+          providerId: secrets.providerId,
+          scope: "chapter",
+          sourceTextHash: sourceText.hash,
+          sourceTextType: sourceText.type,
+          status: "running",
+          stylePrompt: parsed.data.stylePrompt,
+          succeededSegments: 0,
+          totalChars: sourceText.text.length,
+          totalSegments: chunks.length,
+          voiceId: parsed.data.voiceId,
+          voiceName: parsed.data.voiceName,
+        },
+      });
 
-    await tx.audioExportSegment.createMany({
-      data: chunks.map((chunk) => ({
-        audioExportId: createdExport.id,
-        chapterId: chapter.id,
-        charCount: chunk.charCount,
-        inputPreview: chunk.preview,
-        projectId,
-        segmentIndex: chunk.index,
-        status: "pending",
-        textHash: hashAudioSourceText(chunk.text),
-      })),
-    });
+      await tx.audioExportSegment.createMany({
+        data: chunks.map((chunk) => ({
+          audioExportId: createdExport.id,
+          chapterId: chapter.id,
+          charCount: chunk.charCount,
+          inputPreview: chunk.preview,
+          projectId,
+          segmentIndex: chunk.index,
+          status: "pending",
+          textHash: hashAudioSourceText(chunk.text),
+        })),
+      });
 
-    return createdExport;
-  });
+      return createdExport;
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      revalidateAudiobookPaths(projectId);
+      redirect(`/projects/${projectId}/audiobook?audioError=activeExport`);
+    }
+
+    throw error;
+  }
 
   void processAudioExport({
     audioExportId: audioExport.id,
@@ -320,4 +332,20 @@ export async function openAudioExportFolder(projectId: string, audioExportId: st
 function revalidateAudiobookPaths(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/audiobook`);
+}
+
+function isUniqueConstraintError(error: unknown) {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  ) {
+    return true;
+  }
+
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
+  );
 }

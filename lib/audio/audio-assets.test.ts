@@ -89,4 +89,42 @@ describe("audio assets", () => {
       }),
     ).rejects.toThrow("内容与响应格式不匹配");
   });
+
+  it("rejects unidentified octet-stream bytes for non-pcm output", async () => {
+    await expect(
+      saveAudioPreviewAsset({
+        audioBytes: Buffer.from("not an mp3"),
+        contentType: "application/octet-stream",
+        modelId: "model",
+        outputFormat: "mp3",
+        voiceId: "voice",
+      }),
+    ).rejects.toThrow("内容与响应格式不匹配");
+  });
+
+  it("accepts detected mp3 bytes served as octet-stream for mp3 output", async () => {
+    const savedAsset = await saveAudioPreviewAsset({
+      audioBytes: sampleMp3Bytes,
+      contentType: "application/octet-stream",
+      modelId: "model",
+      outputFormat: "mp3",
+      voiceId: "voice",
+    });
+
+    expect(savedAsset.fileName.endsWith(".mp3")).toBe(true);
+    expect(savedAsset.mimeType).toBe("audio/mpeg");
+  });
+
+  it("allows raw pcm bytes only when pcm output is requested", async () => {
+    const savedAsset = await saveAudioPreviewAsset({
+      audioBytes: Buffer.from([1, 2, 3, 4]),
+      contentType: "application/octet-stream",
+      modelId: "model",
+      outputFormat: "pcm",
+      voiceId: "voice",
+    });
+
+    expect(savedAsset.fileName.endsWith(".pcm")).toBe(true);
+    expect(savedAsset.mimeType).toBe("application/octet-stream");
+  });
 });
