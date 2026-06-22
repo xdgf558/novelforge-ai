@@ -69,11 +69,11 @@ export default async function AiSettingsPage({
   const ttsPreviewPath = resolvedSearchParams?.ttsPreviewPath;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="nf-compact-settings space-y-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <Link
-            className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
+            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
             href="/"
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
@@ -83,7 +83,7 @@ export default async function AiSettingsPage({
           <h1 className="mt-2 text-2xl font-semibold tracking-normal text-ink-950">
             本机接入设置
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
+          <p className="mt-2 max-w-3xl text-sm leading-5 text-ink-700">
             配置本机模型调用和个人网站发布参数。密钥只保存在本机配置文件中，模型调用和网站发布都由服务端执行。
           </p>
         </div>
@@ -122,7 +122,7 @@ export default async function AiSettingsPage({
         </div>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-3 md:grid-cols-3">
         <InfoTile
           icon={KeyRound}
           label="AI API Key"
@@ -799,12 +799,14 @@ function InfoTile({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-      <div className="flex items-center gap-2 text-sm text-ink-700">
+    <div className="rounded-lg border border-ink-950/10 bg-white p-3 shadow-panel">
+      <div className="flex items-center gap-2 text-xs font-semibold text-ink-700">
         <Icon aria-hidden="true" className="h-4 w-4 text-signal-600" />
         {label}
       </div>
-      <p className="mt-3 break-all text-lg font-semibold text-ink-950">{value}</p>
+      <p className="mt-2 break-all text-base font-semibold leading-6 text-ink-950">
+        {value}
+      </p>
     </div>
   );
 }

@@ -302,6 +302,79 @@ button {
       0 18px 45px rgba(0, 0, 0, 0.18),
       inset 0 1px rgba(255, 255, 255, 0.04) !important;
   }
+
+  .nf-compact-settings > section:not(.grid) {
+    padding: 1rem !important;
+  }
+
+  .nf-compact-settings [class~="shadow-panel"] {
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.16),
+      inset 0 1px rgba(255, 255, 255, 0.04) !important;
+  }
+
+  .nf-compact-settings [class~="mb-5"] {
+    margin-bottom: 0.875rem !important;
+  }
+
+  .nf-compact-settings [class~="gap-5"] {
+    gap: 0.875rem !important;
+  }
+
+  .nf-compact-settings [class~="gap-4"] {
+    gap: 0.75rem !important;
+  }
+
+  .nf-compact-settings form.space-y-5 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.875rem !important;
+  }
+
+  .nf-compact-settings label.space-y-2 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.375rem !important;
+  }
+
+  .nf-compact-settings [class~="space-y-3"] > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0.625rem !important;
+  }
+
+  .nf-compact-settings input:not([type="checkbox"]):not([type="radio"]),
+  .nf-compact-settings select {
+    min-height: 2.25rem !important;
+    padding: 0.375rem 0.625rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.35 !important;
+  }
+
+  .nf-compact-settings textarea {
+    min-height: 4.75rem !important;
+    padding: 0.5rem 0.625rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.45 !important;
+  }
+
+  .nf-compact-settings button {
+    min-height: 2.25rem !important;
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+  }
+
+  .nf-compact-settings label[class~="p-4"],
+  .nf-compact-settings div[class~="p-4"] {
+    padding: 0.75rem !important;
+  }
+
+  .nf-compact-settings label[class~="p-3"],
+  .nf-compact-settings p[class~="py-3"] {
+    padding: 0.625rem !important;
+  }
+
+  .nf-compact-settings [class~="pt-5"] {
+    padding-top: 0.875rem !important;
+  }
+
+  .nf-compact-settings [class~="leading-6"] {
+    line-height: 1.45 !important;
+  }
 }
 
 @media (max-width: 1023px) {
