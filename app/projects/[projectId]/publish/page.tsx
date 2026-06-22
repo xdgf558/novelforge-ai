@@ -154,6 +154,115 @@ export default async function PublishPage({
     (target) => target.id !== globalStationCatTarget?.id,
   );
   const latestGlobalStationCatRun = globalStationCatTarget?.runs[0] ?? null;
+  const visiblePublishPackages = project.publishPackages.slice(0, 1);
+  const hiddenPublishPackages = project.publishPackages.slice(1);
+  const renderPublishPackageCard = (
+    publishPackage: (typeof project.publishPackages)[number],
+  ) => {
+    const titleCandidates = parseStoredStringList(
+      publishPackage.titleCandidatesJson,
+    );
+    const checklist = parseStoredStringList(publishPackage.checklistJson);
+    const markdownBody =
+      publishPackage.markdownBody ||
+      buildPublishMarkdown({
+        selectedTitle: publishPackage.selectedTitle,
+        openingGuide: publishPackage.openingGuide,
+        chapterSummary: publishPackage.chapterSummary,
+        finalText: publishPackage.chapter.finalText,
+        endingQuestion: publishPackage.endingQuestion,
+        nextChapterPreview: publishPackage.nextChapterPreview,
+        commentGuide: publishPackage.commentGuide,
+      });
+    const filename = `${baseFilename}-chapter-${publishPackage.chapter.chapterNumber}-publish.md`;
+
+    return (
+      <article
+        className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+        key={publishPackage.id}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+              <span className="rounded-md bg-paper-100 px-2.5 py-1">
+                {publishPackageStatusLabel(publishPackage.status)}
+              </span>
+              <span>
+                第 {formatNumber(publishPackage.chapter.chapterNumber)} 章
+              </span>
+              <span>{formatDate(publishPackage.createdAt)}</span>
+            </div>
+            <h3 className="mt-2 text-lg font-semibold text-ink-950">
+              {publishPackage.selectedTitle || "未选择标题"}
+            </h3>
+            <p className="mt-1 text-sm text-ink-700">
+              {publishPackage.chapter.title}
+            </p>
+          </div>
+
+          {publishPackage.status !== "exported" ? (
+            <form
+              action={markPublishPackageExported.bind(
+                null,
+                project.id,
+                publishPackage.id,
+              )}
+            >
+              <button
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                type="submit"
+              >
+                <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                标记已导出
+              </button>
+            </form>
+          ) : null}
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <InfoBlock label="开头引导" value={publishPackage.openingGuide} />
+          <InfoBlock label="本章摘要" value={publishPackage.chapterSummary} />
+          <InfoBlock label="互动问题" value={publishPackage.endingQuestion} />
+          <InfoBlock label="下章预告" value={publishPackage.nextChapterPreview} />
+          <InfoBlock label="评论引导" value={publishPackage.commentGuide} />
+          <InfoBlock label="封面提示词" value={publishPackage.coverPrompt} />
+        </div>
+
+        {titleCandidates.length > 0 ? (
+          <div className="mt-4 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+            <h4 className="text-sm font-semibold text-ink-950">标题候选</h4>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink-700">
+              {titleCandidates.map((title) => (
+                <li key={title}>{title}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {checklist.length > 0 ? (
+          <div className="mt-4 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+            <h4 className="text-sm font-semibold text-ink-950">
+              发布检查清单
+            </h4>
+            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink-700">
+              {checklist.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="mt-4">
+          <CopyExportPanel
+            content={markdownBody}
+            filename={filename}
+            rows={14}
+            title="Markdown 发布版"
+          />
+        </div>
+      </article>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -829,113 +938,23 @@ export default async function PublishPage({
             还没有发布包装。选择一个已保存定稿的章节生成后，会在这里显示标题候选、正文 Markdown、封面提示词和发布检查清单。
           </div>
         ) : (
-          project.publishPackages.map((publishPackage) => {
-            const titleCandidates = parseStoredStringList(
-              publishPackage.titleCandidatesJson,
-            );
-            const checklist = parseStoredStringList(publishPackage.checklistJson);
-            const markdownBody =
-              publishPackage.markdownBody ||
-              buildPublishMarkdown({
-                selectedTitle: publishPackage.selectedTitle,
-                openingGuide: publishPackage.openingGuide,
-                chapterSummary: publishPackage.chapterSummary,
-                finalText: publishPackage.chapter.finalText,
-                endingQuestion: publishPackage.endingQuestion,
-                nextChapterPreview: publishPackage.nextChapterPreview,
-                commentGuide: publishPackage.commentGuide,
-              });
-            const filename = `${baseFilename}-chapter-${publishPackage.chapter.chapterNumber}-publish.md`;
-
-            return (
-              <article
-                className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
-                key={publishPackage.id}
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
-                      <span className="rounded-md bg-paper-100 px-2.5 py-1">
-                        {publishPackageStatusLabel(publishPackage.status)}
-                      </span>
-                      <span>
-                        第 {formatNumber(publishPackage.chapter.chapterNumber)} 章
-                      </span>
-                      <span>{formatDate(publishPackage.createdAt)}</span>
-                    </div>
-                    <h3 className="mt-2 text-lg font-semibold text-ink-950">
-                      {publishPackage.selectedTitle || "未选择标题"}
-                    </h3>
-                    <p className="mt-1 text-sm text-ink-700">
-                      {publishPackage.chapter.title}
-                    </p>
-                  </div>
-
-                  {publishPackage.status !== "exported" ? (
-                    <form
-                      action={markPublishPackageExported.bind(
-                        null,
-                        project.id,
-                        publishPackage.id,
-                      )}
-                    >
-                      <button
-                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                        type="submit"
-                      >
-                        <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-                        标记已导出
-                      </button>
-                    </form>
-                  ) : null}
+          <>
+            {visiblePublishPackages.map(renderPublishPackageCard)}
+            {hiddenPublishPackages.length > 0 ? (
+              <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+                <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+                  历史发布包装记录（已隐藏{" "}
+                  {formatNumber(hiddenPublishPackages.length)} 条）
+                </summary>
+                <p className="mt-2 text-sm leading-6 text-ink-700">
+                  旧包装记录仍保存在本地数据库中，需要回看或复制时可以展开这里。
+                </p>
+                <div className="mt-4 space-y-4">
+                  {hiddenPublishPackages.map(renderPublishPackageCard)}
                 </div>
-
-                <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                  <InfoBlock label="开头引导" value={publishPackage.openingGuide} />
-                  <InfoBlock label="本章摘要" value={publishPackage.chapterSummary} />
-                  <InfoBlock label="互动问题" value={publishPackage.endingQuestion} />
-                  <InfoBlock label="下章预告" value={publishPackage.nextChapterPreview} />
-                  <InfoBlock label="评论引导" value={publishPackage.commentGuide} />
-                  <InfoBlock label="封面提示词" value={publishPackage.coverPrompt} />
-                </div>
-
-                {titleCandidates.length > 0 ? (
-                  <div className="mt-4 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
-                    <h4 className="text-sm font-semibold text-ink-950">
-                      标题候选
-                    </h4>
-                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink-700">
-                      {titleCandidates.map((title) => (
-                        <li key={title}>{title}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {checklist.length > 0 ? (
-                  <div className="mt-4 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
-                    <h4 className="text-sm font-semibold text-ink-950">
-                      发布检查清单
-                    </h4>
-                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink-700">
-                      {checklist.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-
-                <div className="mt-4">
-                  <CopyExportPanel
-                    content={markdownBody}
-                    filename={filename}
-                    rows={14}
-                    title="Markdown 发布版"
-                  />
-                </div>
-              </article>
-            );
-          })
+              </details>
+            ) : null}
+          </>
         )}
       </section>
 

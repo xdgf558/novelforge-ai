@@ -1,5 +1,28 @@
 # Development Log
 
+## 2026-06-22: 0.1.32 Publish Package Record Collapse
+
+Status: completed.
+
+What was done:
+
+- Changed the publish page so the "发布包装记录" section shows only the latest publish package by default.
+- Kept older publish package records in the local database and moved them into a collapsed "历史发布包装记录" section.
+- Extracted the publish package card rendering so latest and historical records keep the same copy/export UI when shown.
+- Bumped the source app/package version to `0.1.32` and updated in-app release notes.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `git diff --check` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- Built the macOS app payload with electron-builder's directory target and macOS identity disabled to avoid Apple timestamp stalls during personal-use packaging.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.32"`.
+- `codesign --verify --deep --strict --verbose=2` passed for the expanded PKG payload app.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+- Final PKG SHA-256: `04f4cc7ddb01657fd189413cf1686875f324d349b743e6770c27d7d9a82a8b22`.
+
 ## 2026-06-22: 0.1.31 Publish Target UI Simplification
 
 Status: completed.
