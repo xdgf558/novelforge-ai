@@ -76,6 +76,24 @@ export async function startChapterAudioExport(
     notFound();
   }
 
+  const activeExport = await prisma.audioExport.findFirst({
+    where: {
+      chapterId: chapter.id,
+      projectId,
+      status: {
+        in: ["pending", "running"],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (activeExport) {
+    revalidateAudiobookPaths(projectId);
+    redirect(`/projects/${projectId}/audiobook?audioError=activeExport`);
+  }
+
   const sourceText = resolveChapterAudioSourceText(
     chapter,
     parsed.data.sourceTextType,

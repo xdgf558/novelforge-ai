@@ -57,6 +57,7 @@ CREATE TABLE "audio_export_segments" (
 CREATE INDEX "audio_exports_projectId_status_idx" ON "audio_exports"("projectId", "status");
 CREATE INDEX "audio_exports_projectId_createdAt_idx" ON "audio_exports"("projectId", "createdAt");
 CREATE INDEX "audio_exports_chapterId_idx" ON "audio_exports"("chapterId");
+CREATE UNIQUE INDEX "audio_exports_active_chapter_unique_idx" ON "audio_exports"("projectId", "chapterId") WHERE "chapterId" IS NOT NULL AND "status" IN ('pending', 'running');
 CREATE UNIQUE INDEX "audio_export_segments_audioExportId_segmentIndex_key" ON "audio_export_segments"("audioExportId", "segmentIndex");
 CREATE INDEX "audio_export_segments_projectId_status_idx" ON "audio_export_segments"("projectId", "status");
 CREATE INDEX "audio_export_segments_chapterId_idx" ON "audio_export_segments"("chapterId");

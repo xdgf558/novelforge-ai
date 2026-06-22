@@ -19,6 +19,7 @@ import { readTtsGenerationSettings } from "@/lib/ai/local-config";
 import { chunkAudioText } from "@/lib/audio/chunk-text";
 import {
   estimateAudioDurationSeconds,
+  estimateTtsCostCents,
   formatEstimatedCost,
   modelInputLimit,
 } from "@/lib/audio/estimate-cost";
@@ -302,7 +303,12 @@ export default async function AudiobookPage({
             <p>
               费用提示：
               {selectedSource
-                ? formatEstimatedCost(null)
+                ? formatEstimatedCost(
+                    estimateTtsCostCents({
+                      charCount: selectedSource.text.length,
+                      modelId: ttsSettings.model,
+                    }),
+                  )
                 : "需要先选择有正文的章节。"}
             </p>
           </div>
@@ -310,11 +316,11 @@ export default async function AudiobookPage({
           <div className="flex justify-end lg:col-span-2">
             <button
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-55"
-              disabled={!selectedChapter || !ttsSettings.hasApiKey}
+              disabled={!selectedChapter || !ttsSettings.hasApiKey || hasActiveExport}
               type="submit"
             >
               <Play aria-hidden="true" className="h-4 w-4" />
-              开始导出有声章节
+              {hasActiveExport ? "有导出进行中" : "开始导出有声章节"}
             </button>
           </div>
         </form>
@@ -427,7 +433,7 @@ export default async function AudiobookPage({
                       <audio
                         className="mt-3 w-full"
                         controls
-                        src={`/audio-assets?assetPath=${encodeURIComponent(
+                        src={`/projects/${project.id}/audio-assets?assetPath=${encodeURIComponent(
                           segment.localPath,
                         )}`}
                       />
@@ -479,6 +485,10 @@ function audioErrorMessage(error?: string) {
 
   if (error === "invalidForm") {
     return "导出表单内容不完整，请检查章节、模型、语言和输出格式。";
+  }
+
+  if (error === "activeExport") {
+    return "这章已经有有声导出正在进行中，请等待当前任务完成后再重新导出，避免重复扣费。";
   }
 
   return "";

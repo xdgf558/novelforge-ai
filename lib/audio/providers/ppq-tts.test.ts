@@ -3,6 +3,7 @@ import {
   buildPpqSpeechPayload,
   extractPpqVoices,
   PpqTtsProvider,
+  readAudioResponseBytes,
 } from "./ppq-tts";
 
 describe("PPQ TTS provider", () => {
@@ -114,5 +115,47 @@ describe("PPQ TTS provider", () => {
         outputFormat: "mp3",
       }),
     ).rejects.toThrow("超过当前模型");
+  });
+
+  it("rejects audio responses above the content-length limit", async () => {
+    const response = new Response("audio", {
+      headers: {
+        "content-length": "11",
+      },
+      status: 200,
+    });
+
+    await expect(readAudioResponseBytes(response, 10)).rejects.toThrow(
+      "超过单段大小上限",
+    );
+  });
+
+  it("rejects streamed audio responses above the byte limit", async () => {
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(6));
+          controller.enqueue(new Uint8Array(6));
+          controller.close();
+        },
+      }),
+      {
+        status: 200,
+      },
+    );
+
+    await expect(readAudioResponseBytes(response, 10)).rejects.toThrow(
+      "超过单段大小上限",
+    );
+  });
+
+  it("reads normal audio response bytes", async () => {
+    const response = new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+    });
+
+    await expect(readAudioResponseBytes(response, 10)).resolves.toEqual(
+      Buffer.from([1, 2, 3]),
+    );
   });
 });

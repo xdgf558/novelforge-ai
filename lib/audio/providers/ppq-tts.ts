@@ -3,6 +3,7 @@ import {
   type AiRuntimeEnv,
   type TtsGenerationSecrets,
 } from "@/lib/ai/local-config";
+import { maxAudioSegmentBytes } from "../audio-assets";
 import { estimateAudioDurationSeconds, estimateTtsCostCents } from "../estimate-cost";
 import type {
   TtsCostEstimate,
@@ -139,7 +140,7 @@ export class PpqTtsProvider implements TtsProvider {
     const contentType =
       response.headers.get("content-type") ||
       mimeTypeForAudioFormat(request.outputFormat);
-    const audioBytes = Buffer.from(await response.arrayBuffer());
+    const audioBytes = await readAudioResponseBytes(response);
 
     return {
       audioBytes,
@@ -160,6 +161,58 @@ export class PpqTtsProvider implements TtsProvider {
       throw new Error("尚未配置 PPQ TTS API Key。");
     }
   }
+}
+
+export async function readAudioResponseBytes(
+  response: Response,
+  maxBytes = maxAudioSegmentBytes,
+) {
+  const contentLength = Number(response.headers.get("content-length") || "0");
+
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error("TTS 音频响应超过单段大小上限。");
+  }
+
+  if (!response.body) {
+    const fallbackBytes = Buffer.from(await response.arrayBuffer());
+
+    if (fallbackBytes.byteLength > maxBytes) {
+      throw new Error("TTS 音频响应超过单段大小上限。");
+    }
+
+    return fallbackBytes;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      if (!value) {
+        continue;
+      }
+
+      totalBytes += value.byteLength;
+
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error("TTS 音频响应超过单段大小上限。");
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), totalBytes);
 }
 
 export function createConfiguredTtsProvider({

@@ -18,6 +18,8 @@ const audioMimeByFormat = new Map([
   ["pcm", "application/octet-stream"],
 ]);
 
+export const maxAudioSegmentBytes = 20 * 1024 * 1024;
+
 export function getAudioAssetRoot() {
   const desktopDataDir = process.env.NOVELFORGE_DESKTOP_DATA_DIR?.trim();
 
@@ -54,12 +56,18 @@ export async function saveAudioPreviewAsset({
   const fileName = `${safeFileName(modelId)}-${safeFileName(voiceId || "voice")}-${Date.now()}.${format}`;
   const relativePath = path.join("previews", `${randomUUID()}-${fileName}`);
 
-  return writeAudioAsset({
+  const savedAsset = await writeAudioAsset({
     audioBytes,
     contentType,
     relativePath,
     fileName,
   });
+
+  await cleanupAudioPreviewAssets({
+    keepLatest: 10,
+  });
+
+  return savedAsset;
 }
 
 export async function saveAudioExportSegmentAsset({
@@ -146,6 +154,16 @@ export async function openAudioAsset(relativePath: string) {
   };
 }
 
+export function isAudioPreviewPath(relativePath: string) {
+  const cleanRelativePath = path.normalize(relativePath);
+
+  return (
+    cleanRelativePath.startsWith(`previews${path.sep}`) &&
+    !cleanRelativePath.includes(`..${path.sep}`) &&
+    !path.isAbsolute(cleanRelativePath)
+  );
+}
+
 export function resolveAudioAssetPath(relativePath: string) {
   const cleanRelativePath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, "");
   const absolutePath = path.resolve(getAudioAssetRoot(), cleanRelativePath);
@@ -198,6 +216,10 @@ async function writeAudioAsset({
     throw new Error("TTS 接口没有返回有效音频。");
   }
 
+  if (audioBytes.byteLength > maxAudioSegmentBytes) {
+    throw new Error("TTS 音频分段超过本地保存上限。");
+  }
+
   const absolutePath = resolveAudioAssetPath(relativePath);
 
   await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
@@ -209,6 +231,45 @@ async function writeAudioAsset({
     mimeType: contentType.split(";")[0].trim() || "audio/mpeg",
     sizeBytes: audioBytes.byteLength,
   };
+}
+
+async function cleanupAudioPreviewAssets({
+  keepLatest,
+}: {
+  keepLatest: number;
+}) {
+  const previewRoot = path.join(getAudioAssetRoot(), "previews");
+  const entries = await fs.promises.readdir(previewRoot).catch(() => []);
+  const files = (
+    await Promise.all(
+      entries.map(async (entry) => {
+        const absolutePath = path.join(previewRoot, entry);
+        const stat = await fs.promises.stat(absolutePath).catch(() => null);
+
+        return stat?.isFile()
+          ? {
+              absolutePath,
+              mtimeMs: stat.mtimeMs,
+            }
+          : null;
+      }),
+    )
+  )
+    .filter(
+      (
+        file,
+      ): file is {
+        absolutePath: string;
+        mtimeMs: number;
+      } => Boolean(file),
+    )
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+  await Promise.all(
+    files.slice(keepLatest).map((file) =>
+      fs.promises.unlink(file.absolutePath).catch(() => undefined),
+    ),
+  );
 }
 
 function safePathSegment(value: string) {

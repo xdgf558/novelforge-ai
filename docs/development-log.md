@@ -30,6 +30,14 @@ What was done:
   - `/audio/voices` voice list parsing and provider/model filtering,
   - `/audio/speech` synthesis payload builder,
   - rough duration/cost estimation helpers.
+- Review hardening:
+  - chapter audio export now refuses to start when the same project/chapter already has a pending or running export, and the migration adds a partial unique index for active chapter exports,
+  - TTS audio responses are checked by `Content-Length` and streamed with a per-segment byte limit before being saved,
+  - local audio asset saving has a second byte-size guard,
+  - exported chapter audio is served through a project-scoped `/projects/[projectId]/audio-assets` route that verifies `audio_export_segments.projectId + localPath`,
+  - the global `/audio-assets` route is limited to preview audio only,
+  - voice preview files keep only the latest 10 preview assets,
+  - the audiobook page shows the configured model's rough estimated cost instead of a placeholder.
 - Added the sidebar and project dashboard entry for 有声小说导出.
 - Updated project activity summaries so completed audio exports can count toward recent project activity.
 - Kept the first version local-first and author-controlled: audio files are local export assets, not formal story memory, and no cloud sync or automatic publishing was added.
@@ -37,6 +45,7 @@ What was done:
 Verification:
 
 - `npm run test -- lib/audio/chunk-text.test.ts lib/audio/text-source.test.ts lib/audio/providers/ppq-tts.test.ts lib/ai/local-config.test.ts` passed.
+- `npm run test -- app/projects/[projectId]/audiobook/actions.test.ts lib/audio/audio-assets.test.ts lib/audio/providers/ppq-tts.test.ts` passed after review hardening.
 - `npm run typecheck` passed.
 
 ## 2026-06-22: 0.1.34 Mainline Character Relationship Package
