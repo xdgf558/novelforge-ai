@@ -48,6 +48,7 @@ export async function loadProjectActivitySummary(
     publishTargetDates,
     publishRunDates,
     publishSyncDates,
+    audioExportDates,
   ] = await Promise.all([
     loadFirstChapter(project.id),
     latestProjectTableDate(project.id, "chapters", ["updatedAt"]),
@@ -80,6 +81,10 @@ export async function loadProjectActivitySummary(
       "updatedAt",
       "lastSyncedAt",
     ]),
+    latestProjectTableDate(project.id, "audio_exports", [
+      "updatedAt",
+      "completedAt",
+    ]),
   ]);
 
   const latestActivityAt = latestDate([
@@ -100,6 +105,7 @@ export async function loadProjectActivitySummary(
     publishTargetDates,
     publishRunDates,
     publishSyncDates,
+    audioExportDates,
   ]);
 
   return {

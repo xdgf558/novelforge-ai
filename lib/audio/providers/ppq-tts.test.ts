@@ -1,0 +1,118 @@
+import { describe, expect, it, vi } from "vitest";
+import {
+  buildPpqSpeechPayload,
+  extractPpqVoices,
+  PpqTtsProvider,
+} from "./ppq-tts";
+
+describe("PPQ TTS provider", () => {
+  it("builds OpenAI-compatible speech payload with ElevenLabs voice id", () => {
+    expect(
+      buildPpqSpeechPayload({
+        providerId: "ppq_tts",
+        inputText: "你好，欢迎来到离线未来。",
+        languageCode: "zh",
+        modelId: "eleven_multilingual_v2",
+        outputFormat: "mp3",
+        stylePrompt: "中文小说旁白",
+        voiceId: "voice_123",
+      }),
+    ).toEqual({
+      input: "你好，欢迎来到离线未来。",
+      instructions: "中文小说旁白",
+      language: "zh",
+      model: "eleven_multilingual_v2",
+      voice: "voice_123",
+    });
+  });
+
+  it("extracts voices from common PPQ response shapes", () => {
+    expect(
+      extractPpqVoices(
+        {
+          data: [
+            {
+              id: "voice_1",
+              name: "George",
+              provider: "ElevenLabs",
+              language: "zh",
+            },
+            {
+              voice_id: "voice_2",
+              display_name: "Aura",
+              provider: "Deepgram",
+            },
+          ],
+        },
+        "eleven_multilingual_v2",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: "voice_1",
+        name: "George",
+        provider: "ElevenLabs",
+      }),
+    ]);
+  });
+
+  it("lists voices with authorization header", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: "voice_1",
+              name: "Narrator",
+              provider: "ElevenLabs",
+            },
+          ],
+        }),
+        {
+          status: 200,
+        },
+      ),
+    );
+    const provider = new PpqTtsProvider({
+      fetchImpl,
+      settings: {
+        apiBaseUrl: "https://api.ppq.ai/v1",
+        apiKey: "ppq-key",
+      },
+    });
+
+    await expect(
+      provider.listVoices({
+        languageCode: "zh",
+        modelId: "eleven_multilingual_v2",
+      }),
+    ).resolves.toHaveLength(1);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.ppq.ai/v1/audio/voices?language=zh",
+      expect.objectContaining({
+        headers: {
+          Authorization: "Bearer ppq-key",
+        },
+      }),
+    );
+  });
+
+  it("rejects segments above the model safety limit", async () => {
+    const provider = new PpqTtsProvider({
+      fetchImpl: vi.fn(),
+      settings: {
+        apiBaseUrl: "https://api.ppq.ai/v1",
+        apiKey: "ppq-key",
+      },
+    });
+
+    await expect(
+      provider.synthesizeSegment({
+        providerId: "ppq_tts",
+        inputText: "a".repeat(5001),
+        languageCode: "zh",
+        modelId: "eleven_multilingual_v2",
+        outputFormat: "mp3",
+      }),
+    ).rejects.toThrow("超过当前模型");
+  });
+});

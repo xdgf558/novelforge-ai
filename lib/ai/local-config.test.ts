@@ -11,17 +11,23 @@ import {
   DEFAULT_OPENAI_MODEL,
   DEFAULT_STATION_CAT_API_BASE_URL,
   DEFAULT_STATION_CAT_DEFAULT_MODE,
+  DEFAULT_TTS_API_BASE_URL,
+  DEFAULT_TTS_LANGUAGE_CODE,
+  DEFAULT_TTS_MODEL,
   getAiRuntimeEnv,
   maskApiKey,
   parseAiEnv,
   parseImageGenerationEnv,
   parseStationCatEnv,
+  parseTtsGenerationEnv,
   readAiConnectionSettings,
   readImageGenerationSettings,
   readStationCatPublishSettings,
+  readTtsGenerationSettings,
   saveAiConnectionSettings,
   saveImageGenerationSettings,
   saveStationCatPublishSettings,
+  saveTtsGenerationSettings,
 } from "./local-config";
 
 const tempRoots: string[] = [];
@@ -34,6 +40,15 @@ const originalEnv = {
   IMAGE_MODEL: process.env.IMAGE_MODEL,
   IMAGE_SIZE: process.env.IMAGE_SIZE,
   IMAGE_QUALITY: process.env.IMAGE_QUALITY,
+  TTS_PROVIDER_ID: process.env.TTS_PROVIDER_ID,
+  TTS_API_KEY: process.env.TTS_API_KEY,
+  TTS_API_BASE_URL: process.env.TTS_API_BASE_URL,
+  TTS_MODEL: process.env.TTS_MODEL,
+  TTS_VOICE_ID: process.env.TTS_VOICE_ID,
+  TTS_VOICE_NAME: process.env.TTS_VOICE_NAME,
+  TTS_LANGUAGE_CODE: process.env.TTS_LANGUAGE_CODE,
+  TTS_OUTPUT_FORMAT: process.env.TTS_OUTPUT_FORMAT,
+  TTS_STYLE_PROMPT: process.env.TTS_STYLE_PROMPT,
   STATION_CAT_API_BASE_URL: process.env.STATION_CAT_API_BASE_URL,
   STATION_CAT_PUBLISH_TOKEN: process.env.STATION_CAT_PUBLISH_TOKEN,
   STATION_CAT_DEFAULT_MODE: process.env.STATION_CAT_DEFAULT_MODE,
@@ -52,6 +67,15 @@ afterEach(() => {
   process.env.IMAGE_MODEL = originalEnv.IMAGE_MODEL;
   process.env.IMAGE_SIZE = originalEnv.IMAGE_SIZE;
   process.env.IMAGE_QUALITY = originalEnv.IMAGE_QUALITY;
+  process.env.TTS_PROVIDER_ID = originalEnv.TTS_PROVIDER_ID;
+  process.env.TTS_API_KEY = originalEnv.TTS_API_KEY;
+  process.env.TTS_API_BASE_URL = originalEnv.TTS_API_BASE_URL;
+  process.env.TTS_MODEL = originalEnv.TTS_MODEL;
+  process.env.TTS_VOICE_ID = originalEnv.TTS_VOICE_ID;
+  process.env.TTS_VOICE_NAME = originalEnv.TTS_VOICE_NAME;
+  process.env.TTS_LANGUAGE_CODE = originalEnv.TTS_LANGUAGE_CODE;
+  process.env.TTS_OUTPUT_FORMAT = originalEnv.TTS_OUTPUT_FORMAT;
+  process.env.TTS_STYLE_PROMPT = originalEnv.TTS_STYLE_PROMPT;
   process.env.STATION_CAT_API_BASE_URL = originalEnv.STATION_CAT_API_BASE_URL;
   process.env.STATION_CAT_PUBLISH_TOKEN = originalEnv.STATION_CAT_PUBLISH_TOKEN;
   process.env.STATION_CAT_DEFAULT_MODE = originalEnv.STATION_CAT_DEFAULT_MODE;
@@ -291,6 +315,131 @@ describe("image generation local config", () => {
       size: "1024x1024",
       quality: "high",
       source: "environment",
+    });
+  });
+});
+
+describe("TTS generation local config", () => {
+  it("parses only supported TTS keys", () => {
+    expect(
+      parseTtsGenerationEnv(
+        [
+          "# audiobook config",
+          "TTS_PROVIDER_ID=ppq_tts",
+          "TTS_API_KEY=\"tts-key\"",
+          "TTS_API_BASE_URL=https://api.ppq.ai/v1/",
+          "TTS_MODEL=eleven_multilingual_v2",
+          "TTS_VOICE_ID=voice-1",
+          "TTS_VOICE_NAME=George",
+          "TTS_LANGUAGE_CODE=zh",
+          "TTS_OUTPUT_FORMAT=mp3",
+          "TTS_STYLE_PROMPT=中文小说旁白",
+          "IMAGE_API_KEY=ignored",
+        ].join("\n"),
+      ),
+    ).toEqual({
+      TTS_PROVIDER_ID: "ppq_tts",
+      TTS_API_KEY: "tts-key",
+      TTS_API_BASE_URL: "https://api.ppq.ai/v1/",
+      TTS_MODEL: "eleven_multilingual_v2",
+      TTS_VOICE_ID: "voice-1",
+      TTS_VOICE_NAME: "George",
+      TTS_LANGUAGE_CODE: "zh",
+      TTS_OUTPUT_FORMAT: "mp3",
+      TTS_STYLE_PROMPT: "中文小说旁白",
+    });
+  });
+
+  it("saves TTS settings without dropping other local settings", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "OPENAI_API_KEY=sk-existing",
+        "IMAGE_API_KEY=image-secret",
+        "STATION_CAT_PUBLISH_TOKEN=station-token",
+      ].join("\n"),
+    );
+
+    const settings = saveTtsGenerationSettings(
+      {
+        apiBaseUrl: "https://api.ppq.ai/v1/",
+        apiKey: "tts-secret",
+        languageCode: "zh",
+        model: "eleven_multilingual_v2",
+        outputFormat: "mp3",
+        providerId: "ppq_tts",
+        stylePrompt: "中文长篇小说旁白",
+        voiceId: "voice-1",
+        voiceName: "George",
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const savedContent = fs.readFileSync(configPath, "utf8");
+
+    expect(settings).toMatchObject({
+      apiBaseUrl: "https://api.ppq.ai/v1",
+      hasApiKey: true,
+      languageCode: "zh",
+      model: "eleven_multilingual_v2",
+      source: "file",
+      voiceId: "voice-1",
+    });
+    expect(savedContent).toContain("OPENAI_API_KEY=sk-existing");
+    expect(savedContent).toContain("IMAGE_API_KEY=image-secret");
+    expect(savedContent).toContain("STATION_CAT_PUBLISH_TOKEN=station-token");
+    expect(savedContent).toContain('TTS_API_KEY="tts-secret"');
+    expect(savedContent).toContain('TTS_API_BASE_URL="https://api.ppq.ai/v1"');
+    expect(savedContent).toContain('TTS_MODEL="eleven_multilingual_v2"');
+    expect(savedContent).toContain('TTS_VOICE_ID="voice-1"');
+  });
+
+  it("can clear the saved TTS API key without losing defaults", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(configPath, "TTS_API_KEY=tts-existing\n");
+
+    const settings = saveTtsGenerationSettings(
+      {
+        clearApiKey: true,
+        apiBaseUrl: "",
+        languageCode: "",
+        model: "",
+        outputFormat: "",
+        providerId: "",
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+
+    expect(settings).toMatchObject({
+      apiBaseUrl: DEFAULT_TTS_API_BASE_URL,
+      hasApiKey: false,
+      languageCode: DEFAULT_TTS_LANGUAGE_CODE,
+      model: DEFAULT_TTS_MODEL,
+    });
+    expect(fs.readFileSync(configPath, "utf8")).toContain("TTS_API_KEY=");
+  });
+
+  it("reports TTS environment config when no file config exists", () => {
+    const settings = readTtsGenerationSettings({
+      NOVELFORGE_AI_CONFIG_PATH: makeTempConfigPath(),
+      TTS_API_BASE_URL: "https://env.tts.example/v1",
+      TTS_API_KEY: "env-tts-key",
+      TTS_LANGUAGE_CODE: "zh",
+      TTS_MODEL: "eleven_flash_v2_5",
+      TTS_PROVIDER_ID: "ppq_tts",
+      TTS_VOICE_ID: "voice-env",
+    });
+
+    expect(settings).toMatchObject({
+      apiBaseUrl: "https://env.tts.example/v1",
+      hasApiKey: true,
+      model: "eleven_flash_v2_5",
+      source: "environment",
+      voiceId: "voice-env",
     });
   });
 });

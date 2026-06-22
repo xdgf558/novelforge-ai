@@ -13,6 +13,15 @@ export type AiRuntimeEnv = {
   IMAGE_MODEL?: string;
   IMAGE_SIZE?: string;
   IMAGE_QUALITY?: string;
+  TTS_PROVIDER_ID?: string;
+  TTS_API_KEY?: string;
+  TTS_API_BASE_URL?: string;
+  TTS_MODEL?: string;
+  TTS_VOICE_ID?: string;
+  TTS_VOICE_NAME?: string;
+  TTS_LANGUAGE_CODE?: string;
+  TTS_OUTPUT_FORMAT?: string;
+  TTS_STYLE_PROMPT?: string;
   STATION_CAT_API_BASE_URL?: string;
   STATION_CAT_PUBLISH_TOKEN?: string;
   STATION_CAT_DEFAULT_MODE?: string;
@@ -66,6 +75,47 @@ export type SaveImageGenerationSettingsInput = {
   quality?: string | null;
 };
 
+export type TtsGenerationSettings = {
+  configPath: string;
+  fileExists: boolean;
+  hasApiKey: boolean;
+  maskedApiKey: string;
+  providerId: string;
+  apiBaseUrl: string;
+  model: string;
+  voiceId: string;
+  voiceName: string;
+  languageCode: string;
+  outputFormat: string;
+  stylePrompt: string;
+  source: "file" | "environment" | "default";
+};
+
+export type TtsGenerationSecrets = {
+  providerId: string;
+  apiBaseUrl: string;
+  apiKey: string;
+  model: string;
+  voiceId: string;
+  voiceName: string;
+  languageCode: string;
+  outputFormat: string;
+  stylePrompt: string;
+};
+
+export type SaveTtsGenerationSettingsInput = {
+  providerId?: string | null;
+  apiBaseUrl?: string | null;
+  apiKey?: string | null;
+  clearApiKey?: boolean;
+  model?: string | null;
+  voiceId?: string | null;
+  voiceName?: string | null;
+  languageCode?: string | null;
+  outputFormat?: string | null;
+  stylePrompt?: string | null;
+};
+
 export type StationCatPublishSettings = {
   configPath: string;
   fileExists: boolean;
@@ -91,8 +141,13 @@ export type SaveStationCatPublishSettingsInput = {
 
 type AiConfigKey = (typeof aiConfigKeys)[number];
 type ImageConfigKey = (typeof imageConfigKeys)[number];
+type TtsConfigKey = (typeof ttsConfigKeys)[number];
 type StationCatConfigKey = (typeof stationCatConfigKeys)[number];
-type LocalConfigKey = AiConfigKey | ImageConfigKey | StationCatConfigKey;
+type LocalConfigKey =
+  | AiConfigKey
+  | ImageConfigKey
+  | TtsConfigKey
+  | StationCatConfigKey;
 
 export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
@@ -100,6 +155,13 @@ export const DEFAULT_IMAGE_API_BASE_URL = "https://api.ppq.ai/v1";
 export const DEFAULT_IMAGE_MODEL = "qwen-image-2";
 export const DEFAULT_IMAGE_SIZE = "default";
 export const DEFAULT_IMAGE_QUALITY = "default";
+export const DEFAULT_TTS_PROVIDER_ID = "ppq_tts";
+export const DEFAULT_TTS_API_BASE_URL = "https://api.ppq.ai/v1";
+export const DEFAULT_TTS_MODEL = "eleven_multilingual_v2";
+export const DEFAULT_TTS_LANGUAGE_CODE = "zh";
+export const DEFAULT_TTS_OUTPUT_FORMAT = "mp3";
+export const DEFAULT_TTS_STYLE_PROMPT =
+  "中文长篇小说旁白，语气自然沉稳，保留对白情绪，节奏适合连续收听。";
 export const DEFAULT_STATION_CAT_API_BASE_URL = "https://wwwstationcat.org";
 export const DEFAULT_STATION_CAT_DEFAULT_MODE: PublishMode = "draft";
 export const aiConfigKeys = [
@@ -114,6 +176,17 @@ export const imageConfigKeys = [
   "IMAGE_SIZE",
   "IMAGE_QUALITY",
 ] as const;
+export const ttsConfigKeys = [
+  "TTS_PROVIDER_ID",
+  "TTS_API_KEY",
+  "TTS_API_BASE_URL",
+  "TTS_MODEL",
+  "TTS_VOICE_ID",
+  "TTS_VOICE_NAME",
+  "TTS_LANGUAGE_CODE",
+  "TTS_OUTPUT_FORMAT",
+  "TTS_STYLE_PROMPT",
+] as const;
 export const stationCatConfigKeys = [
   "STATION_CAT_API_BASE_URL",
   "STATION_CAT_PUBLISH_TOKEN",
@@ -123,6 +196,7 @@ export const stationCatConfigKeys = [
 const localConfigKeySet = new Set<string>([
   ...aiConfigKeys,
   ...imageConfigKeys,
+  ...ttsConfigKeys,
   ...stationCatConfigKeys,
 ]);
 
@@ -257,6 +331,94 @@ export function saveImageGenerationSettings(
   return readImageGenerationSettings(env);
 }
 
+export function readTtsGenerationSettings(
+  env: AiRuntimeEnv = process.env,
+): TtsGenerationSettings {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactTtsEnv(fileEnv),
+  };
+  const apiKey = runtimeEnv.TTS_API_KEY?.trim() ?? "";
+
+  return {
+    configPath,
+    fileExists: fs.existsSync(configPath),
+    hasApiKey: Boolean(apiKey),
+    maskedApiKey: maskSecret(apiKey),
+    providerId: normalizeTtsProviderId(runtimeEnv.TTS_PROVIDER_ID),
+    apiBaseUrl: normalizeTtsApiBaseUrl(runtimeEnv.TTS_API_BASE_URL),
+    model: normalizeTtsModel(runtimeEnv.TTS_MODEL),
+    voiceId: normalizeTtsVoiceId(runtimeEnv.TTS_VOICE_ID),
+    voiceName: normalizeTtsVoiceName(runtimeEnv.TTS_VOICE_NAME),
+    languageCode: normalizeTtsLanguageCode(runtimeEnv.TTS_LANGUAGE_CODE),
+    outputFormat: normalizeTtsOutputFormat(runtimeEnv.TTS_OUTPUT_FORMAT),
+    stylePrompt: normalizeTtsStylePrompt(runtimeEnv.TTS_STYLE_PROMPT),
+    source: detectTtsConfigSource(fileEnv, env),
+  };
+}
+
+export function readTtsGenerationSecrets(
+  env: AiRuntimeEnv = process.env,
+): TtsGenerationSecrets {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactTtsEnv(fileEnv),
+  };
+
+  return {
+    providerId: normalizeTtsProviderId(runtimeEnv.TTS_PROVIDER_ID),
+    apiBaseUrl: normalizeTtsApiBaseUrl(runtimeEnv.TTS_API_BASE_URL),
+    apiKey: runtimeEnv.TTS_API_KEY?.trim() ?? "",
+    model: normalizeTtsModel(runtimeEnv.TTS_MODEL),
+    voiceId: normalizeTtsVoiceId(runtimeEnv.TTS_VOICE_ID),
+    voiceName: normalizeTtsVoiceName(runtimeEnv.TTS_VOICE_NAME),
+    languageCode: normalizeTtsLanguageCode(runtimeEnv.TTS_LANGUAGE_CODE),
+    outputFormat: normalizeTtsOutputFormat(runtimeEnv.TTS_OUTPUT_FORMAT),
+    stylePrompt: normalizeTtsStylePrompt(runtimeEnv.TTS_STYLE_PROMPT),
+  };
+}
+
+export function saveTtsGenerationSettings(
+  input: SaveTtsGenerationSettingsInput,
+  env: AiRuntimeEnv = process.env,
+) {
+  const configPath = getAiConfigPath(env);
+  const currentFileEnv = readLocalConfigFile(configPath);
+  const apiKeyInput = input.apiKey?.trim() ?? "";
+  const currentApiKey =
+    currentFileEnv.TTS_API_KEY?.trim() || env.TTS_API_KEY?.trim() || "";
+  const nextApiKey = input.clearApiKey ? "" : apiKeyInput || currentApiKey;
+  const nextEnv: Partial<Record<TtsConfigKey, string>> = {
+    TTS_PROVIDER_ID: normalizeTtsProviderId(input.providerId),
+    TTS_API_KEY: nextApiKey,
+    TTS_API_BASE_URL: normalizeTtsApiBaseUrl(input.apiBaseUrl),
+    TTS_MODEL: normalizeTtsModel(input.model),
+    TTS_VOICE_ID: normalizeTtsVoiceId(input.voiceId),
+    TTS_VOICE_NAME: normalizeTtsVoiceName(input.voiceName),
+    TTS_LANGUAGE_CODE: normalizeTtsLanguageCode(input.languageCode),
+    TTS_OUTPUT_FORMAT: normalizeTtsOutputFormat(input.outputFormat),
+    TTS_STYLE_PROMPT: normalizeTtsStylePrompt(input.stylePrompt),
+  };
+
+  writeLocalConfigFile(configPath, nextEnv, ttsConfigKeys);
+
+  process.env.TTS_PROVIDER_ID = nextEnv.TTS_PROVIDER_ID;
+  process.env.TTS_API_KEY = nextApiKey || "";
+  process.env.TTS_API_BASE_URL = nextEnv.TTS_API_BASE_URL;
+  process.env.TTS_MODEL = nextEnv.TTS_MODEL;
+  process.env.TTS_VOICE_ID = nextEnv.TTS_VOICE_ID;
+  process.env.TTS_VOICE_NAME = nextEnv.TTS_VOICE_NAME;
+  process.env.TTS_LANGUAGE_CODE = nextEnv.TTS_LANGUAGE_CODE;
+  process.env.TTS_OUTPUT_FORMAT = nextEnv.TTS_OUTPUT_FORMAT;
+  process.env.TTS_STYLE_PROMPT = nextEnv.TTS_STYLE_PROMPT;
+
+  return readTtsGenerationSettings(env);
+}
+
 export function readStationCatPublishSettings(
   env: AiRuntimeEnv = process.env,
 ): StationCatPublishSettings {
@@ -388,6 +550,19 @@ export function parseImageGenerationEnv(content: string) {
   return env;
 }
 
+export function parseTtsGenerationEnv(content: string) {
+  const localEnv = parseLocalConfigEnv(content);
+  const env: Partial<Record<TtsConfigKey, string>> = {};
+
+  for (const key of ttsConfigKeys) {
+    if (localEnv[key] !== undefined) {
+      env[key] = localEnv[key];
+    }
+  }
+
+  return env;
+}
+
 function parseLocalConfigEnv(content: string) {
   const env: Partial<Record<LocalConfigKey, string>> = {};
 
@@ -467,6 +642,60 @@ export function normalizeImageSize(size?: string | null) {
 
 export function normalizeImageQuality(quality?: string | null) {
   return quality?.trim() || DEFAULT_IMAGE_QUALITY;
+}
+
+export function normalizeTtsProviderId(providerId?: string | null) {
+  const normalized = providerId?.trim() || DEFAULT_TTS_PROVIDER_ID;
+
+  if (normalized !== "ppq_tts") {
+    throw new Error("第一版有声小说导出只支持 PPQ TTS。");
+  }
+
+  return normalized;
+}
+
+export function normalizeTtsApiBaseUrl(apiBaseUrl?: string | null) {
+  const normalized = (apiBaseUrl?.trim() || DEFAULT_TTS_API_BASE_URL).replace(
+    /\/+$/,
+    "",
+  );
+
+  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
+    throw new Error("TTS API Base URL 必须是 http 或 https 地址。");
+  }
+
+  return normalized;
+}
+
+export function normalizeTtsModel(model?: string | null) {
+  return model?.trim() || DEFAULT_TTS_MODEL;
+}
+
+export function normalizeTtsVoiceId(voiceId?: string | null) {
+  return voiceId?.trim() || "";
+}
+
+export function normalizeTtsVoiceName(voiceName?: string | null) {
+  return voiceName?.trim().slice(0, 160) || "";
+}
+
+export function normalizeTtsLanguageCode(languageCode?: string | null) {
+  const normalized = languageCode?.trim().toLowerCase() || DEFAULT_TTS_LANGUAGE_CODE;
+  return normalized.slice(0, 16);
+}
+
+export function normalizeTtsOutputFormat(outputFormat?: string | null) {
+  const normalized = outputFormat?.trim().toLowerCase() || DEFAULT_TTS_OUTPUT_FORMAT;
+
+  if (["mp3", "wav", "pcm", "ogg"].includes(normalized)) {
+    return normalized;
+  }
+
+  return DEFAULT_TTS_OUTPUT_FORMAT;
+}
+
+export function normalizeTtsStylePrompt(stylePrompt?: string | null) {
+  return (stylePrompt?.trim() || DEFAULT_TTS_STYLE_PROMPT).slice(0, 1200);
 }
 
 export function maskApiKey(apiKey?: string | null) {
@@ -576,6 +805,20 @@ function compactImageEnv(env: Partial<Record<LocalConfigKey, string>>) {
   return compacted;
 }
 
+function compactTtsEnv(env: Partial<Record<LocalConfigKey, string>>) {
+  const compacted: Partial<Record<TtsConfigKey, string>> = {};
+
+  for (const key of ttsConfigKeys) {
+    const value = env[key]?.trim();
+
+    if (value) {
+      compacted[key] = value;
+    }
+  }
+
+  return compacted;
+}
+
 function detectConfigSource(
   fileEnv: Partial<Record<LocalConfigKey, string>>,
   env: AiRuntimeEnv,
@@ -609,6 +852,31 @@ function detectImageConfigSource(
     env.IMAGE_MODEL?.trim() ||
     env.IMAGE_SIZE?.trim() ||
     env.IMAGE_QUALITY?.trim()
+  ) {
+    return "environment";
+  }
+
+  return "default";
+}
+
+function detectTtsConfigSource(
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+  env: AiRuntimeEnv,
+) {
+  if (Object.values(compactTtsEnv(fileEnv)).length > 0) {
+    return "file";
+  }
+
+  if (
+    env.TTS_PROVIDER_ID?.trim() ||
+    env.TTS_API_KEY?.trim() ||
+    env.TTS_API_BASE_URL?.trim() ||
+    env.TTS_MODEL?.trim() ||
+    env.TTS_VOICE_ID?.trim() ||
+    env.TTS_VOICE_NAME?.trim() ||
+    env.TTS_LANGUAGE_CODE?.trim() ||
+    env.TTS_OUTPUT_FORMAT?.trim() ||
+    env.TTS_STYLE_PROMPT?.trim()
   ) {
     return "environment";
   }

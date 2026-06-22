@@ -1,5 +1,44 @@
 # Development Log
 
+## 2026-06-22: 0.1.35 Audiobook Export MVP
+
+Status: completed for review.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.35`.
+- Added Phase 25 audiobook export storage:
+  - `audio_exports` records for chapter-level export jobs,
+  - `audio_export_segments` records for per-segment status, local file path, provider request id, duration, and errors.
+- Added local TTS settings at `/ai-settings`:
+  - PPQ TTS as the first supported provider,
+  - ElevenLabs and DeepGram model options through PPQ,
+  - server-side API Key storage,
+  - voice ID/manual voice name fields,
+  - voice list fetching,
+  - voice preview generation with a local audio player.
+- Added the project audiobook page at `/projects/[projectId]/audiobook`:
+  - single-chapter export from polished text, final text, draft text, or automatic source selection,
+  - source priority for automatic selection: polished text -> final text -> draft text,
+  - text normalization and safe segmentation by model input budget,
+  - background export processing with auto-refresh,
+  - per-segment success/failure tracking,
+  - retry for failed segments,
+  - local audio playback through a controlled `/audio-assets` route,
+  - a button to open the local export folder on macOS.
+- Added PPQ-compatible TTS provider helpers:
+  - `/audio/voices` voice list parsing and provider/model filtering,
+  - `/audio/speech` synthesis payload builder,
+  - rough duration/cost estimation helpers.
+- Added the sidebar and project dashboard entry for 有声小说导出.
+- Updated project activity summaries so completed audio exports can count toward recent project activity.
+- Kept the first version local-first and author-controlled: audio files are local export assets, not formal story memory, and no cloud sync or automatic publishing was added.
+
+Verification:
+
+- `npm run test -- lib/audio/chunk-text.test.ts lib/audio/text-source.test.ts lib/audio/providers/ppq-tts.test.ts lib/ai/local-config.test.ts` passed.
+- `npm run typecheck` passed.
+
 ## 2026-06-22: 0.1.34 Mainline Character Relationship Package
 
 Status: completed.

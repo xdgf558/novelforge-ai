@@ -48,6 +48,8 @@ model Project {
   publishTargets         PublishTarget[]
   publishRuns            PublishRun[]
   publishSyncStates      PublishSyncState[]
+  audioExports           AudioExport[]
+  audioExportSegments    AudioExportSegment[]
 
   @@index([status])
   @@map("projects")
@@ -212,6 +214,8 @@ model Chapter {
   characterRelationships CharacterRelationship[]
   continuityReports      ContinuityReport[]
   publishPackages        PublishPackage[]
+  audioExports           AudioExport[]
+  audioExportSegments    AudioExportSegment[]
 
   @@index([projectId, status])
   @@index([projectId, chapterNumber])
@@ -584,4 +588,73 @@ model PublishSyncState {
   @@index([projectId, localType])
   @@index([targetId, contentHash])
   @@map("publish_sync_states")
+}
+
+model AudioExport {
+  id                 String    @id @default(cuid())
+  projectId          String
+  chapterId          String?
+  scope              String    @default("chapter")
+  providerId         String
+  modelId            String
+  voiceId            String
+  voiceName          String?
+  languageCode       String
+  stylePrompt        String?
+  sourceTextType     String
+  sourceTextHash     String
+  outputFormat       String    @default("mp3")
+  outputDirectory    String?
+  status             String    @default("pending")
+  totalChars         Int       @default(0)
+  totalSegments      Int       @default(0)
+  succeededSegments  Int       @default(0)
+  failedSegments     Int       @default(0)
+  estimatedSeconds   Int?
+  estimatedCostCents Int?
+  actualDurationMs   Int?
+  errorMessage       String?
+  metadataJson       String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  completedAt        DateTime?
+
+  project  Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter  Chapter?             @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  segments AudioExportSegment[]
+
+  @@index([projectId, status])
+  @@index([projectId, createdAt])
+  @@index([chapterId])
+  @@map("audio_exports")
+}
+
+model AudioExportSegment {
+  id                String   @id @default(cuid())
+  audioExportId     String
+  projectId         String
+  chapterId         String?
+  segmentIndex      Int
+  textHash          String
+  charCount         Int      @default(0)
+  inputPreview      String?
+  localPath         String?
+  mimeType          String?
+  durationMs        Int?
+  providerRequestId String?
+  status            String   @default("pending")
+  errorMessage      String?
+  metadataJson      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  audioExport AudioExport @relation(fields: [audioExportId], references: [id], onDelete: Cascade)
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter     Chapter?    @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+
+  @@unique([audioExportId, segmentIndex])
+  @@index([projectId, status])
+  @@index([chapterId])
+  @@index([audioExportId, status])
+  @@map("audio_export_segments")
 }
