@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-06-22: 0.1.36 Compact Settings Package
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.36`.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.36-mac-arm64.pkg`.
+- Included the compact `/ai-settings` layout update for denser AI, image, TTS, and Station Cat configuration sections.
+- Cleaned `release/desktop` after packaging so only the final 0.1.36 PKG handoff remains.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run desktop:smoke` passed.
+- `npm run build` passed.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.36"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `cbae34085f9ad600906b15d36a63854bebb608b132feef4485f22227ccce862e`.
+
 ## 2026-06-22: 0.1.35 Mainline Audiobook Export Package
 
 Status: completed.
