@@ -317,14 +317,17 @@ export default async function AiSettingsPage({
 
             {ttsVoiceLookup.kind === "loaded" && ttsVoiceLookup.voices.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-2">
-                {ttsVoiceLookup.voices.slice(0, 24).map((voice) => (
+                {ttsVoiceLookup.voices.slice(0, 24).map((voice, index) => (
                   <label
                     className="flex cursor-pointer gap-3 rounded-md border border-ink-950/10 bg-white p-3 text-sm transition hover:border-signal-600/40"
                     key={voice.id}
                   >
                     <input
                       className="mt-1 h-4 w-4 border-ink-950/20 text-signal-600"
-                      defaultChecked={voice.id === ttsSettings.voiceId}
+                      defaultChecked={
+                        voice.id === ttsSettings.voiceId ||
+                        (!ttsSettings.voiceId && index === 0)
+                      }
                       name="ttsVoiceSelection"
                       type="radio"
                       value={`${voice.id}|||${voice.name}`}
@@ -363,6 +366,21 @@ export default async function AiSettingsPage({
                 type="text"
               />
             </label>
+
+            <div className="flex flex-col gap-2 border-t border-ink-950/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-5 text-ink-700">
+                选中列表音色或填写 voice ID 后保存；后续试听和章节导出会自动使用这个音色。
+              </p>
+              <FormActionButton
+                formAction={saveTtsGenerationSettingsAction}
+                icon="save"
+                idleLabel="保存当前音色"
+                name="ttsSettingsAction"
+                pendingLabel="保存音色中..."
+                statusText="正在保存当前选择的 voice ID。"
+                value="save-voice"
+              />
+            </div>
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
@@ -911,6 +929,14 @@ function settingsSavedMessage(saved?: string) {
     };
   }
 
+  if (saved === "tts-voice") {
+    return {
+      kind: "success",
+      title: "音色已保存",
+      description: "当前 voice ID 已写入本机有声导出设置，后续试听和章节导出会自动使用。",
+    };
+  }
+
   if (saved === "tts-preview") {
     return {
       kind: "success",
@@ -924,6 +950,14 @@ function settingsSavedMessage(saved?: string) {
       kind: "error",
       title: "音色试听失败",
       description: "请先填写或保存 PPQ TTS API Key，再试听音色。",
+    };
+  }
+
+  if (saved === "tts-missing-voice") {
+    return {
+      kind: "error",
+      title: "音色试听失败",
+      description: "请先从音色列表选择一个音色，或手动填写 voice ID。",
     };
   }
 

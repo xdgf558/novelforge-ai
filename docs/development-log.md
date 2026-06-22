@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-06-22: 0.1.39 TTS Voice Save and Preview Package
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.39`.
+- Added a dedicated "保存当前音色" action inside the TTS voice picker so authors can persist the selected refreshed voice or manually entered voice ID into local TTS settings.
+- When the voice list is loaded and no saved voice exists, the first voice is selected by default for immediate preview convenience.
+- Added a clear `tts-missing-voice` validation path for preview attempts without a submitted voice ID.
+
+Verification:
+
+- `npm run test -- lib/server-fetch.test.ts lib/ai/local-config.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.39"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `ced0428e5e4929ff3661d43b37eef638597c4739aaa464b878e03cc8198366dd`.
+
 ## 2026-06-22: 0.1.38 Desktop Proxy Network Package
 
 Status: completed.

@@ -100,7 +100,11 @@ export async function saveTtsGenerationSettingsAction(formData: FormData) {
 
   revalidatePath("/ai-settings");
   revalidatePath("/");
-  redirect("/ai-settings?saved=tts");
+  const savedCode =
+    formData.get("ttsSettingsAction")?.toString() === "save-voice"
+      ? "tts-voice"
+      : "tts";
+  redirect(`/ai-settings?saved=${savedCode}`);
 }
 
 export async function previewTtsVoiceAction(formData: FormData) {
@@ -112,6 +116,8 @@ export async function previewTtsVoiceAction(formData: FormData) {
 
     if (!secrets.apiKey) {
       errorCode = "tts-missing-key";
+    } else if (!secrets.voiceId) {
+      errorCode = "tts-missing-voice";
     } else {
       const provider = getConfiguredTtsProvider({
         settings: secrets,
