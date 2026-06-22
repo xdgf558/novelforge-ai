@@ -20,12 +20,17 @@ What was done:
   - adoption revalidates active current-project characters,
   - chapter references are resolved to current-project chapters,
   - same-character, archived-character, invalid, and duplicate active/tension/hidden relationships are skipped.
+- Review hardening:
+  - relationship draft tasks are marked adopted only after the transaction confirms at least one non-duplicate relationship can be written,
+  - duplicate-only adoption attempts leave the task reviewable and do not create formal relationships,
+  - character fields included in relationship-generation `inputJson` and prompt text are clipped before logging/calling the model to keep long character libraries within a safer context budget.
 - Updated the AI task page copy, source version, release notes, and project memory.
 - Built the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.33-mac-arm64.pkg`.
 - Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
 
 Verification:
 
+- `npm run test -- lib/ai/character-relationships.test.ts app/projects/[projectId]/characters/network/actions.test.ts` passed after review hardening.
 - `npm run test -- lib/ai/character-relationships.test.ts lib/ai/prompt-templates.test.ts app/projects/[projectId]/characters/network/actions.test.ts` passed.
 - `npm run test` passed.
 - `npm run typecheck` passed.

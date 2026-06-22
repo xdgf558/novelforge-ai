@@ -425,6 +425,24 @@ export async function adoptCharacterRelationshipDrafts(
   }
 
   const createdCount = await prisma.$transaction(async (tx) => {
+    const creatableValues: RelationshipValues[] = [];
+
+    for (const values of relationshipValues) {
+      const duplicateCount = await tx.characterRelationship.count({
+        where: duplicateRelationshipWhere(projectId, values),
+      });
+
+      if (duplicateCount > 0) {
+        continue;
+      }
+
+      creatableValues.push(values);
+    }
+
+    if (creatableValues.length === 0) {
+      return 0;
+    }
+
     const adopted = await tx.aiTask.updateMany({
       where: {
         id: task.id,
@@ -439,27 +457,16 @@ export async function adoptCharacterRelationshipDrafts(
       return 0;
     }
 
-    let count = 0;
-
-    for (const values of relationshipValues) {
-      const duplicateCount = await tx.characterRelationship.count({
-        where: duplicateRelationshipWhere(projectId, values),
-      });
-
-      if (duplicateCount > 0) {
-        continue;
-      }
-
+    for (const values of creatableValues) {
       await tx.characterRelationship.create({
         data: {
           projectId,
           ...values,
         },
       });
-      count += 1;
     }
 
-    return count;
+    return creatableValues.length;
   });
 
   revalidateRelationshipPaths(projectId);

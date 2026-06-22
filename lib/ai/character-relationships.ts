@@ -105,6 +105,8 @@ export type ParsedCharacterRelationshipDraft = {
 const draftTextMaxLength = 12000;
 const draftShortTextMaxLength = 1200;
 const draftMediumTextMaxLength = 3000;
+const characterRoleTextMaxLength = 500;
+const characterContextTextMaxLength = 800;
 const maxDraftRelationships = 12;
 
 export function buildCharacterRelationshipGenerationContext(
@@ -125,23 +127,7 @@ export function buildCharacterRelationshipGenerationContext(
         description: stringValue(input.project.description),
       },
       setting: compactSetting(input.setting),
-      characters: input.characters.map((character) => ({
-        id: stringValue(character.id),
-        name: stringValue(character.name),
-        roleInStory: stringValue(character.roleInStory),
-        identity: stringValue(character.identity),
-        status: stringValue(character.status),
-        desire: stringValue(character.desire),
-        fear: stringValue(character.fear),
-        secret: stringValue(character.secret),
-        relationToProtagonist: stringValue(character.relationToProtagonist),
-        relationToAntagonist: stringValue(character.relationToAntagonist),
-        knownInfo: stringValue(character.knownInfo),
-        hiddenInfo: stringValue(character.hiddenInfo),
-        behaviorRules: stringValue(character.behaviorRules),
-        characterArc: stringValue(character.characterArc),
-        latestAppearance: stringValue(character.latestAppearance),
-      })),
+      characters: input.characters.map(compactCharacter),
       existingRelationships: input.relationships.map((relationship) => ({
         sourceCharacterId: stringValue(
           relationship.sourceCharacterId ?? relationship.sourceCharacter?.id,
@@ -375,8 +361,8 @@ function formatCharacters(
 ) {
   return characters
     .map((character) => {
-      const id = stringValue(character.id);
-      const name = stringValue(character.name);
+      const contextCharacter = compactCharacter(character);
+      const { id, name } = contextCharacter;
 
       if (!id || !name) {
         return "";
@@ -385,26 +371,32 @@ function formatCharacters(
       const details = [
         `id：${id}`,
         `姓名：${name}`,
-        stringValue(character.roleInStory)
-          ? `定位：${stringValue(character.roleInStory)}`
+        contextCharacter.roleInStory
+          ? `定位：${contextCharacter.roleInStory}`
           : "",
-        stringValue(character.identity)
-          ? `身份：${stringValue(character.identity)}`
+        contextCharacter.identity ? `身份：${contextCharacter.identity}` : "",
+        contextCharacter.desire ? `欲望：${contextCharacter.desire}` : "",
+        contextCharacter.secret ? `秘密：${contextCharacter.secret}` : "",
+        contextCharacter.relationToProtagonist
+          ? `与主角关系：${contextCharacter.relationToProtagonist}`
           : "",
-        stringValue(character.desire)
-          ? `欲望：${stringValue(character.desire)}`
+        contextCharacter.relationToAntagonist
+          ? `与反派关系：${contextCharacter.relationToAntagonist}`
           : "",
-        stringValue(character.behaviorRules)
-          ? `行为规则：${stringValue(character.behaviorRules)}`
+        contextCharacter.behaviorRules
+          ? `行为规则：${contextCharacter.behaviorRules}`
           : "",
-        stringValue(character.knownInfo)
-          ? `已知信息：${stringValue(character.knownInfo)}`
+        contextCharacter.knownInfo
+          ? `已知信息：${contextCharacter.knownInfo}`
           : "",
-        stringValue(character.hiddenInfo)
-          ? `隐藏信息：${stringValue(character.hiddenInfo)}`
+        contextCharacter.hiddenInfo
+          ? `隐藏信息：${contextCharacter.hiddenInfo}`
           : "",
-        stringValue(character.latestAppearance)
-          ? `最近出场：${stringValue(character.latestAppearance)}`
+        contextCharacter.characterArc
+          ? `人物弧光：${contextCharacter.characterArc}`
+          : "",
+        contextCharacter.latestAppearance
+          ? `最近出场：${contextCharacter.latestAppearance}`
           : "",
       ];
 
@@ -412,6 +404,61 @@ function formatCharacters(
     })
     .filter(Boolean)
     .join("\n\n");
+}
+
+function compactCharacter(
+  character: CharacterRelationshipGenerationCharacter,
+) {
+  return {
+    id: stringValue(character.id),
+    name: stringValue(character.name),
+    roleInStory: clipText(
+      stringValue(character.roleInStory),
+      characterRoleTextMaxLength,
+    ),
+    identity: clipText(
+      stringValue(character.identity),
+      characterContextTextMaxLength,
+    ),
+    status: stringValue(character.status),
+    desire: clipText(
+      stringValue(character.desire),
+      characterContextTextMaxLength,
+    ),
+    fear: clipText(stringValue(character.fear), characterContextTextMaxLength),
+    secret: clipText(
+      stringValue(character.secret),
+      characterContextTextMaxLength,
+    ),
+    relationToProtagonist: clipText(
+      stringValue(character.relationToProtagonist),
+      characterContextTextMaxLength,
+    ),
+    relationToAntagonist: clipText(
+      stringValue(character.relationToAntagonist),
+      characterContextTextMaxLength,
+    ),
+    knownInfo: clipText(
+      stringValue(character.knownInfo),
+      characterContextTextMaxLength,
+    ),
+    hiddenInfo: clipText(
+      stringValue(character.hiddenInfo),
+      characterContextTextMaxLength,
+    ),
+    behaviorRules: clipText(
+      stringValue(character.behaviorRules),
+      characterContextTextMaxLength,
+    ),
+    characterArc: clipText(
+      stringValue(character.characterArc),
+      characterContextTextMaxLength,
+    ),
+    latestAppearance: clipText(
+      stringValue(character.latestAppearance),
+      characterRoleTextMaxLength,
+    ),
+  };
 }
 
 function formatRelationships(

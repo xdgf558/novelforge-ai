@@ -467,6 +467,37 @@ describe("character relationship actions", () => {
     );
   });
 
+  it("does not mark relationship draft tasks adopted when every draft is duplicate", async () => {
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "task_1",
+      inputContextSummary: "离线未来 人物关系草案生成",
+      outputText: JSON.stringify({
+        relationships: [
+          {
+            sourceCharacterId: "character_a",
+            targetCharacterId: "character_b",
+            relationshipType: "partner",
+            direction: "two_way",
+            status: "active",
+            summary: "两人是早期创业搭档。",
+          },
+        ],
+      }),
+      adoptionState: "not_reviewed",
+    });
+    mocks.tx.characterRelationship.count.mockResolvedValue(1);
+
+    await expect(
+      adoptCharacterRelationshipDrafts("project_1", "task_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.tx.aiTask.updateMany).not.toHaveBeenCalled();
+    expect(mocks.tx.characterRelationship.create).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/characters/network?relationshipError=adoptedNoRelationships",
+    );
+  });
+
   it("keeps relationship draft adoption idempotent", async () => {
     mocks.prisma.aiTask.findFirst.mockResolvedValue({
       id: "task_1",

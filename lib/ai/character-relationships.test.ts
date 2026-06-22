@@ -84,6 +84,52 @@ describe("character relationship generation AI helpers", () => {
     );
   });
 
+  it("clips long character fields in input JSON and prompt text", () => {
+    const longRoleText = "定位".repeat(1000);
+    const longContextText = "人物关系上下文".repeat(1000);
+    const context = buildCharacterRelationshipGenerationContext({
+      project: {
+        title: "离线未来",
+      },
+      characters: [
+        {
+          id: "character_long",
+          name: "长文本角色",
+          roleInStory: longRoleText,
+          identity: longContextText,
+          desire: longContextText,
+          secret: longContextText,
+          knownInfo: longContextText,
+          hiddenInfo: longContextText,
+          behaviorRules: longContextText,
+          characterArc: longContextText,
+        },
+        {
+          id: "character_other",
+          name: "另一角色",
+        },
+      ],
+      relationships: [],
+    });
+    const clippedRoleText = longRoleText.slice(0, 500);
+    const clippedContextText = longContextText.slice(0, 800);
+
+    expect(context.inputJson.characters[0]).toMatchObject({
+      roleInStory: clippedRoleText,
+      identity: clippedContextText,
+      desire: clippedContextText,
+      secret: clippedContextText,
+      knownInfo: clippedContextText,
+      hiddenInfo: clippedContextText,
+      behaviorRules: clippedContextText,
+      characterArc: clippedContextText,
+    });
+    expect(context.inputText).toContain(`定位：${clippedRoleText}`);
+    expect(context.inputText).toContain(`行为规则：${clippedContextText}`);
+    expect(context.inputText).not.toContain(longRoleText);
+    expect(context.inputText).not.toContain(longContextText);
+  });
+
   it("parses fenced JSON output into relationship drafts", () => {
     const parsed = parseCharacterRelationshipGenerationOutput(`
 \`\`\`json
