@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.36 本机接入设置压缩优化";
+export const appReleaseTitle = "0.1.37 有声音色刷新修复";
 
 export const appReleaseNotes = [
-  "压缩本机接入设置页面的卡片、表单和间距，让 AI、图片、有声和发布参数在桌面窗口里更容易浏览。",
-  "保留 0.1.35 的有声小说导出能力：PPQ TTS、ElevenLabs / DeepGram 模型选项、音色列表拉取和试听。",
-  "本机密钥仍只保存在本机服务端配置文件中，模型调用、图片生成、音频导出和网站发布都不会写入正式故事记忆。",
+  "修复 PPQ TTS 音色列表刷新体验：语言过滤失败时会自动回退重试，并显示更具体的失败原因。",
+  "有声相关按钮增加提交中反馈，刷新音色、试听音色、保存设置、开始导出、重试分段和打开目录都会立即显示处理中状态。",
+  "保留 0.1.36 的紧凑本机接入设置布局，密钥仍只保存在本机服务端配置文件中。",
 ];

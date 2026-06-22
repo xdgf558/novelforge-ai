@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-06-22: 0.1.37 TTS Voice Refresh Package
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.37`.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.37-mac-arm64.pkg`.
+- Included the PPQ TTS voice refresh hardening and pending-state button feedback for audiobook/TTS actions.
+- Cleaned `release/desktop` after packaging so only the final 0.1.37 PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.37"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `dfa49cea5e61a3829e49acb043df466aae053ad6844042ee8dd62203a0cb15c9`.
+
 ## 2026-06-22: TTS Voice List Refresh Hardening
 
 Status: completed.
