@@ -1,5 +1,28 @@
 # Development Log
 
+## 2026-06-22: 0.1.34 Mainline Character Relationship Package
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.34`.
+- Updated the in-app release notes for the merged character relationship AI draft workflow and review hardening.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.34-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the final PKG handoff remains.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run desktop:smoke` passed.
+- `git diff --check` passed.
+- `npm run desktop:dist:mac` and `npm run desktop:pack:mac` both reached macOS Developer ID signing but were interrupted because Apple timestamp signing stalled.
+- Built the macOS app payload with electron-builder's directory target, explicit signing disabled, then manually ad-hoc signed the app payload with the Electron entitlements.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.34"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- Final PKG SHA-256: `540653097a0a1483d9cbfa7671d52c670f3a1c6a4a510eac000bf1227bcfd58f`.
+
 ## 2026-06-22: 0.1.33 AI Character Relationship Drafts
 
 Status: completed.
