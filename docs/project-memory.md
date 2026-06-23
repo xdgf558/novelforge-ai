@@ -124,6 +124,12 @@ Prioritize these tables early:
   - Continuity checking
   - WeChat publish packaging where useful
 - Draft generation and polishing can output text, but still need `ai_tasks` records.
+- Automatic segmented chapter polish is a background runner, not a public
+  server action. The UI action only creates and marks a trusted
+  `chapter_polish_generation` task as running; the runner reloads the task,
+  prompt template, chapter, setting, and characters by `taskId`, validates the
+  task type/status plus the recorded source-text length and segment count, and
+  only then calls the model.
 
 ## Context Strategy
 

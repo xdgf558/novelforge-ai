@@ -18,21 +18,18 @@ import {
   hasPolishableChapterText,
   isExcerptedChapterPolishInputJson,
   shouldSegmentChapterPolish,
-  type BuiltChapterPolishSegmentContext,
   type ChapterPolishChapterContext,
 } from "@/lib/ai/chapter-polishes";
-import { createOpenAITextResponse } from "@/lib/ai/openai-client";
 import {
   buildChapterSummaryContext,
   hasConfirmedChapterText,
   type ChapterSummaryChapterContext,
 } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
+import { completeRunningSegmentedChapterPolishTask } from "@/lib/ai/segmented-chapter-polish-runner";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import {
   createAiTask,
-  markAiTaskCompleted,
-  markAiTaskFailed,
   markAiTaskRunning,
   startLoggedOpenAITextTask,
 } from "@/lib/ai/task-logger";
@@ -412,17 +409,11 @@ export async function generateChapterPolish(projectId: string, chapterId: string
     });
     const runningTask = await markAiTaskRunning(task.id);
 
-    void completeRunningSegmentedChapterPolishTask({
-      taskId: runningTask.id,
-      model: runningTask.model,
-      systemPrompt: template.systemPrompt,
-      developerPrompt: [template.userPrompt, template.contextNotes]
-        .filter(Boolean)
-        .join("\n\n"),
-      segments: context.segments,
-    }).catch((error) => {
-      console.error("Background segmented chapter polish failed:", error);
-    });
+    void completeRunningSegmentedChapterPolishTask(runningTask.id).catch(
+      (error) => {
+        console.error("Background segmented chapter polish failed:", error);
+      },
+    );
 
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/ai`);
@@ -455,84 +446,6 @@ export async function generateChapterPolish(projectId: string, chapterId: string
   revalidatePath(`/projects/${projectId}/ai`);
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
-}
-
-export async function completeRunningSegmentedChapterPolishTask({
-  taskId,
-  model,
-  systemPrompt,
-  developerPrompt,
-  segments,
-}: {
-  taskId: string;
-  model: string;
-  systemPrompt: string;
-  developerPrompt: string;
-  segments: readonly BuiltChapterPolishSegmentContext[];
-}) {
-  try {
-    const completedSegments = [];
-    let tokenInput = 0;
-    let tokenOutput = 0;
-    let tokenTotal = 0;
-
-    for (const segment of segments) {
-      const result = await createOpenAITextResponse({
-        model,
-        systemPrompt,
-        developerPrompt,
-        input: segment.inputText,
-      });
-      const outputText = cleanSegmentedPolishOutput(result.outputText);
-
-      if (!outputText) {
-        throw new Error(
-          `第 ${segment.segment.index} / ${segment.segment.count} 段精修没有返回可用正文。`,
-        );
-      }
-
-      completedSegments.push({
-        index: segment.segment.index,
-        inputLength: segment.segment.sourceTextLength,
-        outputLength: outputText.length,
-        outputText,
-        usage: result.usage,
-      });
-      tokenInput += result.usage.inputTokens ?? 0;
-      tokenOutput += result.usage.outputTokens ?? 0;
-      tokenTotal += result.usage.totalTokens ?? 0;
-    }
-
-    const outputText = completedSegments
-      .map((segment) => segment.outputText)
-      .filter(Boolean)
-      .join("\n\n")
-      .trim();
-
-    if (!outputText) {
-      throw new Error("分段精修没有返回可用正文。");
-    }
-
-    await markAiTaskCompleted(taskId, {
-      outputText,
-      outputJson: {
-        strategy: "segmented",
-        segmentCount: completedSegments.length,
-        segments: completedSegments.map((segment) => ({
-          index: segment.index,
-          inputLength: segment.inputLength,
-          outputLength: segment.outputLength,
-          usage: segment.usage,
-        })),
-      },
-      tokenInput: tokenInput || undefined,
-      tokenOutput: tokenOutput || undefined,
-      tokenTotal: tokenTotal || undefined,
-    });
-  } catch (error) {
-    await markAiTaskFailed(taskId, error);
-    throw error;
-  }
 }
 
 export async function generateChapterSummary(projectId: string, chapterId: string) {
@@ -872,15 +785,6 @@ async function findActiveChapterAiTask(
       id: true,
     },
   });
-}
-
-function cleanSegmentedPolishOutput(outputText: string) {
-  return outputText
-    .trim()
-    .replace(/^#{1,6}\s*第\s*\d+\s*段[^\n]*\n+/i, "")
-    .replace(/^第\s*\d+\s*段[：:，,\s-]*/i, "")
-    .replace(/^本段精修(?:如下|稿)?[：:\s]*/i, "")
-    .trim();
 }
 
 async function loadChapterBeatContext(projectId: string, chapterId: string) {

@@ -236,15 +236,19 @@ export function extractGeminiAudio(responseJson: unknown) {
   const parts = geminiResponseParts(responseJson);
 
   for (const part of parts) {
-    const inlineData = recordValue(part, "inlineData") || recordValue(part, "inline_data");
+    const inlineData =
+      recordValue(part, "inlineData") || recordValue(part, "inline_data");
     const mimeType =
       stringValue(recordValue(inlineData, "mimeType")) ||
-      stringValue(recordValue(inlineData, "mime_type")) ||
-      "audio/L16;codec=pcm;rate=24000";
+      stringValue(recordValue(inlineData, "mime_type"));
     const data = stringValue(recordValue(inlineData, "data"));
 
     if (!data) {
       continue;
+    }
+
+    if (!mimeType) {
+      throw new Error("Google Gemini TTS 返回的音频缺少 MIME 类型。");
     }
 
     const audioBytes = Buffer.from(data, "base64");
@@ -255,13 +259,17 @@ export function extractGeminiAudio(responseJson: unknown) {
 
     const normalizedMimeType = mimeType.toLowerCase();
 
-    if (normalizedMimeType.includes("wav")) {
+    if (isGeminiWavMimeType(normalizedMimeType)) {
       assertGeminiAudioSize(audioBytes);
 
       return {
         audioBytes,
         mimeType,
       };
+    }
+
+    if (!isGeminiPcmMimeType(normalizedMimeType)) {
+      throw new Error("Google Gemini TTS 返回了不支持的音频 MIME 类型。");
     }
 
     const wavBytes = wrapPcm16AsWav(audioBytes, sampleRateFromMimeType(mimeType));
@@ -274,6 +282,20 @@ export function extractGeminiAudio(responseJson: unknown) {
   }
 
   throw new Error("Google Gemini TTS 没有返回音频数据。");
+}
+
+function isGeminiPcmMimeType(normalizedMimeType: string) {
+  return normalizedMimeType.split(";")[0]?.trim() === "audio/l16";
+}
+
+function isGeminiWavMimeType(normalizedMimeType: string) {
+  const type = normalizedMimeType.split(";")[0]?.trim();
+
+  return (
+    type === "audio/wav" ||
+    type === "audio/wave" ||
+    type === "audio/x-wav"
+  );
 }
 
 export async function readTextResponseWithLimit(

@@ -97,6 +97,47 @@ describe("Google Gemini TTS provider", () => {
     ).toThrow("没有返回音频数据");
   });
 
+  it("rejects non-audio inline Gemini data", () => {
+    expect(() =>
+      extractGeminiAudio({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  inlineData: {
+                    data: Buffer.from([0, 0, 1, 0]).toString("base64"),
+                    mimeType: "image/png",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toThrow("不支持的音频 MIME 类型");
+  });
+
+  it("rejects inline Gemini data without a MIME type", () => {
+    expect(() =>
+      extractGeminiAudio({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  inlineData: {
+                    data: Buffer.from([0, 0, 1, 0]).toString("base64"),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toThrow("缺少 MIME 类型");
+  });
+
   it("calls Gemini generateContent and returns WAV bytes", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(
