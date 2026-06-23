@@ -7,8 +7,7 @@ type FetchWithDispatcherInit = RequestInit & {
 
 type FetchLike = typeof fetch;
 
-let cachedProxyKey = "";
-let cachedDispatcher: Dispatcher | null = null;
+const cachedDispatchers = new Map<string, Dispatcher>();
 
 export function createServerFetch(env: AiRuntimeEnv = process.env): FetchLike {
   const proxyConfig = getProxyConfig(env);
@@ -62,27 +61,31 @@ export function getProxyDispatcher(env: AiRuntimeEnv = process.env) {
     proxyConfig.allProxy,
     proxyConfig.httpProxy,
   );
-  const proxyKey = JSON.stringify(proxyConfig);
 
   if (!proxyUrl) {
-    cachedProxyKey = "";
-    cachedDispatcher = null;
+    cachedDispatchers.clear();
     return null;
   }
 
-  if (cachedDispatcher && cachedProxyKey === proxyKey) {
+  return getProxyDispatcherForUrl(proxyUrl, proxyConfig.noProxy);
+}
+
+function getProxyDispatcherForUrl(proxyUrl: string, noProxy: string) {
+  const proxyKey = JSON.stringify({ proxyUrl, noProxy });
+  const cachedDispatcher = cachedDispatchers.get(proxyKey);
+
+  if (cachedDispatcher) {
     return cachedDispatcher;
   }
 
-  cachedProxyKey = proxyKey;
-  cachedDispatcher = new ProxyAgent(proxyUrl);
+  const dispatcher = new ProxyAgent(proxyUrl);
+  cachedDispatchers.set(proxyKey, dispatcher);
 
-  return cachedDispatcher;
+  return dispatcher;
 }
 
 export function resetServerFetchProxyDispatcher() {
-  cachedProxyKey = "";
-  cachedDispatcher = null;
+  cachedDispatchers.clear();
 }
 
 function firstValue(...values: Array<string | undefined>) {
@@ -119,18 +122,13 @@ function getProxyDispatcherForRequest(
   const proxyUrl =
     protocol === "http:"
       ? firstValue(proxyConfig.httpProxy, proxyConfig.allProxy)
-      : firstValue(proxyConfig.httpsProxy, proxyConfig.allProxy, proxyConfig.httpProxy);
+      : firstValue(proxyConfig.httpsProxy, proxyConfig.allProxy);
 
   if (!proxyUrl) {
     return null;
   }
 
-  return getProxyDispatcher({
-    ALL_PROXY: proxyConfig.allProxy,
-    HTTP_PROXY: proxyConfig.httpProxy,
-    HTTPS_PROXY: proxyConfig.httpsProxy || proxyUrl,
-    NO_PROXY: proxyConfig.noProxy,
-  });
+  return getProxyDispatcherForUrl(proxyUrl, proxyConfig.noProxy);
 }
 
 function shouldBypassProxy(input: RequestInfo | URL, noProxy: string) {

@@ -11,10 +11,14 @@ What was done:
 - Reworked the character library into a compact row-based list and changed the character query to select only list metadata instead of full role records.
 - Tightened the outline module: smaller stats, quick-create forms, AI task cards, and saved outline rows with short summaries instead of large repeated cards.
 - Compacted the structured memory page by folding create forms into expandable panels and limiting world rule, foreshadow, and timeline list bodies to short summaries unless the author opens edit mode.
+- Hardened the proxy-aware server fetch wrapper so `HTTP_PROXY`, `HTTPS_PROXY`, and `ALL_PROXY` are selected by the actual request protocol, with `NO_PROXY` bypass checks preserved for string, `URL`, and `Request` inputs.
 
 Verification:
 
+- `npm run test -- lib/server-fetch.test.ts` passed.
+- `npm run test -- lib/server-fetch.test.ts lib/ai/local-config.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
 - `npm run typecheck` passed.
+- `npm run build` passed.
 
 ## 2026-06-23: 0.1.42 Compact Chapter List Package
 
