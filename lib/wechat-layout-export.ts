@@ -331,18 +331,32 @@ function isChapterTitleLine(
   },
 ) {
   const text = normalizeMarkdownLine(line?.trim() ?? "");
+  const compactText = text.replace(/\s+/g, "");
   const title = clean(chapter.title);
+  const compactTitle = title.replace(/\s+/g, "");
   const chapterNumber = chapter.chapterNumber;
 
   if (!text) {
     return false;
   }
 
-  if (title && text.includes(title) && /第\s*\d+\s*章/.test(text)) {
+  if (
+    compactTitle &&
+    compactText.includes(compactTitle) &&
+    /第[\d一二三四五六七八九十百千万]+章/.test(compactText)
+  ) {
     return true;
   }
 
-  return chapterNumber != null && new RegExp(`第\\s*${chapterNumber}\\s*章`).test(text);
+  if (chapterNumber == null) {
+    return false;
+  }
+
+  const chineseChapterNumber = numberToChineseNumber(chapterNumber);
+
+  return [String(chapterNumber), chineseChapterNumber]
+    .filter(Boolean)
+    .some((numberText) => compactText.includes(`第${numberText}章`));
 }
 
 function isMarkdownDivider(line: string | undefined) {
@@ -392,4 +406,48 @@ function clean(value?: string | null) {
 
 function lastLine(lines: string[]) {
   return lines[lines.length - 1];
+}
+
+function numberToChineseNumber(value: number): string {
+  if (!Number.isInteger(value) || value <= 0 || value >= 10000) {
+    return "";
+  }
+
+  const digits = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+
+  if (value < 10) {
+    return digits[value];
+  }
+
+  if (value < 100) {
+    const tens = Math.floor(value / 10);
+    const ones = value % 10;
+    const prefix = tens === 1 ? "" : digits[tens];
+
+    return `${prefix}十${ones > 0 ? digits[ones] : ""}`;
+  }
+
+  if (value < 1000) {
+    const hundreds = Math.floor(value / 100);
+    const rest = value % 100;
+
+    if (rest === 0) {
+      return `${digits[hundreds]}百`;
+    }
+
+    return `${digits[hundreds]}百${
+      rest < 10 ? `零${digits[rest]}` : numberToChineseNumber(rest)
+    }`;
+  }
+
+  const thousands = Math.floor(value / 1000);
+  const rest = value % 1000;
+
+  if (rest === 0) {
+    return `${digits[thousands]}千`;
+  }
+
+  return `${digits[thousands]}千${
+    rest < 100 ? `零${numberToChineseNumber(rest)}` : numberToChineseNumber(rest)
+  }`;
 }

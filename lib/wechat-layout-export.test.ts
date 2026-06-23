@@ -77,6 +77,16 @@ describe("wechat layout export", () => {
     expect(body).toMatch(/一、第一笔账\n\n他在纸上写下三个数字。/);
   });
 
+  it("removes duplicate chapter titles with Chinese chapter numbers", () => {
+    expect(
+      normalizeWechatChapterBody("第三章《罗文斌的警告》\n\n正文第一段。", chapter),
+    ).toBe("正文第一段。");
+
+    expect(
+      normalizeWechatChapterBody("第 三 章 罗文斌的警告\n\n正文第二段。", chapter),
+    ).toBe("正文第二段。");
+  });
+
   it("builds a body paste template without title or author", () => {
     const result = buildWechatLayoutExport({
       chapter,

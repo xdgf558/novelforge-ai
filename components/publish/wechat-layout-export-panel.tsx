@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Clipboard,
@@ -56,7 +56,10 @@ export function WechatLayoutExportPanel({
   const [endingFollowHook, setEndingFollowHook] = useState(
     defaultWechatEndingFollowHook(),
   );
-  const [copied, setCopied] = useState(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
+    "idle",
+  );
+  const previewRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!selectedChapter) {
@@ -142,9 +145,34 @@ export function WechatLayoutExportPanel({
       return;
     }
 
-    await navigator.clipboard.writeText(layoutExport.plainText);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    try {
+      await navigator.clipboard.writeText(layoutExport.plainText);
+      markCopyState("copied");
+      return;
+    } catch {
+      const preview = previewRef.current;
+
+      if (preview) {
+        preview.focus();
+        preview.select();
+      }
+    }
+
+    try {
+      if (document.execCommand("copy")) {
+        markCopyState("copied");
+        return;
+      }
+    } catch {
+      // Fall through to the manual-copy hint below.
+    }
+
+    markCopyState("failed");
+  }
+
+  function markCopyState(state: "copied" | "failed") {
+    setCopyState(state);
+    window.setTimeout(() => setCopyState("idle"), 2200);
   }
 
   function download(filename: string, content: string, mimeType: string) {
@@ -313,12 +341,12 @@ export function WechatLayoutExportPanel({
               onClick={copyCurrentText}
               type="button"
             >
-              {copied ? (
+              {copyState === "copied" ? (
                 <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
               ) : (
                 <Clipboard aria-hidden="true" className="h-4 w-4" />
               )}
-              {copied ? "已复制" : "一键复制正文"}
+              {copyState === "copied" ? "已复制" : "一键复制正文"}
             </button>
             <button
               className="inline-flex min-h-9 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:bg-ink-700"
@@ -373,8 +401,14 @@ export function WechatLayoutExportPanel({
             </button>
           </div>
         </div>
+        {copyState === "failed" ? (
+          <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-800">
+            复制失败，已为你选中预览框内容，请手动按 Cmd+C 复制。
+          </p>
+        ) : null}
         <textarea
           className="mt-3 min-h-72 w-full resize-y rounded-md border border-ink-950/10 bg-paper-50 p-3 font-mono text-xs leading-6 text-ink-800 outline-none"
+          ref={previewRef}
           readOnly
           value={layoutExport?.plainText ?? ""}
         />
