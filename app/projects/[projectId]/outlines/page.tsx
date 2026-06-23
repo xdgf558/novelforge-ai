@@ -161,7 +161,7 @@ export default async function OutlinesPage({
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-3 md:grid-cols-3">
         <InfoTile
           icon={Layers3}
           label="卷大纲"
@@ -199,15 +199,15 @@ export default async function OutlinesPage({
         tasks={project.aiTasks}
       />
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div>
           <h2 className="text-base font-semibold text-ink-950">快速新增大纲</h2>
-          <p className="mt-1 text-sm leading-6 text-ink-700">
+          <p className="mt-1 text-xs leading-5 text-ink-700">
             先记录标题、章节范围和目标；进入编辑页后可以补全冲突、爽点、伏笔和钩子。
           </p>
         </div>
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+        <div className="mt-4 grid gap-3 lg:grid-cols-3">
           <QuickCreateOutlineForm
             action={createOutline.bind(null, project.id)}
             level="volume"
@@ -277,17 +277,17 @@ function OutlineAiPanel({
   const canGenerate = hasApiKey && !hasActiveTask;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
             <Bot aria-hidden="true" className="h-4 w-4" />
             AI 大纲草案
           </div>
-          <h2 className="mt-2 text-base font-semibold text-ink-950">
+          <h2 className="mt-1.5 text-base font-semibold text-ink-950">
             生成可审阅的大纲规划
           </h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
             AI 只输出草案并写入任务记录；正式卷大纲、剧情单元和章节大纲仍由作者手动创建或编辑。
           </p>
         </div>
@@ -301,29 +301,29 @@ function OutlineAiPanel({
       </div>
 
       {!hasApiKey ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           未配置 API Key，暂不能调用模型；已有大纲草案任务仍可查看。
         </p>
       ) : null}
 
       {hasActiveTask ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           当前已有大纲生成任务在后台运行，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
       {tasks.length === 0 ? (
-        <div className="mt-5 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
+        <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-4 text-sm text-ink-700">
           <p className="font-semibold text-ink-950">还没有大纲草案任务</p>
           <p className="mt-2 leading-6">
             生成后会在这里显示最近任务，包含模型、模板版本、状态和输出。作者可以把合适内容整理进正式大纲。
           </p>
         </div>
       ) : (
-        <div className="mt-5 space-y-4">
+        <div className="mt-4 space-y-3">
           {tasks.map((task) => (
             <article
-              className="rounded-lg border border-ink-950/10 bg-paper-50 p-4 text-sm"
+              className="rounded-lg border border-ink-950/10 bg-paper-50 p-3 text-sm"
               key={task.id}
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -352,7 +352,7 @@ function OutlineAiPanel({
                   />
                 ) : null}
               </div>
-              <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-3 text-xs leading-6 text-ink-800">
+              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-3 text-xs leading-5 text-ink-800">
                 {task.outputText || task.errorMessage || "任务尚未产生输出。"}
               </pre>
             </article>
@@ -382,7 +382,7 @@ function QuickCreateOutlineForm({
   return (
     <form
       action={action}
-      className="rounded-lg border border-ink-950/10 p-4"
+      className="rounded-lg border border-ink-950/10 p-3"
       data-outline-level={level}
     >
       <input name="level" type="hidden" value={level} />
@@ -391,11 +391,11 @@ function QuickCreateOutlineForm({
         <BookOpenText aria-hidden="true" className="h-4 w-4 text-signal-600" />
         {outlineLevelLabel(level)}
       </div>
-      <div className="mt-4 grid gap-3">
+      <div className="mt-3 grid gap-2.5">
         <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
           标题
           <input
-            className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+            className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
             maxLength={180}
             name="title"
             placeholder={titlePlaceholder}
@@ -406,7 +406,7 @@ function QuickCreateOutlineForm({
           <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
             {isChapter ? "章节号" : "起始章节"}
             <input
-              className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+              className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
               min={1}
               name={isChapter ? "chapterNumber" : "startChapter"}
               required={isChapter}
@@ -417,7 +417,7 @@ function QuickCreateOutlineForm({
             <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
               预计字数
               <input
-                className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+                className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
                 min={1}
                 name="expectedWords"
                 type="number"
@@ -427,7 +427,7 @@ function QuickCreateOutlineForm({
             <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
               结束章节
               <input
-                className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+                className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
                 min={1}
                 name="endChapter"
                 type="number"
@@ -439,7 +439,7 @@ function QuickCreateOutlineForm({
           <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
             所属卷号
             <input
-              className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+              className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
               min={1}
               name="volumeNumber"
               type="number"
@@ -449,9 +449,10 @@ function QuickCreateOutlineForm({
         <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
           目标
           <textarea
-            className="min-h-24 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950 outline-none"
+            className="min-h-16 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm leading-5 text-ink-950 outline-none"
             name="goal"
             placeholder="这部分要完成的剧情功能。"
+            rows={2}
           />
         </label>
       </div>
@@ -474,18 +475,18 @@ function OutlineGroup({
   title: string;
 }) {
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
       <div className="flex items-center gap-2">
-        <Icon aria-hidden="true" className="h-5 w-5 text-signal-600" />
+        <Icon aria-hidden="true" className="h-4 w-4 text-signal-600" />
         <h2 className="text-base font-semibold text-ink-950">{title}</h2>
       </div>
 
       {outlines.length === 0 ? (
-        <div className="mt-5 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
+        <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-4 text-sm text-ink-700">
           {emptyText}
         </div>
       ) : (
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+        <div className="mt-4 overflow-hidden rounded-lg border border-ink-950/10 bg-paper-50">
           {outlines.map((outline) => (
             <OutlineCard
               key={outline.id}
@@ -507,10 +508,10 @@ function OutlineCard({
   projectId: string;
 }) {
   return (
-    <article className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+    <article className="border-b border-ink-950/10 bg-paper-50 px-4 py-3 last:border-b-0">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-ink-700">
             <span className="rounded-md bg-white px-2.5 py-1">
               {outlineLevelLabel(outline.level)}
             </span>
@@ -519,9 +520,12 @@ function OutlineCard({
             </span>
             <span>{outlineRangeLabel(outline)}</span>
           </div>
-          <h3 className="mt-3 text-base font-semibold text-ink-950">
+          <h3 className="mt-2 truncate text-base font-semibold text-ink-950">
             {outline.title}
           </h3>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-700">
+            {outline.goal || outline.mainConflict || outline.coreEvents || "未填写目标或核心事件。"}
+          </p>
         </div>
         <div className="flex gap-2">
           <Link
@@ -543,7 +547,7 @@ function OutlineCard({
         </div>
       </div>
 
-      <dl className="mt-4 grid gap-3 text-sm text-ink-700">
+      <dl className="mt-3 grid gap-x-4 gap-y-1.5 text-xs text-ink-700 sm:grid-cols-2">
         <OutlineField label="目标" value={outline.goal} />
         <OutlineField label="冲突" value={outline.mainConflict ?? outline.chapterConflict} />
         <OutlineField label="核心事件" value={outline.coreEvents} />
@@ -554,7 +558,7 @@ function OutlineCard({
         <OutlineField label="章末钩子" value={outline.endingHook} />
         <OutlineField label="预计字数" value={formatNumber(outline.expectedWords)} />
       </dl>
-      <p className="mt-4 text-xs text-ink-700">
+      <p className="mt-3 text-xs text-ink-700">
         更新：{outline.updatedAt ? formatDate(outline.updatedAt) : "未记录"}
       </p>
     </article>
@@ -575,7 +579,7 @@ function OutlineField({
   return (
     <div>
       <dt className="text-xs font-semibold text-ink-700">{label}</dt>
-      <dd className="mt-1 whitespace-pre-wrap leading-6 text-ink-800">{value}</dd>
+      <dd className="mt-0.5 line-clamp-2 leading-5 text-ink-800">{value}</dd>
     </div>
   );
 }
@@ -590,12 +594,12 @@ function InfoTile({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-      <div className="flex items-center gap-2 text-sm text-ink-700">
+    <div className="rounded-lg border border-ink-950/10 bg-white p-3 shadow-panel">
+      <div className="flex items-center gap-2 text-xs text-ink-700">
         <Icon aria-hidden="true" className="h-4 w-4 text-signal-600" />
         {label}
       </div>
-      <p className="mt-2 text-xl font-semibold text-ink-950">{value}</p>
+      <p className="mt-1.5 text-lg font-semibold text-ink-950">{value}</p>
     </div>
   );
 }

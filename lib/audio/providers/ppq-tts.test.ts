@@ -155,6 +155,77 @@ describe("PPQ TTS provider", () => {
     );
   });
 
+  it("falls back to unfiltered voices when the filtered list has no matching model voices", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "eleven_voice",
+                language: "zh",
+                model_id: "eleven_multilingual_v2",
+                name: "Chinese Narrator",
+                provider: "elevenlabs",
+              },
+            ],
+          }),
+          {
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "aura-2-ama-ja",
+                language: "ja",
+                model_id: "deepgram_aura_2",
+                name: "Ama",
+                provider: "deepgram",
+              },
+            ],
+          }),
+          {
+            status: 200,
+          },
+        ),
+      );
+    const provider = new PpqTtsProvider({
+      fetchImpl,
+      settings: {
+        apiBaseUrl: "https://api.ppq.ai/v1",
+        apiKey: "ppq-key",
+      },
+    });
+
+    await expect(
+      provider.listVoices({
+        languageCode: "zh",
+        modelId: "deepgram_aura_2",
+      }),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        id: "aura-2-ama-ja",
+        languageCode: "ja",
+        name: "Ama",
+      }),
+    ]);
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
+      "https://api.ppq.ai/v1/audio/voices?language=zh",
+      expect.any(Object),
+    );
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      2,
+      "https://api.ppq.ai/v1/audio/voices",
+      expect.any(Object),
+    );
+  });
+
   it("rejects segments above the model safety limit", async () => {
     const provider = new PpqTtsProvider({
       fetchImpl: vi.fn(),

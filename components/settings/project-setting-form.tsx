@@ -54,9 +54,9 @@ type ProjectSettingAiTask = {
 };
 
 const inputClass =
-  "min-h-11 rounded-md border border-ink-950/15 bg-white px-3 text-sm text-ink-950 shadow-panel outline-none transition placeholder:text-ink-700/45 focus:border-signal-500 focus:ring-4 focus:ring-signal-500/15";
+  "min-h-9 rounded-md border border-ink-950/15 bg-white px-3 text-sm text-ink-950 shadow-panel outline-none transition placeholder:text-ink-700/45 focus:border-signal-500 focus:ring-4 focus:ring-signal-500/15";
 
-const labelClass = "text-sm font-medium text-ink-800";
+const labelClass = "text-xs font-semibold text-ink-700";
 
 function valuesFromSetting(setting?: ProjectSetting | null): ProjectSettingValues {
   return projectSettingValuesFromRecord(setting);
@@ -113,31 +113,31 @@ export function ProjectSettingForm({
         tasks={aiTasks}
       />
 
-      <form action={action} className="space-y-5">
+      <form action={action} className="space-y-4">
         {projectSettingGroups.map((group) => (
           <section
-            className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+            className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
             key={group.title}
           >
             <div>
               <h2 className="text-base font-semibold text-ink-950">
                 {group.title}
               </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
+              <p className="mt-1 text-xs leading-5 text-ink-700">
                 {group.description}
               </p>
             </div>
 
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
               {group.fields.map((field) => (
-                <label className="flex flex-col gap-2" key={field.name}>
+                <label className="flex flex-col gap-1.5" key={field.name}>
                   <span className={labelClass}>{field.label}</span>
                   <textarea
-                    className={`${inputClass} py-3 leading-6`}
+                    className={`${inputClass} py-2 leading-5`}
                     defaultValue={values[field.name]}
                     name={field.name}
                     placeholder={field.placeholder}
-                    rows={field.rows}
+                    rows={Math.min(field.rows, 3)}
                   />
                 </label>
               ))}
@@ -145,11 +145,11 @@ export function ProjectSettingForm({
           </section>
         ))}
 
-        <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
-          <label className="flex flex-col gap-2">
+        <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+          <label className="flex flex-col gap-1.5">
             <span className={labelClass}>修改原因</span>
             <textarea
-              className={`${inputClass} min-h-24 py-3 leading-6`}
+              className={`${inputClass} min-h-20 py-2 leading-5`}
               name="changeReason"
               placeholder="例如：初版设定、补全主线矛盾、调整公众号定位"
             />
@@ -195,17 +195,17 @@ function ProjectSettingAiPanel({
   const canGenerate = hasApiKey && !hasActiveGeneration;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
             <Bot aria-hidden="true" className="h-4 w-4" />
             AI 总设定草案
           </div>
-          <h2 className="mt-2 text-base font-semibold text-ink-950">
+          <h2 className="mt-1.5 text-base font-semibold text-ink-950">
             根据项目基础信息生成总设定草案
           </h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
             AI 只生成可审阅草案并写入任务记录。点击采用后，草案才会写入正式总设定档并生成历史版本。
           </p>
         </div>
@@ -227,19 +227,19 @@ function ProjectSettingAiPanel({
       </div>
 
       {!hasApiKey ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           未配置 API Key，暂不能调用模型；已有总设定草案任务仍可查看。
         </p>
       ) : null}
 
       {hasActiveGeneration ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           当前项目已有总设定生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
       {tasks.length === 0 ? (
-        <div className="mt-5 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
+        <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-4 text-sm text-ink-700">
           <p className="font-semibold text-ink-950">还没有总设定草案任务</p>
           <p className="mt-2 leading-6">
             生成后会在这里显示最近任务，包含模型、模板版本、状态和输出。验收看板也会据此确认
@@ -247,7 +247,7 @@ function ProjectSettingAiPanel({
           </p>
         </div>
       ) : (
-        <div className="mt-5 space-y-4">
+        <div className="mt-4 space-y-3">
           {tasks.map((task) => {
             const parsedDraft = parseProjectSettingGenerationOutput(
               task.outputText,
@@ -259,7 +259,7 @@ function ProjectSettingAiPanel({
 
             return (
               <article
-                className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+                className="rounded-lg border border-ink-950/10 bg-paper-50 p-3"
                 key={task.id}
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -297,7 +297,7 @@ function ProjectSettingAiPanel({
                   ) : null}
                 </div>
 
-                <div className="mt-4 max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-white p-4 font-mono text-xs leading-6 text-ink-700">
+                <div className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-white p-3 font-mono text-xs leading-5 text-ink-700">
                   {task.outputText || task.errorMessage || "任务尚未产生输出。"}
                 </div>
               </article>

@@ -55,7 +55,15 @@ export default async function CharacterListPage({
       where: {
         projectId,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        roleInStory: true,
+        identity: true,
+        status: true,
+        desire: true,
+        knownInfo: true,
+        updatedAt: true,
         _count: {
           select: {
             versions: true,
@@ -168,56 +176,49 @@ export default async function CharacterListPage({
           </Link>
         </section>
       ) : (
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="overflow-hidden rounded-lg border border-ink-950/10 bg-white shadow-panel">
           {characters.map((character) => (
             <Link
-              className="block rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+              className="group grid gap-3 border-b border-ink-950/10 px-4 py-3 transition last:border-b-0 hover:bg-paper-50/80 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-center"
               href={`/projects/${project.id}/characters/${character.id}`}
               key={character.id}
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-ink-950">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h2 className="truncate text-base font-semibold text-ink-950 transition group-hover:text-signal-700">
                     {character.name}
                   </h2>
-                  <p className="mt-1 text-sm text-ink-700">
-                    {character.roleInStory || "未设置定位"} /{" "}
-                    {character.identity || "未设置身份"}
-                  </p>
+                  <span className="shrink-0 rounded bg-paper-100 px-2 py-0.5 text-[11px] font-semibold text-ink-700">
+                    {character.status === "active"
+                      ? "活跃"
+                      : character.status === "inactive"
+                        ? "暂不出场"
+                        : "已归档"}
+                  </span>
                 </div>
-                <span className="w-fit rounded-md bg-paper-100 px-2.5 py-1 text-xs font-semibold text-ink-700">
-                  {character.status === "active"
-                    ? "活跃"
-                    : character.status === "inactive"
-                      ? "暂不出场"
-                      : "已归档"}
-                </span>
+                <p className="mt-1 truncate text-sm text-ink-700">
+                  {character.roleInStory || "未设置定位"} /{" "}
+                  {character.identity || "未设置身份"}
+                </p>
+                <p className="mt-1 truncate text-xs text-ink-700">
+                  欲望：{character.desire || "未设置"} · 信息：{character.knownInfo || "未设置"}
+                </p>
               </div>
 
-              <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="text-ink-700">核心欲望</dt>
-                  <dd className="mt-1 line-clamp-2 font-medium text-ink-950">
-                    {character.desire || "未设置"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-ink-700">信息边界</dt>
-                  <dd className="mt-1 line-clamp-2 font-medium text-ink-950">
-                    {character.knownInfo || "未设置"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-ink-700">版本</dt>
-                  <dd className="mt-1 font-medium text-ink-950">
+              <dl className="grid grid-cols-2 gap-3 text-xs text-ink-700">
+                <div className="min-w-0">
+                  <dt>版本</dt>
+                  <dd className="mt-0.5 truncate font-semibold text-ink-950">
                     {character._count.versions}
                   </dd>
                 </div>
+                <div className="min-w-0">
+                  <dt>更新</dt>
+                  <dd className="mt-0.5 truncate font-semibold text-ink-950">
+                    {formatDate(character.updatedAt)}
+                  </dd>
+                </div>
               </dl>
-
-              <p className="mt-4 text-xs text-ink-700">
-                最近更新：{formatDate(character.updatedAt)}
-              </p>
             </Link>
           ))}
         </section>
@@ -252,17 +253,17 @@ function CharacterGenerationPanel({
   const canGenerate = hasApiKey && !hasActiveTask;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="flex items-center gap-2 text-sm font-semibold text-signal-600">
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             AI 人物生成
           </p>
-          <h2 className="mt-2 text-lg font-semibold text-ink-950">
+          <h2 className="mt-1.5 text-base font-semibold text-ink-950">
             生成并审阅人物档案草案
           </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
             AI 会参考项目设定、已有角色、人物关系和大纲生成新人物草案。点击采用后，才会创建正式角色和角色快照。
           </p>
         </div>
@@ -270,12 +271,12 @@ function CharacterGenerationPanel({
 
       <form
         action={generateCharacterDraft.bind(null, projectId)}
-        className="mt-5 grid gap-4 lg:grid-cols-[220px_1fr_auto]"
+        className="mt-4 grid gap-3 lg:grid-cols-[200px_1fr_auto]"
       >
         <label className="block text-sm font-semibold text-ink-800">
           目标定位
           <input
-            className="mt-2 min-h-10 w-full rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+            className="mt-1.5 min-h-9 w-full rounded-md border border-ink-950/10 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
             maxLength={120}
             name="targetRole"
             placeholder="例如：阶段反派 / 早期客户 / 情感线"
@@ -284,11 +285,11 @@ function CharacterGenerationPanel({
         <label className="block text-sm font-semibold text-ink-800">
           作者补充
           <textarea
-            className="mt-2 w-full rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm leading-6 text-ink-950 outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+            className="mt-1.5 w-full rounded-md border border-ink-950/10 bg-white px-3 py-1.5 text-sm leading-5 text-ink-950 outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
             maxLength={3000}
             name="brief"
             placeholder="写明这个人物要承担的剧情功能、与主角/反派的关系、不能违背的设定。"
-            rows={3}
+            rows={2}
           />
         </label>
         <div className="flex items-end">
@@ -304,19 +305,19 @@ function CharacterGenerationPanel({
       </form>
 
       {!hasApiKey ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           未配置 API Key，暂不能调用模型；已有人物草案任务仍可查看和采用。
         </p>
       ) : null}
 
       {hasActiveTask ? (
-        <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           当前已有人物生成任务在后台运行，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
       {tasks.length === 0 ? (
-        <div className="mt-5 rounded-lg border border-dashed border-ink-950/15 bg-paper-50 p-5 text-sm text-ink-700">
+        <div className="mt-4 rounded-lg border border-dashed border-ink-950/15 bg-paper-50 p-4 text-sm text-ink-700">
           还没有人物生成任务。生成后会在这里显示模型、状态、输出和采用按钮。
         </div>
       ) : (
@@ -368,7 +369,7 @@ function CharacterGenerationPanel({
                   ) : null}
                 </div>
 
-                <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-4 text-xs leading-5 text-ink-800">
+                <pre className="mt-3 max-h-60 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-3 text-xs leading-5 text-ink-800">
                   {task.outputText || task.errorMessage || "任务尚未产生输出。"}
                 </pre>
               </article>

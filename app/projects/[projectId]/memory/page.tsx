@@ -196,7 +196,7 @@ export default async function MemoryPage({
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-3 md:grid-cols-3">
         <InfoTile
           icon={ShieldCheck}
           label="世界观规则"
@@ -247,28 +247,30 @@ export default async function MemoryPage({
         id="world-rules"
         title="世界观规则库"
       >
-        <WorldRuleForm
-          action={createWorldRule.bind(null, project.id)}
-          chapters={chapters}
-          submitLabel="新增规则"
-        />
+        <CompactCreatePanel title="新增世界观规则">
+          <WorldRuleForm
+            action={createWorldRule.bind(null, project.id)}
+            chapters={chapters}
+            submitLabel="新增规则"
+          />
+        </CompactCreatePanel>
         <ListLimitNotice
           label="世界观规则"
           loaded={project.worldRules.length}
           total={worldRuleTotalCount}
         />
-        <div className="mt-5 space-y-4">
+        <div className="mt-4 space-y-3">
           {project.worldRules.length === 0 ? (
             <EmptyState text="还没有世界观规则。可以先录入技术规则、社会规则、代价机制或禁忌规则。" />
           ) : (
             project.worldRules.map((rule) => (
               <article
-                className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+                className="rounded-lg border border-ink-950/10 bg-paper-50 p-3"
                 key={rule.id}
               >
-                <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {rule.isCore ? <Badge tone="amber">核心规则</Badge> : null}
                       <Badge>{worldRuleStatusLabel(rule.status)}</Badge>
                       <Badge>{memoryRiskLevelLabel(rule.riskLevel)}</Badge>
@@ -301,7 +303,7 @@ export default async function MemoryPage({
                     ) : null}
                   </div>
                 </div>
-                <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
+                <p className="mt-2 line-clamp-2 rounded-md bg-white/75 p-3 text-sm leading-5 text-ink-800">
                   {rule.content}
                 </p>
                 {editType === "worldRule" && editId === rule.id ? (
@@ -326,28 +328,30 @@ export default async function MemoryPage({
         id="foreshadows"
         title="伏笔池"
       >
-        <ForeshadowForm
-          action={createForeshadow.bind(null, project.id)}
-          chapters={chapters}
-          submitLabel="新增伏笔"
-        />
+        <CompactCreatePanel title="新增伏笔">
+          <ForeshadowForm
+            action={createForeshadow.bind(null, project.id)}
+            chapters={chapters}
+            submitLabel="新增伏笔"
+          />
+        </CompactCreatePanel>
         <ListLimitNotice
           label="伏笔"
           loaded={project.foreshadows.length}
           total={foreshadowTotalCount}
         />
-        <div className="mt-5 space-y-4">
+        <div className="mt-4 space-y-3">
           {project.foreshadows.length === 0 ? (
             <EmptyState text="还没有伏笔记录。可以手动补充章节埋点，也可以先从待审更新中批准 AI 提取的伏笔。" />
           ) : (
             project.foreshadows.map((foreshadow) => (
               <article
-                className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+                className="rounded-lg border border-ink-950/10 bg-paper-50 p-3"
                 key={foreshadow.id}
               >
-                <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <Badge>{foreshadowStatusLabel(foreshadow.status)}</Badge>
                       <Badge>{foreshadowImportanceLabel(foreshadow.importance)}</Badge>
                       {foreshadow.expectedResolveChapter ? (
@@ -356,7 +360,7 @@ export default async function MemoryPage({
                         </Badge>
                       ) : null}
                     </div>
-                    <h3 className="mt-2 text-base font-semibold text-ink-950">
+                    <h3 className="mt-2 line-clamp-2 text-base font-semibold text-ink-950">
                       {foreshadow.content}
                     </h3>
                     <p className="mt-1 text-xs text-ink-700">
@@ -389,7 +393,7 @@ export default async function MemoryPage({
                     ) : null}
                   </div>
                 </div>
-                <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
+                <p className="mt-2 line-clamp-2 rounded-md bg-white/75 p-3 text-sm leading-5 text-ink-800">
                   {foreshadow.content}
                 </p>
                 {editType === "foreshadow" && editId === foreshadow.id ? (
@@ -414,28 +418,30 @@ export default async function MemoryPage({
         id="timeline"
         title="时间线"
       >
-        <TimelineEventForm
-          action={createTimelineEvent.bind(null, project.id)}
-          chapters={chapters}
-          submitLabel="新增事件"
-        />
+        <CompactCreatePanel title="新增时间线事件">
+          <TimelineEventForm
+            action={createTimelineEvent.bind(null, project.id)}
+            chapters={chapters}
+            submitLabel="新增事件"
+          />
+        </CompactCreatePanel>
         <ListLimitNotice
           label="时间线事件"
           loaded={project.timelineEvents.length}
           total={timelineEventTotalCount}
         />
-        <div className="mt-5 space-y-4">
+        <div className="mt-4 space-y-3">
           {project.timelineEvents.length === 0 ? (
             <EmptyState text="还没有时间线事件。先记录开篇锚点、关键交易、角色关系转折或重大冲突节点。" />
           ) : (
             project.timelineEvents.map((event) => (
               <article
-                className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+                className="rounded-lg border border-ink-950/10 bg-paper-50 p-3"
                 key={event.id}
               >
-                <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <Badge>{timelineEventStatusLabel(event.status)}</Badge>
                       {event.storyTime ? <Badge>{event.storyTime}</Badge> : null}
                       {event.location ? <Badge tone="cyan">{event.location}</Badge> : null}
@@ -476,7 +482,7 @@ export default async function MemoryPage({
                     ) : null}
                   </div>
                 </div>
-                <p className="mt-3 whitespace-pre-wrap rounded-md bg-white/75 p-3 text-sm leading-6 text-ink-800">
+                <p className="mt-2 line-clamp-2 rounded-md bg-white/75 p-3 text-sm leading-5 text-ink-800">
                   {event.description}
                 </p>
                 {event.impact ? (
@@ -527,8 +533,8 @@ function WorldRuleForm({
   submitLabel: string;
 }) {
   return (
-    <form action={action} className="space-y-4">
-      <div className="grid gap-3 lg:grid-cols-3">
+    <form action={action} className="space-y-3">
+      <div className="grid gap-2.5 lg:grid-cols-3">
         <TextField
           defaultValue={rule?.title}
           label="规则标题"
@@ -578,7 +584,7 @@ function WorldRuleForm({
         required
         rows={5}
       />
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid gap-2.5 lg:grid-cols-2">
         <TextareaField
           defaultValue={rule?.scope}
           label="适用范围"
@@ -636,7 +642,7 @@ function ForeshadowForm({
   submitLabel: string;
 }) {
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-3">
       <TextareaField
         defaultValue={foreshadow?.content}
         label="伏笔内容"
@@ -645,7 +651,7 @@ function ForeshadowForm({
         required
         rows={4}
       />
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-2.5 lg:grid-cols-3">
         <SelectField
           defaultValue={foreshadow?.status || "planted"}
           label="当前状态"
@@ -683,7 +689,7 @@ function ForeshadowForm({
           name="sourceChapterId"
         />
       </div>
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-2.5 lg:grid-cols-3">
         <TextareaField
           defaultValue={foreshadow?.relatedCharacters}
           label="相关人物"
@@ -730,8 +736,8 @@ function TimelineEventForm({
   submitLabel: string;
 }) {
   return (
-    <form action={action} className="space-y-4">
-      <div className="grid gap-3 lg:grid-cols-3">
+    <form action={action} className="space-y-3">
+      <div className="grid gap-2.5 lg:grid-cols-3">
         <TextField
           defaultValue={event?.title}
           label="事件标题"
@@ -811,20 +817,37 @@ function MemorySection({
 }) {
   return (
     <section
-      className="scroll-mt-6 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      className="scroll-mt-6 rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
       id={id}
     >
-      <div className="mb-5 flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
-          <Icon aria-hidden="true" className="h-5 w-5" />
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
+          <Icon aria-hidden="true" className="h-4 w-4" />
         </div>
         <div>
           <h2 className="text-base font-semibold text-ink-950">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-ink-700">{description}</p>
+          <p className="mt-1 text-xs leading-5 text-ink-700">{description}</p>
         </div>
       </div>
       {children}
     </section>
+  );
+}
+
+function CompactCreatePanel({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+      <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+        {title}
+      </summary>
+      <div className="mt-3 border-t border-ink-950/10 pt-3">{children}</div>
+    </details>
   );
 }
 
@@ -841,11 +864,11 @@ function AnchorCard({
 }) {
   return (
     <a
-      className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+      className="rounded-lg border border-ink-950/10 bg-white p-3 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
       href={href}
     >
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
           <Icon aria-hidden="true" className="h-4.5 w-4.5" />
         </div>
         <div>
@@ -867,12 +890,12 @@ function InfoTile({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-      <div className="flex items-center gap-2 text-sm text-ink-700">
+    <div className="rounded-lg border border-ink-950/10 bg-white p-3 shadow-panel">
+      <div className="flex items-center gap-2 text-xs text-ink-700">
         <Icon aria-hidden="true" className="h-4 w-4 text-signal-600" />
         {label}
       </div>
-      <p className="mt-2 text-base font-semibold text-ink-950">{value}</p>
+      <p className="mt-1.5 text-sm font-semibold text-ink-950">{value}</p>
     </div>
   );
 }
@@ -915,7 +938,7 @@ function TextField({
     <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
       {label}
       <input
-        className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+        className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
         defaultValue={defaultValue || ""}
         name={name}
         placeholder={placeholder}
@@ -940,7 +963,7 @@ function NumberField({
     <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
       {label}
       <input
-        className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+        className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
         defaultValue={defaultValue ?? ""}
         min={1}
         name={name}
@@ -970,12 +993,12 @@ function TextareaField({
     <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
       {label}
       <textarea
-        className="rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950 outline-none"
+        className="rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm leading-5 text-ink-950 outline-none"
         defaultValue={defaultValue || ""}
         name={name}
         placeholder={placeholder}
         required={required}
-        rows={rows}
+        rows={Math.min(rows, 3)}
       />
     </label>
   );
@@ -999,7 +1022,7 @@ function SelectField({
     <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
       {label}
       <select
-        className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+        className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
         defaultValue={value}
         name={name}
       >
@@ -1031,7 +1054,7 @@ function ChapterSelectField({
     <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
       {label}
       <select
-        className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none"
+        className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
         defaultValue={defaultValue || ""}
         name={name}
       >

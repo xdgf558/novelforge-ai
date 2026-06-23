@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.39 有声音色试听修复";
+export const appReleaseTitle = "0.1.43 模块紧凑化设计";
 
 export const appReleaseNotes = [
-  "修复刷新音色后未保存音色时，试听按钮没有传入 voice ID 导致试听失败的问题。",
-  "音色列表加载成功后，如果当前没有已保存音色，会自动选中列表第一条，可直接点击试听。",
-  "保留 0.1.38 的本机代理网络修复，AI、图片、有声和发布请求仍会使用本机代理配置。",
+  "总设定档表单压缩间距和默认文本框高度，长文本字段仍可滚动编辑。",
+  "角色库、大纲模块和结构化记忆改成更紧凑的列表与折叠新增表单，适合长篇项目持续增长。",
+  "保留 0.1.42 的章节列表一行式管理视图和 0.1.41 的 TTS/代理兼容修复。",
 ];

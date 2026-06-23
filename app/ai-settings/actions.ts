@@ -20,6 +20,7 @@ import {
 } from "@/lib/ai/local-config";
 import { saveAudioPreviewAsset } from "@/lib/audio/audio-assets";
 import { getConfiguredTtsProvider } from "@/lib/audio/providers/registry";
+import { resetServerFetchProxyDispatcher } from "@/lib/server-fetch";
 
 export async function saveAiConnectionSettingsAction(formData: FormData) {
   try {
@@ -88,7 +89,7 @@ export async function saveTtsGenerationSettingsAction(formData: FormData) {
       model: formData.get("ttsModel")?.toString(),
       voiceId: readTtsVoiceIdFromForm(formData),
       voiceName: readTtsVoiceNameFromForm(formData),
-      languageCode: formData.get("ttsLanguageCode")?.toString(),
+      languageCode: readTtsLanguageCodeFromForm(formData),
       outputFormat: formData.get("ttsOutputFormat")?.toString(),
       stylePrompt: formData.get("ttsStylePrompt")?.toString(),
     });
@@ -110,6 +111,7 @@ export async function saveTtsGenerationSettingsAction(formData: FormData) {
 export async function previewTtsVoiceAction(formData: FormData) {
   let previewPath = "";
   let errorCode = "";
+  let errorMessage = "";
 
   try {
     const secrets = ttsSecretsFromForm(formData);
@@ -119,33 +121,11 @@ export async function previewTtsVoiceAction(formData: FormData) {
     } else if (!secrets.voiceId) {
       errorCode = "tts-missing-voice";
     } else {
-      const provider = getConfiguredTtsProvider({
-        settings: secrets,
-      });
-      const previewText =
-        cleanPreviewText(formData.get("ttsPreviewText")?.toString()) ||
-        defaultTtsPreviewText;
-      const result = await provider.synthesizeSegment({
-        providerId: "ppq_tts",
-        inputText: previewText,
-        languageCode: secrets.languageCode,
-        modelId: secrets.model,
-        outputFormat: secrets.outputFormat as "mp3" | "wav" | "pcm" | "ogg",
-        stylePrompt: secrets.stylePrompt,
-        voiceId: secrets.voiceId,
-      });
-      const savedPreview = await saveAudioPreviewAsset({
-        audioBytes: result.audioBytes,
-        contentType: result.contentType,
-        modelId: secrets.model,
-        outputFormat: secrets.outputFormat,
-        voiceId: secrets.voiceId,
-      });
-
-      previewPath = savedPreview.relativePath;
+      previewPath = await generateTtsPreview(formData, secrets);
     }
-  } catch {
+  } catch (error) {
     errorCode = "tts-preview-error";
+    errorMessage = sanitizeTtsPreviewError(error);
   }
 
   revalidatePath("/ai-settings");
@@ -158,11 +138,20 @@ export async function previewTtsVoiceAction(formData: FormData) {
     );
   }
 
-  redirect(`/ai-settings?saved=${errorCode || "tts-preview-error"}`);
+  const params = new URLSearchParams({
+    saved: errorCode || "tts-preview-error",
+  });
+
+  if (errorMessage) {
+    params.set("ttsError", errorMessage);
+  }
+
+  redirect(`/ai-settings?${params.toString()}`);
 }
 
 const defaultTtsPreviewText =
   "1999年的夏天，县城的风扇声嗡嗡作响。陈远站在老旧电脑前，看着屏幕上那行白字，忽然笑了。 “这一次，”他说，“我不想再被时代推着走了。”";
+const ttsPreviewMaxAttempts = 3;
 
 function ttsSecretsFromForm(formData: FormData) {
   const currentSecrets = readTtsGenerationSecrets();
@@ -176,9 +165,7 @@ function ttsSecretsFromForm(formData: FormData) {
     model: normalizeTtsModel(formData.get("ttsModel")?.toString()),
     voiceId: normalizeTtsVoiceId(readTtsVoiceIdFromForm(formData)),
     voiceName: normalizeTtsVoiceName(readTtsVoiceNameFromForm(formData)),
-    languageCode: normalizeTtsLanguageCode(
-      formData.get("ttsLanguageCode")?.toString(),
-    ),
+    languageCode: normalizeTtsLanguageCode(readTtsLanguageCodeFromForm(formData)),
     outputFormat: normalizeTtsOutputFormat(
       formData.get("ttsOutputFormat")?.toString(),
     ),
@@ -186,8 +173,89 @@ function ttsSecretsFromForm(formData: FormData) {
   };
 }
 
+async function generateTtsPreview(
+  formData: FormData,
+  secrets: ReturnType<typeof ttsSecretsFromForm>,
+) {
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= ttsPreviewMaxAttempts; attempt += 1) {
+    try {
+      return await generateTtsPreviewAttempt(formData, secrets);
+    } catch (error) {
+      lastError = error;
+
+      if (attempt >= ttsPreviewMaxAttempts || !isRetryableTtsPreviewError(error)) {
+        throw error;
+      }
+
+      resetServerFetchProxyDispatcher();
+      await waitBeforeTtsPreviewRetry(attempt);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("TTS 试听生成失败。");
+}
+
+async function generateTtsPreviewAttempt(
+  formData: FormData,
+  secrets: ReturnType<typeof ttsSecretsFromForm>,
+) {
+  const provider = getConfiguredTtsProvider({
+    settings: secrets,
+  });
+  const previewText =
+    cleanPreviewText(formData.get("ttsPreviewText")?.toString()) ||
+    defaultTtsPreviewText;
+  const result = await provider.synthesizeSegment({
+    providerId: "ppq_tts",
+    inputText: previewText,
+    languageCode: secrets.languageCode,
+    modelId: secrets.model,
+    outputFormat: secrets.outputFormat as "mp3" | "wav" | "pcm" | "ogg",
+    stylePrompt: secrets.stylePrompt,
+    voiceId: secrets.voiceId,
+  });
+  const savedPreview = await saveAudioPreviewAsset({
+    audioBytes: result.audioBytes,
+    contentType: result.contentType,
+    modelId: secrets.model,
+    outputFormat: secrets.outputFormat,
+    voiceId: secrets.voiceId,
+  });
+
+  return savedPreview.relativePath;
+}
+
+function waitBeforeTtsPreviewRetry(attempt: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, Math.min(400 * attempt, 1200));
+  });
+}
+
 function cleanPreviewText(value?: string | null) {
   return value?.trim().slice(0, 500) ?? "";
+}
+
+function isRetryableTtsPreviewError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+
+  return /fetch failed|ECONNRESET|socket|TLS|timeout|超时|Request was cancelled/i.test(
+    message,
+  );
+}
+
+function sanitizeTtsPreviewError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const cleanMessage = message
+    .replace(/sk-[A-Za-z0-9_-]{6,}/g, "sk-***")
+    .replace(
+      /[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/g,
+      "***",
+    )
+    .trim();
+
+  return cleanMessage.slice(0, 220);
 }
 
 function readTtsVoiceIdFromForm(formData: FormData) {
@@ -206,6 +274,14 @@ function readTtsVoiceNameFromForm(formData: FormData) {
   return selection?.name || formData.get("ttsVoiceName")?.toString() || "";
 }
 
+function readTtsLanguageCodeFromForm(formData: FormData) {
+  const selection = parseTtsVoiceSelection(
+    formData.get("ttsVoiceSelection")?.toString(),
+  );
+
+  return selection?.languageCode || formData.get("ttsLanguageCode")?.toString() || "";
+}
+
 function parseTtsVoiceSelection(value?: string | null) {
   const cleanValue = value?.trim() ?? "";
 
@@ -213,10 +289,11 @@ function parseTtsVoiceSelection(value?: string | null) {
     return null;
   }
 
-  const [id, name = ""] = cleanValue.split("|||");
+  const [id, name = "", languageCode = ""] = cleanValue.split("|||");
 
   return {
     id,
+    languageCode,
     name,
   };
 }

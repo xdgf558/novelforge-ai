@@ -1,5 +1,94 @@
 # Development Log
 
+## 2026-06-23: 0.1.43 Compact Module UI Pass
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.43`.
+- Compacted the project setting editor by reducing card padding, field gaps, textarea default rows, and AI task preview height while preserving every formal setting field.
+- Reworked the character library into a compact row-based list and changed the character query to select only list metadata instead of full role records.
+- Tightened the outline module: smaller stats, quick-create forms, AI task cards, and saved outline rows with short summaries instead of large repeated cards.
+- Compacted the structured memory page by folding create forms into expandable panels and limiting world rule, foreshadow, and timeline list bodies to short summaries unless the author opens edit mode.
+
+Verification:
+
+- `npm run typecheck` passed.
+
+## 2026-06-23: 0.1.42 Compact Chapter List Package
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.42`.
+- Reworked `/projects/[projectId]/chapters` from large two-column cards into a compact row-based chapter management list.
+- Removed chapter body previews from the chapter list and changed the query to select only list metadata: chapter number, title, status, goal, word count, version count, and updated time.
+- Kept chapter detail pages unchanged; clicking a row still opens the full chapter editing workflow.
+
+Verification:
+
+- `npm run test -- lib/server-fetch.test.ts lib/ai/local-config.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- `electron-builder --mac dir` created the macOS arm64 app payload with bundle `CFBundleShortVersionString="0.1.42"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.42"`.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `c9e8fbc4a0735be853ffa91a77b27b3db56ad72805e524fcd16e2af6baae4ba3`.
+
+## 2026-06-23: 0.1.41 DeepGram Voice Compatibility
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.41`.
+- Confirmed PPQ currently returns zero DeepGram Aura 2 voices when filtering by `language=zh`; Chinese narration should use ElevenLabs Multilingual v2 for now.
+- Updated PPQ voice loading so a successful but empty model-filtered voice result with a language filter automatically retries without the language filter. This lets DeepGram Aura 2 show available non-Chinese voices instead of looking empty.
+- Voice selections now submit the selected voice's language code as well as id/name; saving or previewing a selected DeepGram voice uses that voice's own language instead of stale `zh`.
+- Replaced the proxy dispatcher implementation with explicit `ProxyAgent` plus local `NO_PROXY` matching, which was more reliable in live PPQ probes than the previous environment proxy dispatcher.
+- TTS preview now retries transient proxy/network failures up to 3 total attempts before surfacing the sanitized error.
+
+Verification:
+
+- `npm run test -- lib/server-fetch.test.ts lib/ai/local-config.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Live PPQ voice probes confirmed `language=zh` currently returns zero DeepGram Aura 2 voices, while the unfiltered DeepGram list returns non-Chinese voices such as Japanese and English voices.
+- A valid DeepGram Aura 2 live smoke using a returned non-Chinese voice succeeded once and returned `audio/mpeg` bytes, confirming the remaining Chinese failure was caused by unavailable `zh` DeepGram voices plus intermittent proxy fetch failures rather than a missing API key.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.41"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `21ad2cc80141171c8945302c7e06cfab81aac39d926fd63cb35a69df448852ae`.
+
+## 2026-06-23: 0.1.40 TTS Preview Proxy Retry
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.40`.
+- Added a proxy-dispatcher reset path for TTS preview: transient `fetch failed` / socket / timeout errors reset the cached local proxy dispatcher and retry preview once.
+- Updated `/ai-settings` to display a sanitized concrete TTS preview error detail when preview still fails, instead of only showing the generic "no usable audio" message.
+- Kept the 0.1.39 voice-save flow: selected refreshed voices or manually entered voice IDs can be saved into local TTS settings for later preview/export.
+
+Verification:
+
+- `npm run test -- lib/server-fetch.test.ts lib/ai/local-config.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Real PPQ `/audio/speech` smoke with the saved desktop `.env` reproduced the issue shape once (`fetch failed`) and then succeeded after using a fresh proxy dispatcher, returning `200 audio/mpeg` with an `ID3` audio header.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.40"`.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `1f2a43a4b6c2f76e9f752257dc9afa30264abdd27ac6f48300660468258c27d7`.
+
 ## 2026-06-22: 0.1.39 TTS Voice Save and Preview Package
 
 Status: completed.

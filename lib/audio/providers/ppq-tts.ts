@@ -65,10 +65,19 @@ export class PpqTtsProvider implements TtsProvider {
     const languageCode = options.languageCode?.trim();
 
     try {
-      return await this.fetchVoiceList({
+      const voices = await this.fetchVoiceList({
         languageCode,
         modelId: options.modelId,
       });
+
+      if (languageCode && voices.length === 0) {
+        return this.fetchVoiceList({
+          languageCode: null,
+          modelId: options.modelId,
+        });
+      }
+
+      return voices;
     } catch (error) {
       if (!languageCode || !shouldRetryVoiceListWithoutLanguage(error)) {
         throw error;

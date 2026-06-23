@@ -33,7 +33,14 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
     where: {
       projectId,
     },
-    include: {
+    select: {
+      id: true,
+      chapterNumber: true,
+      title: true,
+      status: true,
+      goal: true,
+      wordCount: true,
+      updatedAt: true,
       _count: {
         select: {
           versions: true,
@@ -102,57 +109,50 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
           </Link>
         </section>
       ) : (
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="overflow-hidden rounded-lg border border-ink-950/10 bg-white shadow-panel">
           {chapters.map((chapter) => (
             <Link
-              className="block rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
+              className="group grid gap-3 border-b border-ink-950/10 px-4 py-3 transition last:border-b-0 hover:bg-paper-50/80 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
               href={`/projects/${project.id}/chapters/${chapter.id}`}
               key={chapter.id}
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-signal-600">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="shrink-0 text-xs font-semibold text-signal-600">
                     第 {formatNumber(chapter.chapterNumber)} 章
                   </p>
-                  <h2 className="mt-1 text-lg font-semibold text-ink-950">
+                  <span className="shrink-0 rounded bg-paper-100 px-2 py-0.5 text-[11px] font-semibold text-ink-700">
+                    {chapterStatusLabel(chapter.status)}
+                  </span>
+                  <h2 className="truncate text-base font-semibold text-ink-950 transition group-hover:text-signal-700">
                     {chapter.title}
                   </h2>
                 </div>
-                <span className="w-fit rounded-md bg-paper-100 px-2.5 py-1 text-xs font-semibold text-ink-700">
-                  {chapterStatusLabel(chapter.status)}
-                </span>
+                <p className="mt-1 truncate text-sm text-ink-700">
+                  目标：{chapter.goal || "未设置"}
+                </p>
               </div>
 
-              <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="text-ink-700">章节目标</dt>
-                  <dd className="mt-1 line-clamp-2 font-medium text-ink-950">
-                    {chapter.goal || "未设置"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-ink-700">字数</dt>
-                  <dd className="mt-1 font-medium text-ink-950">
+              <dl className="grid grid-cols-3 gap-3 text-xs text-ink-700 sm:w-[18rem]">
+                <div className="min-w-0">
+                  <dt>字数</dt>
+                  <dd className="mt-0.5 truncate font-semibold text-ink-950">
                     {formatChapterWordCount(chapter.wordCount)}
                   </dd>
                 </div>
-                <div>
-                  <dt className="text-ink-700">版本</dt>
-                  <dd className="mt-1 font-medium text-ink-950">
+                <div className="min-w-0">
+                  <dt>版本</dt>
+                  <dd className="mt-0.5 truncate font-semibold text-ink-950">
                     {chapter._count.versions}
                   </dd>
                 </div>
+                <div className="min-w-0">
+                  <dt>更新</dt>
+                  <dd className="mt-0.5 truncate font-semibold text-ink-950">
+                    {formatDate(chapter.updatedAt)}
+                  </dd>
+                </div>
               </dl>
-
-              <p className="mt-4 line-clamp-2 text-sm leading-6 text-ink-700">
-                {chapter.finalText ||
-                  chapter.polishedText ||
-                  chapter.draftText ||
-                  "暂未填写正文。"}
-              </p>
-              <p className="mt-4 text-xs text-ink-700">
-                最近更新：{formatDate(chapter.updatedAt)}
-              </p>
             </Link>
           ))}
         </section>

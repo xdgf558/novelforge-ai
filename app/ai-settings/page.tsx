@@ -46,6 +46,7 @@ type AiSettingsPageProps = {
     saved?: string;
     ttsLanguage?: string;
     ttsModel?: string;
+    ttsError?: string;
     ttsPreviewPath?: string;
     ttsVoices?: string;
   }>;
@@ -60,11 +61,20 @@ export default async function AiSettingsPage({
   const ttsSettings = readTtsGenerationSettings();
   const stationCatSettings = readStationCatPublishSettings();
   const networkProxySettings = readNetworkProxySettings();
-  const savedMessage = settingsSavedMessage(resolvedSearchParams?.saved);
+  const activeTtsModel = resolvedSearchParams?.ttsModel || ttsSettings.model;
+  const activeTtsLanguage =
+    resolvedSearchParams?.ttsLanguage || ttsSettings.languageCode;
+  const isDeepgramWithChineseLanguage =
+    activeTtsModel.toLowerCase().includes("deepgram") &&
+    activeTtsLanguage.trim().toLowerCase().startsWith("zh");
+  const savedMessage = settingsSavedMessage(
+    resolvedSearchParams?.saved,
+    resolvedSearchParams?.ttsError,
+  );
   const ttsVoiceLookup = await loadTtsVoicesForSettings({
     enabled: resolvedSearchParams?.ttsVoices === "1",
-    languageCode: resolvedSearchParams?.ttsLanguage || ttsSettings.languageCode,
-    modelId: resolvedSearchParams?.ttsModel || ttsSettings.model,
+    languageCode: activeTtsLanguage,
+    modelId: activeTtsModel,
   });
   const ttsPreviewPath = resolvedSearchParams?.ttsPreviewPath;
 
@@ -197,7 +207,7 @@ export default async function AiSettingsPage({
             <input name="ttsVoices" type="hidden" value="1" />
             <select
               className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
-              defaultValue={resolvedSearchParams?.ttsModel || ttsSettings.model}
+              defaultValue={activeTtsModel}
               name="ttsModel"
             >
               {ppqTtsModelOptions.map((option) => (
@@ -208,7 +218,7 @@ export default async function AiSettingsPage({
             </select>
             <input
               className="min-h-10 w-24 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
-              defaultValue={resolvedSearchParams?.ttsLanguage || ttsSettings.languageCode}
+              defaultValue={activeTtsLanguage}
               name="ttsLanguage"
               placeholder="zh"
               type="text"
@@ -264,7 +274,7 @@ export default async function AiSettingsPage({
               <span className="text-sm font-semibold text-ink-800">TTS 模型</span>
               <select
                 className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
-                defaultValue={resolvedSearchParams?.ttsModel || ttsSettings.model}
+                defaultValue={activeTtsModel}
                 name="ttsModel"
               >
                 {ppqTtsModelOptions.map((option) => (
@@ -279,7 +289,7 @@ export default async function AiSettingsPage({
               <span className="text-sm font-semibold text-ink-800">语言</span>
               <input
                 className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
-                defaultValue={resolvedSearchParams?.ttsLanguage || ttsSettings.languageCode}
+                defaultValue={activeTtsLanguage}
                 name="ttsLanguageCode"
                 placeholder="zh"
                 type="text"
@@ -315,6 +325,13 @@ export default async function AiSettingsPage({
               </span>
             </div>
 
+            {isDeepgramWithChineseLanguage ? (
+              <p className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-3 text-sm leading-6 text-amber-900">
+                PPQ 当前没有返回 DeepGram Aura 2 的中文音色。中文旁白建议使用 ElevenLabs
+                Multilingual v2；如果要测试 DeepGram，请刷新后选择英语、日语等音色，保存时会自动切换到该音色对应语言。
+              </p>
+            ) : null}
+
             {ttsVoiceLookup.kind === "loaded" && ttsVoiceLookup.voices.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-2">
                 {ttsVoiceLookup.voices.slice(0, 24).map((voice, index) => (
@@ -330,7 +347,7 @@ export default async function AiSettingsPage({
                       }
                       name="ttsVoiceSelection"
                       type="radio"
-                      value={`${voice.id}|||${voice.name}`}
+                      value={`${voice.id}|||${voice.name}|||${voice.languageCode || ""}`}
                     />
                     <span>
                       <span className="block font-semibold text-ink-950">
@@ -888,7 +905,7 @@ function sourceLabel(source: "file" | "environment" | "default") {
   return "默认值";
 }
 
-function settingsSavedMessage(saved?: string) {
+function settingsSavedMessage(saved?: string, detail?: string) {
   if (saved === "ai") {
     return {
       kind: "success",
@@ -965,7 +982,9 @@ function settingsSavedMessage(saved?: string) {
     return {
       kind: "error",
       title: "音色试听失败",
-      description: "TTS 接口没有返回可用音频，请检查 API Key、模型、音色 ID 和语言设置。",
+      description: detail
+        ? `TTS 接口调用失败：${detail}`
+        : "TTS 接口没有返回可用音频，请检查 API Key、模型、音色 ID 和语言设置。",
     };
   }
 
