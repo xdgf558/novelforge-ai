@@ -32,6 +32,7 @@ import {
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyExportPanel } from "@/components/copy-export-panel";
 import { PublishSubmitButton } from "@/components/publish-submit-button";
+import { WechatLayoutExportPanel } from "@/components/publish/wechat-layout-export-panel";
 import { expireStaleCoverImageTasks } from "@/lib/ai/cover-image-task-maintenance";
 import {
   readImageGenerationSettings,
@@ -156,6 +157,45 @@ export default async function PublishPage({
   const latestGlobalStationCatRun = globalStationCatTarget?.runs[0] ?? null;
   const visiblePublishPackages = project.publishPackages.slice(0, 1);
   const hiddenPublishPackages = project.publishPackages.slice(1);
+  const latestPublishPackageByChapter = new Map<
+    string,
+    {
+      commentGuide?: string | null;
+      endingQuestion?: string | null;
+      nextChapterPreview?: string | null;
+      openingGuide?: string | null;
+      selectedTitle?: string | null;
+    }
+  >();
+
+  for (const publishPackage of project.publishPackages) {
+    if (!latestPublishPackageByChapter.has(publishPackage.chapterId)) {
+      latestPublishPackageByChapter.set(publishPackage.chapterId, {
+        commentGuide: publishPackage.commentGuide,
+        endingQuestion: publishPackage.endingQuestion,
+        nextChapterPreview: publishPackage.nextChapterPreview,
+        openingGuide: publishPackage.openingGuide,
+        selectedTitle: publishPackage.selectedTitle,
+      });
+    }
+  }
+
+  const wechatLayoutChapters = project.chapters
+    .map((chapter) => ({
+      id: chapter.id,
+      chapterNumber: chapter.chapterNumber,
+      draftText: chapter.draftText,
+      finalText: chapter.finalText,
+      latestPublishPackage: latestPublishPackageByChapter.get(chapter.id) ?? null,
+      polishedText: chapter.polishedText,
+      title: chapter.title,
+    }))
+    .filter(
+      (chapter) =>
+        chapter.polishedText?.trim() ||
+        chapter.finalText?.trim() ||
+        chapter.draftText?.trim(),
+    );
   const renderPublishPackageCard = (
     publishPackage: (typeof project.publishPackages)[number],
   ) => {
@@ -280,13 +320,13 @@ export default async function PublishPage({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-signal-600">
-              Phase 18B / Station Cat 发布联调
+              Phase 26 / 公众号排版导出增强
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink-950">
               {project.title} 发布与导出
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
-              生成公众号发布包装、项目导出，并把 Station Cat 目标接入真实导入 API。默认导入为草稿，直接发布需要显式选择。
+              生成公众号发布包装、排版导出和项目备份，并把 Station Cat 目标接入真实导入 API。默认排版模式只整理格式，不改正文。
             </p>
           </div>
         </div>
@@ -309,6 +349,11 @@ export default async function PublishPage({
           value={`${formatNumber(project._count.aiTasks)} 条`}
         />
       </section>
+
+      <WechatLayoutExportPanel
+        chapters={wechatLayoutChapters}
+        projectTitle={project.title}
+      />
 
       <section className="space-y-5 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
         <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">

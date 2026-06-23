@@ -1,5 +1,25 @@
 # Development Log
 
+## 2026-06-23: 0.1.47 WeChat Layout Export Enhancement
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.47`.
+- Added a deterministic “公众号排版导出” panel to the project publish page.
+- The formatter automatically reads the best available chapter text in this order: `polishedText -> finalText -> draftText`.
+- Added two author-facing templates: “微信公众号正文粘贴版” without repeated title/author for direct WeChat editor body paste, and “微信公众号完整发布版” with title, author, body, and follow hook.
+- Added one-click plain-text copy plus TXT, Markdown, and HTML downloads from the same formatted output.
+- Kept the default mode as “只排版，不改文”: the formatter normalizes blank lines, removes leading duplicate chapter titles/dividers, preserves section headings such as “一、二、三”, and strips obvious AI beat structure headings without changing story prose.
+- Existing AI publish packages can now be used as optional title/opening/ending candidates through a client-side “套用候选” helper; applying a candidate only fills the export form and never mutates formal chapter text or story memory.
+
+Verification:
+
+- `npm run test -- lib/wechat-layout-export.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-23: 0.1.46 Segmented Chapter Polish
 
 Status: completed.
