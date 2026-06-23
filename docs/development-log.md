@@ -1,5 +1,29 @@
 # Development Log
 
+## 2026-06-23: 0.1.43 Compact Module UI Package
+
+Status: completed.
+
+What was done:
+
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.43-mac-arm64.pkg`.
+- Used the current `main` code after the compact module UI and TTS proxy hardening PR was merged.
+- The normal Developer ID signing path stalled on Apple's timestamp step, so the final personal-use package used the established local ad-hoc signed app payload path.
+- Cleaned `release/desktop` after packaging so only the final 0.1.43 PKG handoff remains.
+
+Verification:
+
+- `npm run desktop:smoke` passed.
+- `npm run typecheck` passed.
+- `npm run test -- lib/server-fetch.test.ts lib/ai/local-config.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run build` passed through the packaging flow.
+- Built the macOS app payload with electron-builder's directory target and macOS identity disabled to avoid Apple timestamp stalls during personal-use packaging.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the packaged app still uses `runDesktopMigrations` and does not rely on Prisma CLI startup migrations.
+- `pkgbuild` created the final PKG with `install-location="/Applications"` and bundle `CFBundleShortVersionString="0.1.43"`.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `f11211cac0a66e66862162b3490fb5bed90723f9a72d9b2171d3ad21fcd0963a`.
+
 ## 2026-06-23: 0.1.43 Compact Module UI Pass
 
 Status: completed.
