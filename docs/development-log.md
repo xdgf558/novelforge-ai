@@ -12,10 +12,15 @@ What was done:
 - A segmented polish task is marked completed only after every segment returns usable text; failed or empty segment output fails the whole task instead of producing a partial `polishedText` candidate.
 - Updated the chapter polish panel to distinguish legacy excerpt-preview tasks from new automatic segmented polish tasks. Legacy excerpt tasks remain non-adoptable; completed segmented tasks can be adopted like normal full polish output.
 - Preserved author control: segmented polish still writes only to `ai_tasks` first, and only moves into `Chapter.polishedText` after explicit author adoption.
+- Hardened Gemini TTS responses by reading base64 JSON with content-length and streaming byte caps before JSON parsing, then validating decoded audio/WAV size before local storage.
+- Reduced Gemini TTS segment sizing to a WAV-byte-budget-aware limit so normal Gemini segments stay below the local 20 MB audio asset cap.
+- Blocked retry of historical PPQ/legacy audiobook exports under the current Google provider; old failed records now show a clear “new export required” path.
+- Added tests for segmented polish runner ordering/failure behavior, Gemini JSON size limits, Gemini WAV budget, and legacy-provider retry blocking.
 
 Verification:
 
 - `npm run test -- lib/ai/chapter-polishes.test.ts lib/audio/providers/google-gemini-tts.test.ts lib/ai/local-config.test.ts lib/audio/audio-assets.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run test -- lib/audio/providers/google-gemini-tts.test.ts lib/audio/estimate-cost.test.ts lib/audio/export-runner.test.ts app/projects/[projectId]/audiobook/actions.test.ts app/projects/[projectId]/chapters/actions.test.ts` passed.
 - `npm run typecheck` passed.
 - `npm run build` passed.
 - `npm run desktop:smoke` passed.

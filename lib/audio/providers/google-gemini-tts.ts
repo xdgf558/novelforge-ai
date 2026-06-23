@@ -6,7 +6,8 @@ import {
   type TtsGenerationSecrets,
 } from "@/lib/ai/local-config";
 import { createServerFetch } from "@/lib/server-fetch";
-import { estimateAudioDurationSeconds } from "../estimate-cost";
+import { maxAudioSegmentBytes } from "../audio-assets";
+import { estimateAudioDurationSeconds, geminiTtsInputLimit } from "../estimate-cost";
 import type {
   TtsCostEstimate,
   TtsProvider,
@@ -22,6 +23,8 @@ const ttsRequestTimeoutMs = 180_000;
 const geminiPcmSampleRate = 24_000;
 const geminiPcmChannels = 1;
 const geminiBitsPerSample = 16;
+export const maxGeminiJsonBytes =
+  Math.ceil(maxAudioSegmentBytes * 1.4) + 1024 * 1024;
 
 export const googleGeminiTtsModelOptions = [
   {
@@ -87,7 +90,7 @@ export class GoogleGeminiTtsProvider implements TtsProvider {
   }
 
   maxInputChars() {
-    return 3000;
+    return geminiTtsInputLimit();
   }
 
   async listVoices(): Promise<TtsVoice[]> {
@@ -141,7 +144,10 @@ export class GoogleGeminiTtsProvider implements TtsProvider {
       },
       ttsRequestTimeoutMs,
     );
-    const responseText = await response.text();
+    const responseText = await readTextResponseWithLimit(
+      response,
+      maxGeminiJsonBytes,
+    );
     const responseJson = parseJsonResponse(responseText);
 
     if (!response.ok) {
@@ -242,22 +248,80 @@ export function extractGeminiAudio(responseJson: unknown) {
     }
 
     const audioBytes = Buffer.from(data, "base64");
+
+    if (audioBytes.byteLength <= 0) {
+      throw new Error("Google Gemini TTS 返回了空音频数据。");
+    }
+
     const normalizedMimeType = mimeType.toLowerCase();
 
     if (normalizedMimeType.includes("wav")) {
+      assertGeminiAudioSize(audioBytes);
+
       return {
         audioBytes,
         mimeType,
       };
     }
 
+    const wavBytes = wrapPcm16AsWav(audioBytes, sampleRateFromMimeType(mimeType));
+    assertGeminiAudioSize(wavBytes);
+
     return {
-      audioBytes: wrapPcm16AsWav(audioBytes, sampleRateFromMimeType(mimeType)),
+      audioBytes: wavBytes,
       mimeType,
     };
   }
 
   throw new Error("Google Gemini TTS 没有返回音频数据。");
+}
+
+export async function readTextResponseWithLimit(
+  response: Response,
+  maxBytes: number,
+) {
+  const contentLength = Number(response.headers.get("content-length") || "");
+
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    throw new Error("Google Gemini TTS 响应超过本地读取上限。");
+  }
+
+  if (!response.body) {
+    const text = await response.text();
+    const textBytes = new TextEncoder().encode(text).byteLength;
+
+    if (textBytes > maxBytes) {
+      throw new Error("Google Gemini TTS 响应超过本地读取上限。");
+    }
+
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    totalBytes += value.byteLength;
+
+    if (totalBytes > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new Error("Google Gemini TTS 响应超过本地读取上限。");
+    }
+
+    chunks.push(decoder.decode(value, { stream: true }));
+  }
+
+  chunks.push(decoder.decode());
+
+  return chunks.join("");
 }
 
 function geminiResponseParts(responseJson: unknown) {
@@ -342,6 +406,12 @@ function parseJsonResponse(responseText: string) {
     return JSON.parse(responseText) as unknown;
   } catch {
     return null;
+  }
+}
+
+function assertGeminiAudioSize(audioBytes: Buffer) {
+  if (audioBytes.byteLength > maxAudioSegmentBytes) {
+    throw new Error("Google Gemini TTS 音频超过本地保存上限。");
   }
 }
 

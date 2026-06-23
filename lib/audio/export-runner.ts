@@ -48,6 +48,13 @@ export async function processAudioExport({
     }
 
     const provider = getConfiguredTtsProvider();
+
+    if (provider.id !== audioExport.providerId) {
+      throw new Error(
+        "该有声导出记录使用旧 TTS 供应商，请新建一次当前供应商的导出任务。",
+      );
+    }
+
     const chunks = chunkAudioText(sourceText.text, {
       maxChars: modelInputLimit(audioExport.modelId),
     });

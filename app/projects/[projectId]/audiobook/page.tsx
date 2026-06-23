@@ -380,6 +380,7 @@ export default async function AudiobookPage({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {audioExport.failedSegments > 0 &&
+                  audioExport.providerId === ttsSettings.providerId &&
                   !["pending", "running"].includes(audioExport.status) ? (
                     <form
                       action={retryFailedAudioExportSegments.bind(
@@ -397,6 +398,12 @@ export default async function AudiobookPage({
                         value={`retry-${audioExport.id}`}
                       />
                     </form>
+                  ) : null}
+                  {audioExport.failedSegments > 0 &&
+                  audioExport.providerId !== ttsSettings.providerId ? (
+                    <p className="max-w-xs rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900">
+                      旧供应商导出记录不能用当前 Gemini 配置重试，请新建一次导出任务。
+                    </p>
                   ) : null}
                   <form
                     action={openAudioExportFolder.bind(
@@ -489,6 +496,10 @@ function audioErrorMessage(error?: string) {
 
   if (error === "activeExport") {
     return "这章已经有有声导出正在进行中，请等待当前任务完成后再重新导出，避免重复扣费。";
+  }
+
+  if (error === "legacyProviderExport") {
+    return "这是旧供应商的有声导出记录，不能用当前 Google Gemini 配置重试。请新建一次有声导出任务。";
   }
 
   return "";

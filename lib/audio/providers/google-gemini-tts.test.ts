@@ -4,6 +4,7 @@ import {
   extractGeminiAudio,
   GoogleGeminiTtsProvider,
   googleGeminiVoiceOptions,
+  maxGeminiJsonBytes,
   wrapPcm16AsWav,
 } from "./google-gemini-tts";
 
@@ -75,6 +76,27 @@ describe("Google Gemini TTS provider", () => {
     expect(audio.mimeType).toBe("audio/L16;codec=pcm;rate=24000");
   });
 
+  it("rejects empty inline Gemini audio data", () => {
+    expect(() =>
+      extractGeminiAudio({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  inlineData: {
+                    data: "",
+                    mimeType: "audio/L16;codec=pcm;rate=24000",
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    ).toThrow("没有返回音频数据");
+  });
+
   it("calls Gemini generateContent and returns WAV bytes", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(
@@ -132,5 +154,81 @@ describe("Google Gemini TTS provider", () => {
     expect(result.contentType).toBe("audio/wav");
     expect(result.audioBytes.subarray(0, 4).toString("ascii")).toBe("RIFF");
     expect(result.providerRequestId).toBe("req_123");
+  });
+
+  it("rejects Gemini JSON responses with oversized content-length", async () => {
+    const fetchImpl = vi.fn(async () =>
+      new Response("{}", {
+        headers: {
+          "content-length": String(maxGeminiJsonBytes + 1),
+          "content-type": "application/json",
+        },
+        status: 200,
+      }),
+    );
+    const provider = new GoogleGeminiTtsProvider({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      settings: {
+        apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
+        apiKey: "google-key",
+      },
+    });
+
+    await expect(
+      provider.synthesizeSegment({
+        inputText: "你好。",
+        languageCode: "cmn",
+        modelId: "gemini-2.5-flash-preview-tts",
+        outputFormat: "wav",
+        providerId: "google_tts",
+        voiceId: "Kore",
+      }),
+    ).rejects.toThrow("超过本地读取上限");
+  });
+
+  it("rejects Gemini JSON responses that stream past the size limit", async () => {
+    const chunk = new Uint8Array(1024 * 1024).fill("x".charCodeAt(0));
+    const totalChunks = Math.ceil(maxGeminiJsonBytes / chunk.byteLength) + 1;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (controller.desiredSize == null) {
+          controller.close();
+          return;
+        }
+
+        controller.enqueue(chunk);
+
+        if (--remainingChunks <= 0) {
+          controller.close();
+        }
+      },
+    });
+    let remainingChunks = totalChunks;
+    const fetchImpl = vi.fn(async () =>
+      new Response(stream, {
+        headers: {
+          "content-type": "application/json",
+        },
+        status: 200,
+      }),
+    );
+    const provider = new GoogleGeminiTtsProvider({
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      settings: {
+        apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
+        apiKey: "google-key",
+      },
+    });
+
+    await expect(
+      provider.synthesizeSegment({
+        inputText: "你好。",
+        languageCode: "cmn",
+        modelId: "gemini-2.5-flash-preview-tts",
+        outputFormat: "wav",
+        providerId: "google_tts",
+        voiceId: "Kore",
+      }),
+    ).rejects.toThrow("超过本地读取上限");
   });
 });

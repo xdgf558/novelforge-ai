@@ -457,7 +457,7 @@ export async function generateChapterPolish(projectId: string, chapterId: string
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
-async function completeRunningSegmentedChapterPolishTask({
+export async function completeRunningSegmentedChapterPolishTask({
   taskId,
   model,
   systemPrompt,

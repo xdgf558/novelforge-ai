@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { adoptChapterPolish, updateChapter } from "./actions";
+import {
+  adoptChapterPolish,
+  completeRunningSegmentedChapterPolishTask,
+  updateChapter,
+} from "./actions";
 
 const mocks = vi.hoisted(() => {
   const tx = {
@@ -39,6 +43,16 @@ const mocks = vi.hoisted(() => {
       $transaction: vi.fn(),
     },
     tx,
+    createOpenAITextResponse: vi.fn(),
+    markAiTaskCompleted: vi.fn(),
+    markAiTaskFailed: vi.fn(),
+    taskLogger: {
+      createAiTask: vi.fn(),
+      markAiTaskCompleted: vi.fn(),
+      markAiTaskFailed: vi.fn(),
+      markAiTaskRunning: vi.fn(),
+      startLoggedOpenAITextTask: vi.fn(),
+    },
   };
 });
 
@@ -53,6 +67,18 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mocks.prisma,
+}));
+
+vi.mock("@/lib/ai/openai-client", () => ({
+  createOpenAITextResponse: mocks.createOpenAITextResponse,
+}));
+
+vi.mock("@/lib/ai/task-logger", () => ({
+  createAiTask: mocks.taskLogger.createAiTask,
+  markAiTaskCompleted: mocks.markAiTaskCompleted,
+  markAiTaskFailed: mocks.markAiTaskFailed,
+  markAiTaskRunning: mocks.taskLogger.markAiTaskRunning,
+  startLoggedOpenAITextTask: mocks.taskLogger.startLoggedOpenAITextTask,
 }));
 
 const baseChapter = {
@@ -117,6 +143,9 @@ describe("chapter actions", () => {
     mocks.tx.aiTask.updateMany.mockResolvedValue({
       count: 1,
     });
+    mocks.createOpenAITextResponse.mockReset();
+    mocks.markAiTaskCompleted.mockReset();
+    mocks.markAiTaskFailed.mockReset();
   });
 
   it("adopts a polish task into polishedText without touching finalText", async () => {
@@ -286,5 +315,145 @@ describe("chapter actions", () => {
     );
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.tx.chapterVersion.create).not.toHaveBeenCalled();
+  });
+
+  it("runs segmented polish in order and stores stitched output with token totals", async () => {
+    mocks.createOpenAITextResponse
+      .mockResolvedValueOnce({
+        outputText: " 第一段精修 ",
+        responseJson: {},
+        usage: {
+          inputTokens: 10,
+          outputTokens: 20,
+          totalTokens: 30,
+        },
+      })
+      .mockResolvedValueOnce({
+        outputText: "第二段精修",
+        responseJson: {},
+        usage: {
+          inputTokens: 11,
+          outputTokens: 21,
+          totalTokens: 32,
+        },
+      });
+    mocks.markAiTaskCompleted.mockResolvedValue({});
+
+    await completeRunningSegmentedChapterPolishTask({
+      taskId: "task_1",
+      model: "deepseek-v4-pro",
+      systemPrompt: "系统提示",
+      developerPrompt: "开发提示",
+      segments: [
+        {
+          inputText: "第一段输入",
+          inputJson: {},
+          segment: {
+            count: 2,
+            index: 1,
+            nextHead: "",
+            previousTail: "",
+            sourceTextLength: 100,
+            text: "第一段原文",
+          },
+        },
+        {
+          inputText: "第二段输入",
+          inputJson: {},
+          segment: {
+            count: 2,
+            index: 2,
+            nextHead: "",
+            previousTail: "",
+            sourceTextLength: 120,
+            text: "第二段原文",
+          },
+        },
+      ],
+    });
+
+    expect(mocks.createOpenAITextResponse).toHaveBeenNthCalledWith(1, {
+      developerPrompt: "开发提示",
+      input: "第一段输入",
+      model: "deepseek-v4-pro",
+      systemPrompt: "系统提示",
+    });
+    expect(mocks.createOpenAITextResponse).toHaveBeenNthCalledWith(2, {
+      developerPrompt: "开发提示",
+      input: "第二段输入",
+      model: "deepseek-v4-pro",
+      systemPrompt: "系统提示",
+    });
+    expect(mocks.markAiTaskCompleted).toHaveBeenCalledWith("task_1", {
+      outputText: "第一段精修\n\n第二段精修",
+      outputJson: {
+        strategy: "segmented",
+        segmentCount: 2,
+        segments: [
+          {
+            index: 1,
+            inputLength: 100,
+            outputLength: 5,
+            usage: {
+              inputTokens: 10,
+              outputTokens: 20,
+              totalTokens: 30,
+            },
+          },
+          {
+            index: 2,
+            inputLength: 120,
+            outputLength: 5,
+            usage: {
+              inputTokens: 11,
+              outputTokens: 21,
+              totalTokens: 32,
+            },
+          },
+        ],
+      },
+      tokenInput: 21,
+      tokenOutput: 41,
+      tokenTotal: 62,
+    });
+    expect(mocks.markAiTaskFailed).not.toHaveBeenCalled();
+  });
+
+  it("marks segmented polish failed when a segment returns empty output", async () => {
+    mocks.createOpenAITextResponse.mockResolvedValueOnce({
+      outputText: "   ",
+      responseJson: {},
+      usage: {},
+    });
+    mocks.markAiTaskFailed.mockResolvedValue({});
+
+    await expect(
+      completeRunningSegmentedChapterPolishTask({
+        taskId: "task_1",
+        model: "deepseek-v4-pro",
+        systemPrompt: "系统提示",
+        developerPrompt: "开发提示",
+        segments: [
+          {
+            inputText: "第一段输入",
+            inputJson: {},
+            segment: {
+              count: 1,
+              index: 1,
+              nextHead: "",
+              previousTail: "",
+              sourceTextLength: 100,
+              text: "第一段原文",
+            },
+          },
+        ],
+      }),
+    ).rejects.toThrow("没有返回可用正文");
+
+    expect(mocks.markAiTaskCompleted).not.toHaveBeenCalled();
+    expect(mocks.markAiTaskFailed).toHaveBeenCalledWith(
+      "task_1",
+      expect.any(Error),
+    );
   });
 });

@@ -189,6 +189,7 @@ export async function retryFailedAudioExportSegments(
   projectId: string,
   audioExportId: string,
 ) {
+  const secrets = readTtsGenerationSecrets();
   const retryLock = await prisma.$transaction(async (tx) => {
     const locked = await tx.audioExport.updateMany({
       where: {
@@ -200,6 +201,7 @@ export async function retryFailedAudioExportSegments(
         status: {
           in: ["failed", "partial_success"],
         },
+        providerId: secrets.providerId,
       },
       data: {
         completedAt: null,
@@ -273,6 +275,7 @@ export async function retryFailedAudioExportSegments(
       },
       select: {
         id: true,
+        providerId: true,
       },
     });
 
@@ -281,7 +284,13 @@ export async function retryFailedAudioExportSegments(
     }
 
     revalidateAudiobookPaths(projectId);
-    redirect(`/projects/${projectId}/audiobook?audioError=activeExport`);
+    redirect(
+      `/projects/${projectId}/audiobook?audioError=${
+        existingExport.providerId === secrets.providerId
+          ? "activeExport"
+          : "legacyProviderExport"
+      }`,
+    );
   }
 
   if (retryLock.segmentIndexes.length === 0) {

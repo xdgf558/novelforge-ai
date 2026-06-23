@@ -109,6 +109,7 @@ describe("audiobook actions", () => {
   it("does not create another export when the chapter already has an active export", async () => {
     mocks.prisma.audioExport.findFirst.mockResolvedValue({
       id: "audio_export_1",
+      providerId: "ppq_tts",
     });
 
     await expect(
@@ -155,6 +156,7 @@ describe("audiobook actions", () => {
     });
     mocks.prisma.audioExport.findFirst.mockResolvedValue({
       id: "audio_export_1",
+      providerId: "ppq_tts",
     });
 
     await expect(
@@ -168,6 +170,7 @@ describe("audiobook actions", () => {
         },
         id: "audio_export_1",
         projectId: "project_1",
+        providerId: "ppq_tts",
         status: {
           in: ["failed", "partial_success"],
         },
@@ -182,6 +185,37 @@ describe("audiobook actions", () => {
     expect(mocks.processAudioExport).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/audiobook?audioError=activeExport",
+    );
+  });
+
+  it("does not retry failed segments from an old provider with current settings", async () => {
+    mocks.readTtsGenerationSecrets.mockReturnValue({
+      apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
+      apiKey: "google-key",
+      languageCode: "cmn",
+      model: "gemini-2.5-flash-preview-tts",
+      outputFormat: "wav",
+      providerId: "google_tts",
+      stylePrompt: "中文旁白",
+      voiceId: "Kore",
+      voiceName: "Kore - Firm",
+    });
+    mocks.prisma.audioExport.updateMany.mockResolvedValue({
+      count: 0,
+    });
+    mocks.prisma.audioExport.findFirst.mockResolvedValue({
+      id: "audio_export_1",
+      providerId: "ppq_tts",
+    });
+
+    await expect(
+      retryFailedAudioExportSegments("project_1", "audio_export_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.audioExportSegment.updateMany).not.toHaveBeenCalled();
+    expect(mocks.processAudioExport).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/audiobook?audioError=legacyProviderExport",
     );
   });
 
