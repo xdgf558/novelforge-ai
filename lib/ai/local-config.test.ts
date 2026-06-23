@@ -424,27 +424,27 @@ describe("TTS generation local config", () => {
       parseTtsGenerationEnv(
         [
           "# audiobook config",
-          "TTS_PROVIDER_ID=ppq_tts",
+          "TTS_PROVIDER_ID=google_tts",
           "TTS_API_KEY=\"tts-key\"",
-          "TTS_API_BASE_URL=https://api.ppq.ai/v1/",
-          "TTS_MODEL=eleven_multilingual_v2",
-          "TTS_VOICE_ID=voice-1",
-          "TTS_VOICE_NAME=George",
-          "TTS_LANGUAGE_CODE=zh",
-          "TTS_OUTPUT_FORMAT=mp3",
+          "TTS_API_BASE_URL=https://generativelanguage.googleapis.com/v1beta/",
+          "TTS_MODEL=gemini-2.5-flash-preview-tts",
+          "TTS_VOICE_ID=Kore",
+          "TTS_VOICE_NAME=Kore - Firm",
+          "TTS_LANGUAGE_CODE=cmn",
+          "TTS_OUTPUT_FORMAT=wav",
           "TTS_STYLE_PROMPT=中文小说旁白",
           "IMAGE_API_KEY=ignored",
         ].join("\n"),
       ),
     ).toEqual({
-      TTS_PROVIDER_ID: "ppq_tts",
+      TTS_PROVIDER_ID: "google_tts",
       TTS_API_KEY: "tts-key",
-      TTS_API_BASE_URL: "https://api.ppq.ai/v1/",
-      TTS_MODEL: "eleven_multilingual_v2",
-      TTS_VOICE_ID: "voice-1",
-      TTS_VOICE_NAME: "George",
-      TTS_LANGUAGE_CODE: "zh",
-      TTS_OUTPUT_FORMAT: "mp3",
+      TTS_API_BASE_URL: "https://generativelanguage.googleapis.com/v1beta/",
+      TTS_MODEL: "gemini-2.5-flash-preview-tts",
+      TTS_VOICE_ID: "Kore",
+      TTS_VOICE_NAME: "Kore - Firm",
+      TTS_LANGUAGE_CODE: "cmn",
+      TTS_OUTPUT_FORMAT: "wav",
       TTS_STYLE_PROMPT: "中文小说旁白",
     });
   });
@@ -462,15 +462,15 @@ describe("TTS generation local config", () => {
 
     const settings = saveTtsGenerationSettings(
       {
-        apiBaseUrl: "https://api.ppq.ai/v1/",
+        apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta/",
         apiKey: "tts-secret",
-        languageCode: "zh",
-        model: "eleven_multilingual_v2",
-        outputFormat: "mp3",
-        providerId: "ppq_tts",
+        languageCode: "cmn",
+        model: "gemini-2.5-flash-preview-tts",
+        outputFormat: "wav",
+        providerId: "google_tts",
         stylePrompt: "中文长篇小说旁白",
-        voiceId: "voice-1",
-        voiceName: "George",
+        voiceId: "Kore",
+        voiceName: "Kore - Firm",
       },
       {
         NOVELFORGE_AI_CONFIG_PATH: configPath,
@@ -479,20 +479,22 @@ describe("TTS generation local config", () => {
     const savedContent = fs.readFileSync(configPath, "utf8");
 
     expect(settings).toMatchObject({
-      apiBaseUrl: "https://api.ppq.ai/v1",
+      apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
       hasApiKey: true,
-      languageCode: "zh",
-      model: "eleven_multilingual_v2",
+      languageCode: "cmn",
+      model: "gemini-2.5-flash-preview-tts",
       source: "file",
-      voiceId: "voice-1",
+      voiceId: "Kore",
     });
     expect(savedContent).toContain("OPENAI_API_KEY=sk-existing");
     expect(savedContent).toContain("IMAGE_API_KEY=image-secret");
     expect(savedContent).toContain("STATION_CAT_PUBLISH_TOKEN=station-token");
     expect(savedContent).toContain('TTS_API_KEY="tts-secret"');
-    expect(savedContent).toContain('TTS_API_BASE_URL="https://api.ppq.ai/v1"');
-    expect(savedContent).toContain('TTS_MODEL="eleven_multilingual_v2"');
-    expect(savedContent).toContain('TTS_VOICE_ID="voice-1"');
+    expect(savedContent).toContain(
+      'TTS_API_BASE_URL="https://generativelanguage.googleapis.com/v1beta"',
+    );
+    expect(savedContent).toContain('TTS_MODEL="gemini-2.5-flash-preview-tts"');
+    expect(savedContent).toContain('TTS_VOICE_ID="Kore"');
   });
 
   it("can clear the saved TTS API key without losing defaults", () => {
@@ -533,23 +535,52 @@ describe("TTS generation local config", () => {
     expect(settings.languageCode).toBe(DEFAULT_TTS_LANGUAGE_CODE);
   });
 
-  it("reports TTS environment config when no file config exists", () => {
+  it("migrates legacy PPQ TTS settings to Google Gemini defaults", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "TTS_PROVIDER_ID=ppq_tts",
+        "TTS_API_KEY=ppq-existing",
+        "TTS_API_BASE_URL=https://api.ppq.ai/v1",
+        "TTS_MODEL=eleven_multilingual_v2",
+        "TTS_VOICE_ID=old-voice",
+        "TTS_OUTPUT_FORMAT=mp3",
+      ].join("\n"),
+    );
+
     const settings = readTtsGenerationSettings({
-      NOVELFORGE_AI_CONFIG_PATH: makeTempConfigPath(),
-      TTS_API_BASE_URL: "https://env.tts.example/v1",
-      TTS_API_KEY: "env-tts-key",
-      TTS_LANGUAGE_CODE: "zh",
-      TTS_MODEL: "eleven_flash_v2_5",
-      TTS_PROVIDER_ID: "ppq_tts",
-      TTS_VOICE_ID: "voice-env",
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
     });
 
     expect(settings).toMatchObject({
-      apiBaseUrl: "https://env.tts.example/v1",
+      apiBaseUrl: DEFAULT_TTS_API_BASE_URL,
+      hasApiKey: false,
+      languageCode: DEFAULT_TTS_LANGUAGE_CODE,
+      model: DEFAULT_TTS_MODEL,
+      outputFormat: "wav",
+      providerId: "google_tts",
+      voiceId: "Kore",
+    });
+  });
+
+  it("reports TTS environment config when no file config exists", () => {
+    const settings = readTtsGenerationSettings({
+      NOVELFORGE_AI_CONFIG_PATH: makeTempConfigPath(),
+      TTS_API_BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
+      TTS_API_KEY: "env-tts-key",
+      TTS_LANGUAGE_CODE: "cmn",
+      TTS_MODEL: "gemini-2.5-pro-preview-tts",
+      TTS_PROVIDER_ID: "google_tts",
+      TTS_VOICE_ID: "Kore",
+    });
+
+    expect(settings).toMatchObject({
+      apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta",
       hasApiKey: true,
-      model: "eleven_flash_v2_5",
+      model: "gemini-2.5-pro-preview-tts",
       source: "environment",
-      voiceId: "voice-env",
+      voiceId: "Kore",
     });
   });
 });

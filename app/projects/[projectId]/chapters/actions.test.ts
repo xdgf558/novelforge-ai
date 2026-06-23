@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { adoptChapterPolish, updateChapter } from "./actions";
+import {
+  adoptChapterPolish,
+  updateChapter,
+} from "./actions";
 
 const mocks = vi.hoisted(() => {
   const tx = {
@@ -39,6 +42,16 @@ const mocks = vi.hoisted(() => {
       $transaction: vi.fn(),
     },
     tx,
+    createOpenAITextResponse: vi.fn(),
+    markAiTaskCompleted: vi.fn(),
+    markAiTaskFailed: vi.fn(),
+    taskLogger: {
+      createAiTask: vi.fn(),
+      markAiTaskCompleted: vi.fn(),
+      markAiTaskFailed: vi.fn(),
+      markAiTaskRunning: vi.fn(),
+      startLoggedOpenAITextTask: vi.fn(),
+    },
   };
 });
 
@@ -53,6 +66,18 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mocks.prisma,
+}));
+
+vi.mock("@/lib/ai/openai-client", () => ({
+  createOpenAITextResponse: mocks.createOpenAITextResponse,
+}));
+
+vi.mock("@/lib/ai/task-logger", () => ({
+  createAiTask: mocks.taskLogger.createAiTask,
+  markAiTaskCompleted: mocks.markAiTaskCompleted,
+  markAiTaskFailed: mocks.markAiTaskFailed,
+  markAiTaskRunning: mocks.taskLogger.markAiTaskRunning,
+  startLoggedOpenAITextTask: mocks.taskLogger.startLoggedOpenAITextTask,
 }));
 
 const baseChapter = {
@@ -117,6 +142,9 @@ describe("chapter actions", () => {
     mocks.tx.aiTask.updateMany.mockResolvedValue({
       count: 1,
     });
+    mocks.createOpenAITextResponse.mockReset();
+    mocks.markAiTaskCompleted.mockReset();
+    mocks.markAiTaskFailed.mockReset();
   });
 
   it("adopts a polish task into polishedText without touching finalText", async () => {
@@ -287,4 +315,5 @@ describe("chapter actions", () => {
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.tx.chapterVersion.create).not.toHaveBeenCalled();
   });
+
 });

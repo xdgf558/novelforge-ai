@@ -7,6 +7,7 @@ import {
 import { chunkAudioText } from "./chunk-text";
 import { modelInputLimit } from "./estimate-cost";
 import { getConfiguredTtsProvider } from "./providers/registry";
+import type { TtsProviderId } from "./providers/types";
 import { resolveChapterAudioSourceText } from "./text-source";
 
 type ProcessAudioExportOptions = {
@@ -47,6 +48,13 @@ export async function processAudioExport({
     }
 
     const provider = getConfiguredTtsProvider();
+
+    if (provider.id !== audioExport.providerId) {
+      throw new Error(
+        "该有声导出记录使用旧 TTS 供应商，请新建一次当前供应商的导出任务。",
+      );
+    }
+
     const chunks = chunkAudioText(sourceText.text, {
       maxChars: modelInputLimit(audioExport.modelId),
     });
@@ -88,7 +96,7 @@ export async function processAudioExport({
 
       try {
         const result = await provider.synthesizeSegment({
-          providerId: "ppq_tts",
+          providerId: audioExport.providerId as TtsProviderId,
           inputText: chunk.text,
           languageCode: audioExport.languageCode,
           modelId: audioExport.modelId,

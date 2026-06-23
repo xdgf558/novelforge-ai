@@ -21,7 +21,7 @@ import {
   formatEstimatedCost,
   modelInputLimit,
 } from "@/lib/audio/estimate-cost";
-import { ppqTtsModelOptions } from "@/lib/audio/providers/registry";
+import { ttsModelOptions } from "@/lib/audio/providers/registry";
 import {
   audioSourceTextTypeLabel,
   resolveChapterAudioSourceText,
@@ -236,7 +236,7 @@ export default async function AudiobookPage({
               defaultValue={ttsSettings.model}
               name="modelId"
             >
-              {ppqTtsModelOptions.map((option) => (
+              {ttsModelOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -245,12 +245,12 @@ export default async function AudiobookPage({
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-semibold text-ink-800">音色 ID</span>
+            <span className="text-sm font-semibold text-ink-800">音色 voice name</span>
             <input
               className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
               defaultValue={ttsSettings.voiceId}
               name="voiceId"
-              placeholder="未填写时使用供应商默认音色"
+              placeholder="例如：Kore"
               type="text"
             />
             <input name="voiceName" type="hidden" value={ttsSettings.voiceName} />
@@ -273,9 +273,7 @@ export default async function AudiobookPage({
               defaultValue={ttsSettings.outputFormat}
               name="outputFormat"
             >
-              <option value="mp3">MP3</option>
               <option value="wav">WAV</option>
-              <option value="ogg">OGG</option>
             </select>
           </label>
 
@@ -382,6 +380,7 @@ export default async function AudiobookPage({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {audioExport.failedSegments > 0 &&
+                  audioExport.providerId === ttsSettings.providerId &&
                   !["pending", "running"].includes(audioExport.status) ? (
                     <form
                       action={retryFailedAudioExportSegments.bind(
@@ -399,6 +398,12 @@ export default async function AudiobookPage({
                         value={`retry-${audioExport.id}`}
                       />
                     </form>
+                  ) : null}
+                  {audioExport.failedSegments > 0 &&
+                  audioExport.providerId !== ttsSettings.providerId ? (
+                    <p className="max-w-xs rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900">
+                      旧供应商导出记录不能用当前 Gemini 配置重试，请新建一次导出任务。
+                    </p>
                   ) : null}
                   <form
                     action={openAudioExportFolder.bind(
@@ -478,7 +483,7 @@ function audioExportStatusLabel(status: string) {
 
 function audioErrorMessage(error?: string) {
   if (error === "missingTtsApiKey") {
-    return "还没有配置 PPQ TTS API Key，请先到本机设置里保存有声导出参数。";
+    return "还没有配置 Google Gemini API Key，请先到本机设置里保存有声导出参数。";
   }
 
   if (error === "missingChapterText") {
@@ -491,6 +496,10 @@ function audioErrorMessage(error?: string) {
 
   if (error === "activeExport") {
     return "这章已经有有声导出正在进行中，请等待当前任务完成后再重新导出，避免重复扣费。";
+  }
+
+  if (error === "legacyProviderExport") {
+    return "这是旧供应商的有声导出记录，不能用当前 Google Gemini 配置重试。请新建一次有声导出任务。";
   }
 
   return "";

@@ -1,8 +1,28 @@
-import { createConfiguredTtsProvider } from "./ppq-tts";
+import {
+  createConfiguredGoogleTtsProvider,
+  googleGeminiTtsModelOptions,
+} from "./google-gemini-tts";
+import { readTtsGenerationSecrets } from "@/lib/ai/local-config";
+import { createConfiguredTtsProvider as createConfiguredPpqTtsProvider } from "./ppq-tts";
 import type { TtsProvider, TtsProviderId } from "./types";
 
-export function getConfiguredTtsProvider(options: Parameters<typeof createConfiguredTtsProvider>[0] = {}): TtsProvider {
-  return createConfiguredTtsProvider(options);
+export function getConfiguredTtsProvider(
+  options: Parameters<typeof createConfiguredGoogleTtsProvider>[0] = {},
+): TtsProvider {
+  const settings =
+    options.settings ?? readTtsGenerationSecrets(options.env ?? process.env);
+
+  if (settings.providerId === "ppq_tts") {
+    return createConfiguredPpqTtsProvider({
+      ...options,
+      settings,
+    });
+  }
+
+  return createConfiguredGoogleTtsProvider({
+    ...options,
+    settings,
+  });
 }
 
 export function ttsProviderLabel(providerId: string) {
@@ -27,32 +47,9 @@ export const ttsProviderOptions: Array<{
   disabled?: boolean;
 }> = [
   {
-    label: "PPQ TTS",
-    value: "ppq_tts",
-  },
-  {
-    disabled: true,
-    label: "Google TTS（后续接入）",
+    label: "Google Gemini TTS",
     value: "google_tts",
-  },
-  {
-    disabled: true,
-    label: "阿里云百炼 TTS（后续接入）",
-    value: "aliyun_bailian_tts",
   },
 ];
 
-export const ppqTtsModelOptions = [
-  {
-    label: "ElevenLabs Multilingual v2",
-    value: "eleven_multilingual_v2",
-  },
-  {
-    label: "ElevenLabs Flash v2.5",
-    value: "eleven_flash_v2_5",
-  },
-  {
-    label: "DeepGram Aura 2",
-    value: "deepgram_aura_2",
-  },
-];
+export const ttsModelOptions = googleGeminiTtsModelOptions;

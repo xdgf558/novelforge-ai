@@ -21,6 +21,7 @@ import {
 } from "@/lib/ai/local-config";
 import { saveAudioPreviewAsset } from "@/lib/audio/audio-assets";
 import { getConfiguredTtsProvider } from "@/lib/audio/providers/registry";
+import type { TtsProviderId } from "@/lib/audio/providers/types";
 import { resetServerFetchProxyDispatcher } from "@/lib/server-fetch";
 
 export async function saveAiConnectionSettingsAction(formData: FormData) {
@@ -209,7 +210,7 @@ async function generateTtsPreviewAttempt(
     cleanPreviewText(formData.get("ttsPreviewText")?.toString()) ||
     defaultTtsPreviewText;
   const result = await provider.synthesizeSegment({
-    providerId: "ppq_tts",
+    providerId: secrets.providerId as TtsProviderId,
     inputText: previewText,
     languageCode: secrets.languageCode,
     modelId: secrets.model,

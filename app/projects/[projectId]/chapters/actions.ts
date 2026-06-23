@@ -13,9 +13,11 @@ import {
   type ChapterDraftChapterContext,
 } from "@/lib/ai/chapter-drafts";
 import {
+  buildSegmentedChapterPolishContext,
   buildChapterPolishContext,
   hasPolishableChapterText,
   isExcerptedChapterPolishInputJson,
+  shouldSegmentChapterPolish,
   type ChapterPolishChapterContext,
 } from "@/lib/ai/chapter-polishes";
 import {
@@ -24,8 +26,13 @@ import {
   type ChapterSummaryChapterContext,
 } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
+import { completeRunningSegmentedChapterPolishTask } from "@/lib/ai/segmented-chapter-polish-runner";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
-import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import {
+  createAiTask,
+  markAiTaskRunning,
+  startLoggedOpenAITextTask,
+} from "@/lib/ai/task-logger";
 import {
   chapterFieldNames,
   chapterValuesFromRecord,
@@ -388,6 +395,32 @@ export async function generateChapterPolish(projectId: string, chapterId: string
     projectId,
     chapterPolishTemplateKey,
   );
+
+  if (shouldSegmentChapterPolish(contextInput)) {
+    const context = buildSegmentedChapterPolishContext(contextInput);
+    const task = await createAiTask({
+      projectId,
+      chapterId,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    });
+    const runningTask = await markAiTaskRunning(task.id);
+
+    void completeRunningSegmentedChapterPolishTask(runningTask.id).catch(
+      (error) => {
+        console.error("Background segmented chapter polish failed:", error);
+      },
+    );
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/ai`);
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
   const context = buildChapterPolishContext(contextInput);
 
   await startLoggedOpenAITextTask(

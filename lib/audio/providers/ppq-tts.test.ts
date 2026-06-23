@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_TTS_LANGUAGE_CODE } from "@/lib/ai/local-config";
 import {
   buildPpqSpeechPayload,
   extractPpqVoices,
@@ -38,7 +39,7 @@ describe("PPQ TTS provider", () => {
         voiceId: "voice_123",
       }),
     ).toMatchObject({
-      language: "zh",
+      language: DEFAULT_TTS_LANGUAGE_CODE,
       model: "eleven_multilingual_v2",
       voice: "voice_123",
     });

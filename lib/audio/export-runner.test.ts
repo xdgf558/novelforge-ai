@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { finalizeAudioExport, processAudioExport } from "./export-runner";
+import { hashAudioSourceText } from "./text-source";
 
 const mocks = vi.hoisted(() => ({
   getConfiguredTtsProvider: vi.fn(),
@@ -192,6 +193,91 @@ describe("processAudioExport", () => {
         status: "succeeded",
         succeededSegments: 1,
       }),
+    });
+  });
+
+  it("fails old-provider exports instead of running them through the current provider", async () => {
+    const sourceText = "旧导出正文";
+    mocks.getConfiguredTtsProvider.mockReturnValue({
+      id: "google_tts",
+      synthesizeSegment: vi.fn(),
+    });
+    mocks.prisma.audioExport.findUnique
+      .mockResolvedValueOnce({
+        id: "audio_export_1",
+        chapter: {
+          draftText: sourceText,
+          finalText: "",
+          polishedText: "",
+          chapterNumber: 1,
+          id: "chapter_1",
+          title: "第一章",
+        },
+        createdAt: new Date("2026-06-22T00:00:00.000Z"),
+        languageCode: "zh",
+        modelId: "eleven_multilingual_v2",
+        outputFormat: "mp3",
+        projectId: "project_1",
+        providerId: "ppq_tts",
+        segments: [
+          {
+            charCount: 10,
+            inputPreview: "旧分段一",
+            localPath: null,
+            segmentIndex: 1,
+            status: "pending",
+          },
+        ],
+        sourceTextHash: hashAudioSourceText(sourceText),
+        sourceTextType: "draftText",
+        totalSegments: 1,
+        voiceId: "",
+        voiceName: "",
+      })
+      .mockResolvedValueOnce({
+        chapter: {
+          chapterNumber: 1,
+          id: "chapter_1",
+          title: "第一章",
+        },
+        createdAt: new Date("2026-06-22T00:00:00.000Z"),
+        id: "audio_export_1",
+        languageCode: "zh",
+        modelId: "eleven_multilingual_v2",
+        outputFormat: "mp3",
+        projectId: "project_1",
+        providerId: "ppq_tts",
+        segments: [
+          {
+            charCount: 10,
+            inputPreview: "旧分段一",
+            localPath: null,
+            segmentIndex: 1,
+            status: "failed",
+          },
+        ],
+        sourceTextHash: hashAudioSourceText(sourceText),
+        sourceTextType: "draftText",
+        voiceId: "",
+        voiceName: "",
+      });
+
+    await processAudioExport({
+      audioExportId: "audio_export_1",
+    });
+
+    expect(mocks.prisma.audioExportSegment.updateMany).toHaveBeenCalledWith({
+      where: {
+        audioExportId: "audio_export_1",
+        status: {
+          in: ["pending", "running"],
+        },
+      },
+      data: {
+        errorMessage:
+          "该有声导出记录使用旧 TTS 供应商，请新建一次当前供应商的导出任务。",
+        status: "failed",
+      },
     });
   });
 });

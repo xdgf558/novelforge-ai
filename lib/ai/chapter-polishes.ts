@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { clipText } from "./chapter-beats";
 import { formatWordRange } from "../format";
 import type { ProjectSettingFieldName } from "../project-setting-fields";
@@ -50,6 +51,27 @@ export type BuiltChapterPolishContext = {
   inputContextSummary: string;
 };
 
+export type ChapterPolishSegment = {
+  index: number;
+  count: number;
+  text: string;
+  sourceTextLength: number;
+  previousTail: string;
+  nextHead: string;
+};
+
+export type BuiltChapterPolishSegmentContext = {
+  segment: ChapterPolishSegment;
+  inputText: string;
+  inputJson: Record<string, unknown>;
+};
+
+export type BuiltSegmentedChapterPolishContext = {
+  segments: BuiltChapterPolishSegmentContext[];
+  inputJson: Record<string, unknown>;
+  inputContextSummary: string;
+};
+
 type PolishSettingField = readonly [ProjectSettingFieldName, string];
 type PolishPromptSourceText = {
   text: string;
@@ -60,6 +82,7 @@ type PolishPromptSourceText = {
 };
 
 const polishPromptMaxLength = 18000;
+export const polishSegmentSourceMaxLength = 9000;
 
 const polishStyleSettingFields = [
   ["styleSample", "文风样例"],
@@ -85,40 +108,13 @@ const polishForbiddenSettingFields = [
 export function buildChapterPolishContext(
   input: ChapterPolishContextInput,
 ): BuiltChapterPolishContext {
-  const sourceText = polishableChapterText(input.chapter);
-  const sourceKind = polishableChapterTextSource(input.chapter);
+  const shared = buildChapterPolishSharedContext(input);
+  const sourceText = shared.sourceText;
+  const sourceKind = shared.sourceKind;
   const promptSourceText = buildPolishPromptSourceText(sourceText);
-  const styleConstraints = [
-    ...buildLabeledSettingLines(input.setting, polishStyleSettingFields),
-    input.project.wechatPositioning
-      ? `公众号定位：${input.project.wechatPositioning}`
-      : "",
-  ].filter(Boolean);
-  const storyConstraints = buildLabeledSettingLines(
-    input.setting,
-    polishStorySettingFields,
-  );
-  const forbiddenItems = buildSettingValues(
-    input.setting,
-    polishForbiddenSettingFields,
-  ).join("\n");
-  const characterRules = input.characters
-    .map(buildCharacterRuleLine)
-    .filter(Boolean);
-  const wordRange = formatWordRange(
-    input.project.chapterWordMin,
-    input.project.chapterWordMax,
-  );
 
   const inputJson = {
-    project: {
-      title: input.project.title,
-      genre: clean(input.project.genre),
-      targetAudience: clean(input.project.targetAudience),
-      platform: clean(input.project.platform),
-      chapterWordRange: wordRange,
-      description: clipText(input.project.description),
-    },
+    project: shared.projectJson,
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
@@ -131,10 +127,10 @@ export function buildChapterPolishContext(
       sourceTextPromptWasExcerpted: promptSourceText.wasExcerpted,
       sourceTextPreview: clipText(sourceText, 1200),
     },
-    styleConstraints,
-    storyConstraints,
-    characterRules,
-    forbiddenItems,
+    styleConstraints: shared.styleConstraints,
+    storyConstraints: shared.storyConstraints,
+    characterRules: shared.characterRules,
+    forbiddenItems: shared.forbiddenItems,
     outputRequirements: [
       promptSourceText.wasExcerpted
         ? "正文超过精修输入预算，当前只对首/中/尾摘录提供精修；必须提示作者拆章或分段精修完整正文。"
@@ -154,7 +150,7 @@ export function buildChapterPolishContext(
     "# 当前章节",
     lines([
       ["章节目标", input.chapter.goal],
-      ["目标字数", wordRange],
+      ["目标字数", shared.wordRange],
       ["作者备注", input.chapter.notes],
       ["正文来源", sourceKind],
     ]),
@@ -163,16 +159,22 @@ export function buildChapterPolishContext(
     clean(input.chapter.beats) || "未填写章节节拍。",
     "",
     "# 文风与读者约束",
-    styleConstraints.length > 0 ? styleConstraints.join("\n") : "未设置。",
+    shared.styleConstraints.length > 0
+      ? shared.styleConstraints.join("\n")
+      : "未设置。",
     "",
     "# 角色说话与行为规则",
-    characterRules.length > 0 ? characterRules.join("\n") : "暂无角色资料。",
+    shared.characterRules.length > 0
+      ? shared.characterRules.join("\n")
+      : "暂无角色资料。",
     "",
     "# 世界观与剧情边界",
-    storyConstraints.length > 0 ? storyConstraints.join("\n") : "未设置。",
+    shared.storyConstraints.length > 0
+      ? shared.storyConstraints.join("\n")
+      : "未设置。",
     "",
     "# 禁写事项",
-    forbiddenItems || "未设置。",
+    shared.forbiddenItems || "未设置。",
     "",
     "# 待精修正文",
     promptSourceText.text || "未填写可精修正文。禁止凭空生成。",
@@ -194,6 +196,56 @@ export function buildChapterPolishContext(
   };
 }
 
+export function shouldSegmentChapterPolish(input: ChapterPolishContextInput) {
+  return polishableChapterText(input.chapter).length > polishPromptMaxLength;
+}
+
+export function buildSegmentedChapterPolishContext(
+  input: ChapterPolishContextInput,
+): BuiltSegmentedChapterPolishContext {
+  const shared = buildChapterPolishSharedContext(input);
+  const rawSegments = splitChapterPolishSourceText(shared.sourceText);
+  const segments = rawSegments.map((segment) =>
+    buildChapterPolishSegmentContext(input, shared, segment),
+  );
+
+  return {
+    segments,
+    inputJson: {
+      project: shared.projectJson,
+      chapter: {
+        chapterNumber: input.chapter.chapterNumber,
+        title: input.chapter.title,
+        goal: clean(input.chapter.goal),
+        beats: clipText(input.chapter.beats),
+        notes: clean(input.chapter.notes),
+        sourceKind: shared.sourceKind,
+        sourceTextLength: shared.sourceText.length,
+        sourceTextHash: hashText(shared.sourceText),
+        sourceTextPromptLength: shared.sourceText.length,
+        sourceTextPromptWasExcerpted: false,
+        sourceTextPromptWasSegmented: true,
+        segmentCount: rawSegments.length,
+        segmentMaxLength: polishSegmentSourceMaxLength,
+        sourceTextPreview: clipText(shared.sourceText, 1200),
+      },
+      styleConstraints: shared.styleConstraints,
+      storyConstraints: shared.storyConstraints,
+      characterRules: shared.characterRules,
+      forbiddenItems: shared.forbiddenItems,
+      outputRequirements: [
+        "正文超过单次精修预算，系统已自动按段完整精修；只有全部分段成功后才允许采用。",
+        "每段只输出本段精修正文，不输出分析过程、分段说明或 JSON。",
+        "最终输出会按原顺序拼接为完整精修正文。",
+        "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
+        "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
+        "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
+      ],
+    },
+    inputContextSummary: buildSegmentedChapterPolishContextSummary(input),
+  };
+}
+
 export function buildChapterPolishContextSummary(
   input: ChapterPolishContextInput,
 ) {
@@ -207,6 +259,23 @@ export function buildChapterPolishContextSummary(
       ? promptSourceText.wasExcerpted
         ? `${sourceKind} ${sourceText.length} 字，模型输入首/中/尾摘录 ${promptSourceText.promptLength} 字`
         : `${sourceKind} ${sourceText.length} 字`
+      : "缺少可精修正文",
+    `角色 ${input.characters.length} 个`,
+    input.setting ? "包含项目设定" : "无项目设定",
+  ].join("；");
+}
+
+export function buildSegmentedChapterPolishContextSummary(
+  input: ChapterPolishContextInput,
+) {
+  const sourceText = polishableChapterText(input.chapter);
+  const sourceKind = polishableChapterTextSource(input.chapter);
+  const segmentCount = splitChapterPolishSourceText(sourceText).length;
+
+  return [
+    `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
+    sourceText
+      ? `${sourceKind} ${sourceText.length} 字，自动分段精修 ${segmentCount} 段`
       : "缺少可精修正文",
     `角色 ${input.characters.length} 个`,
     input.setting ? "包含项目设定" : "无项目设定",
@@ -239,6 +308,10 @@ export function polishableChapterTextSource(chapter: ChapterPolishChapterContext
   }
 
   return "无正文";
+}
+
+export function hashText(text: string) {
+  return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
 export function buildPolishPromptSourceText(
@@ -286,6 +359,66 @@ export function buildPolishPromptSourceText(
   };
 }
 
+export function splitChapterPolishSourceText(
+  sourceText: string,
+  maxSegmentLength = polishSegmentSourceMaxLength,
+): ChapterPolishSegment[] {
+  const cleanedSourceText = clean(sourceText);
+
+  if (!cleanedSourceText) {
+    return [];
+  }
+
+  const segments: string[] = [];
+  let current = "";
+  const flushCurrent = () => {
+    const text = current.trim();
+
+    if (text) {
+      segments.push(text);
+    }
+
+    current = "";
+  };
+
+  for (const paragraph of cleanedSourceText
+    .split(/\n{2,}/)
+    .map((value) => value.trim())
+    .filter(Boolean)) {
+    if (paragraph.length > maxSegmentLength) {
+      flushCurrent();
+
+      for (let index = 0; index < paragraph.length; index += maxSegmentLength) {
+        segments.push(paragraph.slice(index, index + maxSegmentLength).trim());
+      }
+
+      continue;
+    }
+
+    const next = current ? `${current}\n\n${paragraph}` : paragraph;
+
+    if (next.length > maxSegmentLength) {
+      flushCurrent();
+      current = paragraph;
+    } else {
+      current = next;
+    }
+  }
+
+  flushCurrent();
+
+  const count = segments.length;
+
+  return segments.map((text, index) => ({
+    index: index + 1,
+    count,
+    text,
+    sourceTextLength: text.length,
+    previousTail: index > 0 ? clipTextFromEnd(segments[index - 1], 800) : "",
+    nextHead: index < count - 1 ? clipText(segments[index + 1], 800) : "",
+  }));
+}
+
 export function isExcerptedChapterPolishInputJson(inputJson?: string | null) {
   if (!inputJson) {
     return false;
@@ -302,6 +435,168 @@ export function isExcerptedChapterPolishInputJson(inputJson?: string | null) {
   } catch {
     return false;
   }
+}
+
+export function isSegmentedChapterPolishInputJson(inputJson?: string | null) {
+  if (!inputJson) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(inputJson) as {
+      chapter?: {
+        sourceTextPromptWasSegmented?: unknown;
+      };
+    };
+
+    return parsed.chapter?.sourceTextPromptWasSegmented === true;
+  } catch {
+    return false;
+  }
+}
+
+function buildChapterPolishSegmentContext(
+  input: ChapterPolishContextInput,
+  shared: ChapterPolishSharedContext,
+  segment: ChapterPolishSegment,
+): BuiltChapterPolishSegmentContext {
+  const inputJson = {
+    project: shared.projectJson,
+    chapter: {
+      chapterNumber: input.chapter.chapterNumber,
+      title: input.chapter.title,
+      goal: clean(input.chapter.goal),
+      beats: clipText(input.chapter.beats),
+      notes: clean(input.chapter.notes),
+      sourceKind: shared.sourceKind,
+      sourceTextLength: shared.sourceText.length,
+      sourceTextPromptWasSegmented: true,
+      segmentIndex: segment.index,
+      segmentCount: segment.count,
+      segmentSourceLength: segment.sourceTextLength,
+      segmentPreview: clipText(segment.text, 800),
+    },
+  };
+  const inputText = [
+    "# 任务",
+    `精修第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文。`,
+    `这是自动分段精修的第 ${segment.index} / ${segment.count} 段。`,
+    "只输出本段精修正文，不要输出分析、说明、分段标题或 JSON。",
+    "",
+    "# 当前章节",
+    lines([
+      ["章节目标", input.chapter.goal],
+      ["目标字数", shared.wordRange],
+      ["作者备注", input.chapter.notes],
+      ["正文来源", shared.sourceKind],
+      ["全章原文字数", shared.sourceText.length],
+      ["本段原文字数", segment.sourceTextLength],
+    ]),
+    "",
+    "# 已确认章节节拍",
+    clean(input.chapter.beats) || "未填写章节节拍。",
+    "",
+    "# 文风与读者约束",
+    shared.styleConstraints.length > 0
+      ? shared.styleConstraints.join("\n")
+      : "未设置。",
+    "",
+    "# 角色说话与行为规则",
+    shared.characterRules.length > 0
+      ? shared.characterRules.join("\n")
+      : "暂无角色资料。",
+    "",
+    "# 世界观与剧情边界",
+    shared.storyConstraints.length > 0
+      ? shared.storyConstraints.join("\n")
+      : "未设置。",
+    "",
+    "# 禁写事项",
+    shared.forbiddenItems || "未设置。",
+    "",
+    "# 段落衔接参考",
+    segment.previousTail
+      ? `上一段末尾，仅用于保持衔接，不要重复输出：\n${segment.previousTail}`
+      : "这是第一段，没有上一段。",
+    "",
+    segment.nextHead
+      ? `下一段开头，仅用于保持衔接，不要提前输出：\n${segment.nextHead}`
+      : "这是最后一段，没有下一段。",
+    "",
+    "# 待精修正文（本段）",
+    segment.text,
+    "",
+    "# 输出要求",
+    "- 直接输出本段精修后的正文，可与其他分段按顺序拼接。",
+    "- 删除“【开场钩子】”“节拍1”“情绪作用”等写作过程标记，让正文变成读者可直接阅读的章节。",
+    "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
+    "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
+    "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
+    "- 不要输出“本段精修如下”“第 X 段”等说明文字。",
+  ].join("\n");
+
+  return {
+    segment,
+    inputText,
+    inputJson,
+  };
+}
+
+type ChapterPolishSharedContext = {
+  sourceText: string;
+  sourceKind: string;
+  wordRange: string;
+  projectJson: Record<string, unknown>;
+  styleConstraints: string[];
+  storyConstraints: string[];
+  characterRules: string[];
+  forbiddenItems: string;
+};
+
+function buildChapterPolishSharedContext(
+  input: ChapterPolishContextInput,
+): ChapterPolishSharedContext {
+  const sourceText = polishableChapterText(input.chapter);
+  const sourceKind = polishableChapterTextSource(input.chapter);
+  const wordRange = formatWordRange(
+    input.project.chapterWordMin,
+    input.project.chapterWordMax,
+  );
+  const styleConstraints = [
+    ...buildLabeledSettingLines(input.setting, polishStyleSettingFields),
+    input.project.wechatPositioning
+      ? `公众号定位：${input.project.wechatPositioning}`
+      : "",
+  ].filter(Boolean);
+  const storyConstraints = buildLabeledSettingLines(
+    input.setting,
+    polishStorySettingFields,
+  );
+  const forbiddenItems = buildSettingValues(
+    input.setting,
+    polishForbiddenSettingFields,
+  ).join("\n");
+  const characterRules = input.characters
+    .map(buildCharacterRuleLine)
+    .filter(Boolean);
+
+  return {
+    sourceText,
+    sourceKind,
+    wordRange,
+    projectJson: {
+      title: input.project.title,
+      genre: clean(input.project.genre),
+      targetAudience: clean(input.project.targetAudience),
+      platform: clean(input.project.platform),
+      chapterWordRange: wordRange,
+      description: clipText(input.project.description),
+    },
+    styleConstraints,
+    storyConstraints,
+    characterRules,
+    forbiddenItems,
+  };
 }
 
 function buildCharacterRuleLine(character: ChapterPolishCharacterContext) {
@@ -357,4 +652,14 @@ function buildSettingValues(
 
 function clean(value?: string | null) {
   return value?.trim().replace(/\n{3,}/g, "\n\n") ?? "";
+}
+
+function clipTextFromEnd(value: string, maxLength: number) {
+  const cleaned = clean(value);
+
+  if (cleaned.length <= maxLength) {
+    return cleaned;
+  }
+
+  return `...${cleaned.slice(-maxLength)}`;
 }
