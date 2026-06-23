@@ -12,6 +12,7 @@ What was done:
 - Tightened the outline module: smaller stats, quick-create forms, AI task cards, and saved outline rows with short summaries instead of large repeated cards.
 - Compacted the structured memory page by folding create forms into expandable panels and limiting world rule, foreshadow, and timeline list bodies to short summaries unless the author opens edit mode.
 - Hardened the proxy-aware server fetch wrapper so `HTTP_PROXY`, `HTTPS_PROXY`, and `ALL_PROXY` are selected by the actual request protocol, with `NO_PROXY` bypass checks preserved for string, `URL`, and `Request` inputs.
+- Renamed the exported default proxy helper to `getDefaultProxyDispatcher` so future code does not confuse it with request-specific proxy selection.
 
 Verification:
 

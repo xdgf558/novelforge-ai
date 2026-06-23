@@ -54,8 +54,10 @@ function createAbortError() {
   return error;
 }
 
-export function getProxyDispatcher(env: AiRuntimeEnv = process.env) {
+export function getDefaultProxyDispatcher(env: AiRuntimeEnv = process.env) {
   const proxyConfig = getProxyConfig(env);
+  // This default dispatcher is only for callers that do not have a concrete
+  // request URL. Request-aware fetch paths must use getProxyDispatcherForRequest.
   const proxyUrl = firstValue(
     proxyConfig.httpsProxy,
     proxyConfig.allProxy,
