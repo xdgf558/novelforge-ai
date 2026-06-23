@@ -16,6 +16,7 @@ What was done:
 - Reduced Gemini TTS segment sizing to a WAV-byte-budget-aware limit so normal Gemini segments stay below the local 20 MB audio asset cap.
 - Blocked retry of historical PPQ/legacy audiobook exports under the current Google provider; old failed records now show a clear “new export required” path.
 - Moved the segmented polish background runner out of the chapter server-action file. The public action now passes only the running task id; the runner reloads and validates the running `chapter_polish_generation` task, prompt template, chapter ownership, source-text length, and segment count before any model call.
+- Added a SHA-256 `sourceTextHash` to segmented polish task input and required the runner to match it before calling the model, so same-length edits cannot silently change the text behind an existing task.
 - Tightened Gemini inline audio parsing so only `audio/L16`, `audio/wav`, `audio/wave`, and `audio/x-wav` inlineData MIME types are accepted; missing or non-audio MIME values fail instead of being wrapped as WAV.
 - Added tests for segmented polish runner ordering/failure behavior, Gemini JSON size limits, Gemini WAV budget, and legacy-provider retry blocking.
 
@@ -24,6 +25,7 @@ Verification:
 - `npm run test -- lib/ai/chapter-polishes.test.ts lib/audio/providers/google-gemini-tts.test.ts lib/ai/local-config.test.ts lib/audio/audio-assets.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
 - `npm run test -- lib/audio/providers/google-gemini-tts.test.ts lib/audio/estimate-cost.test.ts lib/audio/export-runner.test.ts app/projects/[projectId]/audiobook/actions.test.ts app/projects/[projectId]/chapters/actions.test.ts` passed.
 - `npm run test -- lib/ai/segmented-chapter-polish-runner.test.ts lib/audio/providers/google-gemini-tts.test.ts app/projects/[projectId]/chapters/actions.test.ts` passed.
+- `npm run test -- lib/ai/chapter-polishes.test.ts lib/ai/segmented-chapter-polish-runner.test.ts` passed.
 - `npm run typecheck` passed.
 - `npm run build` passed.
 - `npm run desktop:smoke` passed.

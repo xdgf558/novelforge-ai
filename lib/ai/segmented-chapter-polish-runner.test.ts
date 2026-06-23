@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { hashText } from "./chapter-polishes";
 import { completeRunningSegmentedChapterPolishTask } from "./segmented-chapter-polish-runner";
 
 const mocks = vi.hoisted(() => ({
@@ -58,6 +59,7 @@ function buildRunningTask(overrides = {}) {
       chapter: {
         sourceTextPromptWasSegmented: true,
         sourceTextLength: longDraftText.length,
+        sourceTextHash: hashText(longDraftText),
         segmentCount: 3,
       },
     }),
@@ -242,6 +244,23 @@ describe("completeRunningSegmentedChapterPolishTask", () => {
   it("fails the task when the chapter text changed after task creation", async () => {
     mockChapter({
       draftText: `${longDraftText}\n新增内容`,
+    });
+
+    await expect(
+      completeRunningSegmentedChapterPolishTask("task_1"),
+    ).rejects.toThrow("章节正文已变化");
+
+    expect(mocks.createOpenAITextResponse).not.toHaveBeenCalled();
+    expect(mocks.markAiTaskCompleted).not.toHaveBeenCalled();
+    expect(mocks.markAiTaskFailed).toHaveBeenCalledWith(
+      "task_1",
+      expect.any(Error),
+    );
+  });
+
+  it("fails when chapter text changed but length and segment count stayed the same", async () => {
+    mockChapter({
+      draftText: longDraftText.replace("一", "四"),
     });
 
     await expect(

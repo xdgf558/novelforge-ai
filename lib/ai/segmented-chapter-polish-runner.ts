@@ -1,5 +1,6 @@
 import {
   buildSegmentedChapterPolishContext,
+  hashText,
   isSegmentedChapterPolishInputJson,
   polishableChapterText,
   type ChapterPolishChapterContext,
@@ -24,6 +25,7 @@ type RunningSegmentedPolishTask = {
 
 type SegmentedPolishTaskSnapshot = {
   sourceTextLength: number | null;
+  sourceTextHash: string | null;
   segmentCount: number | null;
 };
 
@@ -90,6 +92,14 @@ async function runSegmentedChapterPolishTask(
     snapshot.sourceTextLength !== null &&
     snapshot.sourceTextLength !== sourceText.length
   ) {
+    throw new Error("章节正文已变化，请重新生成分段精修任务。");
+  }
+
+  if (!snapshot.sourceTextHash) {
+    throw new Error("分段精修任务缺少正文哈希，请重新生成分段精修任务。");
+  }
+
+  if (snapshot.sourceTextHash !== hashText(sourceText)) {
     throw new Error("章节正文已变化，请重新生成分段精修任务。");
   }
 
@@ -177,10 +187,15 @@ function parseSegmentedPolishTaskSnapshot(
   const parsed = JSON.parse(inputJson || "{}") as {
     chapter?: {
       sourceTextLength?: unknown;
+      sourceTextHash?: unknown;
       segmentCount?: unknown;
     };
   };
   const sourceTextLength = Number(parsed.chapter?.sourceTextLength);
+  const sourceTextHash =
+    typeof parsed.chapter?.sourceTextHash === "string"
+      ? parsed.chapter.sourceTextHash.trim()
+      : "";
   const segmentCount = Number(parsed.chapter?.segmentCount);
 
   return {
@@ -188,6 +203,7 @@ function parseSegmentedPolishTaskSnapshot(
       Number.isInteger(sourceTextLength) && sourceTextLength >= 0
         ? sourceTextLength
         : null,
+    sourceTextHash: sourceTextHash || null,
     segmentCount:
       Number.isInteger(segmentCount) && segmentCount > 0 ? segmentCount : null,
   };

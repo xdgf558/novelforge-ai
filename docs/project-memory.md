@@ -128,8 +128,8 @@ Prioritize these tables early:
   server action. The UI action only creates and marks a trusted
   `chapter_polish_generation` task as running; the runner reloads the task,
   prompt template, chapter, setting, and characters by `taskId`, validates the
-  task type/status plus the recorded source-text length and segment count, and
-  only then calls the model.
+  task type/status plus the recorded source-text length, SHA-256 source hash,
+  and segment count, and only then calls the model.
 
 ## Context Strategy
 

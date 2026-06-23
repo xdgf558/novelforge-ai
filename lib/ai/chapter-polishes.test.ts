@@ -3,6 +3,7 @@ import {
   buildSegmentedChapterPolishContext,
   buildChapterPolishContext,
   buildChapterPolishContextSummary,
+  hashText,
   hasPolishableChapterText,
   isExcerptedChapterPolishInputJson,
   isSegmentedChapterPolishInputJson,
@@ -118,6 +119,7 @@ describe("chapter polish context builder", () => {
     ).toBe(true);
     expect(context.inputJson.chapter).toMatchObject({
       sourceTextLength: 21000,
+      sourceTextHash: hashText(longDraft),
       sourceTextPromptWasExcerpted: false,
       sourceTextPromptWasSegmented: true,
       segmentCount: context.segments.length,

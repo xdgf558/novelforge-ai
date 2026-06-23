@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { clipText } from "./chapter-beats";
 import { formatWordRange } from "../format";
 import type { ProjectSettingFieldName } from "../project-setting-fields";
@@ -220,6 +221,7 @@ export function buildSegmentedChapterPolishContext(
         notes: clean(input.chapter.notes),
         sourceKind: shared.sourceKind,
         sourceTextLength: shared.sourceText.length,
+        sourceTextHash: hashText(shared.sourceText),
         sourceTextPromptLength: shared.sourceText.length,
         sourceTextPromptWasExcerpted: false,
         sourceTextPromptWasSegmented: true,
@@ -306,6 +308,10 @@ export function polishableChapterTextSource(chapter: ChapterPolishChapterContext
   }
 
   return "无正文";
+}
+
+export function hashText(text: string) {
+  return createHash("sha256").update(text, "utf8").digest("hex");
 }
 
 export function buildPolishPromptSourceText(
