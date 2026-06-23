@@ -27,6 +27,23 @@ describe("PPQ TTS provider", () => {
     });
   });
 
+  it("normalizes generic multilingual language labels before speech requests", () => {
+    expect(
+      buildPpqSpeechPayload({
+        providerId: "ppq_tts",
+        inputText: "你好，欢迎来到离线未来。",
+        languageCode: "multi",
+        modelId: "eleven_multilingual_v2",
+        outputFormat: "mp3",
+        voiceId: "voice_123",
+      }),
+    ).toMatchObject({
+      language: "zh",
+      model: "eleven_multilingual_v2",
+      voice: "voice_123",
+    });
+  });
+
   it("extracts voices from common PPQ response shapes", () => {
     expect(
       extractPpqVoices(
@@ -52,6 +69,30 @@ describe("PPQ TTS provider", () => {
         id: "voice_1",
         name: "George",
         provider: "ElevenLabs",
+      }),
+    ]);
+  });
+
+  it("does not expose generic multilingual voice labels as request languages", () => {
+    expect(
+      extractPpqVoices(
+        {
+          data: [
+            {
+              id: "voice_1",
+              language: "multi",
+              model_id: "eleven_multilingual_v2",
+              name: "Narrator",
+              provider: "elevenlabs",
+            },
+          ],
+        },
+        "eleven_multilingual_v2",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        id: "voice_1",
+        languageCode: null,
       }),
     ]);
   });

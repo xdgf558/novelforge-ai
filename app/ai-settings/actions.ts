@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   normalizeTtsApiBaseUrl,
+  isGenericTtsLanguageCode,
   normalizeTtsLanguageCode,
   normalizeTtsModel,
   normalizeTtsOutputFormat,
@@ -278,8 +279,11 @@ function readTtsLanguageCodeFromForm(formData: FormData) {
   const selection = parseTtsVoiceSelection(
     formData.get("ttsVoiceSelection")?.toString(),
   );
+  const selectedLanguageCode = selection?.languageCode?.trim() || "";
 
-  return selection?.languageCode || formData.get("ttsLanguageCode")?.toString() || "";
+  return !isGenericTtsLanguageCode(selectedLanguageCode) && selectedLanguageCode
+    ? selectedLanguageCode
+    : formData.get("ttsLanguageCode")?.toString() || "";
 }
 
 function parseTtsVoiceSelection(value?: string | null) {

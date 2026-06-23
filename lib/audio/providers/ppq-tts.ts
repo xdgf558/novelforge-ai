@@ -1,4 +1,6 @@
 import {
+  DEFAULT_TTS_LANGUAGE_CODE,
+  isGenericTtsLanguageCode,
   readTtsGenerationSecrets,
   type AiRuntimeEnv,
   type TtsGenerationSecrets,
@@ -293,8 +295,10 @@ export function buildPpqSpeechPayload(request: TtsSynthesisRequest) {
     payload.voice = request.voiceId.trim();
   }
 
-  if (request.languageCode.trim()) {
-    payload.language = request.languageCode.trim();
+  const languageCode = normalizePpqSpeechLanguageCode(request.languageCode);
+
+  if (languageCode) {
+    payload.language = languageCode;
   }
 
   if (request.outputFormat && request.outputFormat !== "mp3") {
@@ -364,11 +368,11 @@ export function extractPpqVoices(responseJson: unknown, modelId?: string | null)
       {
         id,
         name,
-        languageCode:
+        languageCode: normalizePpqVoiceLanguageCode(
           stringValue(candidate.language) ||
-          stringValue(candidate.language_code) ||
-          stringValue(candidate.languageCode) ||
-          null,
+            stringValue(candidate.language_code) ||
+            stringValue(candidate.languageCode),
+        ),
         gender: stringValue(candidate.gender) || null,
         provider: provider || null,
         description:
@@ -379,6 +383,28 @@ export function extractPpqVoices(responseJson: unknown, modelId?: string | null)
       },
     ];
   });
+}
+
+function normalizePpqSpeechLanguageCode(languageCode: string) {
+  const normalized = languageCode.trim().toLowerCase();
+
+  if (!normalized) {
+    return "";
+  }
+
+  return isGenericTtsLanguageCode(normalized)
+    ? DEFAULT_TTS_LANGUAGE_CODE
+    : normalized.slice(0, 16);
+}
+
+function normalizePpqVoiceLanguageCode(languageCode?: string | null) {
+  const normalized = languageCode?.trim().toLowerCase();
+
+  if (!normalized || isGenericTtsLanguageCode(normalized)) {
+    return null;
+  }
+
+  return normalized.slice(0, 16);
 }
 
 function voiceArray(responseJson: unknown) {

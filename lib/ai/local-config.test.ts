@@ -522,6 +522,17 @@ describe("TTS generation local config", () => {
     expect(fs.readFileSync(configPath, "utf8")).toContain("TTS_API_KEY=");
   });
 
+  it("normalizes generic TTS language labels to the default concrete language", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(configPath, "TTS_LANGUAGE_CODE=multi\n");
+
+    const settings = readTtsGenerationSettings({
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+    });
+
+    expect(settings.languageCode).toBe(DEFAULT_TTS_LANGUAGE_CODE);
+  });
+
   it("reports TTS environment config when no file config exists", () => {
     const settings = readTtsGenerationSettings({
       NOVELFORGE_AI_CONFIG_PATH: makeTempConfigPath(),

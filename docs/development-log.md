@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-06-23: 0.1.44 TTS Multilingual Voice Hotfix
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.44`.
+- Fixed PPQ / ElevenLabs preview failures caused by voice-list language labels such as `multi` being submitted as `language_code=multi`.
+- Generic TTS language labels (`multi`, `multilingual`, `auto`, `any`, `all`) now normalize to the default concrete language `zh` in local settings and speech payloads.
+- PPQ voice-list parsing no longer exposes generic language labels as selectable request languages, so choosing an ElevenLabs multilingual voice does not override the author's `zh` language field.
+- Rebuilt the personal-use macOS PKG installer as `release/desktop/NovelForge-AI-0.1.44-mac-arm64.pkg`.
+- Cleaned `release/desktop` after packaging so only the final 0.1.44 PKG handoff remains.
+
+Verification:
+
+- `npm run test -- lib/audio/providers/ppq-tts.test.ts lib/ai/local-config.test.ts` passed.
+- `npm run test -- lib/audio/providers/ppq-tts.test.ts lib/ai/local-config.test.ts lib/server-fetch.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+- Live PPQ smoke through the saved local proxy returned `200 audio/mpeg` for `eleven_multilingual_v2` with the saved voice id and `language=zh`; the response started with an MP3 `ID3` header and downloaded 33,899 bytes.
+- Built the macOS app payload with electron-builder's directory target and macOS identity disabled to avoid Apple timestamp stalls during personal-use packaging.
+- `codesign --verify --deep --strict --verbose=2` passed for both the generated app payload and the expanded PKG payload app.
+- Verified the expanded package targets `/Applications`, with bundle `CFBundleShortVersionString="0.1.44"` and `CFBundleVersion="0.1.44"`.
+- Verified the packaged app contains `app.asar`, `app.asar.unpacked`, Prisma client, and Prisma engines.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate.
+- Final PKG SHA-256: `95d8ac581558996f93beb29f43e6fab6bca26945dc33c3c86964a9234d7a7252`.
+
 ## 2026-06-23: 0.1.43 Compact Module UI Package
 
 Status: completed.

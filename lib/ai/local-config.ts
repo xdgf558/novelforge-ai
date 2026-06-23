@@ -780,7 +780,23 @@ export function normalizeTtsVoiceName(voiceName?: string | null) {
 
 export function normalizeTtsLanguageCode(languageCode?: string | null) {
   const normalized = languageCode?.trim().toLowerCase() || DEFAULT_TTS_LANGUAGE_CODE;
+  if (isGenericTtsLanguageCode(normalized)) {
+    return DEFAULT_TTS_LANGUAGE_CODE;
+  }
+
   return normalized.slice(0, 16);
+}
+
+export function isGenericTtsLanguageCode(languageCode?: string | null) {
+  const normalized = languageCode?.trim().toLowerCase();
+
+  return (
+    normalized === "multi" ||
+    normalized === "multilingual" ||
+    normalized === "auto" ||
+    normalized === "any" ||
+    normalized === "all"
+  );
 }
 
 export function normalizeTtsOutputFormat(outputFormat?: string | null) {
