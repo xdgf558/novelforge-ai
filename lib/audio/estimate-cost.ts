@@ -21,6 +21,10 @@ export function estimateTtsCostCents({
     return Math.ceil((charCount / 1000) * 1);
   }
 
+  if (normalizedModel.includes("gemini")) {
+    return null;
+  }
+
   return null;
 }
 
@@ -45,6 +49,10 @@ export function modelInputLimit(modelId: string) {
 
   if (normalizedModel.includes("eleven")) {
     return 4000;
+  }
+
+  if (normalizedModel.includes("gemini")) {
+    return 3000;
   }
 
   return 3000;

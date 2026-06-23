@@ -31,6 +31,7 @@ import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
 import {
   hasPolishableChapterText,
   isExcerptedChapterPolishInputJson,
+  isSegmentedChapterPolishInputJson,
 } from "@/lib/ai/chapter-polishes";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import {
@@ -672,7 +673,7 @@ function ChapterPolishAiPanel({
 
       {polishError === "excerptedTaskCannotAdopt" ? (
         <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
-          该精修任务只基于超长正文的首/中/尾摘录，不能直接采用到完整精修正文。请拆章或等待后续分段精修功能。
+          该历史精修任务只基于超长正文的首/中/尾摘录，不能直接采用到完整精修正文。重新生成精修稿时，系统会自动改用分段精修。
         </p>
       ) : null}
 
@@ -693,6 +694,7 @@ function ChapterPolishAiPanel({
         <div className="mt-5 space-y-4">
           {tasks.map((task) => {
             const isExcerpted = isExcerptedChapterPolishInputJson(task.inputJson);
+            const isSegmented = isSegmentedChapterPolishInputJson(task.inputJson);
             const canAdopt =
               task.status === "completed" &&
               task.adoptionState === "not_reviewed" &&
@@ -727,6 +729,11 @@ function ChapterPolishAiPanel({
                     {isExcerpted ? (
                       <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium leading-5 text-amber-900">
                         超长摘录预览任务：可查看模型建议，但不能直接采用到完整精修正文。
+                      </p>
+                    ) : null}
+                    {isSegmented ? (
+                      <p className="mt-2 rounded-md border border-signal-500/30 bg-signal-500/10 px-3 py-2 text-xs font-medium leading-5 text-signal-700">
+                        自动分段精修任务：系统已按完整正文拆段调用模型，全部完成后会拼接为可采用的精修正文。
                       </p>
                     ) : null}
                   </div>

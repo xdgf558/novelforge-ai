@@ -1,5 +1,43 @@
 # Development Log
 
+## 2026-06-23: 0.1.46 Segmented Chapter Polish
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.46`.
+- Added automatic segmented chapter polish for overlong source text. When the best available polish source exceeds the single-call prompt budget, the app now creates one logged `chapter_polish_generation` task and runs the model sequentially over bounded source segments.
+- Segment prompts include the previous segment tail and next segment head for continuity, but require the model to output only the current segment so the system can stitch the results in original order.
+- A segmented polish task is marked completed only after every segment returns usable text; failed or empty segment output fails the whole task instead of producing a partial `polishedText` candidate.
+- Updated the chapter polish panel to distinguish legacy excerpt-preview tasks from new automatic segmented polish tasks. Legacy excerpt tasks remain non-adoptable; completed segmented tasks can be adopted like normal full polish output.
+- Preserved author control: segmented polish still writes only to `ai_tasks` first, and only moves into `Chapter.polishedText` after explicit author adoption.
+
+Verification:
+
+- `npm run test -- lib/ai/chapter-polishes.test.ts lib/audio/providers/google-gemini-tts.test.ts lib/ai/local-config.test.ts lib/audio/audio-assets.test.ts lib/audio/providers/ppq-tts.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npm run desktop:smoke` passed.
+
+## 2026-06-23: 0.1.45 Google Gemini TTS Switch
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.45`.
+- Removed PPQ from the user-facing audiobook provider/model choices and switched the active TTS provider to Google Gemini TTS.
+- Added a Google Gemini TTS provider that calls `models/{model}:generateContent`, uses Google prebuilt voice names, extracts inline audio data, wraps Gemini PCM output as WAV, and keeps generated audio in local assets only.
+- Replaced the audiobook model options with `gemini-2.5-flash-preview-tts` and `gemini-2.5-pro-preview-tts`; the default is `gemini-2.5-flash-preview-tts`.
+- Replaced remote PPQ voice lookup with a built-in Google Gemini voice list and updated the settings/audiobook UI to use Google voice names and WAV output.
+- Added legacy PPQ config migration on read so old PPQ provider/base/model/voice/output settings fall back to Google defaults and old PPQ API keys are not treated as Google keys.
+- Updated the audiobook export runner to pass the saved provider id instead of hard-coding PPQ.
+
+Verification:
+
+- `npm run test -- lib/audio/providers/google-gemini-tts.test.ts lib/ai/local-config.test.ts lib/audio/audio-assets.test.ts` passed.
+
 ## 2026-06-23: 0.1.44 TTS Multilingual Voice Hotfix
 
 Status: completed.

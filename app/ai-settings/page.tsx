@@ -33,7 +33,7 @@ import {
 import { appReleaseNotes, appReleaseTitle, appVersion } from "@/lib/app-version";
 import {
   getConfiguredTtsProvider,
-  ppqTtsModelOptions,
+  ttsModelOptions,
   ttsProviderOptions,
 } from "@/lib/audio/providers/registry";
 import type { TtsVoice } from "@/lib/audio/providers/types";
@@ -64,9 +64,6 @@ export default async function AiSettingsPage({
   const activeTtsModel = resolvedSearchParams?.ttsModel || ttsSettings.model;
   const activeTtsLanguage =
     resolvedSearchParams?.ttsLanguage || ttsSettings.languageCode;
-  const isDeepgramWithChineseLanguage =
-    activeTtsModel.toLowerCase().includes("deepgram") &&
-    activeTtsLanguage.trim().toLowerCase().startsWith("zh");
   const savedMessage = settingsSavedMessage(
     resolvedSearchParams?.saved,
     resolvedSearchParams?.ttsError,
@@ -200,7 +197,7 @@ export default async function AiSettingsPage({
               有声小说导出参数
             </div>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-              第一版使用 PPQ TTS，支持 ElevenLabs 和 DeepGram 模型。音频导出只读取章节文本并生成本地音频文件，不会修改正式故事记忆。
+              使用 Google Gemini TTS 生成本地 WAV 音频。音频导出只读取章节文本并生成本地音频文件，不会修改正式故事记忆。
             </p>
           </div>
           <form action="/ai-settings#tts-settings" className="flex flex-wrap gap-2" method="get">
@@ -210,7 +207,7 @@ export default async function AiSettingsPage({
               defaultValue={activeTtsModel}
               name="ttsModel"
             >
-              {ppqTtsModelOptions.map((option) => (
+              {ttsModelOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -220,7 +217,7 @@ export default async function AiSettingsPage({
               className="min-h-10 w-24 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
               defaultValue={activeTtsLanguage}
               name="ttsLanguage"
-              placeholder="zh"
+              placeholder="cmn"
               type="text"
             />
             <FormActionButton
@@ -228,7 +225,7 @@ export default async function AiSettingsPage({
               idleLabel="刷新音色列表"
               name="ttsVoiceLookupAction"
               pendingLabel="刷新中..."
-              statusText="正在向 PPQ 读取可用音色，完成后会显示列表。"
+              statusText="正在读取 Google Gemini 可用音色，完成后会显示列表。"
               value="refresh"
             />
           </form>
@@ -263,7 +260,7 @@ export default async function AiSettingsPage({
                 className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
                 defaultValue={ttsSettings.apiBaseUrl}
                 name="ttsApiBaseUrl"
-                placeholder="https://api.ppq.ai/v1"
+                placeholder="https://generativelanguage.googleapis.com/v1beta"
                 type="url"
               />
             </label>
@@ -277,7 +274,7 @@ export default async function AiSettingsPage({
                 defaultValue={activeTtsModel}
                 name="ttsModel"
               >
-                {ppqTtsModelOptions.map((option) => (
+                {ttsModelOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -291,7 +288,7 @@ export default async function AiSettingsPage({
                 className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
                 defaultValue={activeTtsLanguage}
                 name="ttsLanguageCode"
-                placeholder="zh"
+                placeholder="cmn"
                 type="text"
               />
             </label>
@@ -305,8 +302,8 @@ export default async function AiSettingsPage({
               name="ttsApiKey"
               placeholder={
                 ttsSettings.hasApiKey
-                  ? "留空则保留当前 TTS API Key"
-                  : "输入 PPQ API Key"
+                  ? "留空则保留当前 Google Gemini API Key"
+                  : "输入 Google Gemini API Key"
               }
               type="password"
             />
@@ -317,20 +314,13 @@ export default async function AiSettingsPage({
               <div>
                 <p className="text-sm font-semibold text-ink-950">音色</p>
                 <p className="text-xs leading-5 text-ink-700">
-                  可以从刷新后的列表选择，也可以在高级输入里手填 ElevenLabs / DeepGram voice ID。
+                  可以从刷新后的列表选择，也可以在高级输入里手填 Google Gemini voice name。
                 </p>
               </div>
               <span className="text-xs text-ink-700">
                 当前：{ttsSettings.voiceName || ttsSettings.voiceId || "未设置"}
               </span>
             </div>
-
-            {isDeepgramWithChineseLanguage ? (
-              <p className="rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-3 text-sm leading-6 text-amber-900">
-                PPQ 当前没有返回 DeepGram Aura 2 的中文音色。中文旁白建议使用 ElevenLabs
-                Multilingual v2；如果要测试 DeepGram，请刷新后选择英语、日语等音色，保存时会自动切换到该音色对应语言。
-              </p>
-            ) : null}
 
             {ttsVoiceLookup.kind === "loaded" && ttsVoiceLookup.voices.length > 0 ? (
               <div className="grid gap-3 md:grid-cols-2">
@@ -366,27 +356,27 @@ export default async function AiSettingsPage({
               <p className="rounded-md border border-dashed border-ink-950/15 bg-white px-3 py-3 text-sm leading-6 text-ink-700">
                 {ttsVoiceLookup.kind === "error"
                   ? ttsVoiceLookup.message
-                  : "点击“刷新音色列表”后，可以在这里选择 PPQ 返回的可用音色。"}
+                  : "点击“刷新音色列表”后，可以在这里选择 Google Gemini 可用音色。"}
               </p>
             )}
 
             <input name="ttsVoiceName" type="hidden" value={ttsSettings.voiceName} />
             <label className="block space-y-2">
               <span className="text-xs font-semibold text-ink-700">
-                手填 voice ID
+                手填 voice name
               </span>
               <input
                 className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
                 defaultValue={ttsSettings.voiceId}
                 name="ttsVoiceId"
-                placeholder="例如：JBFqnCBsd6RMkjVDRZzb"
+                placeholder="例如：Kore"
                 type="text"
               />
             </label>
 
             <div className="flex flex-col gap-2 border-t border-ink-950/10 pt-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs leading-5 text-ink-700">
-                选中列表音色或填写 voice ID 后保存；后续试听和章节导出会自动使用这个音色。
+                选中列表音色或填写 voice name 后保存；后续试听和章节导出会自动使用这个音色。
               </p>
               <FormActionButton
                 formAction={saveTtsGenerationSettingsAction}
@@ -394,7 +384,7 @@ export default async function AiSettingsPage({
                 idleLabel="保存当前音色"
                 name="ttsSettingsAction"
                 pendingLabel="保存音色中..."
-                statusText="正在保存当前选择的 voice ID。"
+                statusText="正在保存当前选择的 voice name。"
                 value="save-voice"
               />
             </div>
@@ -408,9 +398,7 @@ export default async function AiSettingsPage({
                 defaultValue={ttsSettings.outputFormat}
                 name="ttsOutputFormat"
               >
-                <option value="mp3">MP3</option>
                 <option value="wav">WAV</option>
-                <option value="ogg">OGG</option>
               </select>
             </label>
 
@@ -471,7 +459,7 @@ export default async function AiSettingsPage({
             <div className="text-sm leading-6 text-ink-700">
               <span className="font-semibold text-ink-950">TTS 接口：</span>
               <span className="break-all">
-                {ttsSettings.apiBaseUrl}/audio/speech
+                {ttsSettings.apiBaseUrl}/models/{ttsSettings.model}:generateContent
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -481,7 +469,7 @@ export default async function AiSettingsPage({
                 idleLabel="试听音色"
                 name="ttsSettingsAction"
                 pendingLabel="试听生成中..."
-                statusText="正在调用 PPQ TTS 生成试听音频。"
+                statusText="正在调用 Google Gemini TTS 生成试听音频。"
                 value="preview"
               />
               <FormActionButton
@@ -950,7 +938,7 @@ function settingsSavedMessage(saved?: string, detail?: string) {
     return {
       kind: "success",
       title: "音色已保存",
-      description: "当前 voice ID 已写入本机有声导出设置，后续试听和章节导出会自动使用。",
+      description: "当前 voice name 已写入本机有声导出设置，后续试听和章节导出会自动使用。",
     };
   }
 
@@ -966,7 +954,7 @@ function settingsSavedMessage(saved?: string, detail?: string) {
     return {
       kind: "error",
       title: "音色试听失败",
-      description: "请先填写或保存 PPQ TTS API Key，再试听音色。",
+      description: "请先填写或保存 Google Gemini API Key，再试听音色。",
     };
   }
 
@@ -974,7 +962,7 @@ function settingsSavedMessage(saved?: string, detail?: string) {
     return {
       kind: "error",
       title: "音色试听失败",
-      description: "请先从音色列表选择一个音色，或手动填写 voice ID。",
+      description: "请先从音色列表选择一个音色，或手动填写 voice name。",
     };
   }
 
@@ -1056,5 +1044,5 @@ function formatTtsVoiceLookupError(error: unknown) {
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, "Bearer ***")
     .slice(0, 180);
 
-  return `音色列表读取失败：${message}。你仍然可以手动填写 voice ID。`;
+  return `音色列表读取失败：${message}。你仍然可以手动填写 voice name。`;
 }

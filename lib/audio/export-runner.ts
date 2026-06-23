@@ -7,6 +7,7 @@ import {
 import { chunkAudioText } from "./chunk-text";
 import { modelInputLimit } from "./estimate-cost";
 import { getConfiguredTtsProvider } from "./providers/registry";
+import type { TtsProviderId } from "./providers/types";
 import { resolveChapterAudioSourceText } from "./text-source";
 
 type ProcessAudioExportOptions = {
@@ -88,7 +89,7 @@ export async function processAudioExport({
 
       try {
         const result = await provider.synthesizeSegment({
-          providerId: "ppq_tts",
+          providerId: audioExport.providerId as TtsProviderId,
           inputText: chunk.text,
           languageCode: audioExport.languageCode,
           modelId: audioExport.modelId,

@@ -21,7 +21,7 @@ import {
   formatEstimatedCost,
   modelInputLimit,
 } from "@/lib/audio/estimate-cost";
-import { ppqTtsModelOptions } from "@/lib/audio/providers/registry";
+import { ttsModelOptions } from "@/lib/audio/providers/registry";
 import {
   audioSourceTextTypeLabel,
   resolveChapterAudioSourceText,
@@ -236,7 +236,7 @@ export default async function AudiobookPage({
               defaultValue={ttsSettings.model}
               name="modelId"
             >
-              {ppqTtsModelOptions.map((option) => (
+              {ttsModelOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -245,12 +245,12 @@ export default async function AudiobookPage({
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-semibold text-ink-800">音色 ID</span>
+            <span className="text-sm font-semibold text-ink-800">音色 voice name</span>
             <input
               className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
               defaultValue={ttsSettings.voiceId}
               name="voiceId"
-              placeholder="未填写时使用供应商默认音色"
+              placeholder="例如：Kore"
               type="text"
             />
             <input name="voiceName" type="hidden" value={ttsSettings.voiceName} />
@@ -273,9 +273,7 @@ export default async function AudiobookPage({
               defaultValue={ttsSettings.outputFormat}
               name="outputFormat"
             >
-              <option value="mp3">MP3</option>
               <option value="wav">WAV</option>
-              <option value="ogg">OGG</option>
             </select>
           </label>
 
@@ -478,7 +476,7 @@ function audioExportStatusLabel(status: string) {
 
 function audioErrorMessage(error?: string) {
   if (error === "missingTtsApiKey") {
-    return "还没有配置 PPQ TTS API Key，请先到本机设置里保存有声导出参数。";
+    return "还没有配置 Google Gemini API Key，请先到本机设置里保存有声导出参数。";
   }
 
   if (error === "missingChapterText") {

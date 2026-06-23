@@ -178,11 +178,14 @@ export const DEFAULT_IMAGE_API_BASE_URL = "https://api.ppq.ai/v1";
 export const DEFAULT_IMAGE_MODEL = "qwen-image-2";
 export const DEFAULT_IMAGE_SIZE = "default";
 export const DEFAULT_IMAGE_QUALITY = "default";
-export const DEFAULT_TTS_PROVIDER_ID = "ppq_tts";
-export const DEFAULT_TTS_API_BASE_URL = "https://api.ppq.ai/v1";
-export const DEFAULT_TTS_MODEL = "eleven_multilingual_v2";
-export const DEFAULT_TTS_LANGUAGE_CODE = "zh";
-export const DEFAULT_TTS_OUTPUT_FORMAT = "mp3";
+export const DEFAULT_TTS_PROVIDER_ID = "google_tts";
+export const DEFAULT_TTS_API_BASE_URL =
+  "https://generativelanguage.googleapis.com/v1beta";
+export const DEFAULT_TTS_MODEL = "gemini-2.5-flash-preview-tts";
+export const DEFAULT_TTS_VOICE_ID = "Kore";
+export const DEFAULT_TTS_VOICE_NAME = "Kore - Firm";
+export const DEFAULT_TTS_LANGUAGE_CODE = "cmn";
+export const DEFAULT_TTS_OUTPUT_FORMAT = "wav";
 export const DEFAULT_TTS_STYLE_PROMPT =
   "中文长篇小说旁白，语气自然沉稳，保留对白情绪，节奏适合连续收听。";
 export const DEFAULT_STATION_CAT_API_BASE_URL = "https://wwwstationcat.org";
@@ -426,21 +429,21 @@ export function readTtsGenerationSettings(
     ...env,
     ...compactTtsEnv(fileEnv),
   };
-  const apiKey = runtimeEnv.TTS_API_KEY?.trim() ?? "";
+  const ttsEnv = normalizeTtsRuntimeEnv(runtimeEnv);
 
   return {
     configPath,
     fileExists: fs.existsSync(configPath),
-    hasApiKey: Boolean(apiKey),
-    maskedApiKey: maskSecret(apiKey),
-    providerId: normalizeTtsProviderId(runtimeEnv.TTS_PROVIDER_ID),
-    apiBaseUrl: normalizeTtsApiBaseUrl(runtimeEnv.TTS_API_BASE_URL),
-    model: normalizeTtsModel(runtimeEnv.TTS_MODEL),
-    voiceId: normalizeTtsVoiceId(runtimeEnv.TTS_VOICE_ID),
-    voiceName: normalizeTtsVoiceName(runtimeEnv.TTS_VOICE_NAME),
-    languageCode: normalizeTtsLanguageCode(runtimeEnv.TTS_LANGUAGE_CODE),
-    outputFormat: normalizeTtsOutputFormat(runtimeEnv.TTS_OUTPUT_FORMAT),
-    stylePrompt: normalizeTtsStylePrompt(runtimeEnv.TTS_STYLE_PROMPT),
+    hasApiKey: Boolean(ttsEnv.apiKey),
+    maskedApiKey: maskSecret(ttsEnv.apiKey),
+    providerId: ttsEnv.providerId,
+    apiBaseUrl: ttsEnv.apiBaseUrl,
+    model: ttsEnv.model,
+    voiceId: ttsEnv.voiceId,
+    voiceName: ttsEnv.voiceName,
+    languageCode: ttsEnv.languageCode,
+    outputFormat: ttsEnv.outputFormat,
+    stylePrompt: ttsEnv.stylePrompt,
     source: detectTtsConfigSource(fileEnv, env),
   };
 }
@@ -454,17 +457,18 @@ export function readTtsGenerationSecrets(
     ...env,
     ...compactTtsEnv(fileEnv),
   };
+  const ttsEnv = normalizeTtsRuntimeEnv(runtimeEnv);
 
   return {
-    providerId: normalizeTtsProviderId(runtimeEnv.TTS_PROVIDER_ID),
-    apiBaseUrl: normalizeTtsApiBaseUrl(runtimeEnv.TTS_API_BASE_URL),
-    apiKey: runtimeEnv.TTS_API_KEY?.trim() ?? "",
-    model: normalizeTtsModel(runtimeEnv.TTS_MODEL),
-    voiceId: normalizeTtsVoiceId(runtimeEnv.TTS_VOICE_ID),
-    voiceName: normalizeTtsVoiceName(runtimeEnv.TTS_VOICE_NAME),
-    languageCode: normalizeTtsLanguageCode(runtimeEnv.TTS_LANGUAGE_CODE),
-    outputFormat: normalizeTtsOutputFormat(runtimeEnv.TTS_OUTPUT_FORMAT),
-    stylePrompt: normalizeTtsStylePrompt(runtimeEnv.TTS_STYLE_PROMPT),
+    providerId: ttsEnv.providerId,
+    apiBaseUrl: ttsEnv.apiBaseUrl,
+    apiKey: ttsEnv.apiKey,
+    model: ttsEnv.model,
+    voiceId: ttsEnv.voiceId,
+    voiceName: ttsEnv.voiceName,
+    languageCode: ttsEnv.languageCode,
+    outputFormat: ttsEnv.outputFormat,
+    stylePrompt: ttsEnv.stylePrompt,
   };
 }
 
@@ -476,7 +480,9 @@ export function saveTtsGenerationSettings(
   const currentFileEnv = readLocalConfigFile(configPath);
   const apiKeyInput = input.apiKey?.trim() ?? "";
   const currentApiKey =
-    currentFileEnv.TTS_API_KEY?.trim() || env.TTS_API_KEY?.trim() || "";
+    isLegacyPpqTtsConfig(currentFileEnv)
+      ? ""
+      : currentFileEnv.TTS_API_KEY?.trim() || env.TTS_API_KEY?.trim() || "";
   const nextApiKey = input.clearApiKey ? "" : apiKeyInput || currentApiKey;
   const nextEnv: Partial<Record<TtsConfigKey, string>> = {
     TTS_PROVIDER_ID: normalizeTtsProviderId(input.providerId),
@@ -746,8 +752,8 @@ export function normalizeImageQuality(quality?: string | null) {
 export function normalizeTtsProviderId(providerId?: string | null) {
   const normalized = providerId?.trim() || DEFAULT_TTS_PROVIDER_ID;
 
-  if (normalized !== "ppq_tts") {
-    throw new Error("第一版有声小说导出只支持 PPQ TTS。");
+  if (normalized !== "google_tts") {
+    return DEFAULT_TTS_PROVIDER_ID;
   }
 
   return normalized;
@@ -756,7 +762,7 @@ export function normalizeTtsProviderId(providerId?: string | null) {
 export function normalizeTtsApiBaseUrl(apiBaseUrl?: string | null) {
   const normalized = (apiBaseUrl?.trim() || DEFAULT_TTS_API_BASE_URL).replace(
     /\/+$/,
-    "",
+  "",
   );
 
   if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
@@ -766,16 +772,57 @@ export function normalizeTtsApiBaseUrl(apiBaseUrl?: string | null) {
   return normalized;
 }
 
+function normalizeTtsRuntimeEnv(env: AiRuntimeEnv): TtsGenerationSecrets {
+  const isLegacyPpqConfig = isLegacyPpqTtsConfig(env);
+
+  return {
+    providerId: DEFAULT_TTS_PROVIDER_ID,
+    apiBaseUrl: normalizeTtsApiBaseUrl(
+      isLegacyPpqConfig ? "" : env.TTS_API_BASE_URL,
+    ),
+    apiKey: isLegacyPpqConfig ? "" : env.TTS_API_KEY?.trim() ?? "",
+    model: normalizeTtsModel(isLegacyPpqConfig ? "" : env.TTS_MODEL),
+    voiceId: normalizeTtsVoiceId(isLegacyPpqConfig ? "" : env.TTS_VOICE_ID),
+    voiceName: normalizeTtsVoiceName(isLegacyPpqConfig ? "" : env.TTS_VOICE_NAME),
+    languageCode: normalizeTtsLanguageCode(
+      isLegacyPpqConfig ? "" : env.TTS_LANGUAGE_CODE,
+    ),
+    outputFormat: normalizeTtsOutputFormat(
+      isLegacyPpqConfig ? "" : env.TTS_OUTPUT_FORMAT,
+    ),
+    stylePrompt: normalizeTtsStylePrompt(env.TTS_STYLE_PROMPT),
+  };
+}
+
+function isLegacyPpqTtsConfig(env: AiRuntimeEnv) {
+  const providerId = env.TTS_PROVIDER_ID?.trim().toLowerCase();
+  const apiBaseUrl = env.TTS_API_BASE_URL?.trim().toLowerCase() ?? "";
+  const model = env.TTS_MODEL?.trim().toLowerCase() ?? "";
+
+  return (
+    providerId === "ppq_tts" ||
+    apiBaseUrl.includes("api.ppq.ai") ||
+    model.includes("eleven") ||
+    model.includes("deepgram")
+  );
+}
+
 export function normalizeTtsModel(model?: string | null) {
-  return model?.trim() || DEFAULT_TTS_MODEL;
+  const normalized = model?.trim() || DEFAULT_TTS_MODEL;
+
+  if (!normalized.toLowerCase().startsWith("gemini-")) {
+    return DEFAULT_TTS_MODEL;
+  }
+
+  return normalized;
 }
 
 export function normalizeTtsVoiceId(voiceId?: string | null) {
-  return voiceId?.trim() || "";
+  return voiceId?.trim() || DEFAULT_TTS_VOICE_ID;
 }
 
 export function normalizeTtsVoiceName(voiceName?: string | null) {
-  return voiceName?.trim().slice(0, 160) || "";
+  return voiceName?.trim().slice(0, 160) || DEFAULT_TTS_VOICE_NAME;
 }
 
 export function normalizeTtsLanguageCode(languageCode?: string | null) {
@@ -802,7 +849,7 @@ export function isGenericTtsLanguageCode(languageCode?: string | null) {
 export function normalizeTtsOutputFormat(outputFormat?: string | null) {
   const normalized = outputFormat?.trim().toLowerCase() || DEFAULT_TTS_OUTPUT_FORMAT;
 
-  if (["mp3", "wav", "pcm", "ogg"].includes(normalized)) {
+  if (normalized === "wav") {
     return normalized;
   }
 

@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSegmentedChapterPolishContext,
   buildChapterPolishContext,
   buildChapterPolishContextSummary,
   hasPolishableChapterText,
+  isExcerptedChapterPolishInputJson,
+  isSegmentedChapterPolishInputJson,
+  polishSegmentSourceMaxLength,
   polishableChapterText,
   polishableChapterTextSource,
+  shouldSegmentChapterPolish,
+  splitChapterPolishSourceText,
 } from "./chapter-polishes";
 
 const baseInput = {
@@ -90,26 +96,55 @@ describe("chapter polish context builder", () => {
     expect(polishableChapterTextSource(chapter)).toBe("定稿正文");
   });
 
-  it("marks overlong source text as excerpted in the prompt and summary", () => {
+  it("splits overlong source text into adoptable segmented polish tasks", () => {
     const longDraft = Array.from({ length: 21000 }, (_, index) =>
       index % 2 === 0 ? "甲" : "乙",
     ).join("");
-    const context = buildChapterPolishContext({
+    const input = {
       ...baseInput,
       chapter: {
         ...baseInput.chapter,
         draftText: longDraft,
       },
-    });
+    };
+    const context = buildSegmentedChapterPolishContext(input);
 
-    expect(context.inputText).toContain("【超长正文提示】");
-    expect(context.inputText).toContain("【开头摘录】");
-    expect(context.inputText).toContain("【中段摘录】");
-    expect(context.inputText).toContain("【结尾摘录】");
+    expect(shouldSegmentChapterPolish(input)).toBe(true);
+    expect(context.segments.length).toBeGreaterThan(1);
+    expect(
+      context.segments.every(
+        (segment) => segment.segment.text.length <= polishSegmentSourceMaxLength,
+      ),
+    ).toBe(true);
     expect(context.inputJson.chapter).toMatchObject({
       sourceTextLength: 21000,
-      sourceTextPromptWasExcerpted: true,
+      sourceTextPromptWasExcerpted: false,
+      sourceTextPromptWasSegmented: true,
+      segmentCount: context.segments.length,
     });
-    expect(context.inputContextSummary).toContain("模型输入首/中/尾摘录");
+    expect(context.segments[0].inputText).toContain("第 1 / 3 段");
+    expect(context.segments[0].inputText).toContain(
+      "只输出本段精修正文",
+    );
+    expect(context.inputContextSummary).toContain("自动分段精修");
+    expect(isExcerptedChapterPolishInputJson(JSON.stringify(context.inputJson))).toBe(
+      false,
+    );
+    expect(isSegmentedChapterPolishInputJson(JSON.stringify(context.inputJson))).toBe(
+      true,
+    );
+  });
+
+  it("keeps paragraph boundaries while splitting polish segments when possible", () => {
+    const paragraphs = Array.from({ length: 5 }, (_, index) =>
+      `第${index + 1}段。${"正文".repeat(1200)}`,
+    ).join("\n\n");
+    const segments = splitChapterPolishSourceText(paragraphs, 5000);
+
+    expect(segments.length).toBe(3);
+    expect(segments[0].text).toContain("第1段");
+    expect(segments[0].text).toContain("第2段");
+    expect(segments[1].text).toContain("第3段");
+    expect(segments[2].previousTail).toContain("...");
   });
 });

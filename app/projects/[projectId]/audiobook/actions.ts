@@ -114,6 +114,7 @@ export async function startChapterAudioExport(
     redirect(`/projects/${projectId}/audiobook?audioError=missingChapterText`);
   }
 
+  const outputFormat = "wav";
   let audioExport;
 
   try {
@@ -134,7 +135,7 @@ export async function startChapterAudioExport(
             modelInputLimit: modelInputLimit(parsed.data.modelId),
           }),
           modelId: parsed.data.modelId,
-          outputFormat: parsed.data.outputFormat,
+          outputFormat,
           projectId,
           providerId: secrets.providerId,
           scope: "chapter",
