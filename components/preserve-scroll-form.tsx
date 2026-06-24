@@ -6,6 +6,11 @@ import type {
   ReactNode,
 } from "react";
 import { useEffect, useState } from "react";
+import {
+  safeReadScroll,
+  safeRemoveScroll,
+  safeWriteScroll,
+} from "./preserve-scroll-storage";
 
 type PreserveScrollFormProps = Omit<
   FormHTMLAttributes<HTMLFormElement>,
@@ -30,13 +35,13 @@ export function PreserveScrollForm({
   const storageKey = `${storagePrefix}${preserveKey}`;
 
   useEffect(() => {
-    const saved = window.sessionStorage.getItem(storageKey);
+    const saved = safeReadScroll(getSessionStorage(), storageKey);
 
     if (!saved) {
       return;
     }
 
-    window.sessionStorage.removeItem(storageKey);
+    safeRemoveScroll(getSessionStorage(), storageKey);
 
     try {
       const position = JSON.parse(saved) as {
@@ -53,13 +58,10 @@ export function PreserveScrollForm({
   }, [storageKey]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    window.sessionStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        left: window.scrollX,
-        top: window.scrollY,
-      }),
-    );
+    safeWriteScroll(getSessionStorage(), storageKey, {
+      left: window.scrollX,
+      top: window.scrollY,
+    });
     setSubmitted(true);
     onSubmit?.(event);
   }
@@ -74,4 +76,12 @@ export function PreserveScrollForm({
       ) : null}
     </form>
   );
+}
+
+function getSessionStorage() {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
 }
