@@ -46,28 +46,49 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
           },
         },
         {
-          beats: {
-            contains: character.name,
-          },
-        },
-        {
-          draftText: {
-            contains: character.name,
-          },
-        },
-        {
-          polishedText: {
-            contains: character.name,
-          },
-        },
-        {
-          finalText: {
-            contains: character.name,
-          },
-        },
-        {
           notes: {
             contains: character.name,
+          },
+        },
+        {
+          characterRelationships: {
+            some: {
+              OR: [
+                {
+                  sourceCharacterId: character.id,
+                },
+                {
+                  targetCharacterId: character.id,
+                },
+              ],
+            },
+          },
+        },
+        {
+          timelineEvents: {
+            some: {
+              relatedCharacters: {
+                contains: character.name,
+              },
+            },
+          },
+        },
+        {
+          plantedForeshadows: {
+            some: {
+              relatedCharacters: {
+                contains: character.name,
+              },
+            },
+          },
+        },
+        {
+          resolvedForeshadows: {
+            some: {
+              relatedCharacters: {
+                contains: character.name,
+              },
+            },
           },
         },
       ],
@@ -157,7 +178,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
               出场记录
             </h2>
             <p className="mt-1 text-sm leading-6 text-ink-700">
-              首次/最近出场仍以角色档案手动字段为准；下方列表按角色名在章节目标、节拍、正文和备注中的出现自动推断，便于查找。
+              首次/最近出场仍以角色档案手动字段为准；下方列表根据章节目标、备注、人物关系、时间线和伏笔关联推断，不扫描章节正文全文。
             </p>
           </div>
         </div>
@@ -169,7 +190,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
 
         {appearanceChapters.length === 0 ? (
           <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-            暂未从章节内容中推断到出场记录。
+            暂未从轻量章节关联中推断到出场记录。
           </p>
         ) : (
           <div className="mt-4 flex flex-wrap gap-2">
