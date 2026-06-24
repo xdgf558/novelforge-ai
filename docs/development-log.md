@@ -1,5 +1,22 @@
 # Development Log
 
+## 2026-06-25: 0.1.52 Structured Memory Contrast Hotfix
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.52`.
+- Improved the structured memory page contrast for the dark Nocturne shell.
+- Reworked world-rule, foreshadow, and timeline expandable long-text blocks into dark high-contrast panels instead of pale gray blocks.
+- Increased readability for memory card source/update metadata, timeline impact notes, status badges, and archive/abandon action buttons.
+- Kept the change scoped to UI presentation only; no structured memory data model, filtering, archive/abandon behavior, or AI context logic changed.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-24: 0.1.51 Long-Form Management Efficiency
 
 Status: completed.

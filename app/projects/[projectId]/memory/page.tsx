@@ -323,7 +323,7 @@ export default async function MemoryPage({
                     <h3 className="mt-2 text-base font-semibold text-ink-950">
                       {rule.title}
                     </h3>
-                    <p className="mt-1 text-xs text-ink-700">
+                    <p className="mt-1 text-xs text-[#cdb891]">
                       来源章节：{chapterLabelById.get(rule.sourceChapterId || "") || "未指定"} / 更新：{formatDate(rule.updatedAt)}
                     </p>
                   </div>
@@ -337,7 +337,7 @@ export default async function MemoryPage({
                     {rule.status !== "archived" ? (
                       <form action={archiveWorldRule.bind(null, project.id, rule.id)}>
                         <button
-                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#d89b45]/35 bg-[#2d1f12] px-3 py-2 text-xs font-semibold text-[#ffd28d] transition hover:border-[#ffc274]/50 hover:bg-[#3a2816]"
                           type="submit"
                         >
                           <Archive aria-hidden="true" className="h-3.5 w-3.5" />
@@ -411,7 +411,7 @@ export default async function MemoryPage({
                     <h3 className="mt-2 line-clamp-2 text-base font-semibold text-ink-950">
                       {foreshadow.content}
                     </h3>
-                    <p className="mt-1 text-xs text-ink-700">
+                    <p className="mt-1 text-xs text-[#cdb891]">
                       埋设：{foreshadow.plantedChapter ? chapterLabel(foreshadow.plantedChapter) : "未指定"} / 回收：{foreshadow.resolvedChapter ? chapterLabel(foreshadow.resolvedChapter) : "未指定"}
                     </p>
                   </div>
@@ -431,7 +431,7 @@ export default async function MemoryPage({
                         )}
                       >
                         <button
-                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#d89b45]/35 bg-[#2d1f12] px-3 py-2 text-xs font-semibold text-[#ffd28d] transition hover:border-[#ffc274]/50 hover:bg-[#3a2816]"
                           type="submit"
                         >
                           <Archive aria-hidden="true" className="h-3.5 w-3.5" />
@@ -508,7 +508,7 @@ export default async function MemoryPage({
                     <h3 className="mt-2 text-base font-semibold text-ink-950">
                       {event.title}
                     </h3>
-                    <p className="mt-1 text-xs text-ink-700">
+                    <p className="mt-1 text-xs text-[#cdb891]">
                       更新：{formatDate(event.updatedAt)}
                     </p>
                   </div>
@@ -528,7 +528,7 @@ export default async function MemoryPage({
                         )}
                       >
                         <button
-                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-[#d89b45]/35 bg-[#2d1f12] px-3 py-2 text-xs font-semibold text-[#ffd28d] transition hover:border-[#ffc274]/50 hover:bg-[#3a2816]"
                           type="submit"
                         >
                           <Archive aria-hidden="true" className="h-3.5 w-3.5" />
@@ -540,7 +540,7 @@ export default async function MemoryPage({
                 </div>
                 <ExpandableText value={event.description} />
                 {event.impact ? (
-                  <p className="mt-2 whitespace-pre-wrap rounded-md bg-ink-950/[0.03] p-3 text-xs leading-5 text-ink-700">
+                  <p className="mt-2 whitespace-pre-wrap rounded-md border border-[#ce8f48]/20 bg-[#07191c]/[.85] p-3 text-xs leading-5 text-[#d8c39d]">
                     影响：{event.impact}
                   </p>
                 ) : null}
@@ -1299,16 +1299,16 @@ function ExpandableText({ value }: { value: string }) {
   const shouldExpand = value.length > 120 || value.includes("\n");
 
   return (
-    <div className="mt-2 rounded-md bg-white/75 p-3 text-sm leading-5 text-ink-800">
+    <div className="mt-2 rounded-md border border-[#ce8f48]/20 bg-[#07191c]/[.85] p-3 text-sm leading-5 text-[#f5dfbd] shadow-[inset_0_1px_rgba(255,255,255,0.04)]">
       <p className={shouldExpand ? "line-clamp-2 whitespace-pre-wrap" : "whitespace-pre-wrap"}>
         {value}
       </p>
       {shouldExpand ? (
         <details className="mt-2">
-          <summary className="cursor-pointer text-xs font-semibold text-signal-700">
+          <summary className="cursor-pointer text-xs font-semibold text-[#6ee7d8] transition hover:text-[#9ffcf2]">
             展开全文 / 收起
           </summary>
-          <p className="mt-2 whitespace-pre-wrap border-t border-ink-950/10 pt-2">
+          <p className="mt-2 whitespace-pre-wrap border-t border-[#ce8f48]/20 pt-2 text-[#f5dfbd]">
             {value}
           </p>
         </details>
@@ -1486,10 +1486,10 @@ function Badge({
 }) {
   const className =
     tone === "amber"
-      ? "bg-ember-500/10 text-ember-600"
+      ? "border border-[#d89b45]/35 bg-[#3a2611]/80 text-[#ffd28d]"
       : tone === "cyan"
-        ? "bg-signal-500/10 text-signal-700"
-        : "bg-ink-950/5 text-ink-700";
+        ? "border border-[#58d7c7]/30 bg-[#082d2f]/80 text-[#8df4e8]"
+        : "border border-[#ce8f48]/25 bg-[#102326]/90 text-[#d9c199]";
 
   return (
     <span
