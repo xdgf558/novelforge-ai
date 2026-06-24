@@ -185,7 +185,7 @@ export async function createChapter(projectId: string, formData: FormData) {
     return createdChapter;
   });
 
-  await syncOutlineStatusesForChapter(projectId, snapshot.chapterNumber);
+  await syncOutlineStatusesForChapterNumbers(projectId, [snapshot.chapterNumber]);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
@@ -253,7 +253,10 @@ export async function updateChapter(
     });
   });
 
-  await syncOutlineStatusesForChapter(projectId, snapshot.chapterNumber);
+  await syncOutlineStatusesForChapterNumbers(projectId, [
+    chapter.chapterNumber,
+    snapshot.chapterNumber,
+  ]);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
@@ -285,7 +288,7 @@ export async function deleteChapter(projectId: string, chapterId: string) {
     },
   });
 
-  await syncOutlineStatusesForChapter(projectId, chapter.chapterNumber);
+  await syncOutlineStatusesForChapterNumbers(projectId, [chapter.chapterNumber]);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
@@ -802,10 +805,16 @@ async function findActiveChapterAiTask(
   });
 }
 
-async function syncOutlineStatusesForChapter(
+async function syncOutlineStatusesForChapterNumbers(
   projectId: string,
-  chapterNumber: number,
+  chapterNumbers: Iterable<number>,
 ) {
+  const numbersToSync = [...new Set(chapterNumbers)];
+
+  if (numbersToSync.length === 0) {
+    return;
+  }
+
   const [outlines, chapters] = await Promise.all([
     prisma.outline.findMany({
       where: {
@@ -826,7 +835,9 @@ async function syncOutlineStatusesForChapter(
     }),
   ]);
   const matchingOutlines = outlines.filter((outline) =>
-    chapterBelongsToOutline(chapterNumber, outline),
+    numbersToSync.some((chapterNumber) =>
+      chapterBelongsToOutline(chapterNumber, outline),
+    ),
   );
 
   await Promise.all(

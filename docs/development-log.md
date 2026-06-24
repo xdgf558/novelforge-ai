@@ -19,7 +19,8 @@ What was done:
 Verification:
 
 - `npm run test -- lib/outline-progress.test.ts lib/ai/usage.test.ts lib/ai/task-logger.test.ts` passed.
-- `npm run test` passed, 60 files and 322 tests.
+- `npm run test -- app/projects/[projectId]/chapters/actions.test.ts app/projects/actions.test.ts` passed.
+- `npm run test` passed, 61 files and 325 tests.
 - `npm run typecheck` passed.
 - `npm run build` passed.
 
