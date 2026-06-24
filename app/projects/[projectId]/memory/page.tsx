@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowLeft,
   FileText,
+  Filter,
   ListChecks,
   Route,
   ShieldCheck,
@@ -49,6 +50,15 @@ type MemoryPageProps = {
     editId?: string;
     editType?: string;
     memoryError?: string;
+    foreshadowImportance?: string;
+    foreshadowResolveChapter?: string;
+    foreshadowStatus?: string;
+    timelineChapterId?: string;
+    timelineSort?: string;
+    timelineStatus?: string;
+    worldRuleCategory?: string;
+    worldRuleCore?: string;
+    worldRuleStatus?: string;
   }>;
 };
 
@@ -66,6 +76,7 @@ export default async function MemoryPage({
 }: MemoryPageProps) {
   const { projectId } = await params;
   const query = (await searchParams) ?? {};
+  const memoryFilters = normalizeMemoryFilters(query);
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -82,10 +93,12 @@ export default async function MemoryPage({
         },
       },
       worldRules: {
+        where: buildWorldRuleWhere(memoryFilters),
         orderBy: [{ isCore: "desc" }, { status: "asc" }, { updatedAt: "desc" }],
         take: memoryListLimit,
       },
       foreshadows: {
+        where: buildForeshadowWhere(memoryFilters),
         include: {
           plantedChapter: {
             select: {
@@ -106,6 +119,7 @@ export default async function MemoryPage({
         take: memoryListLimit,
       },
       timelineEvents: {
+        where: buildTimelineWhere(memoryFilters),
         include: {
           chapter: {
             select: {
@@ -115,7 +129,10 @@ export default async function MemoryPage({
             },
           },
         },
-        orderBy: [{ status: "asc" }, { storyTime: "asc" }, { createdAt: "asc" }],
+        orderBy:
+          memoryFilters.timelineSort === "updated_desc"
+            ? [{ updatedAt: "desc" }]
+            : [{ status: "asc" }, { storyTime: "asc" }, { createdAt: "asc" }],
         take: memoryListLimit,
       },
     },
@@ -128,9 +145,12 @@ export default async function MemoryPage({
   const [
     worldRuleTotalCount,
     activeWorldRuleCount,
+    worldRuleFilteredCount,
     foreshadowTotalCount,
     unresolvedForeshadowCount,
+    foreshadowFilteredCount,
     timelineEventTotalCount,
+    timelineEventFilteredCount,
   ] = await Promise.all([
     prisma.worldRule.count({
       where: {
@@ -141,6 +161,12 @@ export default async function MemoryPage({
       where: {
         projectId,
         status: "active",
+      },
+    }),
+    prisma.worldRule.count({
+      where: {
+        projectId,
+        ...buildWorldRuleWhere(memoryFilters),
       },
     }),
     prisma.foreshadow.count({
@@ -156,9 +182,21 @@ export default async function MemoryPage({
         },
       },
     }),
+    prisma.foreshadow.count({
+      where: {
+        projectId,
+        ...buildForeshadowWhere(memoryFilters),
+      },
+    }),
     prisma.timelineEvent.count({
       where: {
         projectId,
+      },
+    }),
+    prisma.timelineEvent.count({
+      where: {
+        projectId,
+        ...buildTimelineWhere(memoryFilters),
       },
     }),
   ]);
@@ -255,10 +293,16 @@ export default async function MemoryPage({
           />
         </CompactCreatePanel>
         <ListLimitNotice
+          filterActive={hasWorldRuleFilter(memoryFilters)}
           label="世界观规则"
           loaded={project.worldRules.length}
-          total={worldRuleTotalCount}
+          total={
+            hasWorldRuleFilter(memoryFilters)
+              ? worldRuleFilteredCount
+              : worldRuleTotalCount
+          }
         />
+        <WorldRuleFilterForm filters={memoryFilters} projectId={project.id} />
         <div className="mt-4 space-y-3">
           {project.worldRules.length === 0 ? (
             <EmptyState text="还没有世界观规则。可以先录入技术规则、社会规则、代价机制或禁忌规则。" />
@@ -303,9 +347,7 @@ export default async function MemoryPage({
                     ) : null}
                   </div>
                 </div>
-                <p className="mt-2 line-clamp-2 rounded-md bg-white/75 p-3 text-sm leading-5 text-ink-800">
-                  {rule.content}
-                </p>
+                <ExpandableText value={rule.content} />
                 {editType === "worldRule" && editId === rule.id ? (
                   <div className="mt-4 rounded-lg border border-signal-500/20 bg-signal-500/5 p-4">
                     <WorldRuleForm
@@ -336,10 +378,16 @@ export default async function MemoryPage({
           />
         </CompactCreatePanel>
         <ListLimitNotice
+          filterActive={hasForeshadowFilter(memoryFilters)}
           label="伏笔"
           loaded={project.foreshadows.length}
-          total={foreshadowTotalCount}
+          total={
+            hasForeshadowFilter(memoryFilters)
+              ? foreshadowFilteredCount
+              : foreshadowTotalCount
+          }
         />
+        <ForeshadowFilterForm filters={memoryFilters} projectId={project.id} />
         <div className="mt-4 space-y-3">
           {project.foreshadows.length === 0 ? (
             <EmptyState text="还没有伏笔记录。可以手动补充章节埋点，也可以先从待审更新中批准 AI 提取的伏笔。" />
@@ -393,9 +441,7 @@ export default async function MemoryPage({
                     ) : null}
                   </div>
                 </div>
-                <p className="mt-2 line-clamp-2 rounded-md bg-white/75 p-3 text-sm leading-5 text-ink-800">
-                  {foreshadow.content}
-                </p>
+                <ExpandableText value={foreshadow.content} />
                 {editType === "foreshadow" && editId === foreshadow.id ? (
                   <div className="mt-4 rounded-lg border border-signal-500/20 bg-signal-500/5 p-4">
                     <ForeshadowForm
@@ -426,9 +472,19 @@ export default async function MemoryPage({
           />
         </CompactCreatePanel>
         <ListLimitNotice
+          filterActive={hasTimelineFilter(memoryFilters)}
           label="时间线事件"
           loaded={project.timelineEvents.length}
-          total={timelineEventTotalCount}
+          total={
+            hasTimelineFilter(memoryFilters)
+              ? timelineEventFilteredCount
+              : timelineEventTotalCount
+          }
+        />
+        <TimelineFilterForm
+          chapters={chapters}
+          filters={memoryFilters}
+          projectId={project.id}
         />
         <div className="mt-4 space-y-3">
           {project.timelineEvents.length === 0 ? (
@@ -482,9 +538,7 @@ export default async function MemoryPage({
                     ) : null}
                   </div>
                 </div>
-                <p className="mt-2 line-clamp-2 rounded-md bg-white/75 p-3 text-sm leading-5 text-ink-800">
-                  {event.description}
-                </p>
+                <ExpandableText value={event.description} />
                 {event.impact ? (
                   <p className="mt-2 whitespace-pre-wrap rounded-md bg-ink-950/[0.03] p-3 text-xs leading-5 text-ink-700">
                     影响：{event.impact}
@@ -505,6 +559,324 @@ export default async function MemoryPage({
           )}
         </div>
       </MemorySection>
+    </div>
+  );
+}
+
+type MemoryFilters = {
+  foreshadowImportance: string;
+  foreshadowResolveChapter: number | null;
+  foreshadowStatus: string;
+  timelineChapterId: string;
+  timelineSort: string;
+  timelineStatus: string;
+  worldRuleCategory: string;
+  worldRuleCore: string;
+  worldRuleStatus: string;
+};
+
+function normalizeMemoryFilters(
+  query: NonNullable<MemoryPageProps["searchParams"]> extends Promise<infer T>
+    ? T
+    : never,
+): MemoryFilters {
+  return {
+    worldRuleStatus: optionValue(query.worldRuleStatus, worldRuleStatusOptions),
+    worldRuleCategory: optionValue(query.worldRuleCategory, worldRuleCategoryOptions),
+    worldRuleCore: query.worldRuleCore === "core" ? "core" : "",
+    foreshadowStatus: optionValue(query.foreshadowStatus, foreshadowStatusOptions),
+    foreshadowImportance: optionValue(
+      query.foreshadowImportance,
+      foreshadowImportanceOptions,
+    ),
+    foreshadowResolveChapter: positiveInt(query.foreshadowResolveChapter),
+    timelineStatus: optionValue(query.timelineStatus, timelineEventStatusOptions),
+    timelineChapterId: query.timelineChapterId?.trim() ?? "",
+    timelineSort: query.timelineSort === "updated_desc" ? "updated_desc" : "story_time",
+  };
+}
+
+function optionValue(
+  value: string | undefined,
+  options: readonly { value: string; label: string }[],
+) {
+  const normalized = value?.trim() ?? "";
+  return options.some((option) => option.value === normalized) ? normalized : "";
+}
+
+function positiveInt(value?: string) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function buildWorldRuleWhere(filters: MemoryFilters) {
+  return {
+    ...(filters.worldRuleStatus
+      ? {
+          status: filters.worldRuleStatus,
+        }
+      : {}),
+    ...(filters.worldRuleCategory
+      ? {
+          category: filters.worldRuleCategory,
+        }
+      : {}),
+    ...(filters.worldRuleCore === "core"
+      ? {
+          isCore: true,
+        }
+      : {}),
+  };
+}
+
+function buildForeshadowWhere(filters: MemoryFilters) {
+  return {
+    ...(filters.foreshadowStatus
+      ? {
+          status: filters.foreshadowStatus,
+        }
+      : {}),
+    ...(filters.foreshadowImportance
+      ? {
+          importance: filters.foreshadowImportance,
+        }
+      : {}),
+    ...(filters.foreshadowResolveChapter
+      ? {
+          expectedResolveChapter: filters.foreshadowResolveChapter,
+        }
+      : {}),
+  };
+}
+
+function buildTimelineWhere(filters: MemoryFilters) {
+  return {
+    ...(filters.timelineStatus
+      ? {
+          status: filters.timelineStatus,
+        }
+      : {}),
+    ...(filters.timelineChapterId
+      ? {
+          chapterId: filters.timelineChapterId,
+        }
+      : {}),
+  };
+}
+
+function hasWorldRuleFilter(filters: MemoryFilters) {
+  return Boolean(
+    filters.worldRuleStatus ||
+      filters.worldRuleCategory ||
+      filters.worldRuleCore,
+  );
+}
+
+function hasForeshadowFilter(filters: MemoryFilters) {
+  return Boolean(
+    filters.foreshadowStatus ||
+      filters.foreshadowImportance ||
+      filters.foreshadowResolveChapter,
+  );
+}
+
+function hasTimelineFilter(filters: MemoryFilters) {
+  return Boolean(
+    filters.timelineStatus ||
+      filters.timelineChapterId ||
+      filters.timelineSort !== "story_time",
+  );
+}
+
+function WorldRuleFilterForm({
+  filters,
+  projectId,
+}: {
+  filters: MemoryFilters;
+  projectId: string;
+}) {
+  return (
+    <FilterForm action={`/projects/${projectId}/memory#world-rules`}>
+      <SelectFilter
+        defaultValue={filters.worldRuleStatus}
+        label="状态"
+        name="worldRuleStatus"
+        options={worldRuleStatusOptions}
+        placeholder="全部状态"
+      />
+      <SelectFilter
+        defaultValue={filters.worldRuleCategory}
+        label="分类"
+        name="worldRuleCategory"
+        options={worldRuleCategoryOptions}
+        placeholder="全部分类"
+      />
+      <SelectFilter
+        defaultValue={filters.worldRuleCore}
+        label="核心规则"
+        name="worldRuleCore"
+        options={[{ value: "core", label: "仅核心规则" }]}
+        placeholder="全部规则"
+      />
+      <FilterButtons resetHref={`/projects/${projectId}/memory#world-rules`} />
+    </FilterForm>
+  );
+}
+
+function ForeshadowFilterForm({
+  filters,
+  projectId,
+}: {
+  filters: MemoryFilters;
+  projectId: string;
+}) {
+  return (
+    <FilterForm action={`/projects/${projectId}/memory#foreshadows`}>
+      <SelectFilter
+        defaultValue={filters.foreshadowStatus}
+        label="状态"
+        name="foreshadowStatus"
+        options={foreshadowStatusOptions}
+        placeholder="全部状态"
+      />
+      <SelectFilter
+        defaultValue={filters.foreshadowImportance}
+        label="重要度"
+        name="foreshadowImportance"
+        options={foreshadowImportanceOptions}
+        placeholder="全部重要度"
+      />
+      <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+        预计回收章节
+        <input
+          className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
+          defaultValue={filters.foreshadowResolveChapter ?? ""}
+          min={1}
+          name="foreshadowResolveChapter"
+          type="number"
+        />
+      </label>
+      <FilterButtons resetHref={`/projects/${projectId}/memory#foreshadows`} />
+    </FilterForm>
+  );
+}
+
+function TimelineFilterForm({
+  chapters,
+  filters,
+  projectId,
+}: {
+  chapters: readonly ChapterOption[];
+  filters: MemoryFilters;
+  projectId: string;
+}) {
+  return (
+    <FilterForm action={`/projects/${projectId}/memory#timeline`}>
+      <SelectFilter
+        defaultValue={filters.timelineStatus}
+        label="状态"
+        name="timelineStatus"
+        options={timelineEventStatusOptions}
+        placeholder="全部状态"
+      />
+      <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+        关联章节
+        <select
+          className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
+          defaultValue={filters.timelineChapterId}
+          name="timelineChapterId"
+        >
+          <option value="">全部章节</option>
+          {chapters.map((chapter) => (
+            <option key={chapter.id} value={chapter.id}>
+              {chapterLabel(chapter)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <SelectFilter
+        defaultValue={filters.timelineSort}
+        label="排序"
+        name="timelineSort"
+        options={[
+          { value: "story_time", label: "故事时间优先" },
+          { value: "updated_desc", label: "最近更新优先" },
+        ]}
+        placeholder="故事时间优先"
+      />
+      <FilterButtons resetHref={`/projects/${projectId}/memory#timeline`} />
+    </FilterForm>
+  );
+}
+
+function FilterForm({
+  action,
+  children,
+}: {
+  action: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <form
+      action={action}
+      className="mt-3 grid gap-2 rounded-lg border border-ink-950/10 bg-paper-50 p-3 md:grid-cols-[repeat(3,minmax(0,1fr))_auto]"
+    >
+      <div className="flex items-center gap-2 text-xs font-semibold text-ink-800 md:col-span-4">
+        <Filter aria-hidden="true" className="h-3.5 w-3.5 text-signal-600" />
+        筛选
+      </div>
+      {children}
+    </form>
+  );
+}
+
+function SelectFilter({
+  defaultValue,
+  label,
+  name,
+  options,
+  placeholder,
+}: {
+  defaultValue: string;
+  label: string;
+  name: string;
+  options: readonly { value: string; label: string }[];
+  placeholder: string;
+}) {
+  return (
+    <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+      {label}
+      <select
+        className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
+        defaultValue={defaultValue}
+        name={name}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function FilterButtons({ resetHref }: { resetHref: string }) {
+  return (
+    <div className="flex items-end gap-2">
+      <button
+        className="inline-flex min-h-9 items-center rounded-md bg-ink-950 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-ink-800"
+        type="submit"
+      >
+        筛选
+      </button>
+      <Link
+        className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+        href={resetHref}
+      >
+        重置
+      </Link>
     </div>
   );
 }
@@ -901,10 +1273,12 @@ function InfoTile({
 }
 
 function ListLimitNotice({
+  filterActive = false,
   label,
   loaded,
   total,
 }: {
+  filterActive?: boolean;
   label: string;
   loaded: number;
   total: number;
@@ -913,10 +1287,32 @@ function ListLimitNotice({
 
   return (
     <div className="mt-4 rounded-md border border-ink-950/10 bg-ink-950/[0.03] px-3 py-2 text-xs leading-5 text-ink-700">
-      当前展示按优先级排序的前 {loaded} 条{label}，全量共 {total} 条。
+      当前展示{filterActive ? "符合筛选条件的" : "按优先级排序的前"} {loaded} 条{label}，全量共 {total} 条。
       {hiddenCount > 0
         ? ` 还有 ${hiddenCount} 条未在本页展示，后续可通过分页或筛选继续管理。`
         : " 当前没有更多隐藏记录。"}
+    </div>
+  );
+}
+
+function ExpandableText({ value }: { value: string }) {
+  const shouldExpand = value.length > 120 || value.includes("\n");
+
+  return (
+    <div className="mt-2 rounded-md bg-white/75 p-3 text-sm leading-5 text-ink-800">
+      <p className={shouldExpand ? "line-clamp-2 whitespace-pre-wrap" : "whitespace-pre-wrap"}>
+        {value}
+      </p>
+      {shouldExpand ? (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-xs font-semibold text-signal-700">
+            展开全文 / 收起
+          </summary>
+          <p className="mt-2 whitespace-pre-wrap border-t border-ink-950/10 pt-2">
+            {value}
+          </p>
+        </details>
+      ) : null}
     </div>
   );
 }

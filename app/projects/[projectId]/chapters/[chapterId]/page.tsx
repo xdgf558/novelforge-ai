@@ -26,6 +26,7 @@ import { generateContinuityReport } from "@/app/projects/[projectId]/continuity/
 import { generatePendingUpdates } from "@/app/projects/[projectId]/pending-updates/actions";
 import { generatePublishPackage } from "@/app/projects/[projectId]/publish/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
@@ -208,6 +209,8 @@ export default async function ChapterPage({
           </div>
         </div>
       </header>
+
+      <AiBudgetNotice projectId={chapter.project.id} />
 
       <ChapterBeatAiPanel
         chapterId={chapter.id}

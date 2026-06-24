@@ -147,6 +147,16 @@ export const projectPublishInclude = {
       createdAt: "desc",
     },
   },
+  aiUsageDaily: {
+    orderBy: [
+      {
+        dateKey: "desc",
+      },
+      {
+        tokenTotal: "desc",
+      },
+    ],
+  },
   _count: {
     select: {
       chapters: true,
@@ -154,6 +164,7 @@ export const projectPublishInclude = {
       aiTasks: true,
       outlines: true,
       publishTargets: true,
+      aiUsageDaily: true,
     },
   },
 } satisfies Prisma.ProjectInclude;
@@ -176,6 +187,7 @@ export function buildExportData(project: PublishProject) {
       "updateFrequency",
       "description",
       "wechatPositioning",
+      "aiDailyTokenBudget",
       "coverImagePath",
       "coverImageMimeType",
       "coverImageFileName",
@@ -451,6 +463,20 @@ export function buildExportData(project: PublishProject) {
       promptTemplateName: task.promptTemplate?.name,
       promptTemplateVersion: task.promptTemplate?.version,
     })),
+    aiUsageDaily: project.aiUsageDaily.map((usage) =>
+      pickScalarRecord(usage, [
+        "id",
+        "dateKey",
+        "taskType",
+        "model",
+        "callCount",
+        "tokenInput",
+        "tokenOutput",
+        "tokenTotal",
+        "createdAt",
+        "updatedAt",
+      ]),
+    ),
   } satisfies ProjectExportData;
 }
 

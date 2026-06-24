@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => {
         create: vi.fn(),
         delete: vi.fn(),
         findFirst: vi.fn(),
+        findMany: vi.fn(),
         update: vi.fn(),
       },
       chapterVersion: {
@@ -38,6 +39,10 @@ const mocks = vi.hoisted(() => {
       },
       aiTask: {
         findFirst: vi.fn(),
+      },
+      outline: {
+        findMany: vi.fn(),
+        update: vi.fn(),
       },
       $transaction: vi.fn(),
     },
@@ -142,6 +147,9 @@ describe("chapter actions", () => {
     mocks.tx.aiTask.updateMany.mockResolvedValue({
       count: 1,
     });
+    mocks.prisma.chapter.findMany.mockResolvedValue([]);
+    mocks.prisma.outline.findMany.mockResolvedValue([]);
+    mocks.prisma.outline.update.mockResolvedValue({});
     mocks.createOpenAITextResponse.mockReset();
     mocks.markAiTaskCompleted.mockReset();
     mocks.markAiTaskFailed.mockReset();
@@ -274,6 +282,7 @@ describe("chapter actions", () => {
   it("finalizes from polished text and creates a chapter version", async () => {
     mocks.prisma.chapter.findFirst.mockResolvedValue({
       id: "chapter_1",
+      chapterNumber: 1,
     });
     const formData = buildChapterFormData({
       submitIntent: "finalizeFromPolished",
@@ -295,9 +304,65 @@ describe("chapter actions", () => {
     expect(mocks.tx.chapterVersion.create).toHaveBeenCalledTimes(1);
   });
 
+  it("syncs outline statuses for both old and new chapter numbers", async () => {
+    mocks.prisma.chapter.findFirst.mockResolvedValue({
+      id: "chapter_1",
+      chapterNumber: 5,
+    });
+    mocks.prisma.outline.findMany.mockResolvedValue([
+      {
+        id: "outline_old",
+        level: "unit",
+        status: "completed",
+        startChapter: 1,
+        endChapter: 5,
+      },
+      {
+        id: "outline_new",
+        level: "unit",
+        status: "planned",
+        startChapter: 12,
+        endChapter: 15,
+      },
+    ]);
+    mocks.prisma.chapter.findMany.mockResolvedValue([
+      {
+        chapterNumber: 12,
+        status: "final",
+      },
+    ]);
+    const formData = buildChapterFormData({
+      chapterNumber: 12,
+      status: "final",
+      finalText: "第十二章定稿",
+    });
+
+    await expect(updateChapter("project_1", "chapter_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.outline.update).toHaveBeenCalledWith({
+      where: {
+        id: "outline_old",
+      },
+      data: {
+        status: "planned",
+      },
+    });
+    expect(mocks.prisma.outline.update).toHaveBeenCalledWith({
+      where: {
+        id: "outline_new",
+      },
+      data: {
+        status: "active",
+      },
+    });
+  });
+
   it("rejects finalize-from-polished when polished text is empty", async () => {
     mocks.prisma.chapter.findFirst.mockResolvedValue({
       id: "chapter_1",
+      chapterNumber: 1,
     });
     const formData = buildChapterFormData({
       submitIntent: "finalizeFromPolished",

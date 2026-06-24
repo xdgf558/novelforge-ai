@@ -134,6 +134,21 @@ export function ProjectForm({
             </label>
           </div>
 
+          <label className="flex flex-col gap-2">
+            <span className={labelClass}>AI 每日 token 提醒</span>
+            <input
+              className={inputClass}
+              defaultValue={project?.aiDailyTokenBudget ?? ""}
+              min={1}
+              name="aiDailyTokenBudget"
+              placeholder="例如：200000"
+              type="number"
+            />
+            <span className="text-xs leading-5 text-ink-700">
+              只做提醒，不会阻止生成；留空表示不提醒。
+            </span>
+          </label>
+
           <label className="flex flex-col gap-2 md:col-span-2">
             <span className={labelClass}>故事简介</span>
             <textarea
@@ -174,4 +189,3 @@ export function ProjectForm({
     </div>
   );
 }
-

@@ -19,6 +19,15 @@ const optionalInteger = z.preprocess((value) => {
   return Number.isFinite(parsed) ? parsed : value;
 }, z.number().int().positive().optional());
 
+const nullableInteger = z.preprocess((value) => {
+  if (typeof value !== "string" || value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : value;
+}, z.number().int().positive().nullable());
+
 const projectSchema = z.object({
   title: z.string().trim().min(1, "请输入小说标题").max(120),
   genre: optionalText,
@@ -27,6 +36,7 @@ const projectSchema = z.object({
   totalWordTarget: optionalInteger,
   chapterWordMin: optionalInteger,
   chapterWordMax: optionalInteger,
+  aiDailyTokenBudget: nullableInteger,
   updateFrequency: optionalText,
   description: optionalText,
   wechatPositioning: optionalText,
@@ -41,6 +51,7 @@ function parseProjectForm(formData: FormData) {
     totalWordTarget: formData.get("totalWordTarget"),
     chapterWordMin: formData.get("chapterWordMin"),
     chapterWordMax: formData.get("chapterWordMax"),
+    aiDailyTokenBudget: formData.get("aiDailyTokenBudget"),
     updateFrequency: formData.get("updateFrequency"),
     description: formData.get("description"),
     wechatPositioning: formData.get("wechatPositioning"),

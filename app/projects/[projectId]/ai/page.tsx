@@ -24,6 +24,12 @@ import {
   projectAiTaskRetentionLimit,
   pruneProjectAiTasks,
 } from "@/lib/ai/task-retention";
+import {
+  aiBudgetWarning,
+  formatUsageNumber,
+  loadProjectAiUsageSummary,
+  type AiUsageBreakdownRow,
+} from "@/lib/ai/usage";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -52,6 +58,7 @@ export default async function AiWorkspacePage({
     select: {
       id: true,
       title: true,
+      aiDailyTokenBudget: true,
     },
   });
 
@@ -61,7 +68,7 @@ export default async function AiWorkspacePage({
 
   await pruneProjectAiTasks(projectId);
 
-  const [templates, tasks, taskCount] = await Promise.all([
+  const [templates, tasks, taskCount, usageSummary] = await Promise.all([
     prisma.aiPromptTemplate.findMany({
       where: {
         projectId,
@@ -111,9 +118,14 @@ export default async function AiWorkspacePage({
         projectId,
       },
     }),
+    loadProjectAiUsageSummary(projectId),
   ]);
 
   const aiSettings = readAiConnectionSettings();
+  const budgetWarning = aiBudgetWarning({
+    budget: project.aiDailyTokenBudget,
+    tokenTotal: usageSummary.totals.tokenTotal,
+  });
 
   return (
     <div className="space-y-6">
@@ -187,6 +199,49 @@ export default async function AiWorkspacePage({
           label="任务记录"
           value={`${taskCount} 条`}
         />
+      </section>
+
+      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-ink-950">
+              今日 AI 用量
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-ink-700">
+              {usageSummary.dateKey} 的聚合统计独立于最近任务保留，用于查看调用次数和 token 消耗。
+            </p>
+          </div>
+          <div className="rounded-md bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-700">
+            提醒阈值：{project.aiDailyTokenBudget ? `${formatUsageNumber(project.aiDailyTokenBudget)} token` : "未设置"}
+          </div>
+        </div>
+
+        {budgetWarning ? (
+          <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+            {budgetWarning}
+          </p>
+        ) : null}
+
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <UsageTile label="调用次数" value={`${usageSummary.totals.callCount} 次`} />
+          <UsageTile
+            label="输入 token"
+            value={formatUsageNumber(usageSummary.totals.tokenInput)}
+          />
+          <UsageTile
+            label="输出 token"
+            value={formatUsageNumber(usageSummary.totals.tokenOutput)}
+          />
+          <UsageTile
+            label="总 token"
+            value={formatUsageNumber(usageSummary.totals.tokenTotal)}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <UsageBreakdown title="按任务类型" rows={usageSummary.byTaskType} />
+          <UsageBreakdown title="按模型" rows={usageSummary.byModel} />
+        </div>
       </section>
 
       <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
@@ -380,6 +435,47 @@ function InfoTile({
         {label}
       </div>
       <p className="mt-3 text-lg font-semibold text-ink-950">{value}</p>
+    </div>
+  );
+}
+
+function UsageTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+      <p className="text-xs font-medium text-ink-700">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-ink-950">{value}</p>
+    </div>
+  );
+}
+
+function UsageBreakdown({
+  rows,
+  title,
+}: {
+  rows: readonly AiUsageBreakdownRow[];
+  title: string;
+}) {
+  return (
+    <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+      <h3 className="text-sm font-semibold text-ink-950">{title}</h3>
+      {rows.length === 0 ? (
+        <p className="mt-2 text-sm text-ink-700">今天还没有已完成调用。</p>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {rows.slice(0, 8).map((row) => (
+            <div
+              className="grid gap-2 rounded-md bg-white px-3 py-2 text-xs text-ink-700 sm:grid-cols-[minmax(0,1fr)_80px_110px]"
+              key={row.label}
+            >
+              <span className="truncate font-semibold text-ink-950">
+                {row.label}
+              </span>
+              <span>{row.callCount} 次</span>
+              <span>{formatUsageNumber(row.tokenTotal)} token</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   createOpenAITextResponse: vi.fn(),
   getConfiguredOpenAIModel: vi.fn(),
   pruneProjectAiTasks: vi.fn(),
+  recordAiTaskUsage: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -29,17 +30,26 @@ vi.mock("./task-retention", () => ({
   pruneProjectAiTasks: mocks.pruneProjectAiTasks,
 }));
 
+vi.mock("./usage", () => ({
+  recordAiTaskUsage: mocks.recordAiTaskUsage,
+}));
+
 describe("AI task logger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getConfiguredOpenAIModel.mockReturnValue("deepseek-v4-pro");
+    mocks.recordAiTaskUsage.mockResolvedValue(undefined);
     mocks.aiTaskCreate.mockResolvedValue({
       id: "task_1",
+      projectId: "project_1",
+      taskType: "chapter_beat_generation",
       model: "deepseek-v4-pro",
       status: "pending",
     });
     mocks.aiTaskUpdate.mockImplementation(async ({ where, data }) => ({
       id: where.id,
+      projectId: "project_1",
+      taskType: "chapter_beat_generation",
       model: "deepseek-v4-pro",
       ...data,
     }));
@@ -148,6 +158,13 @@ describe("AI task logger", () => {
         }),
       );
     });
+    expect(mocks.recordAiTaskUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project_1",
+        model: "deepseek-v4-pro",
+        tokenTotal: 3,
+      }),
+    );
   });
 
   it("records background task failures without throwing to the caller", async () => {
@@ -222,5 +239,67 @@ describe("AI task logger", () => {
         }),
       );
     });
+  });
+
+  it("does not fail a completed task when usage aggregation fails", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.recordAiTaskUsage.mockRejectedValue(new Error("usage table missing"));
+    mocks.createOpenAITextResponse.mockResolvedValue({
+      outputText: "节拍结果",
+      responseJson: {
+        ok: true,
+      },
+      usage: {
+        inputTokens: 10,
+        outputTokens: 20,
+        totalTokens: 30,
+      },
+    });
+
+    try {
+      await expect(
+        startLoggedOpenAITextTask(
+          {
+            projectId: "project_1",
+            chapterId: "chapter_1",
+            taskType: "chapter_beat_generation",
+            inputContextSummary: "第 1 章节拍",
+          },
+          {
+            input: "生成章节节拍",
+          },
+        ),
+      ).resolves.toMatchObject({
+        status: "running",
+      });
+
+      await vi.waitFor(() => {
+        expect(prisma.aiTask.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: {
+              id: "task_1",
+            },
+            data: expect.objectContaining({
+              status: "completed",
+              tokenTotal: 30,
+            }),
+          }),
+        );
+      });
+      expect(mocks.recordAiTaskUsage).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Failed to record AI task usage:",
+        expect.any(Error),
+      );
+      expect(prisma.aiTask.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: "failed",
+          }),
+        }),
+      );
+    } finally {
+      consoleSpy.mockRestore();
+    }
   });
 });

@@ -1,5 +1,29 @@
 # Development Log
 
+## 2026-06-24: 0.1.51 Long-Form Management Efficiency
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.51`.
+- Added character library search and filters by role name, status, and faction/identity-style keywords while keeping the list compact.
+- Added character appearance tracking on character detail pages, combining manual first/latest appearance fields with inferred chapter appearances from existing chapter metadata and text.
+- Added structured-memory filters for world rules, foreshadows, and timeline events, plus expandable long text on memory cards.
+- Added outline progress tracking for volume, story-unit, and chapter outlines. Progress counts created, finalized, and published chapters across the outline range.
+- Chapter create/update/delete now refresh matching outline statuses from chapter progress: planned, active, or completed. The content of formal outlines is still never AI-mutated.
+- Added `ai_usage_daily` aggregate usage records and daily AI usage statistics on the AI task page, grouped by task type and model.
+- Added a project-level daily token reminder field. Budget warnings appear near generation entry points and on the AI task page, but do not block author actions.
+- Included the new budget and daily usage data in project export output.
+
+Verification:
+
+- `npm run test -- lib/outline-progress.test.ts lib/ai/usage.test.ts lib/ai/task-logger.test.ts` passed.
+- `npm run test -- app/projects/[projectId]/chapters/actions.test.ts app/projects/actions.test.ts` passed.
+- `npm run test` passed, 61 files and 325 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-24: 0.1.50 Local Maintenance and Recovery
 
 Status: completed.
