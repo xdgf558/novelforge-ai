@@ -260,12 +260,42 @@ export default async function PublishPage({
         </div>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          <InfoBlock compact label="开头引导" value={publishPackage.openingGuide} />
-          <InfoBlock compact label="本章摘要" value={publishPackage.chapterSummary} />
-          <InfoBlock compact label="互动问题" value={publishPackage.endingQuestion} />
-          <InfoBlock compact label="下章预告" value={publishPackage.nextChapterPreview} />
-          <InfoBlock compact label="评论引导" value={publishPackage.commentGuide} />
-          <InfoBlock compact label="封面提示词" value={publishPackage.coverPrompt} />
+          <InfoBlock
+            compact
+            expandable
+            label="开头引导"
+            value={publishPackage.openingGuide}
+          />
+          <InfoBlock
+            compact
+            expandable
+            label="本章摘要"
+            value={publishPackage.chapterSummary}
+          />
+          <InfoBlock
+            compact
+            expandable
+            label="互动问题"
+            value={publishPackage.endingQuestion}
+          />
+          <InfoBlock
+            compact
+            expandable
+            label="下章预告"
+            value={publishPackage.nextChapterPreview}
+          />
+          <InfoBlock
+            compact
+            expandable
+            label="评论引导"
+            value={publishPackage.commentGuide}
+          />
+          <InfoBlock
+            compact
+            expandable
+            label="封面提示词"
+            value={publishPackage.coverPrompt}
+          />
         </div>
 
         {titleCandidates.length > 0 || checklist.length > 0 ? (
@@ -1378,13 +1408,41 @@ function CoverImageTaskCard({
 
 function InfoBlock({
   compact = false,
+  expandable = false,
   label,
   value,
 }: {
   compact?: boolean;
+  expandable?: boolean;
   label: string;
   value?: string | null;
 }) {
+  const displayValue = value || "未生成";
+
+  if (compact && expandable && value) {
+    return (
+      <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+        <summary className="group cursor-pointer list-none">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-ink-700">{label}</p>
+            <span className="text-[11px] font-semibold text-signal-600 group-open:hidden">
+              展开全文
+            </span>
+            <span className="hidden text-[11px] font-semibold text-signal-600 group-open:inline">
+              收起
+            </span>
+          </div>
+          <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-ink-800 group-open:hidden">
+            {displayValue}
+          </p>
+        </summary>
+        <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-ink-800">
+          {displayValue}
+        </p>
+      </details>
+    );
+  }
+
   return (
     <div
       className={`rounded-lg border border-ink-950/10 bg-paper-50 ${
@@ -1399,7 +1457,7 @@ function InfoBlock({
             : "mt-2 text-sm leading-6"
         }`}
       >
-        {value || "未生成"}
+        {displayValue}
       </p>
     </div>
   );
