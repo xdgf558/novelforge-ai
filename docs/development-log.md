@@ -1,5 +1,22 @@
 # Development Log
 
+## 2026-06-24: 0.1.48 Publish Export Compact Package
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.48`.
+- Compacted the project publish/export page sections for book cover management, publish package records, and project export.
+- Book cover tools now use a smaller preview, denser metadata, inline upload/remove actions, and collapsed recent cover-generation tasks.
+- Publish package records now show short field previews with explicit expand/collapse controls for full text; title candidates, checklists, and Markdown publish output remain available behind details panels.
+- Project export cards now use the reusable compact copy/download panel with shorter previews while preserving the existing export content and download behavior.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-23: 0.1.47 WeChat Layout Export Enhancement
 
 Status: completed.
