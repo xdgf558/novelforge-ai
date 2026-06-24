@@ -14,6 +14,7 @@ export type ProjectExportData = {
   continuityReports?: readonly Record<string, Scalar>[];
   publishPackages?: readonly Record<string, Scalar>[];
   aiTasks?: readonly Record<string, Scalar>[];
+  aiUsageDaily?: readonly Record<string, Scalar>[];
 };
 
 export function buildProjectJsonExport(data: ProjectExportData) {
@@ -38,6 +39,7 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
       ["目标读者", data.project.targetAudience],
       ["连载平台", data.project.platform],
       ["状态", data.project.status],
+      ["AI 每日 token 提醒", data.project.aiDailyTokenBudget],
       ["公众号定位", data.project.wechatPositioning],
       ["故事简介", data.project.description],
     ]),
@@ -188,6 +190,18 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["模型", task.model],
         ["上下文", task.inputContextSummary],
         ["创建时间", task.createdAt],
+      ]),
+    ]),
+    buildRecordSection("AI 用量统计", data.aiUsageDaily, (usage) => [
+      `### ${formatScalar(usage.dateKey) || "未知日期"} / ${formatScalar(
+        usage.taskType,
+      )}`,
+      buildKeyValueList([
+        ["模型", usage.model],
+        ["调用次数", usage.callCount],
+        ["输入 token", usage.tokenInput],
+        ["输出 token", usage.tokenOutput],
+        ["总 token", usage.tokenTotal],
       ]),
     ]),
   ];

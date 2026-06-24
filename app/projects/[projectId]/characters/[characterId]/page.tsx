@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Archive, ArrowLeft, History, Pencil } from "lucide-react";
+import { Archive, ArrowLeft, BookOpenText, History, Pencil } from "lucide-react";
 import { archiveCharacter } from "@/app/projects/[projectId]/characters/actions";
 import { CharacterSnapshot } from "@/components/characters/character-snapshot";
 import { formatDate } from "@/lib/format";
@@ -35,6 +35,54 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
   if (!character) {
     notFound();
   }
+
+  const appearanceChapters = await prisma.chapter.findMany({
+    where: {
+      projectId,
+      OR: [
+        {
+          goal: {
+            contains: character.name,
+          },
+        },
+        {
+          beats: {
+            contains: character.name,
+          },
+        },
+        {
+          draftText: {
+            contains: character.name,
+          },
+        },
+        {
+          polishedText: {
+            contains: character.name,
+          },
+        },
+        {
+          finalText: {
+            contains: character.name,
+          },
+        },
+        {
+          notes: {
+            contains: character.name,
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      chapterNumber: true,
+      title: true,
+      status: true,
+    },
+    orderBy: {
+      chapterNumber: "asc",
+    },
+    take: 80,
+  });
 
   return (
     <div className="space-y-6">
@@ -99,7 +147,63 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
         </div>
       </header>
 
+      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
+            <BookOpenText aria-hidden="true" className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-ink-950">
+              出场记录
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-ink-700">
+              首次/最近出场仍以角色档案手动字段为准；下方列表按角色名在章节目标、节拍、正文和备注中的出现自动推断，便于查找。
+            </p>
+          </div>
+        </div>
+
+        <dl className="mt-4 grid gap-3 md:grid-cols-2">
+          <AppearanceField label="手动首次出场" value={character.firstAppearance} />
+          <AppearanceField label="手动最近出场" value={character.latestAppearance} />
+        </dl>
+
+        {appearanceChapters.length === 0 ? (
+          <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+            暂未从章节内容中推断到出场记录。
+          </p>
+        ) : (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {appearanceChapters.map((chapter) => (
+              <Link
+                className="inline-flex min-h-9 items-center rounded-md border border-ink-950/10 bg-paper-50 px-3 py-1.5 text-xs font-semibold text-ink-800 transition hover:border-signal-500/45 hover:text-signal-700"
+                href={`/projects/${projectId}/chapters/${chapter.id}`}
+                key={chapter.id}
+              >
+                第 {chapter.chapterNumber} 章《{chapter.title}》
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
       <CharacterSnapshot values={character} />
+    </div>
+  );
+}
+
+function AppearanceField({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div className="rounded-md bg-paper-50 p-3">
+      <dt className="text-xs font-semibold text-ink-700">{label}</dt>
+      <dd className="mt-1 whitespace-pre-wrap text-sm leading-5 text-ink-800">
+        {value || "未填写"}
+      </dd>
     </div>
   );
 }

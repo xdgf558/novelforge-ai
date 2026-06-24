@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Bot, Network, Plus, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, Bot, Filter, Network, Plus, Sparkles, Users } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import {
   adoptCharacterDraft,
@@ -15,6 +16,10 @@ import {
 } from "@/lib/ai/status";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { characterRelationshipErrorMessages } from "@/lib/character-relationship-fields";
+import {
+  characterStatusLabel,
+  characterStatusOptions,
+} from "@/lib/character-fields";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -26,6 +31,9 @@ type CharacterListPageProps = {
   }>;
   searchParams: Promise<{
     characterError?: string;
+    q?: string;
+    status?: string;
+    keyword?: string;
   }>;
 };
 
@@ -34,7 +42,8 @@ export default async function CharacterListPage({
   searchParams,
 }: CharacterListPageProps) {
   const { projectId } = await params;
-  const { characterError } = await searchParams;
+  const { characterError, q, status, keyword } = await searchParams;
+  const filters = normalizeCharacterFilters({ q, status, keyword });
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -53,9 +62,7 @@ export default async function CharacterListPage({
 
   const [characters, generationTasks] = await Promise.all([
     prisma.character.findMany({
-      where: {
-        projectId,
-      },
+      where: buildCharacterWhere(projectId, filters),
       select: {
         id: true,
         name: true,
@@ -158,6 +165,13 @@ export default async function CharacterListPage({
         projectId={project.id}
         tasks={generationTasks}
       />
+      <AiBudgetNotice projectId={project.id} />
+
+      <CharacterFilterPanel
+        filters={filters}
+        projectId={project.id}
+        resultCount={characters.length}
+      />
 
       {characters.length === 0 ? (
         <section className="rounded-lg border border-dashed border-ink-950/20 bg-white/72 p-8 text-center">
@@ -225,6 +239,175 @@ export default async function CharacterListPage({
         </section>
       )}
     </div>
+  );
+}
+
+type CharacterFilters = {
+  keyword: string;
+  q: string;
+  status: CharacterStatus | "";
+};
+
+type CharacterStatus = (typeof characterStatusOptions)[number]["value"];
+
+function normalizeCharacterFilters(input: {
+  keyword?: string;
+  q?: string;
+  status?: string;
+}): CharacterFilters {
+  const normalizedStatus = input.status?.trim() ?? "";
+
+  return {
+    q: input.q?.trim().slice(0, 80) ?? "",
+    status: isCharacterStatus(normalizedStatus) ? normalizedStatus : "",
+    keyword: input.keyword?.trim().slice(0, 80) ?? "",
+  };
+}
+
+function isCharacterStatus(value: string): value is CharacterStatus {
+  return characterStatusOptions.some((option) => option.value === value);
+}
+
+function buildCharacterWhere(projectId: string, filters: CharacterFilters) {
+  return {
+    projectId,
+    ...(filters.status
+      ? {
+          status: filters.status,
+        }
+      : {}),
+    ...(filters.q
+      ? {
+          OR: [
+            {
+              name: {
+                contains: filters.q,
+              },
+            },
+            {
+              roleInStory: {
+                contains: filters.q,
+              },
+            },
+            {
+              identity: {
+                contains: filters.q,
+              },
+            },
+          ],
+        }
+      : {}),
+    ...(filters.keyword
+      ? {
+          AND: [
+            {
+              OR: [
+                {
+                  roleInStory: {
+                    contains: filters.keyword,
+                  },
+                },
+                {
+                  identity: {
+                    contains: filters.keyword,
+                  },
+                },
+                {
+                  relationToProtagonist: {
+                    contains: filters.keyword,
+                  },
+                },
+                {
+                  relationToAntagonist: {
+                    contains: filters.keyword,
+                  },
+                },
+                {
+                  notes: {
+                    contains: filters.keyword,
+                  },
+                },
+              ],
+            },
+          ],
+        }
+      : {}),
+  };
+}
+
+function CharacterFilterPanel({
+  filters,
+  projectId,
+  resultCount,
+}: {
+  filters: CharacterFilters;
+  projectId: string;
+  resultCount: number;
+}) {
+  return (
+    <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+      <div className="flex items-center gap-2 text-sm font-semibold text-ink-950">
+        <Filter aria-hidden="true" className="h-4 w-4 text-signal-600" />
+        角色筛选
+      </div>
+      <form className="mt-3 grid gap-3 lg:grid-cols-[1fr_180px_1fr_auto_auto]">
+        <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+          角色名 / 定位
+          <input
+            className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
+            defaultValue={filters.q}
+            maxLength={80}
+            name="q"
+            placeholder="搜索角色名、故事定位或身份"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+          状态
+          <select
+            className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
+            defaultValue={filters.status}
+            name="status"
+          >
+            <option value="">全部状态</option>
+            {characterStatusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+          阵营 / 身份关键词
+          <input
+            className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
+            defaultValue={filters.keyword}
+            maxLength={80}
+            name="keyword"
+            placeholder="例如：主角阵营 / 电脑城 / 反派"
+          />
+        </label>
+        <div className="flex items-end">
+          <button
+            className="inline-flex min-h-9 items-center rounded-md bg-ink-950 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-ink-800"
+            type="submit"
+          >
+            筛选
+          </button>
+        </div>
+        <div className="flex items-end">
+          <Link
+            className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            href={`/projects/${projectId}/characters`}
+          >
+            重置
+          </Link>
+        </div>
+      </form>
+      <p className="mt-3 text-xs leading-5 text-ink-700">
+        当前显示 {resultCount} 个角色
+        {filters.status ? ` / 状态：${characterStatusLabel(filters.status)}` : ""}
+      </p>
+    </section>
   );
 }
 

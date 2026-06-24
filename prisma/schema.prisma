@@ -19,6 +19,7 @@ model Project {
   updateFrequency     String?
   description         String?
   wechatPositioning   String?
+  aiDailyTokenBudget  Int?
   coverImagePath      String?
   coverImageMimeType  String?
   coverImageFileName  String?
@@ -42,6 +43,7 @@ model Project {
   characterRelationships CharacterRelationship[]
   aiPromptTemplates      AiPromptTemplate[]
   aiTasks                AiTask[]
+  aiUsageDaily           AiUsageDaily[]
   pendingUpdates         PendingUpdate[]
   continuityReports      ContinuityReport[]
   publishPackages        PublishPackage[]
@@ -343,6 +345,27 @@ model AiTask {
   @@index([promptTemplateId])
   @@index([chapterId])
   @@map("ai_tasks")
+}
+
+model AiUsageDaily {
+  id          String   @id @default(cuid())
+  projectId   String
+  dateKey     String
+  taskType    String
+  model       String
+  callCount   Int      @default(0)
+  tokenInput  Int      @default(0)
+  tokenOutput Int      @default(0)
+  tokenTotal  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, dateKey, taskType, model])
+  @@index([projectId, dateKey])
+  @@index([projectId, taskType])
+  @@map("ai_usage_daily")
 }
 
 model WorldRule {

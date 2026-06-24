@@ -4,6 +4,7 @@ import {
   getConfiguredOpenAIModel,
   type OpenAITextRequest,
 } from "@/lib/ai/openai-client";
+import { recordAiTaskUsage } from "./usage";
 import { pruneProjectAiTasks } from "./task-retention";
 
 type CreateAiTaskInput = {
@@ -80,7 +81,7 @@ export async function markAiTaskCompleted(
   taskId: string,
   input: CompleteAiTaskInput,
 ) {
-  return prisma.aiTask.update({
+  const completedTask = await prisma.aiTask.update({
     where: {
       id: taskId,
     },
@@ -94,6 +95,22 @@ export async function markAiTaskCompleted(
       completedAt: new Date(),
     },
   });
+
+  try {
+    await recordAiTaskUsage({
+      projectId: completedTask.projectId,
+      taskType: completedTask.taskType,
+      model: completedTask.model,
+      tokenInput: completedTask.tokenInput,
+      tokenOutput: completedTask.tokenOutput,
+      tokenTotal: completedTask.tokenTotal,
+      completedAt: completedTask.completedAt,
+    });
+  } catch (error) {
+    console.error("Failed to record AI task usage:", error);
+  }
+
+  return completedTask;
 }
 
 export async function markAiTaskFailed(taskId: string, error: unknown) {

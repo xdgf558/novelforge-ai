@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.50 本地维护与恢复能力";
+export const appReleaseTitle = "0.1.51 长篇管理效率与成本提醒";
 
 export const appReleaseNotes = [
-  "新增本地数据备份入口，可打包 SQLite 数据库和生成资产目录，备份不会包含 API Key 或发布 Token。",
-  "项目管理改为归档优先，硬删除需要备份确认；总设定历史支持恢复到当前版本并记录新的回滚快照。",
-  "总设定 AI 增加补全缺失字段和优化建议，Prompt 模板支持查看、复制新版、启停和恢复默认。",
+  "角色库、结构化记忆和大纲页增加搜索筛选与紧凑管理能力，长篇项目数据变多后更容易查找和维护。",
+  "角色详情新增出场记录视图，大纲页显示范围内章节创建、定稿和发布进度，章节状态变化会同步推进相关大纲状态。",
+  "AI 任务页新增今日调用与 token 用量统计，项目设置可配置每日 token 提醒阈值，生成入口会给出非阻断预算提示。",
 ];

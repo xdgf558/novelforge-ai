@@ -17,6 +17,7 @@ import {
   generateOutlineDraft,
 } from "@/app/projects/[projectId]/outlines/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
 import { OutlineAiGenerateForm } from "@/components/outlines/outline-ai-generate-form";
 import { OutlineDraftCopyButton } from "@/components/outlines/outline-draft-copy-button";
 import { OutlineSaveButton } from "@/components/outlines/outline-save-button";
@@ -38,6 +39,10 @@ import {
   type OutlineLike,
   type OutlineValidationErrorCode,
 } from "@/lib/outline-fields";
+import {
+  calculateOutlineProgress,
+  type OutlineProgress,
+} from "@/lib/outline-progress";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -81,12 +86,12 @@ export default async function OutlinesPage({
       },
       chapters: {
         orderBy: {
-          chapterNumber: "desc",
+          chapterNumber: "asc",
         },
         select: {
           chapterNumber: true,
+          status: true,
         },
-        take: 1,
       },
       aiTasks: {
         where: {
@@ -130,11 +135,17 @@ export default async function OutlinesPage({
   const defaultTargetChapterNumber =
     Math.max(
       0,
-      project.chapters[0]?.chapterNumber ?? 0,
+      project.chapters.at(-1)?.chapterNumber ?? 0,
       ...groupedOutlines.chapter.map((outline) => outline.chapterNumber ?? 0),
     ) + 1;
   const hasActiveOutlineTask = project.aiTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
+  );
+  const progressByOutlineId = new Map(
+    project.outlines.map((outline) => [
+      outline.id,
+      calculateOutlineProgress(outline, project.chapters),
+    ]),
   );
 
   return (
@@ -198,6 +209,7 @@ export default async function OutlinesPage({
         hasApiKey={aiSettings.hasApiKey}
         tasks={project.aiTasks}
       />
+      <AiBudgetNotice projectId={project.id} />
 
       <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div>
@@ -227,6 +239,7 @@ export default async function OutlinesPage({
         emptyText="还没有卷大纲。先定义本卷目标、冲突、高潮和预计章节数。"
         icon={Layers3}
         outlines={groupedOutlines.volume}
+        progressByOutlineId={progressByOutlineId}
         projectId={project.id}
         title="卷大纲"
       />
@@ -234,6 +247,7 @@ export default async function OutlinesPage({
         emptyText="还没有剧情单元大纲。可以把一段连续剧情拆成若干单元。"
         icon={Route}
         outlines={groupedOutlines.unit}
+        progressByOutlineId={progressByOutlineId}
         projectId={project.id}
         title="剧情单元大纲"
       />
@@ -241,6 +255,7 @@ export default async function OutlinesPage({
         emptyText="还没有章节大纲。章节节拍生成会优先读取匹配章节号的大纲。"
         icon={FileText}
         outlines={groupedOutlines.chapter}
+        progressByOutlineId={progressByOutlineId}
         projectId={project.id}
         title="章节大纲"
       />
@@ -465,12 +480,14 @@ function OutlineGroup({
   emptyText,
   icon: Icon,
   outlines,
+  progressByOutlineId,
   projectId,
   title,
 }: {
   emptyText: string;
   icon: LucideIcon;
   outlines: readonly OutlineLike[];
+  progressByOutlineId: ReadonlyMap<string, OutlineProgress>;
   projectId: string;
   title: string;
 }) {
@@ -491,6 +508,7 @@ function OutlineGroup({
             <OutlineCard
               key={outline.id}
               outline={outline}
+              progress={outline.id ? progressByOutlineId.get(outline.id) : undefined}
               projectId={projectId}
             />
           ))}
@@ -502,9 +520,11 @@ function OutlineGroup({
 
 function OutlineCard({
   outline,
+  progress,
   projectId,
 }: {
   outline: OutlineLike;
+  progress?: OutlineProgress;
   projectId: string;
 }) {
   return (
@@ -526,6 +546,7 @@ function OutlineCard({
           <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-700">
             {outline.goal || outline.mainConflict || outline.coreEvents || "未填写目标或核心事件。"}
           </p>
+          {progress ? <OutlineProgressLine progress={progress} /> : null}
         </div>
         <div className="flex gap-2">
           <Link
@@ -562,6 +583,26 @@ function OutlineCard({
         更新：{outline.updatedAt ? formatDate(outline.updatedAt) : "未记录"}
       </p>
     </article>
+  );
+}
+
+function OutlineProgressLine({ progress }: { progress: OutlineProgress }) {
+  const totalText = progress.expectedChapters
+    ? `${progress.createdChapters}/${progress.expectedChapters}`
+    : `${progress.createdChapters}`;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold text-ink-700">
+      <span className="rounded-md bg-white px-2 py-1">
+        已创建 {totalText}
+      </span>
+      <span className="rounded-md bg-white px-2 py-1">
+        已定稿 {progress.completedChapters}
+      </span>
+      <span className="rounded-md bg-white px-2 py-1">
+        已发布 {progress.publishedChapters}
+      </span>
+    </div>
   );
 }
 

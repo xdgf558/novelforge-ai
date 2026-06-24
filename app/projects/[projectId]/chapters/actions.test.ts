@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => {
         create: vi.fn(),
         delete: vi.fn(),
         findFirst: vi.fn(),
+        findMany: vi.fn(),
         update: vi.fn(),
       },
       chapterVersion: {
@@ -38,6 +39,10 @@ const mocks = vi.hoisted(() => {
       },
       aiTask: {
         findFirst: vi.fn(),
+      },
+      outline: {
+        findMany: vi.fn(),
+        update: vi.fn(),
       },
       $transaction: vi.fn(),
     },
@@ -142,6 +147,9 @@ describe("chapter actions", () => {
     mocks.tx.aiTask.updateMany.mockResolvedValue({
       count: 1,
     });
+    mocks.prisma.chapter.findMany.mockResolvedValue([]);
+    mocks.prisma.outline.findMany.mockResolvedValue([]);
+    mocks.prisma.outline.update.mockResolvedValue({});
     mocks.createOpenAITextResponse.mockReset();
     mocks.markAiTaskCompleted.mockReset();
     mocks.markAiTaskFailed.mockReset();
