@@ -16,6 +16,8 @@ import {
   UploadCloud,
 } from "lucide-react";
 import {
+  createLocalBackupAction,
+  openLocalBackupDirectoryAction,
   previewTtsVoiceAction,
   saveAiConnectionSettingsAction,
   saveImageGenerationSettingsAction,
@@ -37,6 +39,7 @@ import {
   ttsProviderOptions,
 } from "@/lib/audio/providers/registry";
 import type { TtsVoice } from "@/lib/audio/providers/types";
+import { getLocalBackupRoot, listLocalBackups } from "@/lib/local-backups";
 import { publishModeLabel, publishModeOptions } from "@/lib/publish-platforms";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +52,10 @@ type AiSettingsPageProps = {
     ttsError?: string;
     ttsPreviewPath?: string;
     ttsVoices?: string;
+    backupError?: string;
+    backupFile?: string;
+    backupFiles?: string;
+    backupSize?: string;
   }>;
 };
 
@@ -61,12 +68,20 @@ export default async function AiSettingsPage({
   const ttsSettings = readTtsGenerationSettings();
   const stationCatSettings = readStationCatPublishSettings();
   const networkProxySettings = readNetworkProxySettings();
+  const localBackups = await listLocalBackups();
+  const localBackupRoot = getLocalBackupRoot();
   const activeTtsModel = resolvedSearchParams?.ttsModel || ttsSettings.model;
   const activeTtsLanguage =
     resolvedSearchParams?.ttsLanguage || ttsSettings.languageCode;
   const savedMessage = settingsSavedMessage(
     resolvedSearchParams?.saved,
-    resolvedSearchParams?.ttsError,
+    {
+      backupError: resolvedSearchParams?.backupError,
+      backupFile: resolvedSearchParams?.backupFile,
+      backupFiles: resolvedSearchParams?.backupFiles,
+      backupSize: resolvedSearchParams?.backupSize,
+      ttsError: resolvedSearchParams?.ttsError,
+    },
   );
   const ttsVoiceLookup = await loadTtsVoicesForSettings({
     enabled: resolvedSearchParams?.ttsVoices === "1",
@@ -827,6 +842,77 @@ export default async function AiSettingsPage({
 
       <section
         className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+        id="local-backups"
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-base font-semibold text-ink-950">
+              <Database aria-hidden="true" className="h-5 w-5 text-signal-600" />
+              本地数据备份
+            </div>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
+              备份会打包本地 SQLite 数据库和生成资产目录，不包含 API Key、发布 Token 或其他本机密钥。删除项目前建议先创建一次备份。
+            </p>
+            <p className="mt-2 break-all text-xs leading-5 text-ink-700">
+              备份目录：{localBackupRoot}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <form action={createLocalBackupAction}>
+              <FormActionButton
+                icon="save"
+                idleLabel="创建本地备份"
+                pendingLabel="备份中..."
+                statusText="正在打包本地数据库和生成资产，请稍候。"
+                value="backup"
+                variant="dark"
+              />
+            </form>
+            <form action={openLocalBackupDirectoryAction}>
+              <FormActionButton
+                icon="folder"
+                idleLabel="打开备份目录"
+                pendingLabel="正在打开..."
+                statusText="正在打开本机备份目录。"
+                value="open-backup-dir"
+              />
+            </form>
+          </div>
+        </div>
+
+        {localBackups.length === 0 ? (
+          <p className="mt-4 rounded-md border border-dashed border-ink-950/15 bg-paper-50 px-3 py-3 text-sm text-ink-700">
+            还没有本地备份。创建后会在这里显示最近备份文件。
+          </p>
+        ) : (
+          <div className="mt-4 overflow-hidden rounded-lg border border-ink-950/10">
+            <div className="grid grid-cols-[1fr_120px_160px] bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-800 max-sm:hidden">
+              <div>文件</div>
+              <div>大小</div>
+              <div>时间</div>
+            </div>
+            <div className="divide-y divide-ink-950/10">
+              {localBackups.slice(0, 5).map((backup) => (
+                <div
+                  className="grid gap-1 px-3 py-3 text-sm sm:grid-cols-[1fr_120px_160px] sm:items-center"
+                  key={backup.absolutePath}
+                >
+                  <p className="break-all font-medium text-ink-950">
+                    {backup.fileName}
+                  </p>
+                  <p className="text-ink-700">{formatFileSize(backup.sizeBytes)}</p>
+                  <p className="text-ink-700">
+                    {backup.updatedAt.toLocaleString("zh-CN")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section
+        className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
         id="app-version"
       >
         <div className="flex items-start gap-3">
@@ -893,7 +979,30 @@ function sourceLabel(source: "file" | "environment" | "default") {
   return "默认值";
 }
 
-function settingsSavedMessage(saved?: string, detail?: string) {
+function formatFileSize(bytes?: string | number) {
+  const value = typeof bytes === "string" ? Number(bytes) : bytes;
+
+  if (!value || !Number.isFinite(value)) {
+    return "未知";
+  }
+
+  if (value < 1024 * 1024) {
+    return `${Math.max(1, Math.round(value / 1024))} KB`;
+  }
+
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function settingsSavedMessage(
+  saved?: string,
+  detail: {
+    backupError?: string;
+    backupFile?: string;
+    backupFiles?: string;
+    backupSize?: string;
+    ttsError?: string;
+  } = {},
+) {
   if (saved === "ai") {
     return {
       kind: "success",
@@ -970,8 +1079,8 @@ function settingsSavedMessage(saved?: string, detail?: string) {
     return {
       kind: "error",
       title: "音色试听失败",
-      description: detail
-        ? `TTS 接口调用失败：${detail}`
+      description: detail.ttsError
+        ? `TTS 接口调用失败：${detail.ttsError}`
         : "TTS 接口没有返回可用音频，请检查 API Key、模型、音色 ID 和语言设置。",
     };
   }
@@ -981,6 +1090,30 @@ function settingsSavedMessage(saved?: string, detail?: string) {
       kind: "error",
       title: "有声导出参数保存失败",
       description: "TTS 供应商、接口地址、模型或输出格式无效，请检查后重新保存。",
+    };
+  }
+
+  if (saved === "backup") {
+    return {
+      kind: "success",
+      title: "本地备份已创建",
+      description: `${detail.backupFile || "备份文件"} 已保存，包含 ${detail.backupFiles || "若干"} 个文件，大小 ${formatFileSize(detail.backupSize)}。`,
+    };
+  }
+
+  if (saved === "backup-folder") {
+    return {
+      kind: "success",
+      title: "已打开备份目录",
+      description: "可以在 Finder 中查看、复制或转移本地备份文件。",
+    };
+  }
+
+  if (saved === "backup-error" || saved === "backup-folder-error") {
+    return {
+      kind: "error",
+      title: saved === "backup-error" ? "本地备份失败" : "打开备份目录失败",
+      description: detail.backupError || "请检查本地磁盘权限和数据库路径后重试。",
     };
   }
 

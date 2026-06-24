@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, RotateCcw } from "lucide-react";
+import { restoreProjectSettingVersion } from "@/app/projects/[projectId]/settings/actions";
 import { SettingSnapshot } from "@/components/settings/setting-snapshot";
 import { formatDate } from "@/lib/format";
 import type { ProjectSettingFieldName } from "@/lib/project-setting-fields";
@@ -73,17 +74,32 @@ export default async function SettingVersionPage({
           </p>
         </div>
 
-        <Link
-          className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-          href={`/projects/${version.project.id}/settings`}
-        >
-          <Pencil aria-hidden="true" className="h-4 w-4" />
-          编辑当前设定
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <form
+            action={restoreProjectSettingVersion.bind(
+              null,
+              version.project.id,
+              version.id,
+            )}
+          >
+            <button
+              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+              type="submit"
+            >
+              <RotateCcw aria-hidden="true" className="h-4 w-4" />
+              恢复此版本
+            </button>
+          </form>
+          <Link
+            className="inline-flex min-h-10 items-center rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            href={`/projects/${version.project.id}/settings`}
+          >
+            编辑当前设定
+          </Link>
+        </div>
       </div>
 
       <SettingSnapshot values={snapshot} />
     </div>
   );
 }
-

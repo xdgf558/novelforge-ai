@@ -12,8 +12,12 @@ import {
 } from "lucide-react";
 import {
   recordLocalAiReadinessCheck,
+  copyPromptTemplateVersion,
+  resetPromptTemplateToDefault,
   syncDefaultPromptTemplates,
+  togglePromptTemplateStatus,
 } from "@/app/projects/[projectId]/ai/actions";
+import { PromptTemplateCopyButton } from "@/components/ai/prompt-template-copy-button";
 import { aiTaskAdoptionLabel, aiTaskStatusLabel } from "@/lib/ai/status";
 import { readAiConnectionSettings } from "@/lib/ai/local-config";
 import {
@@ -29,10 +33,18 @@ type AiWorkspacePageProps = {
   params: Promise<{
     projectId: string;
   }>;
+  searchParams?: Promise<{
+    templateError?: string;
+    templateStatus?: string;
+  }>;
 };
 
-export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) {
+export default async function AiWorkspacePage({
+  params,
+  searchParams,
+}: AiWorkspacePageProps) {
   const { projectId } = await params;
+  const resolvedSearchParams = await searchParams;
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -195,30 +207,96 @@ export default async function AiWorkspacePage({ params }: AiWorkspacePageProps) 
             body="同步默认模板后，后续 AI 阶段会按模板版本记录每次调用。"
           />
         ) : (
-          <div className="mt-5 overflow-hidden rounded-lg border border-ink-950/10">
-            <div className="grid grid-cols-[1.2fr_1fr_80px_96px] border-b border-ink-950/10 bg-paper-50 px-4 py-3 text-sm font-semibold text-ink-800 max-lg:hidden">
-              <div>模板</div>
-              <div>任务类型</div>
-              <div>版本</div>
-              <div>格式</div>
-            </div>
+          <div className="mt-5 space-y-3">
+            {templateMessage(resolvedSearchParams) ? (
+              <p className="rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm text-ink-800">
+                {templateMessage(resolvedSearchParams)}
+              </p>
+            ) : null}
 
-            <div className="divide-y divide-ink-950/10">
-              {templates.map((template) => (
-                <div
-                  className="grid gap-2 px-4 py-4 text-sm lg:grid-cols-[1.2fr_1fr_80px_96px] lg:items-center"
-                  key={template.id}
-                >
+            {templates.map((template) => (
+              <article
+                className="rounded-lg border border-ink-950/10 bg-paper-50 p-4 text-sm"
+                key={template.id}
+              >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="font-semibold text-ink-950">{template.name}</p>
-                    <p className="mt-1 text-xs text-ink-700">{template.key}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-ink-950">
+                        {template.name}
+                      </h3>
+                      <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink-700">
+                        v{template.version}
+                      </span>
+                      <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink-700">
+                        {template.status === "active" ? "启用" : "停用"}
+                      </span>
+                      <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink-700">
+                        {template.outputFormat}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-ink-700">
+                      {template.key} / {template.taskType}
+                    </p>
                   </div>
-                  <div className="text-ink-700">{template.taskType}</div>
-                  <div className="text-ink-700">v{template.version}</div>
-                  <div className="text-ink-700">{template.outputFormat}</div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <form
+                      action={copyPromptTemplateVersion.bind(
+                        null,
+                        project.id,
+                        template.id,
+                      )}
+                    >
+                      <button className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+                        复制新版
+                      </button>
+                    </form>
+                    <form
+                      action={togglePromptTemplateStatus.bind(
+                        null,
+                        project.id,
+                        template.id,
+                      )}
+                    >
+                      <button className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+                        {template.status === "active" ? "停用" : "启用"}
+                      </button>
+                    </form>
+                    <form
+                      action={resetPromptTemplateToDefault.bind(
+                        null,
+                        project.id,
+                        template.id,
+                      )}
+                    >
+                      <button className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+                        恢复默认
+                      </button>
+                    </form>
+                  </div>
                 </div>
-              ))}
-            </div>
+
+                <details className="mt-3 rounded-md border border-ink-950/10 bg-white p-3">
+                  <summary className="cursor-pointer text-xs font-semibold text-ink-800">
+                    查看 / 复制模板全文
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    <PromptTemplateCopyButton text={formatPromptTemplateText(template)} />
+                    <TemplateBlock label="System" value={template.systemPrompt} />
+                    <TemplateBlock label="User" value={template.userPrompt} />
+                    <TemplateBlock
+                      label="Context Notes"
+                      value={template.contextNotes || "未设置"}
+                    />
+                    <TemplateBlock
+                      label="Response Schema"
+                      value={template.responseSchema || "未设置"}
+                    />
+                  </div>
+                </details>
+              </article>
+            ))}
           </div>
         )}
       </section>
@@ -313,4 +391,71 @@ function EmptyState({ title, body }: { title: string; body: string }) {
       <p className="mt-2 leading-6">{body}</p>
     </div>
   );
+}
+
+function TemplateBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-ink-700">{label}</p>
+      <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded-md bg-paper-50 p-3 text-xs leading-5 text-ink-800">
+        {value}
+      </pre>
+    </div>
+  );
+}
+
+function formatPromptTemplateText(template: {
+  contextNotes: string | null;
+  name: string;
+  outputFormat: string;
+  responseSchema: string | null;
+  systemPrompt: string;
+  taskType: string;
+  userPrompt: string;
+  version: number;
+}) {
+  return [
+    `# ${template.name} v${template.version}`,
+    `taskType: ${template.taskType}`,
+    `outputFormat: ${template.outputFormat}`,
+    "",
+    "## System",
+    template.systemPrompt,
+    "",
+    "## User",
+    template.userPrompt,
+    "",
+    "## Context Notes",
+    template.contextNotes || "未设置",
+    "",
+    "## Response Schema",
+    template.responseSchema || "未设置",
+  ].join("\n");
+}
+
+function templateMessage(params?: {
+  templateError?: string;
+  templateStatus?: string;
+}) {
+  if (params?.templateError === "lastActive") {
+    return "每个模板 key 至少需要保留一个启用版本，不能停用最后一个 active 模板。";
+  }
+
+  if (params?.templateError === "noDefault") {
+    return "这个模板没有可恢复的默认版本。";
+  }
+
+  if (params?.templateStatus === "copied") {
+    return "已复制为新的模板版本，后续同 key 的 AI 调用会优先使用启用的最高版本。";
+  }
+
+  if (params?.templateStatus === "toggled") {
+    return "模板状态已更新。";
+  }
+
+  if (params?.templateStatus === "reset") {
+    return "模板已恢复为内置默认内容。";
+  }
+
+  return "";
 }

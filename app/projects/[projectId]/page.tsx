@@ -15,10 +15,8 @@ import {
   Send,
   ShieldAlert,
   ShieldCheck,
-  Trash2,
   Users,
 } from "lucide-react";
-import { deleteProject } from "@/app/projects/actions";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
 import { loadProjectActivitySummary } from "@/lib/project-activity";
@@ -103,7 +101,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex min-h-10 items-center rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm font-semibold text-signal-700">
+              {project.status === "active" ? "进行中" : "已归档"}
+            </span>
             <Link
               className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
               href={`/projects/${project.id}/edit`}
@@ -111,15 +112,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               <Pencil aria-hidden="true" className="h-4 w-4" />
               编辑
             </Link>
-            <form action={deleteProject.bind(null, project.id)}>
-              <button
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                type="submit"
-              >
-                <Trash2 aria-hidden="true" className="h-4 w-4" />
-                删除
-              </button>
-            </form>
           </div>
         </div>
       </header>

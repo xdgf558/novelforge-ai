@@ -16,6 +16,8 @@ describe("default AI prompt templates", () => {
     expect(taskTypesFromDefaultTemplates()).toEqual(
       expect.arrayContaining([
         "project_setting_generation",
+        "project_setting_completion",
+        "project_setting_optimization",
         "outline_generation",
         "character_relationship_generation",
         "chapter_beat_generation",

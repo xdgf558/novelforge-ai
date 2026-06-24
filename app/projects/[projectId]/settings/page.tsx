@@ -1,12 +1,15 @@
 import { notFound } from "next/navigation";
 import {
   adoptProjectSettingDraft,
+  generateProjectSettingCompletionDraft,
   generateProjectSettingDraft,
+  generateProjectSettingOptimizationDraft,
   saveProjectSetting,
 } from "@/app/projects/[projectId]/settings/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ProjectSettingForm } from "@/components/settings/project-setting-form";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
+import { projectSettingTaskTypes } from "@/lib/ai/project-setting-task-types";
 import { activeAiTaskStatuses, isActiveAiTaskStatus } from "@/lib/ai/status";
 import {
   staleAiTaskCutoff,
@@ -41,7 +44,9 @@ export default async function ProjectSettingPage({
       },
       aiTasks: {
         where: {
-          taskType: "project_setting_generation",
+          taskType: {
+            in: [...projectSettingTaskTypes],
+          },
         },
         include: {
           promptTemplate: {
@@ -78,6 +83,14 @@ export default async function ProjectSettingPage({
           null,
           project.id,
         )}
+        generateProjectSettingCompletionAction={generateProjectSettingCompletionDraft.bind(
+          null,
+          project.id,
+        )}
+        generateProjectSettingOptimizationAction={generateProjectSettingOptimizationDraft.bind(
+          null,
+          project.id,
+        )}
         hasApiKey={hasConfiguredOpenAIKey()}
         project={project}
         setting={project.setting}
@@ -94,7 +107,9 @@ async function expireStaleProjectSettingAiTasks(projectId: string) {
   await prisma.aiTask.updateMany({
     where: {
       projectId,
-      taskType: "project_setting_generation",
+      taskType: {
+        in: [...projectSettingTaskTypes],
+      },
       status: {
         in: [...activeAiTaskStatuses],
       },

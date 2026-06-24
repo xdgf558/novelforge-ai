@@ -29,7 +29,9 @@ type ProjectSettingFormProps = {
   action: (formData: FormData) => Promise<void>;
   adoptProjectSettingAction: (taskId: string) => Promise<void>;
   aiTasks: readonly ProjectSettingAiTask[];
+  generateProjectSettingCompletionAction: () => Promise<void>;
   generateProjectSettingAction: () => Promise<void>;
+  generateProjectSettingOptimizationAction: () => Promise<void>;
   hasApiKey: boolean;
   project: {
     id: string;
@@ -67,7 +69,9 @@ export function ProjectSettingForm({
   action,
   adoptProjectSettingAction,
   aiTasks,
+  generateProjectSettingCompletionAction,
   generateProjectSettingAction,
+  generateProjectSettingOptimizationAction,
   hasApiKey,
   project,
   setting,
@@ -108,7 +112,9 @@ export function ProjectSettingForm({
 
       <ProjectSettingAiPanel
         adoptAction={adoptProjectSettingAction}
+        generateCompletionAction={generateProjectSettingCompletionAction}
         generateAction={generateProjectSettingAction}
+        generateOptimizationAction={generateProjectSettingOptimizationAction}
         hasApiKey={hasApiKey}
         projectTitle={project.title}
         tasks={aiTasks}
@@ -179,13 +185,17 @@ export function ProjectSettingForm({
 
 function ProjectSettingAiPanel({
   adoptAction,
+  generateCompletionAction,
   generateAction,
+  generateOptimizationAction,
   hasApiKey,
   projectTitle,
   tasks,
 }: {
   adoptAction: (taskId: string) => Promise<void>;
+  generateCompletionAction: () => Promise<void>;
   generateAction: () => Promise<void>;
+  generateOptimizationAction: () => Promise<void>;
   hasApiKey: boolean;
   projectTitle: string;
   tasks: readonly ProjectSettingAiTask[];
@@ -211,24 +221,33 @@ function ProjectSettingAiPanel({
           </p>
         </div>
 
-        <PreserveScrollForm
-          action={generateAction}
-          preserveKey={`project-setting-generation-${projectTitle}`}
-          statusText="已开始生成总设定草案，页面会留在当前位置并自动刷新结果。"
-        >
-          <button
-            className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
-              canGenerate
-                ? "bg-ink-950 text-white hover:bg-ink-800"
-                : "cursor-not-allowed border border-ink-950/15 bg-paper-100 text-ink-700"
-            }`}
-            disabled={!canGenerate}
-            type="submit"
-          >
-            <Sparkles aria-hidden="true" className="h-4 w-4" />
-            {hasActiveGeneration ? "生成中" : "生成总设定草案"}
-          </button>
-        </PreserveScrollForm>
+        <div className="flex flex-wrap gap-2">
+          <ProjectSettingAiButton
+            action={generateAction}
+            canGenerate={canGenerate}
+            disabledLabel={hasActiveGeneration ? "生成中" : "生成草案"}
+            label="生成草案"
+            preserveKey={`project-setting-generation-${projectTitle}`}
+            statusText="已开始生成总设定草案，页面会留在当前位置并自动刷新结果。"
+            variant="dark"
+          />
+          <ProjectSettingAiButton
+            action={generateCompletionAction}
+            canGenerate={canGenerate}
+            disabledLabel={hasActiveGeneration ? "生成中" : "补全缺失"}
+            label="补全缺失"
+            preserveKey={`project-setting-completion-${projectTitle}`}
+            statusText="已开始补全总设定缺失字段，页面会留在当前位置并自动刷新结果。"
+          />
+          <ProjectSettingAiButton
+            action={generateOptimizationAction}
+            canGenerate={canGenerate}
+            disabledLabel={hasActiveGeneration ? "生成中" : "优化建议"}
+            label="优化建议"
+            preserveKey={`project-setting-optimization-${projectTitle}`}
+            statusText="已开始生成总设定优化建议，页面会留在当前位置并自动刷新结果。"
+          />
+        </div>
       </div>
 
       {!hasApiKey ? (
@@ -259,7 +278,7 @@ function ProjectSettingAiPanel({
             );
             const canAdopt =
               task.status === "completed" &&
-              task.adoptionState !== "adopted" &&
+              task.adoptionState === "not_reviewed" &&
               hasProjectSettingDraftValues(parsedDraft);
 
             return (
@@ -311,5 +330,48 @@ function ProjectSettingAiPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function ProjectSettingAiButton({
+  action,
+  canGenerate,
+  disabledLabel,
+  label,
+  preserveKey,
+  statusText,
+  variant = "outline",
+}: {
+  action: () => Promise<void>;
+  canGenerate: boolean;
+  disabledLabel: string;
+  label: string;
+  preserveKey: string;
+  statusText: string;
+  variant?: "dark" | "outline";
+}) {
+  return (
+    <PreserveScrollForm
+      action={action}
+      preserveKey={preserveKey}
+      statusText={statusText}
+    >
+      <button
+        className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+          variant === "dark"
+            ? canGenerate
+              ? "bg-ink-950 text-white hover:bg-ink-800"
+              : "cursor-not-allowed bg-ink-800 text-white opacity-60"
+            : canGenerate
+              ? "border border-ink-950/15 bg-white text-ink-800 hover:bg-paper-100"
+              : "cursor-not-allowed border border-ink-950/15 bg-paper-100 text-ink-700"
+        }`}
+        disabled={!canGenerate}
+        type="submit"
+      >
+        <Sparkles aria-hidden="true" className="h-4 w-4" />
+        {canGenerate ? label : disabledLabel}
+      </button>
+    </PreserveScrollForm>
   );
 }

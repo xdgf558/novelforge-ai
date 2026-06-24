@@ -57,7 +57,7 @@ export default async function SettingHistoryPage({
             设定历史
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-700">
-            每次保存总设定档都会留下快照。当前阶段先支持查看，回滚会在后续阶段接入。
+            每次保存总设定档都会留下快照。打开任意版本后可以恢复为当前设定，恢复动作也会生成新的历史版本。
           </p>
         </div>
 
@@ -113,4 +113,3 @@ export default async function SettingHistoryPage({
     </div>
   );
 }
-

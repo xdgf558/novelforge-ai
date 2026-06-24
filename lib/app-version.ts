@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.49 公众号排版 AI 候选";
+export const appReleaseTitle = "0.1.50 本地维护与恢复能力";
 
 export const appReleaseNotes = [
-  "公众号排版导出新增独立的 AI 生成开头/结尾候选模块，结果只进入任务记录，作者手动套用后才填入表单。",
-  "移除旧的“AI 增强候选”入口，避免排版候选与完整发布包装混用。",
-  "章节、设定、大纲、角色、人物关系、发布和有声导出等后台生成按钮提交后会保留当前位置，并显示处理中反馈。",
+  "新增本地数据备份入口，可打包 SQLite 数据库和生成资产目录，备份不会包含 API Key 或发布 Token。",
+  "项目管理改为归档优先，硬删除需要备份确认；总设定历史支持恢复到当前版本并记录新的回滚快照。",
+  "总设定 AI 增加补全缺失字段和优化建议，Prompt 模板支持查看、复制新版、启停和恢复默认。",
 ];

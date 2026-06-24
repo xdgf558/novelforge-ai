@@ -1,5 +1,30 @@
 # Development Log
 
+## 2026-06-24: 0.1.50 Local Maintenance and Recovery
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.50`.
+- Added a local backup section to `/ai-settings`. It creates a ZIP backup from a `VACUUM INTO` SQLite snapshot plus generated asset roots while intentionally excluding local `.env` secrets such as API keys and publish tokens.
+- Hardened local backup creation so generated asset files are streamed into the ZIP instead of being read and compressed as one in-memory buffer, avoiding large-project OOM or event-loop stalls.
+- Added recent backup listing and an “open backup folder” action so the author can verify and move backup files before risky maintenance.
+- Changed project maintenance to archive-first: archived projects are hidden from the default project list but can be restored. Hard delete now requires a backup acknowledgement and typing `DELETE`.
+- Added project list status filters for active, archived, and all projects.
+- Added project setting history rollback. Restoring an old setting snapshot writes it into the current `ProjectSetting` row and creates a new `SettingVersion` with `sourceType=rollback`.
+- Added logged AI project-setting completion and optimization tasks alongside the original project-setting generation task. All three remain draft-only until the author explicitly adopts the AI output.
+- Added basic prompt template management on the AI task page: view full template text, copy to clipboard, duplicate as a new version, enable/disable, and restore default template content.
+- Changed prompt template resolution so generation uses the highest-version active template for a key, while falling back to the default template if none exists.
+- Prompt template duplication now retries once after a unique-version collision, so concurrent clicks avoid surfacing a raw Prisma error where possible.
+
+Verification:
+
+- `npm run test -- lib/local-backups.test.ts lib/ai/prompt-templates.test.ts` passed.
+- `npm run test` passed, 58 files and 312 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-24: 0.1.49 WeChat Layout AI Candidates
 
 Status: completed.
