@@ -44,12 +44,25 @@ export async function ensureDefaultPromptTemplate(
   projectId: string,
   templateKey: string,
 ) {
-  const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
-    (defaultTemplate) => defaultTemplate.key === templateKey,
-  );
+  const template = findDefaultPromptTemplate(templateKey);
 
   if (!template) {
     throw new Error(`Default prompt template is missing: ${templateKey}.`);
+  }
+
+  const activeTemplate = await prisma.aiPromptTemplate.findFirst({
+    where: {
+      projectId,
+      key: templateKey,
+      status: "active",
+    },
+    orderBy: {
+      version: "desc",
+    },
+  });
+
+  if (activeTemplate) {
+    return activeTemplate;
   }
 
   return prisma.aiPromptTemplate.upsert({
@@ -84,4 +97,10 @@ export async function ensureDefaultPromptTemplate(
       status: "active",
     },
   });
+}
+
+export function findDefaultPromptTemplate(templateKey: string) {
+  return DEFAULT_AI_PROMPT_TEMPLATES.find(
+    (defaultTemplate) => defaultTemplate.key === templateKey,
+  );
 }

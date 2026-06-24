@@ -1,5 +1,8 @@
 "use server";
 
+import { execFile } from "node:child_process";
+import fs from "node:fs";
+import { promisify } from "node:util";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -22,7 +25,14 @@ import {
 import { saveAudioPreviewAsset } from "@/lib/audio/audio-assets";
 import { getConfiguredTtsProvider } from "@/lib/audio/providers/registry";
 import type { TtsProviderId } from "@/lib/audio/providers/types";
+import {
+  createLocalBackup,
+  getLocalBackupRoot,
+  localBackupFingerprint,
+} from "@/lib/local-backups";
 import { resetServerFetchProxyDispatcher } from "@/lib/server-fetch";
+
+const execFileAsync = promisify(execFile);
 
 export async function saveAiConnectionSettingsAction(formData: FormData) {
   try {
@@ -151,6 +161,54 @@ export async function previewTtsVoiceAction(formData: FormData) {
   redirect(`/ai-settings?${params.toString()}`);
 }
 
+export async function createLocalBackupAction() {
+  let redirectTo = "/ai-settings?saved=backup-error#local-backups";
+
+  try {
+    const backup = await createLocalBackup();
+    const params = new URLSearchParams({
+      backupFile: backup.fileName,
+      backupFiles: String(backup.includedFiles),
+      backupSize: String(backup.sizeBytes),
+      backupToken: localBackupFingerprint(backup),
+      saved: "backup",
+    });
+
+    redirectTo = `/ai-settings?${params.toString()}#local-backups`;
+  } catch (error) {
+    const params = new URLSearchParams({
+      backupError: sanitizeBackupError(error),
+      saved: "backup-error",
+    });
+
+    redirectTo = `/ai-settings?${params.toString()}#local-backups`;
+  }
+
+  revalidatePath("/ai-settings");
+  redirect(redirectTo);
+}
+
+export async function openLocalBackupDirectoryAction() {
+  let redirectTo = "/ai-settings?saved=backup-folder-error#local-backups";
+
+  try {
+    const backupRoot = getLocalBackupRoot();
+    await fs.promises.mkdir(backupRoot, { recursive: true });
+    await execFileAsync("open", [backupRoot]);
+    redirectTo = "/ai-settings?saved=backup-folder#local-backups";
+  } catch (error) {
+    const params = new URLSearchParams({
+      backupError: sanitizeBackupError(error),
+      saved: "backup-folder-error",
+    });
+
+    redirectTo = `/ai-settings?${params.toString()}#local-backups`;
+  }
+
+  revalidatePath("/ai-settings");
+  redirect(redirectTo);
+}
+
 const defaultTtsPreviewText =
   "1999年的夏天，县城的风扇声嗡嗡作响。陈远站在老旧电脑前，看着屏幕上那行白字，忽然笑了。 “这一次，”他说，“我不想再被时代推着走了。”";
 const ttsPreviewMaxAttempts = 3;
@@ -258,6 +316,12 @@ function sanitizeTtsPreviewError(error: unknown) {
     .trim();
 
   return cleanMessage.slice(0, 220);
+}
+
+function sanitizeBackupError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+
+  return message.replace(/sk-[A-Za-z0-9_-]{6,}/g, "sk-***").trim().slice(0, 220);
 }
 
 function readTtsVoiceIdFromForm(formData: FormData) {

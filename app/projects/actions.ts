@@ -73,7 +73,47 @@ export async function updateProject(projectId: string, formData: FormData) {
   redirect(`/projects/${projectId}`);
 }
 
-export async function deleteProject(projectId: string) {
+export async function archiveProject(projectId: string) {
+  await prisma.project.update({
+    where: {
+      id: projectId,
+    },
+    data: {
+      status: "archived",
+    },
+  });
+
+  revalidatePath("/");
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/edit`);
+  redirect(`/projects/${projectId}`);
+}
+
+export async function restoreProject(projectId: string) {
+  await prisma.project.update({
+    where: {
+      id: projectId,
+    },
+    data: {
+      status: "active",
+    },
+  });
+
+  revalidatePath("/");
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/edit`);
+  redirect(`/projects/${projectId}`);
+}
+
+export async function deleteProject(projectId: string, formData?: FormData) {
+  const confirmation = formData?.get("deleteConfirmation")?.toString().trim();
+  const backupAcknowledged = formData?.get("backupAcknowledged") === "on";
+
+  if (confirmation !== "DELETE" || !backupAcknowledged) {
+    revalidatePath(`/projects/${projectId}/edit`);
+    redirect(`/projects/${projectId}/edit?projectError=delete-confirmation`);
+  }
+
   await prisma.project.delete({
     where: {
       id: projectId,
@@ -83,4 +123,3 @@ export async function deleteProject(projectId: string) {
   revalidatePath("/");
   redirect("/");
 }
-

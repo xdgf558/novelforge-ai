@@ -7,7 +7,14 @@ import {
   buildProjectSettingGenerationContext,
   hasProjectSettingDraftValues,
   parseProjectSettingGenerationOutput,
+  type ProjectSettingGenerationMode,
 } from "@/lib/ai/project-settings";
+import {
+  projectSettingCompletionTemplateKey,
+  projectSettingOptimizationTemplateKey,
+  projectSettingTaskTypes,
+  projectSettingTemplateKey,
+} from "@/lib/ai/project-setting-task-types";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
@@ -19,8 +26,6 @@ import {
   type ProjectSettingValues,
 } from "@/lib/project-setting-fields";
 import { prisma } from "@/lib/prisma";
-
-const projectSettingTemplateKey = "project_setting_generation";
 
 const settingSchema = z.object(
   Object.fromEntries(
@@ -118,6 +123,36 @@ export async function saveProjectSetting(projectId: string, formData: FormData) 
 }
 
 export async function generateProjectSettingDraft(projectId: string) {
+  return generateProjectSettingAiDraft(projectId, {
+    mode: "generation",
+    templateKey: projectSettingTemplateKey,
+  });
+}
+
+export async function generateProjectSettingCompletionDraft(projectId: string) {
+  return generateProjectSettingAiDraft(projectId, {
+    mode: "completion",
+    templateKey: projectSettingCompletionTemplateKey,
+  });
+}
+
+export async function generateProjectSettingOptimizationDraft(projectId: string) {
+  return generateProjectSettingAiDraft(projectId, {
+    mode: "optimization",
+    templateKey: projectSettingOptimizationTemplateKey,
+  });
+}
+
+async function generateProjectSettingAiDraft(
+  projectId: string,
+  {
+    mode,
+    templateKey,
+  }: {
+    mode: ProjectSettingGenerationMode;
+    templateKey: string;
+  },
+) {
   const activeTask = await findActiveProjectSettingGenerationTask(projectId);
 
   if (activeTask) {
@@ -140,12 +175,12 @@ export async function generateProjectSettingDraft(projectId: string) {
 
   const template = await ensureDefaultPromptTemplate(
     projectId,
-    projectSettingTemplateKey,
+    templateKey,
   );
   const context = buildProjectSettingGenerationContext({
     project,
     setting: project.setting,
-  });
+  }, mode);
 
   await startLoggedOpenAITextTask(
     {
@@ -183,13 +218,17 @@ export async function adoptProjectSettingDraft(
     where: {
       id: taskId,
       projectId,
-      taskType: projectSettingTemplateKey,
+      taskType: {
+        in: [...projectSettingTaskTypes],
+      },
       status: "completed",
+      adoptionState: "not_reviewed",
     },
     select: {
       id: true,
       inputContextSummary: true,
       outputText: true,
+      taskType: true,
     },
   });
 
@@ -238,7 +277,7 @@ export async function adoptProjectSettingDraft(
         versionNumber: versionCount + 1,
         snapshotJson: JSON.stringify(snapshot),
         changeReason: `采用 AI 总设定草案：${task.inputContextSummary}`,
-        sourceType: "ai_project_setting",
+        sourceType: projectSettingSourceType(task.taskType),
       },
     });
 
@@ -256,11 +295,71 @@ export async function adoptProjectSettingDraft(
   redirect(`/projects/${projectId}/settings`);
 }
 
+export async function restoreProjectSettingVersion(
+  projectId: string,
+  versionId: string,
+) {
+  const version = await prisma.settingVersion.findFirst({
+    where: {
+      id: versionId,
+      projectId,
+    },
+    select: {
+      id: true,
+      snapshotJson: true,
+      versionNumber: true,
+    },
+  });
+
+  if (!version) {
+    notFound();
+  }
+
+  const snapshot = projectSettingSnapshot(
+    projectSettingValuesFromRecord(parseSettingSnapshot(version.snapshotJson)),
+  );
+
+  await prisma.$transaction(async (tx) => {
+    const setting = await tx.projectSetting.upsert({
+      where: {
+        projectId,
+      },
+      create: {
+        projectId,
+        ...snapshot,
+      },
+      update: snapshot,
+    });
+    const versionCount = await tx.settingVersion.count({
+      where: {
+        projectId,
+      },
+    });
+
+    await tx.settingVersion.create({
+      data: {
+        projectId,
+        settingId: setting.id,
+        versionNumber: versionCount + 1,
+        snapshotJson: JSON.stringify(snapshot),
+        changeReason: `从设定历史 v${version.versionNumber} 恢复`,
+        sourceType: "rollback",
+      },
+    });
+  });
+
+  revalidateProjectSettingPaths(projectId);
+  revalidatePath(`/projects/${projectId}/settings/history/${versionId}`);
+  redirect(`/projects/${projectId}/settings`);
+}
+
 async function findActiveProjectSettingGenerationTask(projectId: string) {
   return prisma.aiTask.findFirst({
     where: {
       projectId,
-      taskType: projectSettingTemplateKey,
+      taskType: {
+        in: [...projectSettingTaskTypes],
+      },
       status: {
         in: [...activeAiTaskStatuses],
       },
@@ -269,6 +368,28 @@ async function findActiveProjectSettingGenerationTask(projectId: string) {
       id: true,
     },
   });
+}
+
+function projectSettingSourceType(taskType: string) {
+  if (taskType === projectSettingCompletionTemplateKey) {
+    return "ai_project_setting_completion";
+  }
+
+  if (taskType === projectSettingOptimizationTemplateKey) {
+    return "ai_project_setting_optimization";
+  }
+
+  return "ai_project_setting";
+}
+
+function parseSettingSnapshot(snapshotJson: string) {
+  try {
+    const parsed = JSON.parse(snapshotJson);
+
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 function revalidateProjectSettingPaths(projectId: string) {

@@ -22,18 +22,30 @@ export type ProjectSettingGenerationInput = {
   setting?: Partial<Record<ProjectSettingFieldName, string | null>> | null;
 };
 
+export type ProjectSettingGenerationMode =
+  | "completion"
+  | "generation"
+  | "optimization";
+
 export function buildProjectSettingGenerationContext(
   input: ProjectSettingGenerationInput,
+  mode: ProjectSettingGenerationMode = "generation",
 ) {
   const currentSetting = projectSettingValuesFromRecord(input.setting);
   const filledSettingFields = projectSettingFields.filter((field) =>
     currentSetting[field.name].trim(),
   );
   const projectTitle = stringValue(input.project.title) || "未命名项目";
+  const emptySettingFields = projectSettingFields.filter(
+    (field) => !currentSetting[field.name].trim(),
+  );
+  const modeLabel = projectSettingModeLabel(mode);
+  const modeRequirement = projectSettingModeRequirement(mode);
 
   return {
-    inputContextSummary: `${projectTitle} 总设定生成；已有设定字段 ${filledSettingFields.length} 个`,
+    inputContextSummary: `${projectTitle} ${modeLabel}；已有设定字段 ${filledSettingFields.length} 个，空字段 ${emptySettingFields.length} 个`,
     inputJson: {
+      mode,
       project: {
         title: stringValue(input.project.title),
         genre: stringValue(input.project.genre),
@@ -44,6 +56,10 @@ export function buildProjectSettingGenerationContext(
         wechatPositioning: stringValue(input.project.wechatPositioning),
       },
       currentSetting,
+      emptyFields: emptySettingFields.map((field) => ({
+        name: field.name,
+        label: field.label,
+      })),
       allowedFields: projectSettingFields.map((field) => ({
         name: field.name,
         label: field.label,
@@ -62,6 +78,9 @@ export function buildProjectSettingGenerationContext(
       "# 已有总设定档",
       formatSettingValues(currentSetting) || "当前总设定档为空，请生成完整初稿。",
       "",
+      "# 本次任务",
+      modeRequirement,
+      "",
       "# 输出要求",
       "请只输出 JSON 对象，不要输出 Markdown。",
       "JSON 字段名只能使用下列总设定字段名；没有把握的字段可以留空字符串。",
@@ -69,6 +88,41 @@ export function buildProjectSettingGenerationContext(
       "所有内容都只是供作者审核的草案，不得宣称已经写入正式设定。",
     ].join("\n"),
   };
+}
+
+function projectSettingModeLabel(mode: ProjectSettingGenerationMode) {
+  if (mode === "completion") {
+    return "总设定补全";
+  }
+
+  if (mode === "optimization") {
+    return "总设定优化建议";
+  }
+
+  return "总设定生成";
+}
+
+function projectSettingModeRequirement(mode: ProjectSettingGenerationMode) {
+  if (mode === "completion") {
+    return [
+      "请优先补全当前为空或明显薄弱的总设定字段。",
+      "已有内容如果足够清晰，不要改写；需要承接已有设定继续补全。",
+      "输出字段可以只包含需要补全或增强的字段，作者采用后才会合并进正式总设定档。",
+    ].join("\n");
+  }
+
+  if (mode === "optimization") {
+    return [
+      "请基于已有总设定提出更清晰、更适合长篇连载的优化版本。",
+      "可以优化表达、补强矛盾、统一人物动机和发布定位，但不要引入与现有章节冲突的新事实。",
+      "输出字段可以只包含建议替换的字段，并让作者自行决定是否采用。",
+    ].join("\n");
+  }
+
+  return [
+    "请生成一份完整、结构化的项目总设定草案。",
+    "如果已有字段已经填写，请在不破坏现有方向的前提下整合和补强。",
+  ].join("\n");
 }
 
 export function parseProjectSettingGenerationOutput(

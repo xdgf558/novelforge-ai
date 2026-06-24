@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -17,9 +18,30 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
-  const [rawProjects, activeProjectCount, wordTargetAggregate] = await Promise.all([
+type HomePageProps = {
+  searchParams?: Promise<{
+    projectStatus?: string;
+  }>;
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const resolvedSearchParams = await searchParams;
+  const activeFilter = normalizeProjectStatusFilter(
+    resolvedSearchParams?.projectStatus,
+  );
+  const [
+    rawProjects,
+    activeProjectCount,
+    totalProjectCount,
+    wordTargetAggregate,
+  ] = await Promise.all([
     prisma.project.findMany({
+      where:
+        activeFilter === "all"
+          ? undefined
+          : {
+              status: activeFilter,
+            },
       orderBy: {
         updatedAt: "desc",
       },
@@ -29,6 +51,7 @@ export default async function HomePage() {
         status: "active",
       },
     }),
+    prisma.project.count(),
     prisma.project.aggregate({
       _sum: {
         totalWordTarget: true,
@@ -76,7 +99,7 @@ export default async function HomePage() {
             项目总数
           </div>
           <p className="relative mt-5 text-4xl font-semibold text-[#f5dfbd]">
-            {projects.length}
+            {totalProjectCount}
           </p>
           <p className="relative mt-2 text-sm text-[#8d7b63]">所有小说项目</p>
         </div>
@@ -108,20 +131,39 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <nav className="flex flex-wrap gap-2" aria-label="项目状态筛选">
+        <ProjectFilterLink active={activeFilter === "active"} href="/">
+          活跃项目
+        </ProjectFilterLink>
+        <ProjectFilterLink
+          active={activeFilter === "archived"}
+          href="/?projectStatus=archived"
+        >
+          已归档
+        </ProjectFilterLink>
+        <ProjectFilterLink active={activeFilter === "all"} href="/?projectStatus=all">
+          全部项目
+        </ProjectFilterLink>
+      </nav>
+
       {projects.length === 0 ? (
         <section className="nf-dashed-panel px-6 py-10 text-center sm:px-10">
           <div className="relative mx-auto max-w-3xl">
             <EmptyStationIllustration className="mx-auto h-auto w-full max-w-sm opacity-95" />
             <h2 className="mt-2 text-2xl font-semibold text-[#f5dfbd]">
-              还没有小说项目
+              {activeFilter === "archived" ? "还没有归档项目" : "还没有小说项目"}
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#b7a286]">
-              创建第一个项目后，系统会把标题、题材、读者、字数目标和公众号定位保存到本地 SQLite。
+              {activeFilter === "archived"
+                ? "项目归档后会从默认活跃列表中隐藏，但仍可在这里恢复和查看。"
+                : "创建第一个项目后，系统会把标题、题材、读者、字数目标和公众号定位保存到本地 SQLite。"}
             </p>
-            <Link className="nf-primary-button mt-7" href="/projects/new">
-              <Plus aria-hidden="true" className="h-5 w-5" />
-              创建第一个项目
-            </Link>
+            {activeFilter === "archived" ? null : (
+              <Link className="nf-primary-button mt-7" href="/projects/new">
+                <Plus aria-hidden="true" className="h-5 w-5" />
+                创建第一个项目
+              </Link>
+            )}
           </div>
         </section>
       ) : (
@@ -213,5 +255,32 @@ export default async function HomePage() {
         )}
       </section>
     </div>
+  );
+}
+
+function normalizeProjectStatusFilter(value?: string) {
+  return value === "archived" || value === "all" ? value : "active";
+}
+
+function ProjectFilterLink({
+  active,
+  children,
+  href,
+}: {
+  active: boolean;
+  children: ReactNode;
+  href: string;
+}) {
+  return (
+    <Link
+      className={`inline-flex min-h-10 items-center rounded-md border px-3 py-2 text-sm font-semibold transition ${
+        active
+          ? "border-[#58d7c7]/45 bg-[#58d7c7]/15 text-[#dffcf6]"
+          : "border-[#ce8f48]/15 bg-[#071719]/70 text-[#dac39f] hover:border-[#58d7c7]/30 hover:bg-[#0b2225]"
+      }`}
+      href={href}
+    >
+      {children}
+    </Link>
   );
 }
