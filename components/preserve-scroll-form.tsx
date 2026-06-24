@@ -7,9 +7,8 @@ import type {
 } from "react";
 import { useEffect, useState } from "react";
 import {
-  safeReadScroll,
-  safeRemoveScroll,
-  safeWriteScroll,
+  restorePreservedScroll,
+  submitPreserveScrollForm,
 } from "./preserve-scroll-storage";
 
 type PreserveScrollFormProps = Omit<
@@ -35,35 +34,26 @@ export function PreserveScrollForm({
   const storageKey = `${storagePrefix}${preserveKey}`;
 
   useEffect(() => {
-    const saved = safeReadScroll(getSessionStorage(), storageKey);
-
-    if (!saved) {
-      return;
-    }
-
-    safeRemoveScroll(getSessionStorage(), storageKey);
-
-    try {
-      const position = JSON.parse(saved) as {
-        left?: number;
-        top?: number;
-      };
-
-      window.requestAnimationFrame(() => {
-        window.scrollTo(position.left ?? 0, position.top ?? 0);
-      });
-    } catch {
-      // If the saved value is invalid, ignore it rather than blocking the form.
-    }
+    restorePreservedScroll({
+      requestAnimationFrame: window.requestAnimationFrame.bind(window),
+      scrollTo: window.scrollTo.bind(window),
+      storage: getSessionStorage(),
+      storageKey,
+    });
   }, [storageKey]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    safeWriteScroll(getSessionStorage(), storageKey, {
-      left: window.scrollX,
-      top: window.scrollY,
+    submitPreserveScrollForm({
+      event,
+      onSubmit,
+      position: {
+        left: window.scrollX,
+        top: window.scrollY,
+      },
+      setSubmitted,
+      storage: getSessionStorage(),
+      storageKey,
     });
-    setSubmitted(true);
-    onSubmit?.(event);
   }
 
   return (
