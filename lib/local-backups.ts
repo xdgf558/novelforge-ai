@@ -35,6 +35,11 @@ type WrittenZipEntry = {
   size: number;
 };
 
+type WrittenZipEntryContent = {
+  crc: number;
+  size: number;
+};
+
 type DatabaseSnapshot = {
   originalDatabasePath: string;
   snapshotPath: string;
@@ -42,8 +47,10 @@ type DatabaseSnapshot = {
 };
 
 const backupRootName = "backups";
+const zipDataDescriptorFlag = 0x0008;
 const zipStoreMethod = 0;
 const zipUtf8Flag = 0x0800;
+const zipGeneralPurposeFlag = zipUtf8Flag | zipDataDescriptorFlag;
 const maxZip32Value = 0xffffffff;
 const maxZipEntryCount = 0xffff;
 
@@ -308,24 +315,31 @@ async function createStreamingZipArchive(
 
   try {
     for (const entry of entries) {
-      const prepared = await inspectZipEntry(entry);
+      const fileName = zipEntryFileName(entry);
 
-      assertZip32Value(prepared.size, "单个备份文件大小");
       assertZip32Value(offset, "ZIP 偏移量");
 
-      const localHeader = buildLocalHeader(prepared);
+      const localHeader = buildLocalHeader(fileName);
       const localHeaderOffset = offset;
 
       await writeBuffer(stream, localHeader);
-      await writeBuffer(stream, prepared.fileName);
-      await writeZipEntryContent(stream, entry);
+      await writeBuffer(stream, fileName);
 
-      offset += localHeader.length + prepared.fileName.length + prepared.size;
+      const writtenContent = await writeZipEntryContent(stream, entry);
+      const dataDescriptor = buildDataDescriptor(writtenContent);
+
+      await writeBuffer(stream, dataDescriptor);
+
+      offset +=
+        localHeader.length +
+        fileName.length +
+        writtenContent.size +
+        dataDescriptor.length;
       writtenEntries.push({
-        crc: prepared.crc,
-        fileName: prepared.fileName,
+        crc: writtenContent.crc,
+        fileName,
         localHeaderOffset,
-        size: prepared.size,
+        size: writtenContent.size,
       });
     }
 
@@ -358,7 +372,7 @@ async function createStreamingZipArchive(
   }
 }
 
-async function inspectZipEntry(entry: ZipEntryInput) {
+function zipEntryFileName(entry: ZipEntryInput) {
   const fileName = Buffer.from(normalizeArchivePath(entry.archivePath), "utf8");
 
   if (fileName.length === 0) {
@@ -369,49 +383,22 @@ async function inspectZipEntry(entry: ZipEntryInput) {
     throw new Error("备份条目的 ZIP 路径过长。");
   }
 
-  if ("buffer" in entry) {
-    return {
-      crc: crc32(entry.buffer),
-      fileName,
-      size: entry.buffer.length,
-    };
-  }
-
-  let crc = 0xffffffff;
-  let size = 0;
-
-  for await (const chunk of fs.createReadStream(entry.sourcePath)) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-
-    size += buffer.length;
-
-    if (size > maxZip32Value) {
-      throw new Error("单个备份文件超过 ZIP32 支持的大小，请使用系统文件夹备份。");
-    }
-
-    crc = crc32Update(crc, buffer);
-  }
-
-  return {
-    crc: crc32Finalize(crc),
-    fileName,
-    size,
-  };
+  return fileName;
 }
 
-function buildLocalHeader(entry: { crc: number; fileName: Buffer; size: number }) {
+function buildLocalHeader(fileName: Buffer) {
   const localHeader = Buffer.alloc(30);
 
   localHeader.writeUInt32LE(0x04034b50, 0);
   localHeader.writeUInt16LE(20, 4);
-  localHeader.writeUInt16LE(zipUtf8Flag, 6);
+  localHeader.writeUInt16LE(zipGeneralPurposeFlag, 6);
   localHeader.writeUInt16LE(zipStoreMethod, 8);
   localHeader.writeUInt16LE(0, 10);
   localHeader.writeUInt16LE(0, 12);
-  localHeader.writeUInt32LE(entry.crc, 14);
-  localHeader.writeUInt32LE(entry.size, 18);
-  localHeader.writeUInt32LE(entry.size, 22);
-  localHeader.writeUInt16LE(entry.fileName.length, 26);
+  localHeader.writeUInt32LE(0, 14);
+  localHeader.writeUInt32LE(0, 18);
+  localHeader.writeUInt32LE(0, 22);
+  localHeader.writeUInt16LE(fileName.length, 26);
   localHeader.writeUInt16LE(0, 28);
 
   return localHeader;
@@ -423,7 +410,7 @@ function buildCentralDirectoryHeader(entry: WrittenZipEntry) {
   centralHeader.writeUInt32LE(0x02014b50, 0);
   centralHeader.writeUInt16LE(20, 4);
   centralHeader.writeUInt16LE(20, 6);
-  centralHeader.writeUInt16LE(zipUtf8Flag, 8);
+  centralHeader.writeUInt16LE(zipGeneralPurposeFlag, 8);
   centralHeader.writeUInt16LE(zipStoreMethod, 10);
   centralHeader.writeUInt16LE(0, 12);
   centralHeader.writeUInt16LE(0, 14);
@@ -464,15 +451,52 @@ function buildEndOfCentralDirectory({
   return end;
 }
 
-async function writeZipEntryContent(stream: WriteStream, entry: ZipEntryInput) {
+function buildDataDescriptor(entry: WrittenZipEntryContent) {
+  const dataDescriptor = Buffer.alloc(16);
+
+  dataDescriptor.writeUInt32LE(0x08074b50, 0);
+  dataDescriptor.writeUInt32LE(entry.crc, 4);
+  dataDescriptor.writeUInt32LE(entry.size, 8);
+  dataDescriptor.writeUInt32LE(entry.size, 12);
+
+  return dataDescriptor;
+}
+
+async function writeZipEntryContent(
+  stream: WriteStream,
+  entry: ZipEntryInput,
+): Promise<WrittenZipEntryContent> {
+  let crc = 0xffffffff;
+  let size = 0;
+
+  const writeChunk = async (buffer: Buffer) => {
+    const nextSize = size + buffer.length;
+
+    if (nextSize > maxZip32Value) {
+      throw new Error("单个备份文件超过 ZIP32 支持的大小，请使用系统文件夹备份。");
+    }
+
+    crc = crc32Update(crc, buffer);
+    size = nextSize;
+    await writeBuffer(stream, buffer);
+  };
+
   if ("buffer" in entry) {
-    await writeBuffer(stream, entry.buffer);
-    return;
+    await writeChunk(entry.buffer);
+    return {
+      crc: crc32Finalize(crc),
+      size,
+    };
   }
 
   for await (const chunk of fs.createReadStream(entry.sourcePath)) {
-    await writeBuffer(stream, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    await writeChunk(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
+
+  return {
+    crc: crc32Finalize(crc),
+    size,
+  };
 }
 
 async function writeBuffer(stream: WriteStream, buffer: Buffer) {
@@ -552,10 +576,6 @@ const crcTable = Array.from({ length: 256 }, (_, index) => {
 
   return current >>> 0;
 });
-
-function crc32(buffer: Buffer) {
-  return crc32Finalize(crc32Update(0xffffffff, buffer));
-}
 
 function crc32Update(current: number, buffer: Buffer) {
   let crc = current;
