@@ -7,6 +7,7 @@ type CopyExportPanelProps = {
   title: string;
   content: string;
   filename: string;
+  compact?: boolean;
   mimeType?: string;
   rows?: number;
 };
@@ -15,6 +16,7 @@ export function CopyExportPanel({
   title,
   content,
   filename,
+  compact = false,
   mimeType = "text/markdown;charset=utf-8",
   rows = 10,
 }: CopyExportPanelProps) {
@@ -42,12 +44,16 @@ export function CopyExportPanel({
   }
 
   return (
-    <div className="rounded-lg border border-ink-950/10 bg-white p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      className={`rounded-lg border border-ink-950/10 bg-white ${
+        compact ? "p-3" : "p-4"
+      }`}
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-semibold text-ink-950">{title}</h3>
         <div className="flex flex-wrap gap-2">
           <button
-            className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
             onClick={copyContent}
             type="button"
           >
@@ -55,7 +61,7 @@ export function CopyExportPanel({
             {copied ? "已复制" : "复制"}
           </button>
           <button
-            className="inline-flex min-h-9 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+            className="inline-flex min-h-9 items-center gap-2 rounded-md bg-ink-950 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-ink-800"
             onClick={downloadContent}
             type="button"
           >
@@ -66,7 +72,9 @@ export function CopyExportPanel({
       </div>
       <textarea
         aria-label={title}
-        className="mt-3 min-h-32 w-full resize-y rounded-md border border-ink-950/10 bg-paper-50 p-3 font-mono text-xs leading-6 text-ink-800 outline-none"
+        className={`mt-3 w-full resize-y rounded-md border border-ink-950/10 bg-paper-50 font-mono text-xs text-ink-800 outline-none ${
+          compact ? "min-h-24 p-2 leading-5" : "min-h-32 p-3 leading-6"
+        }`}
         id={previewId}
         readOnly
         rows={rows}

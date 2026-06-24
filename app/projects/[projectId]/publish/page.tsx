@@ -218,13 +218,13 @@ export default async function PublishPage({
 
     return (
       <article
-        className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+        className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
         key={publishPackage.id}
       >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
-              <span className="rounded-md bg-paper-100 px-2.5 py-1">
+              <span className="rounded-md bg-paper-100 px-2 py-0.5">
                 {publishPackageStatusLabel(publishPackage.status)}
               </span>
               <span>
@@ -232,10 +232,10 @@ export default async function PublishPage({
               </span>
               <span>{formatDate(publishPackage.createdAt)}</span>
             </div>
-            <h3 className="mt-2 text-lg font-semibold text-ink-950">
+            <h3 className="mt-1.5 text-base font-semibold text-ink-950">
               {publishPackage.selectedTitle || "未选择标题"}
             </h3>
-            <p className="mt-1 text-sm text-ink-700">
+            <p className="mt-0.5 text-xs text-ink-700">
               {publishPackage.chapter.title}
             </p>
           </div>
@@ -249,7 +249,7 @@ export default async function PublishPage({
               )}
             >
               <button
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
                 type="submit"
               >
                 <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
@@ -259,47 +259,59 @@ export default async function PublishPage({
           ) : null}
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <InfoBlock label="开头引导" value={publishPackage.openingGuide} />
-          <InfoBlock label="本章摘要" value={publishPackage.chapterSummary} />
-          <InfoBlock label="互动问题" value={publishPackage.endingQuestion} />
-          <InfoBlock label="下章预告" value={publishPackage.nextChapterPreview} />
-          <InfoBlock label="评论引导" value={publishPackage.commentGuide} />
-          <InfoBlock label="封面提示词" value={publishPackage.coverPrompt} />
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <InfoBlock compact label="开头引导" value={publishPackage.openingGuide} />
+          <InfoBlock compact label="本章摘要" value={publishPackage.chapterSummary} />
+          <InfoBlock compact label="互动问题" value={publishPackage.endingQuestion} />
+          <InfoBlock compact label="下章预告" value={publishPackage.nextChapterPreview} />
+          <InfoBlock compact label="评论引导" value={publishPackage.commentGuide} />
+          <InfoBlock compact label="封面提示词" value={publishPackage.coverPrompt} />
         </div>
 
-        {titleCandidates.length > 0 ? (
-          <div className="mt-4 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
-            <h4 className="text-sm font-semibold text-ink-950">标题候选</h4>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink-700">
-              {titleCandidates.map((title) => (
-                <li key={title}>{title}</li>
-              ))}
-            </ul>
+        {titleCandidates.length > 0 || checklist.length > 0 ? (
+          <div className="mt-3 grid gap-2 lg:grid-cols-2">
+            {titleCandidates.length > 0 ? (
+              <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+                  标题候选（{formatNumber(titleCandidates.length)}）
+                </summary>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-5 text-ink-700">
+                  {titleCandidates.map((title) => (
+                    <li key={title}>{title}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+
+            {checklist.length > 0 ? (
+              <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+                  发布检查清单（{formatNumber(checklist.length)}）
+                </summary>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-5 text-ink-700">
+                  {checklist.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
           </div>
         ) : null}
 
-        {checklist.length > 0 ? (
-          <div className="mt-4 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
-            <h4 className="text-sm font-semibold text-ink-950">
-              发布检查清单
-            </h4>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-ink-700">
-              {checklist.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
+        <details className="mt-3 rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+            Markdown 发布版
+          </summary>
+          <div className="mt-3">
+            <CopyExportPanel
+              compact
+              content={markdownBody}
+              filename={filename}
+              rows={8}
+              title="Markdown 发布版"
+            />
           </div>
-        ) : null}
-
-        <div className="mt-4">
-          <CopyExportPanel
-            content={markdownBody}
-            filename={filename}
-            rows={14}
-            title="Markdown 发布版"
-          />
-        </div>
+        </details>
       </article>
     );
   };
@@ -355,12 +367,17 @@ export default async function PublishPage({
         projectTitle={project.title}
       />
 
-      <section className="space-y-5 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
-        <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
-          <ImageIcon aria-hidden="true" className="h-4 w-4" />
-          书籍封面
+      <section className="space-y-4 rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <ImageIcon aria-hidden="true" className="h-4 w-4" />
+            书籍封面
+          </div>
+          <p className="text-xs text-ink-700">
+            {cover.dataUrl ? "已配置封面" : "未配置封面"} / 最大 8MB
+          </p>
         </div>
-        <div className="grid gap-5 lg:grid-cols-[minmax(220px,320px)_1fr]">
+        <div className="grid gap-4 xl:grid-cols-[180px_1fr]">
           <div className="overflow-hidden rounded-lg border border-ink-950/10 bg-paper-50">
             {cover.dataUrl ? (
               <img
@@ -369,35 +386,31 @@ export default async function PublishPage({
                 src={cover.dataUrl}
               />
             ) : (
-              <div className="flex aspect-[3/4] items-center justify-center p-8 text-center text-sm leading-6 text-ink-700">
-                还没有上传封面。上传后，标准发布包和 Station Cat 发布请求会带上封面图片。
+              <div className="flex aspect-[3/4] items-center justify-center p-4 text-center text-xs leading-5 text-ink-700">
+                暂无封面
               </div>
             )}
           </div>
 
-          <div className="space-y-4">
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                上传本机封面图
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                支持 PNG、JPEG、WebP、GIF，单张最大 8MB。图片保存在本机资产目录，发布到 Station Cat 时会作为封面条目随标准包一起发送。
-              </p>
-            </div>
+          <div className="space-y-3">
+            <h2 className="text-base font-semibold text-ink-950">
+              上传或生成封面
+            </h2>
 
-            <div className="grid gap-3 text-sm text-ink-700 sm:grid-cols-2">
-              <InfoBlock label="文件名" value={cover.fileName} />
-              <InfoBlock label="图片类型" value={cover.mimeType} />
+            <div className="grid gap-2 text-sm text-ink-700 sm:grid-cols-4">
+              <InfoBlock compact label="文件名" value={cover.fileName} />
+              <InfoBlock compact label="图片类型" value={cover.mimeType} />
               <InfoBlock
+                compact
                 label="文件大小"
                 value={formatCoverImageSize(cover.sizeBytes)}
               />
-              <InfoBlock label="更新时间" value={cover.updatedAt} />
+              <InfoBlock compact label="更新时间" value={cover.updatedAt} />
             </div>
 
             <form
               action={uploadProjectCover.bind(null, project.id)}
-              className="grid gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4"
+              className="grid gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-3 xl:grid-cols-[minmax(180px,1fr)_minmax(220px,1.2fr)_auto] xl:items-end"
             >
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-ink-700">
@@ -422,50 +435,50 @@ export default async function PublishPage({
                   placeholder="用于网站 alt 文本和导入说明"
                 />
               </label>
-              <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
                 <button
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+                  className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-ink-950 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-ink-800"
                   type="submit"
                 >
                   <UploadCloud aria-hidden="true" className="h-4 w-4" />
                   {cover.dataUrl ? "替换封面" : "上传封面"}
                 </button>
+                {cover.dataUrl ? (
+                  <button
+                    className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                    formAction={removeProjectCover.bind(null, project.id)}
+                    formNoValidate
+                    type="submit"
+                  >
+                    <Trash2 aria-hidden="true" className="h-4 w-4" />
+                    删除
+                  </button>
+                ) : null}
               </div>
             </form>
 
-            {cover.dataUrl ? (
-              <form action={removeProjectCover.bind(null, project.id)}>
-                <button
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-                  type="submit"
-                >
-                  <Trash2 aria-hidden="true" className="h-4 w-4" />
-                  删除封面
-                </button>
-              </form>
-            ) : null}
-
-            <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+              <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-ink-950">
                     AI 生成封面候选图
                   </h2>
-                  <p className="mt-1 text-sm leading-6 text-ink-700">
+                  <p className="mt-1 text-xs leading-5 text-ink-700">
                     生成结果只作为候选图展示。点击“采用为封面”后，才会写入项目封面并随 Station Cat 发布包上传。
                   </p>
                 </div>
                 <Link
-                  className="inline-flex min-h-10 items-center justify-center rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
                   href="/ai-settings"
                 >
                   图片模型设置
                 </Link>
               </div>
 
-              <div className="mt-3 grid gap-3 text-sm text-ink-700 sm:grid-cols-2">
-                <InfoBlock label="图片模型" value={imageSettings.model} />
+              <div className="mt-3 grid gap-2 text-sm text-ink-700 sm:grid-cols-2">
+                <InfoBlock compact label="图片模型" value={imageSettings.model} />
                 <InfoBlock
+                  compact
                   label="图片 API"
                   value={
                     imageSettings.hasApiKey
@@ -496,7 +509,7 @@ export default async function PublishPage({
                     封面提示词
                   </span>
                   <textarea
-                    className="min-h-28 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950"
+                    className="min-h-20 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950"
                     defaultValue={coverPromptDefault}
                     maxLength={3000}
                     name="coverPrompt"
@@ -537,7 +550,7 @@ export default async function PublishPage({
                     </select>
                   </label>
                   <button
-                    className={`inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md px-3 py-2 text-sm font-semibold transition ${
                       imageSettings.hasApiKey && !hasActiveCoverImageTask
                         ? "bg-ink-950 text-white hover:bg-ink-800"
                         : "cursor-not-allowed border border-ink-950/15 bg-white text-ink-700"
@@ -552,19 +565,21 @@ export default async function PublishPage({
               </form>
 
               {coverImageTasks.length > 0 ? (
-                <div className="mt-5 space-y-3">
-                  <h3 className="text-sm font-semibold text-ink-950">
-                    最近封面生成任务
-                  </h3>
-                  {coverImageTasks.map((task) => (
-                    <CoverImageTaskCard
-                      key={task.id}
-                      projectId={project.id}
-                      projectTitle={project.title}
-                      task={task}
-                    />
-                  ))}
-                </div>
+                <details className="mt-4 rounded-lg border border-ink-950/10 bg-white p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+                    最近封面生成任务（{formatNumber(coverImageTasks.length)}）
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    {coverImageTasks.map((task) => (
+                      <CoverImageTaskCard
+                        key={task.id}
+                        projectId={project.id}
+                        projectTitle={project.title}
+                        task={task}
+                      />
+                    ))}
+                  </div>
+                </details>
               ) : null}
             </div>
           </div>
@@ -1003,37 +1018,44 @@ export default async function PublishPage({
         )}
       </section>
 
-      <section className="space-y-4 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
-        <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
-          <Download aria-hidden="true" className="h-4 w-4" />
-          项目导出
+      <section className="space-y-3 rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+              <Download aria-hidden="true" className="h-4 w-4" />
+              项目导出
+            </div>
+            <h2 className="mt-1 text-base font-semibold text-ink-950">
+              Markdown / JSON 本地备份
+            </h2>
+          </div>
+          <p className="max-w-2xl text-xs leading-5 text-ink-700">
+            包含项目、设定、角色、章节、结构化记忆、发布包装和 AI 任务引用。
+          </p>
         </div>
-        <h2 className="text-base font-semibold text-ink-950">
-          Markdown / JSON 本地备份
-        </h2>
-        <p className="text-sm leading-6 text-ink-700">
-          导出内容包含项目、设定、角色、章节、结构化记忆、待审更新、连续性报告、发布包装和 AI 任务引用，方便本地备份或转移到其他写作工具。
-        </p>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-3 xl:grid-cols-3">
           <CopyExportPanel
+            compact
             content={standardPublishPackage}
             filename={`${baseFilename}-standard-publish-package.json`}
             mimeType="application/json;charset=utf-8"
-            rows={18}
+            rows={8}
             title="标准发布包 JSON"
           />
           <CopyExportPanel
+            compact
             content={markdownExport}
             filename={`${baseFilename}-project-export.md`}
-            rows={18}
+            rows={8}
             title="项目 Markdown 导出"
           />
           <CopyExportPanel
+            compact
             content={jsonExport}
             filename={`${baseFilename}-project-export.json`}
             mimeType="application/json;charset=utf-8"
-            rows={18}
+            rows={8}
             title="项目 JSON 导出"
           />
         </div>
@@ -1250,29 +1272,31 @@ function CoverImageTaskCard({
     images.length > 0;
 
   return (
-    <article className="rounded-lg border border-ink-950/10 bg-white p-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <article className="rounded-lg border border-ink-950/10 bg-white p-3">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
-            <span className="rounded-md bg-paper-100 px-2.5 py-1">
+            <span className="rounded-md bg-paper-100 px-2 py-0.5">
               {aiTaskStatusLabel(task.status)}
             </span>
-            <span className="rounded-md bg-paper-100 px-2.5 py-1">
+            <span className="rounded-md bg-paper-100 px-2 py-0.5">
               {aiTaskAdoptionLabel(task.adoptionState)}
             </span>
             <span>{formatDate(task.createdAt)}</span>
           </div>
-          <p className="mt-2 text-sm font-semibold text-ink-950">
+          <p className="mt-1.5 text-sm font-semibold text-ink-950">
             {task.model || "未记录模型"} / 封面图生成
           </p>
-          <p className="mt-1 text-sm leading-6 text-ink-700">
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-700">
             {task.inputContextSummary || "暂无上下文摘要。"}
           </p>
           {task.outputText ? (
-            <p className="mt-1 text-sm leading-6 text-ink-700">{task.outputText}</p>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-700">
+              {task.outputText}
+            </p>
           ) : null}
           {task.errorMessage ? (
-            <p className="mt-1 text-sm leading-6 text-red-700">
+            <p className="mt-1 text-xs leading-5 text-red-700">
               {task.errorMessage}
             </p>
           ) : null}
@@ -1281,7 +1305,7 @@ function CoverImageTaskCard({
         {canAdopt ? (
           <form action={rejectGeneratedProjectCover.bind(null, projectId, task.id)}>
             <button
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
               type="submit"
             >
               <XCircle aria-hidden="true" className="h-4 w-4" />
@@ -1292,14 +1316,14 @@ function CoverImageTaskCard({
       </div>
 
       {images.length > 0 ? (
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {images.map((image, index) => {
             const previewSrc = coverImagePreviewSrc(projectId, image);
             const canAdoptImage = canAdopt && Boolean(previewSrc);
 
             return (
               <div
-                className="rounded-lg border border-ink-950/10 bg-paper-50 p-3"
+                className="rounded-lg border border-ink-950/10 bg-paper-50 p-2"
                 key={`${task.id}:${index}`}
               >
                 {previewSrc ? (
@@ -1309,7 +1333,7 @@ function CoverImageTaskCard({
                     src={previewSrc}
                   />
                 ) : (
-                  <div className="flex aspect-[2/3] items-center justify-center rounded-md bg-white p-4 text-center text-sm text-ink-700">
+                  <div className="flex aspect-[2/3] items-center justify-center rounded-md bg-white p-3 text-center text-xs text-ink-700">
                     候选图资产不可预览，请重新生成。
                   </div>
                 )}
@@ -1335,7 +1359,7 @@ function CoverImageTaskCard({
                       placeholder="封面说明"
                     />
                     <button
-                      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+                      className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md bg-ink-950 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-ink-800"
                       type="submit"
                     >
                       <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
@@ -1353,16 +1377,28 @@ function CoverImageTaskCard({
 }
 
 function InfoBlock({
+  compact = false,
   label,
   value,
 }: {
+  compact?: boolean;
   label: string;
   value?: string | null;
 }) {
   return (
-    <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+    <div
+      className={`rounded-lg border border-ink-950/10 bg-paper-50 ${
+        compact ? "p-3" : "p-4"
+      }`}
+    >
       <p className="text-xs font-semibold text-ink-700">{label}</p>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-800">
+      <p
+        className={`whitespace-pre-wrap text-ink-800 ${
+          compact
+            ? "mt-1 line-clamp-3 text-xs leading-5"
+            : "mt-2 text-sm leading-6"
+        }`}
+      >
         {value || "未生成"}
       </p>
     </div>
