@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
+import { resolveWechatLayoutInitialChapterId } from "@/components/publish/wechat-layout-selection";
 import {
   aiTaskStatusLabel,
   isActiveAiTaskStatus,
@@ -49,6 +50,7 @@ type WechatLayoutExportPanelProps = {
   chapters: WechatLayoutChapterOption[];
   generateAction: (chapterId: string) => Promise<void>;
   hasApiKey: boolean;
+  initialChapterId?: string | null;
   projectTitle: string;
 };
 
@@ -57,9 +59,13 @@ export function WechatLayoutExportPanel({
   chapters,
   generateAction,
   hasApiKey,
+  initialChapterId,
   projectTitle,
 }: WechatLayoutExportPanelProps) {
-  const defaultChapterId = chapters[chapters.length - 1]?.id ?? "";
+  const defaultChapterId = resolveWechatLayoutInitialChapterId(
+    chapters,
+    initialChapterId,
+  );
   const [selectedChapterId, setSelectedChapterId] = useState(defaultChapterId);
   const [template, setTemplate] = useState<WechatLayoutTemplate>("body");
   const [authorName, setAuthorName] = useState("");
@@ -80,6 +86,10 @@ export function WechatLayoutExportPanel({
     "idle",
   );
   const previewRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setSelectedChapterId(defaultChapterId);
+  }, [defaultChapterId]);
 
   useEffect(() => {
     if (!selectedChapter) {
@@ -222,7 +232,10 @@ export function WechatLayoutExportPanel({
 
   if (chapters.length === 0) {
     return (
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <section
+        className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+        id="wechat-layout-export"
+      >
         <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
           <FileText aria-hidden="true" className="h-4 w-4" />
           公众号排版导出
@@ -238,7 +251,10 @@ export function WechatLayoutExportPanel({
   }
 
   return (
-    <section className="space-y-4 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section
+      className="space-y-4 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      id="wechat-layout-export"
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">

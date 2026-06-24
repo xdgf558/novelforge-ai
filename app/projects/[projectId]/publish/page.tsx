@@ -89,6 +89,7 @@ type PublishPageProps = {
   }>;
   searchParams?: Promise<{
     coverImageError?: string;
+    wechatChapterId?: string;
   }>;
 };
 
@@ -399,6 +400,7 @@ export default async function PublishPage({
         chapters={wechatLayoutChapters}
         generateAction={generateWechatLayoutCandidates.bind(null, project.id)}
         hasApiKey={hasApiKey}
+        initialChapterId={resolvedSearchParams?.wechatChapterId}
         projectTitle={project.title}
       />
 

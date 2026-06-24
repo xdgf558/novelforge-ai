@@ -17,8 +17,8 @@ Verification:
 
 - `npm run test -- lib/ai/wechat-layout-candidates.test.ts lib/wechat-layout-export.test.ts` passed.
 - `npm run test -- lib/ai/prompt-templates.test.ts lib/ai/wechat-layout-candidates.test.ts lib/wechat-layout-export.test.ts` passed.
-- `npm run test -- components/preserve-scroll-form.test.ts lib/ai/wechat-layout-candidates.test.ts lib/wechat-layout-export.test.ts` passed, 3 files and 15 tests.
-- `npm run test` passed, 56 files and 308 tests.
+- `npm run test -- components/publish/wechat-layout-selection.test.ts components/preserve-scroll-form.test.ts lib/ai/wechat-layout-candidates.test.ts lib/wechat-layout-export.test.ts` passed, 4 files and 18 tests.
+- `npm run test` passed, 57 files and 311 tests.
 - `npm run typecheck` passed.
 - `npm run build` passed.
 

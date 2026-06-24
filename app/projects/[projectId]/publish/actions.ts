@@ -465,9 +465,11 @@ export async function generateWechatLayoutCandidates(
   projectId: string,
   chapterId: string,
 ) {
+  const redirectPath = wechatLayoutCandidateRedirectPath(projectId, chapterId);
+
   if (!hasConfiguredOpenAIKey()) {
     revalidatePublishPaths(projectId, chapterId);
-    redirect(`/projects/${projectId}/publish`);
+    redirect(redirectPath);
   }
 
   const activeTask = await findActiveWechatLayoutCandidateTask(
@@ -477,7 +479,7 @@ export async function generateWechatLayoutCandidates(
 
   if (activeTask) {
     revalidatePublishPaths(projectId, chapterId);
-    redirect(`/projects/${projectId}/publish`);
+    redirect(redirectPath);
   }
 
   const contextInput = await loadWechatLayoutCandidateContext(
@@ -488,7 +490,7 @@ export async function generateWechatLayoutCandidates(
 
   if (!context) {
     revalidatePublishPaths(projectId, chapterId);
-    redirect(`/projects/${projectId}/publish`);
+    redirect(redirectPath);
   }
 
   const template = await ensureDefaultPromptTemplate(
@@ -522,7 +524,7 @@ export async function generateWechatLayoutCandidates(
   );
 
   revalidatePublishPaths(projectId, chapterId);
-  redirect(`/projects/${projectId}/publish`);
+  redirect(redirectPath);
 }
 
 export async function markPublishPackageExported(
@@ -1599,4 +1601,10 @@ function normalizeOptionalUrl(value?: string | null) {
 
 function clean(value?: string | null) {
   return value?.trim() ?? "";
+}
+
+function wechatLayoutCandidateRedirectPath(projectId: string, chapterId: string) {
+  return `/projects/${projectId}/publish?wechatChapterId=${encodeURIComponent(
+    chapterId,
+  )}#wechat-layout-export`;
 }
