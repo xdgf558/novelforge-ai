@@ -1,7 +1,11 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const execFileAsync = promisify(execFile);
 
 const prismaMock = vi.hoisted(() => ({
   executeRawUnsafe: vi.fn(async (query: string) => {
@@ -94,6 +98,10 @@ describe("local backups", () => {
     );
     expect(zipEntries.has("database/dev.db-wal")).toBe(false);
     expect(zipEntries.has("database/dev.db-shm")).toBe(false);
+    await expectStandardUnzipCanRead(backup.absolutePath, {
+      "assets/covers/cover.png": Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+      "database/novelforge.sqlite": Buffer.from("sqlite test database", "utf8"),
+    });
     expect(backups.map((entry) => entry.fileName)).toContain(backup.fileName);
   });
 
@@ -125,8 +133,33 @@ describe("local backups", () => {
     expect(
       zipEntries.get("assets/cover-candidates/project/task/candidate-119.png"),
     ).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 119]));
+    await expectStandardUnzipCanRead(backup.absolutePath, {
+      "assets/cover-candidates/project/task/candidate-119.png": Buffer.from([
+        0x89,
+        0x50,
+        0x4e,
+        0x47,
+        119,
+      ]),
+    });
   });
 });
+
+async function expectStandardUnzipCanRead(
+  archivePath: string,
+  expectedEntries: Record<string, Buffer>,
+) {
+  await execFileAsync("unzip", ["-tqq", archivePath]);
+
+  for (const [entryPath, expectedContent] of Object.entries(expectedEntries)) {
+    const { stdout } = await execFileAsync("unzip", ["-p", archivePath, entryPath], {
+      encoding: "buffer",
+      maxBuffer: 1024 * 1024,
+    });
+
+    expect(stdout).toEqual(expectedContent);
+  }
+}
 
 function readStoredZipEntries(archive: Buffer) {
   const endOffset = findEndOfCentralDirectory(archive);
