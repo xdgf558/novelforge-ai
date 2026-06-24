@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import {
   adoptCharacterRelationshipDrafts,
   archiveCharacterRelationship,
@@ -487,7 +488,11 @@ function CharacterRelationshipAiPanel({
           </p>
         </div>
 
-        <form action={generateCharacterRelationshipDrafts.bind(null, projectId)}>
+        <PreserveScrollForm
+          action={generateCharacterRelationshipDrafts.bind(null, projectId)}
+          preserveKey={`character-relationship-generation-${projectId}`}
+          statusText="已开始生成人物关系草案，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-55"
             disabled={!canGenerate}
@@ -496,7 +501,7 @@ function CharacterRelationshipAiPanel({
             <Bot aria-hidden="true" className="h-4 w-4" />
             {hasActiveTask ? "生成中" : "生成关系草案"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (

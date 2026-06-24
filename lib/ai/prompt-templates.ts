@@ -399,6 +399,35 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     contextNotes:
       "输入应包含作品标题、题材、目标读者、故事简介、封面用途、画幅约束和规避项。生成结果必须先由作者采用后才写入正式封面。",
   },
+  {
+    key: "wechat_layout_candidate_generation",
+    name: "公众号排版开头结尾候选",
+    taskType: "wechat_layout_candidate_generation",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是微信公众号长篇连载小说排版编辑。只生成开头、结尾和标题候选，不得重写正文，不得宣称已经发布或修改正式内容。",
+    userPrompt:
+      "根据当前章节正文预览、项目定位、总设定摘要和章节目标，生成公众号排版用的标题、开头引导语和结尾追更钩子候选。",
+    contextNotes:
+      "输入可使用精修正文、定稿正文或草稿正文的排版预览，输出必须是 JSON。默认模式是只排版、不改文；候选必须等待作者手动套用。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["title_candidates", "opening_guide", "ending_follow_hook"],
+      properties: {
+        title_candidates: {
+          type: "array",
+          items: { type: "string" },
+        },
+        selected_title: { type: "string" },
+        opening_guide: { type: "string" },
+        ending_follow_hook: { type: "string" },
+        interaction_question: { type: "string" },
+        next_chapter_preview: { type: "string" },
+        comment_guide: { type: "string" },
+      },
+    }),
+  },
 ];
 
 export function promptTemplateFingerprint(template: DefaultPromptTemplate) {

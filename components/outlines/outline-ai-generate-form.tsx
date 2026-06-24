@@ -6,6 +6,7 @@ import {
   outlineLevelOptions,
   type OutlineLevel,
 } from "@/lib/outline-fields";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 
 type OutlineAiGenerateFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -23,7 +24,12 @@ export function OutlineAiGenerateForm({
   const [targetLevel, setTargetLevel] = useState<OutlineLevel>("chapter");
 
   return (
-    <form action={action} className="flex flex-wrap items-end gap-2">
+    <PreserveScrollForm
+      action={action}
+      className="flex flex-wrap items-end gap-2"
+      preserveKey="outline-generation"
+      statusText="已开始生成大纲草案，页面会留在当前位置并自动刷新结果。"
+    >
       <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
         目标层级
         <select
@@ -67,6 +73,6 @@ export function OutlineAiGenerateForm({
         <Sparkles aria-hidden="true" className="h-4 w-4" />
         {hasActiveTask ? "生成中" : "生成大纲草案"}
       </button>
-    </form>
+    </PreserveScrollForm>
   );
 }

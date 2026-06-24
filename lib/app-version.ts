@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.48 发布导出紧凑化";
+export const appReleaseTitle = "0.1.49 公众号排版 AI 候选";
 
 export const appReleaseNotes = [
-  "压缩发布与导出页的书籍封面、发布包装记录和项目导出区域，让长篇项目的发布工作台更容易浏览。",
-  "发布包装字段默认显示短摘要，并提供展开全文，标题候选、检查清单和 Markdown 发布版保持折叠审阅。",
-  "项目导出面板新增紧凑预览模式，保留一键复制和下载能力，同时减少页面纵向占用。",
+  "公众号排版导出新增独立的 AI 生成开头/结尾候选模块，结果只进入任务记录，作者手动套用后才填入表单。",
+  "移除旧的“AI 增强候选”入口，避免排版候选与完整发布包装混用。",
+  "章节、设定、大纲、角色、人物关系、发布和有声导出等后台生成按钮提交后会保留当前位置，并显示处理中反馈。",
 ];

@@ -23,6 +23,7 @@ import {
   projectSettingValuesFromRecord,
   type ProjectSettingValues,
 } from "@/lib/project-setting-fields";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 
 type ProjectSettingFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -210,7 +211,11 @@ function ProjectSettingAiPanel({
           </p>
         </div>
 
-        <form action={generateAction}>
+        <PreserveScrollForm
+          action={generateAction}
+          preserveKey={`project-setting-generation-${projectTitle}`}
+          statusText="已开始生成总设定草案，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -223,7 +228,7 @@ function ProjectSettingAiPanel({
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             {hasActiveGeneration ? "生成中" : "生成总设定草案"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (

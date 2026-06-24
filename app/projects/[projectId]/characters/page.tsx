@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bot, Network, Plus, Sparkles, Users } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import {
   adoptCharacterDraft,
   generateCharacterDraft,
@@ -269,9 +270,11 @@ function CharacterGenerationPanel({
         </div>
       </div>
 
-      <form
+      <PreserveScrollForm
         action={generateCharacterDraft.bind(null, projectId)}
         className="mt-4 grid gap-3 lg:grid-cols-[200px_1fr_auto]"
+        preserveKey={`character-generation-${projectId}`}
+        statusText="已开始生成人物草案，页面会留在当前位置并自动刷新结果。"
       >
         <label className="block text-sm font-semibold text-ink-800">
           目标定位
@@ -302,7 +305,7 @@ function CharacterGenerationPanel({
             {hasActiveTask ? "生成中" : "生成草案"}
           </button>
         </div>
-      </form>
+      </PreserveScrollForm>
 
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">

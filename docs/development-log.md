@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-06-24: 0.1.49 WeChat Layout AI Candidates
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.49`.
+- Replaced the old “AI 增强候选” helper in the WeChat layout export panel with a dedicated “AI 生成开头 / 结尾候选” module.
+- Added a logged `wechat_layout_candidate_generation` task type and default prompt template. The task reads the selected chapter source in `polishedText -> finalText -> draftText` order, generates title/opening/follow-hook candidates, and only stores them in `ai_tasks`.
+- Kept author control: generated candidates never mutate chapter text, publish packages, formal story memory, or website publish state; the author must click to fill the export form.
+- Added a reusable `PreserveScrollForm` wrapper so background generation submissions restore the previous scroll position after server-action refreshes and show immediate in-flight feedback.
+- Applied the non-jumping generation behavior to major background generation entry points: project setting draft, outline draft, character draft, character relationship draft, chapter AI panels, publish cover/package generation, WeChat layout candidates, and audiobook export/retry.
+
+Verification:
+
+- `npm run test -- lib/ai/wechat-layout-candidates.test.ts lib/wechat-layout-export.test.ts` passed.
+- `npm run test -- lib/ai/prompt-templates.test.ts lib/ai/wechat-layout-candidates.test.ts lib/wechat-layout-export.test.ts` passed.
+- `npm run test` passed, 55 files and 302 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-24: 0.1.48 Publish Export Compact Package
 
 Status: completed.

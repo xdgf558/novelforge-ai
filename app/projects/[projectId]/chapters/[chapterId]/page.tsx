@@ -27,6 +27,7 @@ import { generatePendingUpdates } from "@/app/projects/[projectId]/pending-updat
 import { generatePublishPackage } from "@/app/projects/[projectId]/publish/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
 import {
   hasPolishableChapterText,
@@ -354,7 +355,11 @@ function ChapterBeatAiPanel({
           </p>
         </div>
 
-        <form action={generateChapterBeats.bind(null, projectId, chapterId)}>
+        <PreserveScrollForm
+          action={generateChapterBeats.bind(null, projectId, chapterId)}
+          preserveKey={`chapter-beats-${projectId}-${chapterId}`}
+          statusText="已开始生成章节节拍，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -367,7 +372,7 @@ function ChapterBeatAiPanel({
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             {hasActiveGeneration ? "生成中" : "生成节拍"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (
@@ -490,7 +495,11 @@ function ChapterDraftAiPanel({
           </p>
         </div>
 
-        <form action={generateChapterDraft.bind(null, projectId, chapterId)}>
+        <PreserveScrollForm
+          action={generateChapterDraft.bind(null, projectId, chapterId)}
+          preserveKey={`chapter-draft-${projectId}-${chapterId}`}
+          statusText="已开始生成章节草稿，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -503,7 +512,7 @@ function ChapterDraftAiPanel({
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             {hasActiveGeneration ? "生成中" : "生成草稿"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (
@@ -634,7 +643,11 @@ function ChapterPolishAiPanel({
           </p>
         </div>
 
-        <form action={generateChapterPolish.bind(null, projectId, chapterId)}>
+        <PreserveScrollForm
+          action={generateChapterPolish.bind(null, projectId, chapterId)}
+          preserveKey={`chapter-polish-${projectId}-${chapterId}`}
+          statusText="已开始生成正文精修稿，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -647,7 +660,7 @@ function ChapterPolishAiPanel({
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             {hasActiveGeneration ? "精修中" : "生成精修稿"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (
@@ -804,7 +817,11 @@ function ChapterSummaryAiPanel({
           </p>
         </div>
 
-        <form action={generateChapterSummary.bind(null, projectId, chapterId)}>
+        <PreserveScrollForm
+          action={generateChapterSummary.bind(null, projectId, chapterId)}
+          preserveKey={`chapter-summary-${projectId}-${chapterId}`}
+          statusText="已开始提取章节摘要，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -817,7 +834,7 @@ function ChapterSummaryAiPanel({
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             {hasActiveGeneration ? "生成中" : "生成摘要"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (
@@ -928,7 +945,11 @@ function ChapterPendingUpdatePanel({
           </Link>
         </div>
 
-        <form action={generatePendingUpdates.bind(null, projectId, chapterId)}>
+        <PreserveScrollForm
+          action={generatePendingUpdates.bind(null, projectId, chapterId)}
+          preserveKey={`pending-updates-${projectId}-${chapterId}`}
+          statusText="已开始提取待审核更新，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -941,7 +962,7 @@ function ChapterPendingUpdatePanel({
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             {hasActiveGeneration ? "提取中" : "提取更新"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (
@@ -1049,7 +1070,11 @@ function ChapterContinuityPanel({
           </Link>
         </div>
 
-        <form action={generateContinuityReport.bind(null, projectId, chapterId)}>
+        <PreserveScrollForm
+          action={generateContinuityReport.bind(null, projectId, chapterId)}
+          preserveKey={`continuity-${projectId}-${chapterId}`}
+          statusText="已开始运行连续性检查，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -1062,7 +1087,7 @@ function ChapterContinuityPanel({
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             {hasActiveGeneration ? "检查中" : "运行检查"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (
@@ -1170,7 +1195,11 @@ function ChapterPublishPackagePanel({
           </Link>
         </div>
 
-        <form action={generatePublishPackage.bind(null, projectId, chapterId)}>
+        <PreserveScrollForm
+          action={generatePublishPackage.bind(null, projectId, chapterId)}
+          preserveKey={`publish-package-${projectId}-${chapterId}`}
+          statusText="已开始生成发布包装，页面会留在当前位置并自动刷新结果。"
+        >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -1183,7 +1212,7 @@ function ChapterPublishPackagePanel({
             <Sparkles aria-hidden="true" className="h-4 w-4" />
             {hasActiveGeneration ? "生成中" : "生成包装"}
           </button>
-        </form>
+        </PreserveScrollForm>
       </div>
 
       {!hasApiKey ? (

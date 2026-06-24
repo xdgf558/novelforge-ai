@@ -9,6 +9,12 @@ import {
   FileText,
   Sparkles,
 } from "lucide-react";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
+import {
+  aiTaskStatusLabel,
+  isActiveAiTaskStatus,
+} from "@/lib/ai/status";
+import { parseWechatLayoutCandidateOutput } from "@/lib/ai/wechat-layout-candidates";
 import {
   buildWechatLayoutExport,
   defaultWechatEndingFollowHook,
@@ -20,23 +26,37 @@ import {
   type WechatLayoutTemplate,
 } from "@/lib/wechat-layout-export";
 
-export type WechatLayoutChapterOption = WechatLayoutChapter & {
-  latestPublishPackage?: {
-    commentGuide?: string | null;
-    endingQuestion?: string | null;
-    nextChapterPreview?: string | null;
-    openingGuide?: string | null;
-    selectedTitle?: string | null;
+export type WechatLayoutChapterOption = WechatLayoutChapter;
+
+type WechatLayoutCandidateTask = {
+  chapterId?: string | null;
+  createdAt: string;
+  errorMessage?: string | null;
+  id: string;
+  inputContextSummary: string;
+  model: string;
+  outputText?: string | null;
+  promptTemplate?: {
+    key?: string;
+    name: string;
+    version: number;
   } | null;
+  status: string;
 };
 
 type WechatLayoutExportPanelProps = {
+  candidateTasks: readonly WechatLayoutCandidateTask[];
   chapters: WechatLayoutChapterOption[];
+  generateAction: (chapterId: string) => Promise<void>;
+  hasApiKey: boolean;
   projectTitle: string;
 };
 
 export function WechatLayoutExportPanel({
+  candidateTasks,
   chapters,
+  generateAction,
+  hasApiKey,
   projectTitle,
 }: WechatLayoutExportPanelProps) {
   const defaultChapterId = chapters[chapters.length - 1]?.id ?? "";
@@ -96,14 +116,27 @@ export function WechatLayoutExportPanel({
     selectedChapter,
     template,
   ]);
-  const latestPackage = selectedChapter?.latestPublishPackage ?? null;
-  const hasAiCandidate = Boolean(
-    latestPackage?.selectedTitle ||
-      latestPackage?.openingGuide ||
-      latestPackage?.endingQuestion ||
-      latestPackage?.nextChapterPreview ||
-      latestPackage?.commentGuide,
+  const selectedCandidateTasks = useMemo(
+    () =>
+      selectedChapter
+        ? candidateTasks.filter((task) => task.chapterId === selectedChapter.id)
+        : [],
+    [candidateTasks, selectedChapter],
   );
+  const latestCandidateTask = selectedCandidateTasks[0] ?? null;
+  const latestCompletedCandidateTask =
+    selectedCandidateTasks.find(
+      (task) => task.status === "completed" && task.outputText?.trim(),
+    ) ?? null;
+  const hasActiveCandidateTask = selectedCandidateTasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
+  const generatedCandidate = parseWechatLayoutCandidateOutput(
+    latestCompletedCandidateTask?.outputText,
+  );
+  const canGenerateCandidate =
+    Boolean(hasApiKey && selectedChapter && layoutExport?.source) &&
+    !hasActiveCandidateTask;
   const filenameBase = safeFilename(
     `${projectTitle || "novelforge"}-${
       selectedChapter?.chapterNumber
@@ -112,31 +145,32 @@ export function WechatLayoutExportPanel({
     }-wechat`,
   );
 
-  function applyAiCandidate() {
-    if (!latestPackage || !selectedChapter) {
+  function applyGeneratedCandidate(
+    field: "all" | "title" | "opening" | "ending",
+  ) {
+    if (!generatedCandidate) {
       return;
     }
 
-    if (latestPackage.selectedTitle?.trim()) {
-      setPublishTitle(latestPackage.selectedTitle.trim());
+    if (
+      (field === "all" || field === "title") &&
+      generatedCandidate.selectedTitle
+    ) {
+      setPublishTitle(generatedCandidate.selectedTitle);
     }
 
-    if (latestPackage.openingGuide?.trim()) {
-      setOpeningGuide(latestPackage.openingGuide.trim());
+    if (
+      (field === "all" || field === "opening") &&
+      generatedCandidate.openingGuide
+    ) {
+      setOpeningGuide(generatedCandidate.openingGuide);
     }
 
-    const followParts = [
-      latestPackage.endingQuestion
-        ? `互动问题：${latestPackage.endingQuestion.trim()}`
-        : "",
-      latestPackage.nextChapterPreview
-        ? `下章预告：${latestPackage.nextChapterPreview.trim()}`
-        : "",
-      latestPackage.commentGuide?.trim() ?? "",
-    ].filter(Boolean);
-
-    if (followParts.length > 0) {
-      setEndingFollowHook(followParts.join("\n\n"));
+    if (
+      (field === "all" || field === "ending") &&
+      generatedCandidate.endingFollowHook
+    ) {
+      setEndingFollowHook(generatedCandidate.endingFollowHook);
     }
   }
 
@@ -215,7 +249,7 @@ export function WechatLayoutExportPanel({
             只排版，不改文
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
-            自动读取精修正文、定稿正文或草稿正文，整理段落空行、分节标题和重复章标题。AI 增强只作为候选，套用后仍由你确认再复制或导出。
+            自动读取精修正文、定稿正文或草稿正文，整理段落空行、分节标题和重复章标题。默认只排版、不改文；开头和结尾可在这里单独生成候选后手动套用。
           </p>
         </div>
         <div className="rounded-md border border-signal-600/20 bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700">
@@ -303,26 +337,109 @@ export function WechatLayoutExportPanel({
         </label>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold text-ink-950">AI 增强候选</p>
-          <p className="mt-1 text-sm leading-6 text-ink-700">
-            可套用当前章节最近的 AI 发布包装标题、开头和结尾候选；套用只是填入表单，不会改正文。
-          </p>
+      <div className="space-y-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-ink-950">
+              AI 生成开头 / 结尾候选
+            </p>
+            <p className="mt-1 text-sm leading-6 text-ink-700">
+              直接根据当前章节来源生成标题、开头引导语和结尾追更钩子。结果只进入任务记录，点击套用才会填入上方表单。
+            </p>
+            {latestCandidateTask ? (
+              <p className="mt-2 text-xs leading-5 text-ink-700">
+                最近任务：{aiTaskStatusLabel(latestCandidateTask.status)} /{" "}
+                {latestCandidateTask.model}
+                {latestCandidateTask.promptTemplate
+                  ? ` / ${latestCandidateTask.promptTemplate.name} v${latestCandidateTask.promptTemplate.version}`
+                  : ""}{" "}
+                / {formatLocalDate(latestCandidateTask.createdAt)}
+              </p>
+            ) : null}
+          </div>
+
+          <PreserveScrollForm
+            action={
+              selectedChapter
+                ? generateAction.bind(null, selectedChapter.id)
+                : undefined
+            }
+            preserveKey={`wechat-layout-candidate-${selectedChapter?.id ?? "none"}`}
+            statusText="已开始生成公众号开头/结尾候选，页面会留在当前位置并自动刷新结果。"
+          >
+            <button
+              className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                canGenerateCandidate
+                  ? "bg-ink-950 text-white hover:bg-ink-800"
+                  : "cursor-not-allowed border border-ink-950/10 bg-white text-ink-600"
+              }`}
+              disabled={!canGenerateCandidate}
+              type="submit"
+            >
+              <Sparkles aria-hidden="true" className="h-4 w-4" />
+              {hasActiveCandidateTask ? "生成中" : "生成候选"}
+            </button>
+          </PreserveScrollForm>
         </div>
-        <button
-          className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
-            hasAiCandidate
-              ? "border border-ink-950/15 bg-white text-ink-800 hover:bg-paper-100"
-              : "cursor-not-allowed border border-ink-950/10 bg-white text-ink-600"
-          }`}
-          disabled={!hasAiCandidate}
-          onClick={applyAiCandidate}
-          type="button"
-        >
-          <Sparkles aria-hidden="true" className="h-4 w-4" />
-          {hasAiCandidate ? "套用候选" : "暂无候选"}
-        </button>
+
+        {!hasApiKey ? (
+          <p className="rounded-md bg-white px-3 py-2 text-sm leading-6 text-ink-700">
+            未配置 API Key，暂不能生成新候选；已有候选仍可套用。
+          </p>
+        ) : null}
+
+        {hasActiveCandidateTask ? (
+          <p className="rounded-md bg-white px-3 py-2 text-sm leading-6 text-ink-700">
+            当前章节的排版候选正在后台生成，完成前不会重复发起模型调用。
+          </p>
+        ) : null}
+
+        {latestCandidateTask?.status === "failed" ? (
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
+            候选生成失败：
+            {latestCandidateTask.errorMessage || "模型调用未返回可用结果。"}
+          </p>
+        ) : null}
+
+        {generatedCandidate ? (
+          <div className="grid gap-3 lg:grid-cols-3">
+            <CandidatePreview
+              actionLabel="套用标题"
+              label="标题候选"
+              onApply={() => applyGeneratedCandidate("title")}
+              value={
+                generatedCandidate.selectedTitle ||
+                generatedCandidate.titleCandidates.join("\n")
+              }
+            />
+            <CandidatePreview
+              actionLabel="套用开头"
+              label="开头引导语"
+              onApply={() => applyGeneratedCandidate("opening")}
+              value={generatedCandidate.openingGuide}
+            />
+            <CandidatePreview
+              actionLabel="套用结尾"
+              label="结尾追更钩子"
+              onApply={() => applyGeneratedCandidate("ending")}
+              value={generatedCandidate.endingFollowHook}
+            />
+            <div className="lg:col-span-3">
+              <button
+                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                onClick={() => applyGeneratedCandidate("all")}
+                type="button"
+              >
+                <Sparkles aria-hidden="true" className="h-4 w-4" />
+                一键套用标题、开头和结尾
+              </button>
+            </div>
+          </div>
+        ) : latestCompletedCandidateTask ? (
+          <p className="rounded-md bg-white px-3 py-2 text-sm leading-6 text-ink-700">
+            最近候选任务已完成，但输出无法解析为标题、开头或结尾字段，请展开任务记录检查模型输出。
+          </p>
+        ) : null}
       </div>
 
       <div className="rounded-lg border border-ink-950/10 bg-white p-4">
@@ -415,6 +532,50 @@ export function WechatLayoutExportPanel({
       </div>
     </section>
   );
+}
+
+function CandidatePreview({
+  actionLabel,
+  label,
+  onApply,
+  value,
+}: {
+  actionLabel: string;
+  label: string;
+  onApply: () => void;
+  value: string;
+}) {
+  return (
+    <div className="rounded-md border border-ink-950/10 bg-white p-3">
+      <p className="text-xs font-semibold text-ink-700">{label}</p>
+      <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-ink-800">
+        {value || "未生成"}
+      </p>
+      <button
+        className="mt-3 inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-paper-50 px-2.5 py-1.5 text-xs font-semibold text-ink-800 transition hover:bg-paper-100 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={!value}
+        onClick={onApply}
+        type="button"
+      >
+        {actionLabel}
+      </button>
+    </div>
+  );
+}
+
+function formatLocalDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+  }).format(date);
 }
 
 function safeFilename(value: string) {

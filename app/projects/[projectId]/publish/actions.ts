@@ -33,6 +33,12 @@ import {
   readImageGenerationSecrets,
   readStationCatPublishSecrets,
 } from "@/lib/ai/local-config";
+import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
+import {
+  buildWechatLayoutCandidateContext,
+  wechatLayoutCandidateTaskType,
+  wechatLayoutCandidateTemplateKey,
+} from "@/lib/ai/wechat-layout-candidates";
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import {
   deleteProjectCoverAsset,
@@ -448,6 +454,70 @@ export async function generatePublishPackage(
           },
         });
       },
+    },
+  );
+
+  revalidatePublishPaths(projectId, chapterId);
+  redirect(`/projects/${projectId}/publish`);
+}
+
+export async function generateWechatLayoutCandidates(
+  projectId: string,
+  chapterId: string,
+) {
+  if (!hasConfiguredOpenAIKey()) {
+    revalidatePublishPaths(projectId, chapterId);
+    redirect(`/projects/${projectId}/publish`);
+  }
+
+  const activeTask = await findActiveWechatLayoutCandidateTask(
+    projectId,
+    chapterId,
+  );
+
+  if (activeTask) {
+    revalidatePublishPaths(projectId, chapterId);
+    redirect(`/projects/${projectId}/publish`);
+  }
+
+  const contextInput = await loadWechatLayoutCandidateContext(
+    projectId,
+    chapterId,
+  );
+  const context = buildWechatLayoutCandidateContext(contextInput);
+
+  if (!context) {
+    revalidatePublishPaths(projectId, chapterId);
+    redirect(`/projects/${projectId}/publish`);
+  }
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    wechatLayoutCandidateTemplateKey,
+  );
+
+  await startLoggedOpenAITextTask(
+    {
+      projectId,
+      chapterId,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    },
+    {
+      systemPrompt: template.systemPrompt,
+      developerPrompt: [
+        template.userPrompt,
+        template.contextNotes,
+        template.responseSchema
+          ? `请严格输出符合以下 JSON Schema 的 JSON：\n${template.responseSchema}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+      input: context.inputText,
     },
   );
 
@@ -1007,6 +1077,51 @@ async function loadPublishPackageContext(projectId: string, chapterId: string) {
   };
 }
 
+async function loadWechatLayoutCandidateContext(
+  projectId: string,
+  chapterId: string,
+) {
+  const chapter = await prisma.chapter.findFirst({
+    where: {
+      id: chapterId,
+      projectId,
+    },
+    include: {
+      project: {
+        include: {
+          setting: true,
+        },
+      },
+    },
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
+  return {
+    project: {
+      title: chapter.project.title,
+      genre: chapter.project.genre,
+      targetAudience: chapter.project.targetAudience,
+      platform: chapter.project.platform,
+      description: chapter.project.description,
+      wechatPositioning: chapter.project.wechatPositioning,
+    },
+    setting: chapter.project.setting,
+    chapter: {
+      id: chapter.id,
+      chapterNumber: chapter.chapterNumber,
+      title: chapter.title,
+      goal: chapter.goal,
+      notes: chapter.notes,
+      draftText: chapter.draftText,
+      finalText: chapter.finalText,
+      polishedText: chapter.polishedText,
+    },
+  };
+}
+
 async function completeRunningCoverImageTask({
   imageCount,
   projectId,
@@ -1117,6 +1232,25 @@ async function findActivePublishPackageTask(projectId: string, chapterId: string
       projectId,
       chapterId,
       taskType: publishPackageTaskType,
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+}
+
+async function findActiveWechatLayoutCandidateTask(
+  projectId: string,
+  chapterId: string,
+) {
+  return prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      chapterId,
+      taskType: wechatLayoutCandidateTaskType,
       status: {
         in: [...activeAiTaskStatuses],
       },

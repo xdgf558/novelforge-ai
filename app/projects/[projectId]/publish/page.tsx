@@ -21,6 +21,7 @@ import {
   adoptGeneratedProjectCover,
   generateProjectCoverImage,
   generatePublishPackage,
+  generateWechatLayoutCandidates,
   markPublishPackageExported,
   prepareGlobalStationCatPublishRun,
   preparePublishRun,
@@ -31,6 +32,7 @@ import {
 } from "@/app/projects/[projectId]/publish/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyExportPanel } from "@/components/copy-export-panel";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import { PublishSubmitButton } from "@/components/publish-submit-button";
 import { WechatLayoutExportPanel } from "@/components/publish/wechat-layout-export-panel";
 import { expireStaleCoverImageTasks } from "@/lib/ai/cover-image-task-maintenance";
@@ -50,6 +52,7 @@ import {
   coverImageTargets,
   parseCoverImageTaskOutput,
 } from "@/lib/ai/cover-images";
+import { wechatLayoutCandidateTaskType } from "@/lib/ai/wechat-layout-candidates";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
   buildPublishMarkdown,
@@ -133,8 +136,25 @@ export default async function PublishPage({
   const coverImageTasks = project.aiTasks
     .filter((task) => task.taskType === coverImageGenerationTaskType)
     .slice(0, 5);
+  const wechatLayoutCandidateTasks = project.aiTasks
+    .filter((task) => task.taskType === wechatLayoutCandidateTaskType)
+    .slice(0, 12)
+    .map((task) => ({
+      chapterId: task.chapterId,
+      createdAt: task.createdAt.toISOString(),
+      errorMessage: task.errorMessage,
+      id: task.id,
+      inputContextSummary: task.inputContextSummary,
+      model: task.model,
+      outputText: task.outputText,
+      promptTemplate: task.promptTemplate,
+      status: task.status,
+    }));
   const hasActiveCoverImageTask = coverImageTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
+  );
+  const hasActiveWechatLayoutCandidateTask = wechatLayoutCandidateTasks.some(
+    (task) => isActiveAiTaskStatus(task.status),
   );
   const hasActivePublishPackageTask = project.chapters.some((chapter) =>
     chapter.aiTasks.some((task) => isActiveAiTaskStatus(task.status)),
@@ -157,36 +177,12 @@ export default async function PublishPage({
   const latestGlobalStationCatRun = globalStationCatTarget?.runs[0] ?? null;
   const visiblePublishPackages = project.publishPackages.slice(0, 1);
   const hiddenPublishPackages = project.publishPackages.slice(1);
-  const latestPublishPackageByChapter = new Map<
-    string,
-    {
-      commentGuide?: string | null;
-      endingQuestion?: string | null;
-      nextChapterPreview?: string | null;
-      openingGuide?: string | null;
-      selectedTitle?: string | null;
-    }
-  >();
-
-  for (const publishPackage of project.publishPackages) {
-    if (!latestPublishPackageByChapter.has(publishPackage.chapterId)) {
-      latestPublishPackageByChapter.set(publishPackage.chapterId, {
-        commentGuide: publishPackage.commentGuide,
-        endingQuestion: publishPackage.endingQuestion,
-        nextChapterPreview: publishPackage.nextChapterPreview,
-        openingGuide: publishPackage.openingGuide,
-        selectedTitle: publishPackage.selectedTitle,
-      });
-    }
-  }
-
   const wechatLayoutChapters = project.chapters
     .map((chapter) => ({
       id: chapter.id,
       chapterNumber: chapter.chapterNumber,
       draftText: chapter.draftText,
       finalText: chapter.finalText,
-      latestPublishPackage: latestPublishPackageByChapter.get(chapter.id) ?? null,
       polishedText: chapter.polishedText,
       title: chapter.title,
     }))
@@ -348,7 +344,13 @@ export default async function PublishPage({
 
   return (
     <div className="space-y-6">
-      <AutoRefresh enabled={hasActivePublishPackageTask || hasActiveCoverImageTask} />
+      <AutoRefresh
+        enabled={
+          hasActivePublishPackageTask ||
+          hasActiveCoverImageTask ||
+          hasActiveWechatLayoutCandidateTask
+        }
+      />
 
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
@@ -393,7 +395,10 @@ export default async function PublishPage({
       </section>
 
       <WechatLayoutExportPanel
+        candidateTasks={wechatLayoutCandidateTasks}
         chapters={wechatLayoutChapters}
+        generateAction={generateWechatLayoutCandidates.bind(null, project.id)}
+        hasApiKey={hasApiKey}
         projectTitle={project.title}
       />
 
@@ -530,9 +535,11 @@ export default async function PublishPage({
                 </p>
               ) : null}
 
-              <form
+              <PreserveScrollForm
                 action={generateProjectCoverImage.bind(null, project.id)}
                 className="mt-4 grid gap-3"
+                preserveKey={`cover-image-generation-${project.id}`}
+                statusText="已开始生成封面候选图，页面会留在当前位置并自动刷新结果。"
               >
                 <label className="space-y-1.5">
                   <span className="text-xs font-semibold text-ink-700">
@@ -592,7 +599,7 @@ export default async function PublishPage({
                     {hasActiveCoverImageTask ? "生成中" : "生成候选图"}
                   </button>
                 </div>
-              </form>
+              </PreserveScrollForm>
 
               {coverImageTasks.length > 0 ? (
                 <details className="mt-4 rounded-lg border border-ink-950/10 bg-white p-3">
@@ -984,12 +991,14 @@ export default async function PublishPage({
                       ) : null}
                     </div>
 
-                    <form
+                    <PreserveScrollForm
                       action={generatePublishPackage.bind(
                         null,
                         project.id,
                         chapter.id,
                       )}
+                      preserveKey={`publish-page-package-${project.id}-${chapter.id}`}
+                      statusText="已开始生成发布包装，页面会留在当前位置并自动刷新结果。"
                     >
                       <button
                         className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
@@ -1003,7 +1012,7 @@ export default async function PublishPage({
                         <Sparkles aria-hidden="true" className="h-4 w-4" />
                         {hasActiveTask ? "生成中" : "生成包装"}
                       </button>
-                    </form>
+                    </PreserveScrollForm>
                   </div>
                 </article>
               );

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { FormActionButton } from "@/components/form-action-button";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import {
   openAudioExportFolder,
   retryFailedAudioExportSegments,
@@ -187,9 +188,11 @@ export default async function AudiobookPage({
           </div>
         </div>
 
-        <form
+        <PreserveScrollForm
           action={startChapterAudioExport.bind(null, project.id)}
           className="mt-5 grid gap-5 lg:grid-cols-2"
+          preserveKey={`audio-export-start-${project.id}`}
+          statusText="已开始创建有声导出任务，页面会留在当前位置并自动刷新进度。"
         >
           <label className="space-y-2">
             <span className="text-sm font-semibold text-ink-800">章节</span>
@@ -321,7 +324,7 @@ export default async function AudiobookPage({
               variant="dark"
             />
           </div>
-        </form>
+        </PreserveScrollForm>
       </section>
 
       <section className="space-y-4">
@@ -382,12 +385,14 @@ export default async function AudiobookPage({
                   {audioExport.failedSegments > 0 &&
                   audioExport.providerId === ttsSettings.providerId &&
                   !["pending", "running"].includes(audioExport.status) ? (
-                    <form
+                    <PreserveScrollForm
                       action={retryFailedAudioExportSegments.bind(
                         null,
                         project.id,
                         audioExport.id,
                       )}
+                      preserveKey={`audio-export-retry-${project.id}-${audioExport.id}`}
+                      statusText="已开始重试失败分段，页面会留在当前位置并自动刷新进度。"
                     >
                       <FormActionButton
                         icon="refresh"
@@ -397,7 +402,7 @@ export default async function AudiobookPage({
                         statusText="正在重新排队失败分段，完成后页面会刷新。"
                         value={`retry-${audioExport.id}`}
                       />
-                    </form>
+                    </PreserveScrollForm>
                   ) : null}
                   {audioExport.failedSegments > 0 &&
                   audioExport.providerId !== ttsSettings.providerId ? (
