@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import {
@@ -13,6 +14,18 @@ import {
   hasConfiguredOpenAIKey,
 } from "@/lib/ai/openai-client";
 import { prisma } from "@/lib/prisma";
+
+type PromptTemplateCopySource = {
+  contextNotes: string | null;
+  key: string;
+  name: string;
+  outputFormat: string;
+  responseSchema: string | null;
+  systemPrompt: string;
+  taskType: string;
+  userPrompt: string;
+  version: number;
+};
 
 async function assertProject(projectId: string) {
   const project = await prisma.project.findUnique({
@@ -96,36 +109,59 @@ export async function copyPromptTemplateVersion(
     notFound();
   }
 
-  const latest = await prisma.aiPromptTemplate.aggregate({
-    where: {
-      projectId,
-      key: template.key,
-    },
-    _max: {
-      version: true,
-    },
-  });
-  const nextVersion = (latest._max.version ?? template.version) + 1;
-
-  await prisma.aiPromptTemplate.create({
-    data: {
-      projectId,
-      key: template.key,
-      name: `${template.name} 副本`,
-      taskType: template.taskType,
-      version: nextVersion,
-      outputFormat: template.outputFormat,
-      systemPrompt: template.systemPrompt,
-      userPrompt: template.userPrompt,
-      contextNotes: template.contextNotes,
-      responseSchema: template.responseSchema,
-      status: "active",
-    },
-  });
+  await createPromptTemplateCopy(projectId, template);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/ai`);
   redirect(`/projects/${projectId}/ai?templateStatus=copied`);
+}
+
+async function createPromptTemplateCopy(
+  projectId: string,
+  template: PromptTemplateCopySource,
+) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const latest = await prisma.aiPromptTemplate.aggregate({
+      where: {
+        projectId,
+        key: template.key,
+      },
+      _max: {
+        version: true,
+      },
+    });
+    const nextVersion = (latest._max.version ?? template.version) + 1;
+
+    try {
+      await prisma.aiPromptTemplate.create({
+        data: {
+          projectId,
+          key: template.key,
+          name: `${template.name} 副本`,
+          taskType: template.taskType,
+          version: nextVersion,
+          outputFormat: template.outputFormat,
+          systemPrompt: template.systemPrompt,
+          userPrompt: template.userPrompt,
+          contextNotes: template.contextNotes,
+          responseSchema: template.responseSchema,
+          status: "active",
+        },
+      });
+      return;
+    } catch (error) {
+      if (!isUniqueConstraintError(error) || attempt === 1) {
+        throw error;
+      }
+    }
+  }
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  );
 }
 
 export async function togglePromptTemplateStatus(

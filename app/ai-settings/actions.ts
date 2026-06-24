@@ -193,8 +193,10 @@ export async function openLocalBackupDirectoryAction() {
 
   try {
     const backupRoot = getLocalBackupRoot();
+    const openCommand = openDirectoryCommand(backupRoot);
+
     await fs.promises.mkdir(backupRoot, { recursive: true });
-    await execFileAsync("open", [backupRoot]);
+    await execFileAsync(openCommand.command, openCommand.args);
     redirectTo = "/ai-settings?saved=backup-folder#local-backups";
   } catch (error) {
     const params = new URLSearchParams({
@@ -207,6 +209,27 @@ export async function openLocalBackupDirectoryAction() {
 
   revalidatePath("/ai-settings");
   redirect(redirectTo);
+}
+
+function openDirectoryCommand(directoryPath: string) {
+  if (process.platform === "darwin") {
+    return {
+      command: "open",
+      args: [directoryPath],
+    };
+  }
+
+  if (process.platform === "win32") {
+    return {
+      command: "explorer",
+      args: [directoryPath],
+    };
+  }
+
+  return {
+    command: "xdg-open",
+    args: [directoryPath],
+  };
 }
 
 const defaultTtsPreviewText =
