@@ -572,6 +572,42 @@ export async function generateEndingPlanDraft(projectId: string) {
   redirect(`/projects/${projectId}/outlines#ending-planning`);
 }
 
+export async function markEndingPlanTaskOrganized(
+  projectId: string,
+  taskId: string,
+) {
+  await updateEndingPlanTaskAdoptionState(projectId, taskId, "adopted");
+}
+
+export async function ignoreEndingPlanTask(projectId: string, taskId: string) {
+  await updateEndingPlanTaskAdoptionState(projectId, taskId, "rejected");
+}
+
+async function updateEndingPlanTaskAdoptionState(
+  projectId: string,
+  taskId: string,
+  adoptionState: "adopted" | "rejected",
+) {
+  await assertProject(projectId);
+
+  await prisma.aiTask.updateMany({
+    where: {
+      id: taskId,
+      projectId,
+      taskType: endingPlanningTemplateKey,
+      status: "completed",
+      adoptionState: "not_reviewed",
+    },
+    data: {
+      adoptionState,
+    },
+  });
+
+  revalidateOutlinePaths(projectId);
+  revalidatePath(`/projects/${projectId}/ai`);
+  redirect(`/projects/${projectId}/outlines#ending-planning`);
+}
+
 async function findEndingPlanningForeshadows(projectId: string) {
   const includeChapters = {
     plantedChapter: {

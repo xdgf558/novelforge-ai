@@ -17,6 +17,8 @@ import {
   deleteOutline,
   generateEndingPlanDraft,
   generateOutlineDraft,
+  ignoreEndingPlanTask,
+  markEndingPlanTaskOrganized,
 } from "@/app/projects/[projectId]/outlines/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
@@ -252,6 +254,7 @@ export default async function OutlinesPage({
         generateAction={generateEndingPlanDraft.bind(null, project.id)}
         hasActiveTask={hasActiveEndingPlanTask}
         hasApiKey={aiSettings.hasApiKey}
+        projectId={project.id}
         readiness={endingReadiness}
         tasks={endingPlanTasks}
       />
@@ -428,12 +431,14 @@ function EndingPlanningPanel({
   generateAction,
   hasActiveTask,
   hasApiKey,
+  projectId,
   readiness,
   tasks,
 }: {
   generateAction: () => Promise<void>;
   hasActiveTask: boolean;
   hasApiKey: boolean;
+  projectId: string;
   readiness: EndingReadinessSnapshot;
   tasks: readonly {
     id: string;
@@ -570,6 +575,35 @@ function EndingPlanningPanel({
               <p className="mt-1 text-xs leading-5 text-ink-700">
                 {task.inputContextSummary}
               </p>
+              {task.status === "completed" &&
+              task.adoptionState === "not_reviewed" ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <form
+                    action={markEndingPlanTaskOrganized.bind(
+                      null,
+                      projectId,
+                      task.id,
+                    )}
+                  >
+                    <FormActionButton
+                      icon="save"
+                      idleLabel="标记已整理"
+                      pendingLabel="正在标记"
+                      statusText="正在把这份终局规划草案标记为已整理。"
+                    />
+                  </form>
+                  <form
+                    action={ignoreEndingPlanTask.bind(null, projectId, task.id)}
+                  >
+                    <FormActionButton
+                      icon="save"
+                      idleLabel="忽略"
+                      pendingLabel="正在忽略"
+                      statusText="正在把这份终局规划草案标记为忽略。"
+                    />
+                  </form>
+                </div>
+              ) : null}
               <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-3 text-xs leading-5 text-ink-800">
                 {task.outputText || task.errorMessage || "任务尚未产生输出。"}
               </pre>

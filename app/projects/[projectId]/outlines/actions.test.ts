@@ -3,6 +3,8 @@ import {
   createOutline,
   generateEndingPlanDraft,
   generateOutlineDraft,
+  ignoreEndingPlanTask,
+  markEndingPlanTaskOrganized,
   updateOutline,
 } from "./actions";
 import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
@@ -471,6 +473,52 @@ describe("outline actions", () => {
       expect.objectContaining({
         input: expect.stringContaining("零号真实来源仍未揭开"),
       }),
+    );
+  });
+
+  it("marks a completed ending planning task as organized without writing formal outlines", async () => {
+    await expect(
+      markEndingPlanTaskOrganized("project_1", "task_ending_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "task_ending_1",
+        projectId: "project_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      data: {
+        adoptionState: "adopted",
+      },
+    });
+    expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/outlines#ending-planning",
+    );
+  });
+
+  it("marks a completed ending planning task as ignored without writing formal outlines", async () => {
+    await expect(
+      ignoreEndingPlanTask("project_1", "task_ending_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "task_ending_1",
+        projectId: "project_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      data: {
+        adoptionState: "rejected",
+      },
+    });
+    expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/outlines#ending-planning",
     );
   });
 });
