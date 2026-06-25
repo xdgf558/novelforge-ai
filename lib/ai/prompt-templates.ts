@@ -141,6 +141,19 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
       "输入应包含项目基础信息、项目设定摘要、已有大纲、主要角色、已有章节和本次目标层级。输出应提供可复制进大纲表单的结构化字段。",
   },
   {
+    key: "ending_planning_generation",
+    name: "终局规划草案",
+    taskType: "ending_planning_generation",
+    version: 1,
+    outputFormat: "markdown",
+    systemPrompt:
+      "你是长篇连载小说的终局规划助手。只输出供作者审核的收尾规划草案，不得自动修改正式大纲、伏笔池、时间线或故事记忆。",
+    userPrompt:
+      "根据总目标字数、当前章节进度、已有大纲、角色弧线、未回收伏笔和结局方向，判断作品是否应开始收束，并生成终局规划草案。",
+    contextNotes:
+      "输入应包含当前字数进度、总设定结局方向、已有大纲、未回收伏笔、角色弧线、最近章节和时间线。输出必须保持作者控制：只给建议，不宣称已回收伏笔或已修改大纲。",
+  },
+  {
     key: "character_generation",
     name: "人物草案生成",
     taskType: "character_generation",

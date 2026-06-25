@@ -1,8 +1,15 @@
 import { prisma } from "@/lib/prisma";
+import { endingPlanningTaskType } from "./ending-planning";
 import { activeAiTaskStatuses } from "./status";
 import { staleAiTaskCutoff, staleAiTaskErrorMessage } from "./task-timeouts";
 
 export const outlineGenerationTaskType = "outline_generation";
+export const endingPlanningGenerationTaskType = endingPlanningTaskType;
+
+const outlineModuleAiTaskTypes = [
+  outlineGenerationTaskType,
+  endingPlanningGenerationTaskType,
+] as const;
 
 export async function expireStaleOutlineAiTasks(
   projectId: string,
@@ -13,7 +20,9 @@ export async function expireStaleOutlineAiTasks(
   await prisma.aiTask.updateMany({
     where: {
       projectId,
-      taskType: outlineGenerationTaskType,
+      taskType: {
+        in: [...outlineModuleAiTaskTypes],
+      },
       status: {
         in: [...activeAiTaskStatuses],
       },

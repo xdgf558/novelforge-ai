@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createOutline,
+  generateEndingPlanDraft,
   generateOutlineDraft,
+  ignoreEndingPlanTask,
+  markEndingPlanTaskOrganized,
   updateOutline,
 } from "./actions";
 import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
@@ -23,10 +26,16 @@ const mocks = vi.hoisted(() => ({
       findMany: vi.fn(),
       update: vi.fn(),
     },
+    foreshadow: {
+      findMany: vi.fn(),
+    },
     character: {
       findMany: vi.fn(),
     },
     chapter: {
+      findMany: vi.fn(),
+    },
+    timelineEvent: {
       findMany: vi.fn(),
     },
     aiTask: {
@@ -110,8 +119,10 @@ describe("outline actions", () => {
       id: "outline_1",
     });
     mocks.prisma.outline.findMany.mockResolvedValue([]);
+    mocks.prisma.foreshadow.findMany.mockResolvedValue([]);
     mocks.prisma.character.findMany.mockResolvedValue([]);
     mocks.prisma.chapter.findMany.mockResolvedValue([]);
+    mocks.prisma.timelineEvent.findMany.mockResolvedValue([]);
     mocks.prisma.aiTask.findFirst.mockResolvedValue(null);
     mocks.prisma.aiTask.updateMany.mockResolvedValue({
       count: 0,
@@ -225,7 +236,9 @@ describe("outline actions", () => {
     expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
       where: {
         projectId: "project_1",
-        taskType: "outline_generation",
+        taskType: {
+          in: ["outline_generation", "ending_planning_generation"],
+        },
         status: {
           in: ["pending", "running"],
         },
@@ -320,6 +333,192 @@ describe("outline actions", () => {
       expect.objectContaining({
         input: expect.stringContaining("只生成第 3 章的一条章节大纲"),
       }),
+    );
+  });
+
+  it("starts a draft-only ending planning task without writing formal outline memory", async () => {
+    mocks.ensureDefaultPromptTemplate.mockResolvedValue({
+      id: "ending_template_1",
+      taskType: "ending_planning_generation",
+      systemPrompt: "system",
+      userPrompt: "user",
+      contextNotes: "notes",
+    });
+    mocks.prisma.chapter.findMany.mockResolvedValue([
+      {
+        chapterNumber: 1,
+        title: "开局",
+        status: "final",
+        goal: "确认重生。",
+        wordCount: 90000,
+      },
+    ]);
+    mocks.prisma.foreshadow.findMany.mockResolvedValue([
+      {
+        content: "谢勇怀疑陈远的信息源。",
+        status: "planted",
+        importance: "high",
+        expectedResolveChapter: 20,
+        plantedChapter: {
+          chapterNumber: 2,
+          title: "谢勇出场",
+        },
+        resolvedChapter: null,
+      },
+    ]);
+
+    await expect(generateEndingPlanDraft("project_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.ensureDefaultPromptTemplate).toHaveBeenCalledWith(
+      "project_1",
+      "ending_planning_generation",
+    );
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project_1",
+        taskType: "ending_planning_generation",
+        inputContextSummary: expect.stringContaining("终局规划"),
+        inputJson: expect.objectContaining({
+          readiness: expect.objectContaining({
+            currentWords: 90000,
+            progressPercent: 5,
+          }),
+        }),
+      }),
+      expect.objectContaining({
+        input: expect.stringContaining("不得自动把任何伏笔标记为已回收或废弃"),
+      }),
+    );
+    expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/outlines#ending-planning",
+    );
+  });
+
+  it("keeps high-importance unresolved foreshadows in ending planning even when many resolved items exist", async () => {
+    mocks.ensureDefaultPromptTemplate.mockResolvedValue({
+      id: "ending_template_1",
+      taskType: "ending_planning_generation",
+      systemPrompt: "system",
+      userPrompt: "user",
+      contextNotes: "notes",
+    });
+    mocks.prisma.chapter.findMany.mockResolvedValue([
+      {
+        chapterNumber: 1,
+        title: "终局前",
+        status: "final",
+        goal: "终局前最后整备。",
+        wordCount: 1950000,
+      },
+    ]);
+
+    const highPlanted = {
+      id: "foreshadow_high",
+      content: "零号真实来源仍未揭开。",
+      status: "planted",
+      importance: "high",
+      expectedResolveChapter: 120,
+      plantedChapter: {
+        chapterNumber: 1,
+        title: "开局",
+      },
+      resolvedChapter: null,
+      updatedAt: new Date("2026-06-24T12:00:00.000Z"),
+    };
+    const resolvedForeshadows = Array.from({ length: 35 }, (_, index) => ({
+      id: `foreshadow_resolved_${index}`,
+      content: `已回收的中重要度伏笔 ${index}`,
+      status: "resolved",
+      importance: "medium",
+      expectedResolveChapter: index + 2,
+      plantedChapter: null,
+      resolvedChapter: {
+        chapterNumber: index + 2,
+        title: `回收章节 ${index}`,
+      },
+      updatedAt: new Date(
+        `2026-06-${String(24 - (index % 20)).padStart(2, "0")}T12:00:00.000Z`,
+      ),
+    }));
+
+    mocks.prisma.foreshadow.findMany
+      .mockResolvedValueOnce([highPlanted])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(resolvedForeshadows);
+
+    await expect(generateEndingPlanDraft("project_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskType: "ending_planning_generation",
+        inputJson: expect.objectContaining({
+          readiness: expect.objectContaining({
+            highImportanceUnresolvedForeshadowCount: 1,
+            unresolvedForeshadowCount: 1,
+          }),
+          highImportanceForeshadows: expect.arrayContaining([
+            expect.objectContaining({
+              content: "零号真实来源仍未揭开。",
+              importance: "high",
+              status: "planted",
+            }),
+          ]),
+        }),
+      }),
+      expect.objectContaining({
+        input: expect.stringContaining("零号真实来源仍未揭开"),
+      }),
+    );
+  });
+
+  it("marks a completed ending planning task as organized without writing formal outlines", async () => {
+    await expect(
+      markEndingPlanTaskOrganized("project_1", "task_ending_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "task_ending_1",
+        projectId: "project_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      data: {
+        adoptionState: "adopted",
+      },
+    });
+    expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/outlines#ending-planning",
+    );
+  });
+
+  it("marks a completed ending planning task as ignored without writing formal outlines", async () => {
+    await expect(
+      ignoreEndingPlanTask("project_1", "task_ending_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "task_ending_1",
+        projectId: "project_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      data: {
+        adoptionState: "rejected",
+      },
+    });
+    expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/outlines#ending-planning",
     );
   });
 });

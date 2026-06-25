@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { buildEndingPlanningContext } from "@/lib/ai/ending-planning";
 import { buildOutlineGenerationContext } from "@/lib/ai/outlines";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
+  endingPlanningGenerationTaskType,
   expireStaleOutlineAiTasks,
   outlineGenerationTaskType,
 } from "@/lib/ai/outline-task-maintenance";
@@ -28,6 +30,12 @@ import {
 import { prisma } from "@/lib/prisma";
 
 const outlineTemplateKey = outlineGenerationTaskType;
+const endingPlanningTemplateKey = endingPlanningGenerationTaskType;
+const unresolvedForeshadowStatuses = [
+  "planted",
+  "advancing",
+  "needs_attention",
+] as const;
 
 const outlineStatusValues = outlineStatusOptions.map((option) => option.value) as [
   string,
@@ -431,11 +439,323 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
   redirect(`/projects/${projectId}/outlines`);
 }
 
+export async function generateEndingPlanDraft(projectId: string) {
+  await assertProject(projectId);
+  await expireStaleOutlineAiTasks(projectId);
+
+  const activeTask = await findActiveEndingPlanningTask(projectId);
+
+  if (activeTask) {
+    revalidateOutlinePaths(projectId);
+    redirect(`/projects/${projectId}/outlines#ending-planning`);
+  }
+
+  const [project, outlines, chapters, foreshadows, characters, timelineEvents] =
+    await Promise.all([
+      prisma.project.findUnique({
+        where: {
+          id: projectId,
+        },
+        include: {
+          setting: true,
+        },
+      }),
+      prisma.outline.findMany({
+        where: {
+          projectId,
+          status: {
+            not: "archived",
+          },
+        },
+        orderBy: [
+          {
+            level: "asc",
+          },
+          {
+            sortOrder: "asc",
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
+      }),
+      prisma.chapter.findMany({
+        where: {
+          projectId,
+        },
+        orderBy: {
+          chapterNumber: "asc",
+        },
+        select: {
+          chapterNumber: true,
+          title: true,
+          status: true,
+          goal: true,
+          wordCount: true,
+        },
+      }),
+      findEndingPlanningForeshadows(projectId),
+      prisma.character.findMany({
+        where: {
+          projectId,
+          status: "active",
+        },
+        orderBy: {
+          name: "asc",
+        },
+        select: {
+          name: true,
+          roleInStory: true,
+          characterArc: true,
+          status: true,
+        },
+        take: 24,
+      }),
+      prisma.timelineEvent.findMany({
+        where: {
+          projectId,
+          status: "active",
+        },
+        include: {
+          chapter: {
+            select: {
+              chapterNumber: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: {
+          updatedAt: "desc",
+        },
+        take: 12,
+      }),
+    ]);
+
+  if (!project) {
+    notFound();
+  }
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    endingPlanningTemplateKey,
+  );
+  const context = buildEndingPlanningContext({
+    project,
+    setting: project.setting,
+    outlines,
+    chapters,
+    foreshadows,
+    characters,
+    timelineEvents: timelineEvents.reverse(),
+  });
+
+  await startLoggedOpenAITextTask(
+    {
+      projectId,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    },
+    {
+      systemPrompt: template.systemPrompt,
+      developerPrompt: [template.userPrompt, template.contextNotes]
+        .filter(Boolean)
+        .join("\n\n"),
+      input: context.inputText,
+    },
+  );
+
+  revalidateOutlinePaths(projectId);
+  revalidatePath(`/projects/${projectId}/ai`);
+  redirect(`/projects/${projectId}/outlines#ending-planning`);
+}
+
+export async function markEndingPlanTaskOrganized(
+  projectId: string,
+  taskId: string,
+) {
+  await updateEndingPlanTaskAdoptionState(projectId, taskId, "adopted");
+}
+
+export async function ignoreEndingPlanTask(projectId: string, taskId: string) {
+  await updateEndingPlanTaskAdoptionState(projectId, taskId, "rejected");
+}
+
+async function updateEndingPlanTaskAdoptionState(
+  projectId: string,
+  taskId: string,
+  adoptionState: "adopted" | "rejected",
+) {
+  await assertProject(projectId);
+
+  await prisma.aiTask.updateMany({
+    where: {
+      id: taskId,
+      projectId,
+      taskType: endingPlanningTemplateKey,
+      status: "completed",
+      adoptionState: "not_reviewed",
+    },
+    data: {
+      adoptionState,
+    },
+  });
+
+  revalidateOutlinePaths(projectId);
+  revalidatePath(`/projects/${projectId}/ai`);
+  redirect(`/projects/${projectId}/outlines#ending-planning`);
+}
+
+async function findEndingPlanningForeshadows(projectId: string) {
+  const includeChapters = {
+    plantedChapter: {
+      select: {
+        chapterNumber: true,
+        title: true,
+      },
+    },
+    resolvedChapter: {
+      select: {
+        chapterNumber: true,
+        title: true,
+      },
+    },
+  } as const;
+
+  const [highUnresolved, otherUnresolved, recentResolved] = await Promise.all([
+    prisma.foreshadow.findMany({
+      where: {
+        projectId,
+        status: {
+          in: [...unresolvedForeshadowStatuses],
+        },
+        importance: "high",
+      },
+      include: includeChapters,
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 30,
+    }),
+    prisma.foreshadow.findMany({
+      where: {
+        projectId,
+        status: {
+          in: [...unresolvedForeshadowStatuses],
+        },
+        importance: {
+          not: "high",
+        },
+      },
+      include: includeChapters,
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 30,
+    }),
+    prisma.foreshadow.findMany({
+      where: {
+        projectId,
+        status: "resolved",
+      },
+      include: includeChapters,
+      orderBy: {
+        updatedAt: "desc",
+      },
+      take: 10,
+    }),
+  ]);
+
+  return dedupeForeshadows([
+    ...highUnresolved,
+    ...sortForeshadowsByPlanningPriority(otherUnresolved).slice(0, 20),
+    ...recentResolved,
+  ]);
+}
+
+function dedupeForeshadows<
+  T extends { id?: string; content: string; status: string; importance: string },
+>(foreshadows: readonly T[]) {
+  const seen = new Set<string>();
+  const result: T[] = [];
+
+  for (const foreshadow of foreshadows) {
+    const key =
+      foreshadow.id ??
+      `${foreshadow.importance}:${foreshadow.status}:${foreshadow.content}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    result.push(foreshadow);
+  }
+
+  return result;
+}
+
+function sortForeshadowsByPlanningPriority<
+  T extends { importance: string; updatedAt?: Date | string },
+>(foreshadows: readonly T[]) {
+  return [...foreshadows].sort((left, right) => {
+    const importanceDiff =
+      foreshadowImportanceRank(left.importance) -
+      foreshadowImportanceRank(right.importance);
+
+    if (importanceDiff !== 0) {
+      return importanceDiff;
+    }
+
+    return timestampValue(right.updatedAt) - timestampValue(left.updatedAt);
+  });
+}
+
+function foreshadowImportanceRank(importance: string) {
+  switch (importance) {
+    case "high":
+      return 0;
+    case "medium":
+      return 1;
+    case "low":
+      return 2;
+    default:
+      return 99;
+  }
+}
+
+function timestampValue(value?: Date | string) {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = value instanceof Date ? value.getTime() : Date.parse(value);
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 async function findActiveOutlineGenerationTask(projectId: string) {
   return prisma.aiTask.findFirst({
     where: {
       projectId,
       taskType: outlineTemplateKey,
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+}
+
+async function findActiveEndingPlanningTask(projectId: string) {
+  return prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      taskType: endingPlanningTemplateKey,
       status: {
         in: [...activeAiTaskStatuses],
       },
