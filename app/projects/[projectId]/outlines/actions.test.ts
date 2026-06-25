@@ -394,4 +394,83 @@ describe("outline actions", () => {
       "/projects/project_1/outlines#ending-planning",
     );
   });
+
+  it("keeps high-importance unresolved foreshadows in ending planning even when many resolved items exist", async () => {
+    mocks.ensureDefaultPromptTemplate.mockResolvedValue({
+      id: "ending_template_1",
+      taskType: "ending_planning_generation",
+      systemPrompt: "system",
+      userPrompt: "user",
+      contextNotes: "notes",
+    });
+    mocks.prisma.chapter.findMany.mockResolvedValue([
+      {
+        chapterNumber: 1,
+        title: "终局前",
+        status: "final",
+        goal: "终局前最后整备。",
+        wordCount: 1950000,
+      },
+    ]);
+
+    const highPlanted = {
+      id: "foreshadow_high",
+      content: "零号真实来源仍未揭开。",
+      status: "planted",
+      importance: "high",
+      expectedResolveChapter: 120,
+      plantedChapter: {
+        chapterNumber: 1,
+        title: "开局",
+      },
+      resolvedChapter: null,
+      updatedAt: new Date("2026-06-24T12:00:00.000Z"),
+    };
+    const resolvedForeshadows = Array.from({ length: 35 }, (_, index) => ({
+      id: `foreshadow_resolved_${index}`,
+      content: `已回收的中重要度伏笔 ${index}`,
+      status: "resolved",
+      importance: "medium",
+      expectedResolveChapter: index + 2,
+      plantedChapter: null,
+      resolvedChapter: {
+        chapterNumber: index + 2,
+        title: `回收章节 ${index}`,
+      },
+      updatedAt: new Date(
+        `2026-06-${String(24 - (index % 20)).padStart(2, "0")}T12:00:00.000Z`,
+      ),
+    }));
+
+    mocks.prisma.foreshadow.findMany
+      .mockResolvedValueOnce([highPlanted])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(resolvedForeshadows);
+
+    await expect(generateEndingPlanDraft("project_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskType: "ending_planning_generation",
+        inputJson: expect.objectContaining({
+          readiness: expect.objectContaining({
+            highImportanceUnresolvedForeshadowCount: 1,
+            unresolvedForeshadowCount: 1,
+          }),
+          highImportanceForeshadows: expect.arrayContaining([
+            expect.objectContaining({
+              content: "零号真实来源仍未揭开。",
+              importance: "high",
+              status: "planted",
+            }),
+          ]),
+        }),
+      }),
+      expect.objectContaining({
+        input: expect.stringContaining("零号真实来源仍未揭开"),
+      }),
+    );
+  });
 });
