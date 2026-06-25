@@ -1,5 +1,24 @@
 # Development Log
 
+## 2026-06-25: 0.1.53 Ending Planning and Closure Readiness
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.53`.
+- Added an outline-module “终局规划 / 收尾检查” panel.
+- Added local ending-readiness signals based on current words, total word target, chapter count, finalized/published chapters, active/completed outlines, and unresolved or high-importance foreshadows.
+- Added a logged `ending_planning_generation` AI task and default prompt template. The task reads project setting ending direction, existing outlines, recent chapters, character arcs, active timeline events, and unresolved foreshadows.
+- Preserved author control: generated ending plans are draft-only AI task records. They do not automatically update formal outlines, foreshadow status, timeline events, or structured memory.
+- Extended stale outline-module task cleanup to cover both outline generation and ending-planning generation tasks.
+
+Verification:
+
+- `npm run test -- lib/ai/ending-planning.test.ts app/projects/[projectId]/outlines/actions.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-25: 0.1.52 Structured Memory Contrast Hotfix
 
 Status: completed.

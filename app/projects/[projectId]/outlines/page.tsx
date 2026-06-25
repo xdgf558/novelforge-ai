@@ -5,6 +5,7 @@ import {
   Bot,
   BookOpenText,
   FileText,
+  Flag,
   Layers3,
   Pencil,
   Route,
@@ -14,13 +15,22 @@ import {
 import {
   createOutline,
   deleteOutline,
+  generateEndingPlanDraft,
   generateOutlineDraft,
 } from "@/app/projects/[projectId]/outlines/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
+import { FormActionButton } from "@/components/form-action-button";
 import { OutlineAiGenerateForm } from "@/components/outlines/outline-ai-generate-form";
 import { OutlineDraftCopyButton } from "@/components/outlines/outline-draft-copy-button";
 import { OutlineSaveButton } from "@/components/outlines/outline-save-button";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
+import {
+  calculateEndingReadiness,
+  endingPlanningTaskType,
+  endingStageLabel,
+  type EndingReadinessSnapshot,
+} from "@/lib/ai/ending-planning";
 import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
 import {
   aiTaskAdoptionLabel,
@@ -90,12 +100,25 @@ export default async function OutlinesPage({
         },
         select: {
           chapterNumber: true,
+          goal: true,
+          title: true,
           status: true,
+          wordCount: true,
+        },
+      },
+      foreshadows: {
+        select: {
+          content: true,
+          status: true,
+          importance: true,
+          expectedResolveChapter: true,
         },
       },
       aiTasks: {
         where: {
-          taskType: "outline_generation",
+          taskType: {
+            in: ["outline_generation", endingPlanningTaskType],
+          },
         },
         include: {
           promptTemplate: {
@@ -139,8 +162,23 @@ export default async function OutlinesPage({
       ...groupedOutlines.chapter.map((outline) => outline.chapterNumber ?? 0),
     ) + 1;
   const hasActiveOutlineTask = project.aiTasks.some((task) =>
+    task.taskType === "outline_generation" && isActiveAiTaskStatus(task.status),
+  );
+  const outlineTasks = project.aiTasks.filter(
+    (task) => task.taskType === "outline_generation",
+  );
+  const endingPlanTasks = project.aiTasks.filter(
+    (task) => task.taskType === endingPlanningTaskType,
+  );
+  const hasActiveEndingPlanTask = endingPlanTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
+  const endingReadiness = calculateEndingReadiness({
+    project,
+    chapters: project.chapters,
+    outlines: project.outlines,
+    foreshadows: project.foreshadows,
+  });
   const progressByOutlineId = new Map(
     project.outlines.map((outline) => [
       outline.id,
@@ -150,7 +188,7 @@ export default async function OutlinesPage({
 
   return (
     <div className="space-y-6">
-      <AutoRefresh enabled={hasActiveOutlineTask} />
+      <AutoRefresh enabled={hasActiveOutlineTask || hasActiveEndingPlanTask} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <Link
@@ -207,7 +245,15 @@ export default async function OutlinesPage({
         generateAction={generateOutlineDraft.bind(null, project.id)}
         hasActiveTask={hasActiveOutlineTask}
         hasApiKey={aiSettings.hasApiKey}
-        tasks={project.aiTasks}
+        tasks={outlineTasks}
+      />
+
+      <EndingPlanningPanel
+        generateAction={generateEndingPlanDraft.bind(null, project.id)}
+        hasActiveTask={hasActiveEndingPlanTask}
+        hasApiKey={aiSettings.hasApiKey}
+        readiness={endingReadiness}
+        tasks={endingPlanTasks}
       />
       <AiBudgetNotice projectId={project.id} />
 
@@ -375,6 +421,183 @@ function OutlineAiPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function EndingPlanningPanel({
+  generateAction,
+  hasActiveTask,
+  hasApiKey,
+  readiness,
+  tasks,
+}: {
+  generateAction: () => Promise<void>;
+  hasActiveTask: boolean;
+  hasApiKey: boolean;
+  readiness: EndingReadinessSnapshot;
+  tasks: readonly {
+    id: string;
+    status: string;
+    adoptionState: string;
+    createdAt: Date;
+    model: string;
+    inputContextSummary: string;
+    outputText: string | null;
+    errorMessage: string | null;
+    promptTemplate?: {
+      name: string;
+      version: number;
+    } | null;
+  }[];
+}) {
+  const canGenerate = hasApiKey && !hasActiveTask;
+
+  return (
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
+      id="ending-planning"
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <Flag aria-hidden="true" className="h-4 w-4" />
+            终局规划 / 收尾检查
+          </div>
+          <h2 className="mt-1.5 text-base font-semibold text-ink-950">
+            判断是否该开始收束
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
+            系统会结合总目标字数、章节状态、未回收伏笔和大纲进度给出本地判断；AI
+            只生成可审阅的收尾规划草案，不会自动修改正式大纲、伏笔池或时间线。
+          </p>
+        </div>
+
+        <PreserveScrollForm
+          action={generateAction}
+          preserveKey="ending-planning-generation"
+          statusText="已提交终局规划任务，AI 正在后台生成草案。"
+        >
+          <FormActionButton
+            disabled={!canGenerate}
+            icon="play"
+            idleLabel="生成收尾规划草案"
+            pendingLabel="正在生成规划"
+            statusText="正在读取大纲、伏笔、角色弧线和章节进度。"
+            variant="dark"
+          />
+        </PreserveScrollForm>
+      </div>
+
+      <div className="mt-4 grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
+        <EndingMetric
+          label="字数进度"
+          value={
+            readiness.progressPercent == null
+              ? "未设置"
+              : `${readiness.progressPercent}%`
+          }
+          detail={
+            readiness.targetWords
+              ? `${formatNumber(readiness.currentWords)} / ${formatNumber(readiness.targetWords)} 字`
+              : `${formatNumber(readiness.currentWords)} 字`
+          }
+        />
+        <EndingMetric
+          label="章节进度"
+          value={`${formatNumber(readiness.chapterCount)} 章`}
+          detail={`定稿 ${formatNumber(readiness.finalChapterCount)} / 发布 ${formatNumber(
+            readiness.publishedChapterCount,
+          )}`}
+        />
+        <EndingMetric
+          label="未回收伏笔"
+          value={`${formatNumber(readiness.unresolvedForeshadowCount)} 条`}
+          detail={`高重要度 ${formatNumber(
+            readiness.highImportanceUnresolvedForeshadowCount,
+          )} 条`}
+        />
+        <EndingMetric
+          label="大纲状态"
+          value={`${formatNumber(readiness.activeOutlineCount)} 进行中`}
+          detail={`已完成 ${formatNumber(readiness.completedOutlineCount)} 条`}
+        />
+        <EndingMetric
+          label="本地判断"
+          value={endingStageLabel(readiness.stage)}
+          detail={readiness.recommendation}
+        />
+      </div>
+
+      {!hasApiKey ? (
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          未配置 API Key，暂不能生成终局规划草案；本地收尾信号仍可参考。
+        </p>
+      ) : null}
+
+      {hasActiveTask ? (
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          当前已有终局规划任务在后台运行，完成前不会重复发起新的模型调用。
+        </p>
+      ) : null}
+
+      {tasks.length === 0 ? (
+        <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-4 text-sm text-ink-700">
+          <p className="font-semibold text-ink-950">还没有终局规划任务</p>
+          <p className="mt-2 leading-6">
+            生成后会在这里显示最近草案，包含模型、模板版本、状态和输出。作者可以把合适内容整理进正式卷大纲、剧情单元大纲或伏笔回收计划。
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {tasks.map((task) => (
+            <article
+              className="rounded-lg border border-ink-950/10 bg-paper-50 p-3 text-sm"
+              key={task.id}
+            >
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                <span className="rounded-md bg-white px-2.5 py-1">
+                  {aiTaskStatusLabel(task.status)}
+                </span>
+                <span className="rounded-md bg-white px-2.5 py-1">
+                  {aiTaskAdoptionLabel(task.adoptionState)}
+                </span>
+                <span>{formatDate(task.createdAt)}</span>
+              </div>
+              <p className="mt-3 font-semibold text-ink-950">
+                {task.model} / {task.promptTemplate?.name ?? "终局规划草案"} v
+                {task.promptTemplate?.version ?? 1}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-ink-700">
+                {task.inputContextSummary}
+              </p>
+              <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-3 text-xs leading-5 text-ink-800">
+                {task.outputText || task.errorMessage || "任务尚未产生输出。"}
+              </pre>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EndingMetric({
+  detail,
+  label,
+  value,
+}: {
+  detail: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+      <p className="text-xs font-semibold text-ink-700">{label}</p>
+      <p className="mt-1 text-base font-semibold text-ink-950">{value}</p>
+      <p className="mt-1 line-clamp-3 text-[11px] leading-4 text-ink-700">
+        {detail}
+      </p>
+    </div>
   );
 }
 

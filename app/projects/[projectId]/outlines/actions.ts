@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { buildEndingPlanningContext } from "@/lib/ai/ending-planning";
 import { buildOutlineGenerationContext } from "@/lib/ai/outlines";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
+  endingPlanningGenerationTaskType,
   expireStaleOutlineAiTasks,
   outlineGenerationTaskType,
 } from "@/lib/ai/outline-task-maintenance";
@@ -28,6 +30,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 const outlineTemplateKey = outlineGenerationTaskType;
+const endingPlanningTemplateKey = endingPlanningGenerationTaskType;
 
 const outlineStatusValues = outlineStatusOptions.map((option) => option.value) as [
   string,
@@ -431,11 +434,189 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
   redirect(`/projects/${projectId}/outlines`);
 }
 
+export async function generateEndingPlanDraft(projectId: string) {
+  await assertProject(projectId);
+  await expireStaleOutlineAiTasks(projectId);
+
+  const activeTask = await findActiveEndingPlanningTask(projectId);
+
+  if (activeTask) {
+    revalidateOutlinePaths(projectId);
+    redirect(`/projects/${projectId}/outlines#ending-planning`);
+  }
+
+  const [project, outlines, chapters, foreshadows, characters, timelineEvents] =
+    await Promise.all([
+      prisma.project.findUnique({
+        where: {
+          id: projectId,
+        },
+        include: {
+          setting: true,
+        },
+      }),
+      prisma.outline.findMany({
+        where: {
+          projectId,
+          status: {
+            not: "archived",
+          },
+        },
+        orderBy: [
+          {
+            level: "asc",
+          },
+          {
+            sortOrder: "asc",
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
+      }),
+      prisma.chapter.findMany({
+        where: {
+          projectId,
+        },
+        orderBy: {
+          chapterNumber: "asc",
+        },
+        select: {
+          chapterNumber: true,
+          title: true,
+          status: true,
+          goal: true,
+          wordCount: true,
+        },
+      }),
+      prisma.foreshadow.findMany({
+        where: {
+          projectId,
+          status: {
+            not: "abandoned",
+          },
+        },
+        include: {
+          plantedChapter: {
+            select: {
+              chapterNumber: true,
+              title: true,
+            },
+          },
+          resolvedChapter: {
+            select: {
+              chapterNumber: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: [
+          {
+            importance: "desc",
+          },
+          {
+            updatedAt: "desc",
+          },
+        ],
+        take: 30,
+      }),
+      prisma.character.findMany({
+        where: {
+          projectId,
+          status: "active",
+        },
+        orderBy: {
+          name: "asc",
+        },
+        select: {
+          name: true,
+          roleInStory: true,
+          characterArc: true,
+          status: true,
+        },
+        take: 24,
+      }),
+      prisma.timelineEvent.findMany({
+        where: {
+          projectId,
+          status: "active",
+        },
+        include: {
+          chapter: {
+            select: {
+              chapterNumber: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: {
+          updatedAt: "desc",
+        },
+        take: 12,
+      }),
+    ]);
+
+  if (!project) {
+    notFound();
+  }
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    endingPlanningTemplateKey,
+  );
+  const context = buildEndingPlanningContext({
+    project,
+    setting: project.setting,
+    outlines,
+    chapters,
+    foreshadows,
+    characters,
+    timelineEvents: timelineEvents.reverse(),
+  });
+
+  await startLoggedOpenAITextTask(
+    {
+      projectId,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    },
+    {
+      systemPrompt: template.systemPrompt,
+      developerPrompt: [template.userPrompt, template.contextNotes]
+        .filter(Boolean)
+        .join("\n\n"),
+      input: context.inputText,
+    },
+  );
+
+  revalidateOutlinePaths(projectId);
+  revalidatePath(`/projects/${projectId}/ai`);
+  redirect(`/projects/${projectId}/outlines#ending-planning`);
+}
+
 async function findActiveOutlineGenerationTask(projectId: string) {
   return prisma.aiTask.findFirst({
     where: {
       projectId,
       taskType: outlineTemplateKey,
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+}
+
+async function findActiveEndingPlanningTask(projectId: string) {
+  return prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      taskType: endingPlanningTemplateKey,
       status: {
         in: [...activeAiTaskStatuses],
       },
