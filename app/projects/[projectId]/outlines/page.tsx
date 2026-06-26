@@ -752,6 +752,7 @@ function OutlineGroup({
   visibleLimit?: number;
 }) {
   const visibleOutlines = visibleLimit ? outlines.slice(-visibleLimit) : outlines;
+  const hiddenOutlines = visibleLimit ? outlines.slice(0, -visibleLimit) : [];
   const hiddenCount = Math.max(0, outlines.length - visibleOutlines.length);
 
   return (
@@ -773,16 +774,37 @@ function OutlineGroup({
           {emptyText}
         </div>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-lg border border-ink-950/10 bg-paper-50">
-          {visibleOutlines.map((outline) => (
-            <OutlineCard
-              key={outline.id}
-              outline={outline}
-              progress={outline.id ? progressByOutlineId.get(outline.id) : undefined}
-              projectId={projectId}
-            />
-          ))}
-        </div>
+        <>
+          <div className="mt-4 overflow-hidden rounded-lg border border-ink-950/10 bg-paper-50">
+            {visibleOutlines.map((outline) => (
+              <OutlineCard
+                key={outline.id}
+                outline={outline}
+                progress={outline.id ? progressByOutlineId.get(outline.id) : undefined}
+                projectId={projectId}
+              />
+            ))}
+          </div>
+          {hiddenCount > 0 ? (
+            <details className="mt-3 rounded-lg border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm text-ink-800">
+              <summary className="cursor-pointer font-semibold text-ink-900">
+                展开历史章节大纲（{hiddenCount} 条）
+              </summary>
+              <div className="mt-3 overflow-hidden rounded-lg border border-ink-950/10 bg-white">
+                {hiddenOutlines.map((outline) => (
+                  <OutlineCard
+                    key={outline.id}
+                    outline={outline}
+                    progress={
+                      outline.id ? progressByOutlineId.get(outline.id) : undefined
+                    }
+                    projectId={projectId}
+                  />
+                ))}
+              </div>
+            </details>
+          ) : null}
+        </>
       )}
     </section>
   );

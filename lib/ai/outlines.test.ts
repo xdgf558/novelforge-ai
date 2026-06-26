@@ -96,6 +96,11 @@ describe("outline generation context builder", () => {
   it("does not include chapter item counts for volume outline requests", () => {
     const context = buildOutlineGenerationContext({
       ...baseInput,
+      previousChapter: {
+        chapterNumber: 2,
+        title: "谢勇出场",
+        endingText: "林巧深夜打来电话。",
+      },
       request: {
         targetLevel: "volume",
         chapterCount: 10,
@@ -104,11 +109,13 @@ describe("outline generation context builder", () => {
 
     expect(context.inputText).toContain("生成卷大纲草案");
     expect(context.inputText).not.toContain("章节级条目");
+    expect(context.inputText).not.toContain("必须承接的上一章结尾");
     expect(context.inputJson.request).toMatchObject({
       targetLevel: "volume",
       chapterCount: null,
       targetChapterNumber: null,
     });
+    expect(context.inputJson.previousChapter).toBeNull();
   });
 
   it("does not include chapter item counts for story-unit outline requests", () => {

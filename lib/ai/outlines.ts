@@ -89,6 +89,28 @@ export function buildOutlineGenerationContext(
     input.request.targetLevel === "chapter"
       ? (input.request.targetChapterNumber ?? null)
       : null;
+  const previousChapter =
+    input.request.targetLevel === "chapter" && input.previousChapter
+      ? {
+          chapterNumber: input.previousChapter.chapterNumber,
+          title: input.previousChapter.title,
+          endingText: clipText(input.previousChapter.endingText, 1800),
+        }
+      : null;
+  const previousChapterSection =
+    input.request.targetLevel === "chapter"
+      ? [
+          "",
+          "# 必须承接的上一章结尾",
+          previousChapter
+            ? [
+                `目标章节的上一章是第 ${previousChapter.chapterNumber} 章《${previousChapter.title}》。`,
+                "请让本次章节大纲直接承接下面这段结尾里的最后事件、人物状态和章末钩子，不要跳回更早事件，也不要因为新增角色而另起一条与上一章脱节的线。",
+                previousChapter.endingText,
+              ].join("\n")
+            : "未找到目标章节的上一章正文结尾；请根据已有章节目标和大纲保持顺序衔接。",
+        ]
+      : [];
 
   const inputJson = {
     project: {
@@ -111,13 +133,7 @@ export function buildOutlineGenerationContext(
     existingOutlines: outlineItems,
     characters: characterItems,
     recentChapters: chapterItems,
-    previousChapter: input.previousChapter
-      ? {
-          chapterNumber: input.previousChapter.chapterNumber,
-          title: input.previousChapter.title,
-          endingText: clipText(input.previousChapter.endingText, 1800),
-        }
-      : null,
+    previousChapter,
   };
 
   const inputText = [
@@ -160,15 +176,7 @@ export function buildOutlineGenerationContext(
     chapterItems.length > 0
       ? chapterItems.join("\n")
       : "暂无已完成章节，可从开篇规划开始。",
-    "",
-    "# 必须承接的上一章结尾",
-    input.previousChapter
-      ? [
-          `目标章节的上一章是第 ${input.previousChapter.chapterNumber} 章《${input.previousChapter.title}》。`,
-          "请让本次章节大纲直接承接下面这段结尾里的最后事件、人物状态和章末钩子，不要跳回更早事件，也不要因为新增角色而另起一条与上一章脱节的线。",
-          clipText(input.previousChapter.endingText, 1800),
-        ].join("\n")
-      : "未找到目标章节的上一章正文结尾；请根据已有章节目标和大纲保持顺序衔接。",
+    ...previousChapterSection,
     "",
     "# 输出要求",
     "- 使用 Markdown 输出。",
