@@ -403,6 +403,24 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
             inferNextTargetChapterNumber(recentChapters, outlines),
         }
       : request;
+  const previousChapter =
+    resolvedRequest.targetLevel === "chapter" &&
+    resolvedRequest.targetChapterNumber &&
+    resolvedRequest.targetChapterNumber > 1
+      ? await prisma.chapter.findFirst({
+          where: {
+            projectId,
+            chapterNumber: resolvedRequest.targetChapterNumber - 1,
+          },
+          select: {
+            chapterNumber: true,
+            title: true,
+            draftText: true,
+            polishedText: true,
+            finalText: true,
+          },
+        })
+      : null;
   const template = await ensureDefaultPromptTemplate(
     projectId,
     outlineTemplateKey,
@@ -413,6 +431,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     outlines,
     characters,
     recentChapters: recentChapters.reverse(),
+    previousChapter: buildPreviousChapterEndingContext(previousChapter),
     request: resolvedRequest,
   });
 
@@ -437,6 +456,40 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
   revalidateOutlinePaths(projectId);
   revalidatePath(`/projects/${projectId}/ai`);
   redirect(`/projects/${projectId}/outlines`);
+}
+
+function buildPreviousChapterEndingContext(
+  chapter: {
+    chapterNumber: number;
+    title: string;
+    draftText?: string | null;
+    polishedText?: string | null;
+    finalText?: string | null;
+  } | null,
+) {
+  if (!chapter) {
+    return null;
+  }
+
+  const sourceText =
+    chapter.finalText?.trim() ||
+    chapter.polishedText?.trim() ||
+    chapter.draftText?.trim() ||
+    "";
+
+  if (!sourceText) {
+    return null;
+  }
+
+  return {
+    chapterNumber: chapter.chapterNumber,
+    title: chapter.title,
+    endingText: tailText(sourceText, 1800),
+  };
+}
+
+function tailText(value: string, maxLength: number) {
+  return value.length <= maxLength ? value : value.slice(-maxLength);
 }
 
 export async function generateEndingPlanDraft(projectId: string) {

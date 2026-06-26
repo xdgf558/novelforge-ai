@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
       findMany: vi.fn(),
     },
     chapter: {
+      findFirst: vi.fn(),
       findMany: vi.fn(),
     },
     timelineEvent: {
@@ -121,6 +122,7 @@ describe("outline actions", () => {
     mocks.prisma.outline.findMany.mockResolvedValue([]);
     mocks.prisma.foreshadow.findMany.mockResolvedValue([]);
     mocks.prisma.character.findMany.mockResolvedValue([]);
+    mocks.prisma.chapter.findFirst.mockResolvedValue(null);
     mocks.prisma.chapter.findMany.mockResolvedValue([]);
     mocks.prisma.timelineEvent.findMany.mockResolvedValue([]);
     mocks.prisma.aiTask.findFirst.mockResolvedValue(null);
@@ -332,6 +334,52 @@ describe("outline actions", () => {
       }),
       expect.objectContaining({
         input: expect.stringContaining("只生成第 3 章的一条章节大纲"),
+      }),
+    );
+  });
+
+  it("anchors target chapter outlines to the previous chapter ending", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "chapter");
+    formData.set("targetChapterNumber", "6");
+    mocks.prisma.chapter.findFirst.mockResolvedValue({
+      chapterNumber: 5,
+      title: "半个月",
+      draftText: "草稿旧内容",
+      polishedText: "精修旧内容",
+      finalText:
+        "小周压低声音说：罗文斌明天会用坏硬盘坑方老板。陈远抬头看向培训班二楼的灯，知道第一个突破口来了。",
+    });
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.chapter.findFirst).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        chapterNumber: 5,
+      },
+      select: {
+        chapterNumber: true,
+        title: true,
+        draftText: true,
+        polishedText: true,
+        finalText: true,
+      },
+    });
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputJson: expect.objectContaining({
+          previousChapter: expect.objectContaining({
+            chapterNumber: 5,
+            title: "半个月",
+            endingText: expect.stringContaining("第一个突破口来了"),
+          }),
+        }),
+      }),
+      expect.objectContaining({
+        input: expect.stringContaining("必须承接的上一章结尾"),
       }),
     );
   });

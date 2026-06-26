@@ -72,9 +72,35 @@ describe("outline generation context builder", () => {
     );
   });
 
+  it("adds previous chapter ending as a hard continuity anchor for chapter outlines", () => {
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      previousChapter: {
+        chapterNumber: 2,
+        title: "谢勇出场",
+        endingText: "林巧深夜打来电话，说罗文斌要截培训班的新机器。",
+      },
+    });
+
+    expect(context.inputText).toContain("必须承接的上一章结尾");
+    expect(context.inputText).toContain("第 2 章《谢勇出场》");
+    expect(context.inputText).toContain("林巧深夜打来电话");
+    expect(context.inputText).toContain("开篇必须承接上一章最后事件和章末钩子");
+    expect(context.inputJson.previousChapter).toMatchObject({
+      chapterNumber: 2,
+      title: "谢勇出场",
+      endingText: "林巧深夜打来电话，说罗文斌要截培训班的新机器。",
+    });
+  });
+
   it("does not include chapter item counts for volume outline requests", () => {
     const context = buildOutlineGenerationContext({
       ...baseInput,
+      previousChapter: {
+        chapterNumber: 2,
+        title: "谢勇出场",
+        endingText: "林巧深夜打来电话。",
+      },
       request: {
         targetLevel: "volume",
         chapterCount: 10,
@@ -83,11 +109,13 @@ describe("outline generation context builder", () => {
 
     expect(context.inputText).toContain("生成卷大纲草案");
     expect(context.inputText).not.toContain("章节级条目");
+    expect(context.inputText).not.toContain("必须承接的上一章结尾");
     expect(context.inputJson.request).toMatchObject({
       targetLevel: "volume",
       chapterCount: null,
       targetChapterNumber: null,
     });
+    expect(context.inputJson.previousChapter).toBeNull();
   });
 
   it("does not include chapter item counts for story-unit outline requests", () => {

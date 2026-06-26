@@ -74,58 +74,58 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const hasTotalWordTarget = totalWordTarget != null && totalWordTarget > 0;
 
   return (
-    <div className="space-y-7">
-      <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-5">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-[#58d7c7]">本地工作台</p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-normal text-[#f5dfbd] sm:text-5xl">
+          <h1 className="mt-2 text-3xl font-semibold tracking-normal text-[#f5dfbd] sm:text-4xl">
             小说项目
           </h1>
-          <p className="mt-4 max-w-3xl text-base leading-8 text-[#b7a286]">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#b7a286]">
             本地项目、总设定档、角色库、章节编辑器和 AI 任务记录已接入，后续生成能力会沿着这个记忆底座继续扩展。
           </p>
         </div>
         <Link className="nf-primary-button w-fit" href="/projects/new">
-          <Plus aria-hidden="true" className="h-5 w-5" />
+          <Plus aria-hidden="true" className="h-4 w-4" />
           新建项目
         </Link>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="nf-glass-card min-h-36 p-6">
-          <StatCardBackdrop className="absolute bottom-0 right-0 h-28 w-44 opacity-80" />
-          <div className="relative flex items-center gap-3 text-sm text-[#dac39f]">
-            <BookOpenText aria-hidden="true" className="h-5 w-5 text-[#58d7c7]" />
+      <section className="grid gap-3 md:grid-cols-3">
+        <div className="nf-glass-card min-h-24 p-4">
+          <StatCardBackdrop className="absolute bottom-0 right-0 h-20 w-32 opacity-55" />
+          <div className="relative flex items-center gap-2 text-xs font-semibold text-[#dac39f]">
+            <BookOpenText aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />
             项目总数
           </div>
-          <p className="relative mt-5 text-4xl font-semibold text-[#f5dfbd]">
+          <p className="relative mt-3 text-3xl font-semibold text-[#f5dfbd]">
             {totalProjectCount}
           </p>
-          <p className="relative mt-2 text-sm text-[#8d7b63]">所有小说项目</p>
+          <p className="relative mt-1 text-xs text-[#8d7b63]">所有小说项目</p>
         </div>
 
-        <div className="nf-glass-card min-h-36 p-6">
-          <StatCardBackdrop className="absolute bottom-0 right-0 h-28 w-44 opacity-65" />
-          <div className="relative flex items-center gap-3 text-sm text-[#dac39f]">
-            <Waves aria-hidden="true" className="h-5 w-5 text-[#58d7c7]" />
+        <div className="nf-glass-card min-h-24 p-4">
+          <StatCardBackdrop className="absolute bottom-0 right-0 h-20 w-32 opacity-45" />
+          <div className="relative flex items-center gap-2 text-xs font-semibold text-[#dac39f]">
+            <Waves aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />
             活跃项目
           </div>
-          <p className="relative mt-5 text-4xl font-semibold text-[#f5dfbd]">
+          <p className="relative mt-3 text-3xl font-semibold text-[#f5dfbd]">
             {activeProjectCount}
           </p>
-          <p className="relative mt-2 text-sm text-[#8d7b63]">正在创作的项目</p>
+          <p className="relative mt-1 text-xs text-[#8d7b63]">正在创作的项目</p>
         </div>
 
-        <div className="nf-glass-card min-h-36 p-6">
-          <StatCardBackdrop className="absolute bottom-0 right-0 h-28 w-44 opacity-65" />
-          <div className="relative flex items-center gap-3 text-sm text-[#dac39f]">
-            <Target aria-hidden="true" className="h-5 w-5 text-[#ffc274]" />
+        <div className="nf-glass-card min-h-24 p-4">
+          <StatCardBackdrop className="absolute bottom-0 right-0 h-20 w-32 opacity-45" />
+          <div className="relative flex items-center gap-2 text-xs font-semibold text-[#dac39f]">
+            <Target aria-hidden="true" className="h-4 w-4 text-[#ffc274]" />
             目标字数
           </div>
-          <p className="relative mt-5 text-3xl font-semibold text-[#f5dfbd] sm:text-4xl">
+          <p className="relative mt-3 text-2xl font-semibold text-[#f5dfbd] sm:text-3xl">
             {hasTotalWordTarget ? formatNumber(totalWordTarget) : "未设置"}
           </p>
-          <p className="relative mt-2 text-sm text-[#8d7b63]">
+          <p className="relative mt-1 text-xs text-[#8d7b63]">
             {hasTotalWordTarget ? "所有项目目标合计" : "当前目标字数未设置"}
           </p>
         </div>
@@ -167,28 +167,28 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </section>
       ) : (
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid gap-3 lg:grid-cols-2">
           {projects.map((project) => (
             <Link
-              className="nf-glass-card block p-5 transition hover:-translate-y-0.5 hover:border-[#58d7c7]/45 hover:shadow-[0_24px_60px_rgba(0,0,0,0.28)]"
+              className="nf-glass-card block p-4 transition hover:-translate-y-0.5 hover:border-[#58d7c7]/45 hover:shadow-[0_24px_60px_rgba(0,0,0,0.28)]"
               href={`/projects/${project.id}`}
               key={project.id}
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-[#f5dfbd]">
+                  <h2 className="text-base font-semibold text-[#f5dfbd]">
                     {project.title}
                   </h2>
-                  <p className="mt-1 text-sm text-[#a99573]">
+                  <p className="mt-0.5 text-xs text-[#a99573]">
                     {project.genre || "未设置题材"} / {project.platform || "未设置平台"}
                   </p>
                 </div>
-                <span className="w-fit rounded-full border border-[#58d7c7]/25 bg-[#58d7c7]/10 px-3 py-1 text-xs font-semibold text-[#8be7dd]">
+                <span className="w-fit rounded-full border border-[#58d7c7]/25 bg-[#58d7c7]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#8be7dd]">
                   {project.status === "active" ? "进行中" : "已归档"}
                 </span>
               </div>
 
-              <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
+              <dl className="mt-4 grid gap-2.5 text-xs sm:grid-cols-3">
                 <div>
                   <dt className="text-[#8d7b63]">目标读者</dt>
                   <dd className="mt-1 font-medium text-[#dac39f]">
@@ -209,7 +209,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 </div>
               </dl>
 
-              <p className="mt-4 text-xs text-[#8d7b63]">
+              <p className="mt-3 text-xs text-[#8d7b63]">
                 最近活动：
                 {formatDate(
                   project.activitySummary?.latestActivityAt ?? project.updatedAt,
@@ -220,9 +220,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </section>
       )}
 
-      <section className="nf-glass-card p-5">
-        <div className="flex items-center gap-3 text-sm text-[#dac39f]">
-          <Clock3 aria-hidden="true" className="h-5 w-5 text-[#ffc274]" />
+      <section className="nf-glass-card p-4">
+        <div className="flex items-center gap-2 text-sm text-[#dac39f]">
+          <Clock3 aria-hidden="true" className="h-4 w-4 text-[#ffc274]" />
           最近活动
         </div>
         {projects.length === 0 ? (
@@ -233,13 +233,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="mt-4 grid gap-3">
             {projects.slice(0, 3).map((project) => (
               <Link
-                className="flex items-center justify-between gap-4 rounded-xl border border-[#ce8f48]/15 bg-[#071719]/70 px-4 py-3 transition hover:border-[#58d7c7]/30 hover:bg-[#0b2225]"
+                className="flex items-center justify-between gap-4 rounded-lg border border-[#ce8f48]/15 bg-[#071719]/70 px-3 py-2.5 transition hover:border-[#58d7c7]/30 hover:bg-[#0b2225]"
                 href={`/projects/${project.id}`}
                 key={`recent-${project.id}`}
               >
                 <div>
-                  <p className="font-medium text-[#f5dfbd]">{project.title}</p>
-                  <p className="mt-1 text-xs text-[#8d7b63]">
+                  <p className="text-sm font-medium text-[#f5dfbd]">{project.title}</p>
+                  <p className="mt-0.5 text-xs text-[#8d7b63]">
                     {project.genre || "未设置题材"}
                   </p>
                 </div>
