@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   adoptChapterPolish,
+  generateChapterBeats,
+  generateChapterDraft,
   updateChapter,
 } from "./actions";
 
@@ -27,6 +29,9 @@ const mocks = vi.hoisted(() => {
       project: {
         findUnique: vi.fn(),
       },
+      projectSetting: {
+        findUnique: vi.fn(),
+      },
       chapter: {
         create: vi.fn(),
         delete: vi.fn(),
@@ -34,11 +39,18 @@ const mocks = vi.hoisted(() => {
         findMany: vi.fn(),
         update: vi.fn(),
       },
+      character: {
+        findMany: vi.fn(),
+      },
       chapterVersion: {
         create: vi.fn(),
       },
       aiTask: {
         findFirst: vi.fn(),
+      },
+      aiPromptTemplate: {
+        findFirst: vi.fn(),
+        upsert: vi.fn(),
       },
       outline: {
         findMany: vi.fn(),
@@ -102,6 +114,60 @@ const baseChapter = {
   updatedAt: new Date("2026-06-20T00:00:00.000Z"),
 };
 
+const projectContext = {
+  title: "离线未来",
+  genre: "穿越创业",
+  targetAudience: "公众号读者",
+  platform: "wechat",
+  totalWordTarget: 1200000,
+  chapterWordMin: 5000,
+  chapterWordMax: 8000,
+  description: "失业程序员带着离线 AI 回到 1999 年。",
+  wechatPositioning: "年代创业爽文",
+};
+
+const readerFeedbackChapter = {
+  chapterNumber: 3,
+  title: "罗文斌的警告",
+  readerAnalytics: [
+    {
+      fetchedAt: new Date("2026-06-25T10:00:00.000Z"),
+      views: 1280,
+      likes: 42,
+      comments: 8,
+      favorites: 21,
+      shares: 5,
+      completionRate: 0.78,
+      averageReadSeconds: 312,
+      dropOffPoint: "中段解释货源链路时流失明显。",
+      engagementScore: 73,
+    },
+  ],
+  readerInsights: [
+    {
+      fetchedAt: new Date("2026-06-25T11:00:00.000Z"),
+      summary: "读者认可压迫感，但希望下一章更快进入反击。",
+      pacing: "开场少解释，多动作。",
+      focus: "林巧和谢勇需要更清晰的行动分工。",
+      hookStrategy: "章末保留罗文斌升级施压。",
+      riskNotesJson: JSON.stringify(["技术解释偏长"]),
+      characterPriorityJson: JSON.stringify({
+        谢勇: "地面执行",
+      }),
+    },
+  ],
+};
+
+function buildPromptTemplate(taskType: string) {
+  return {
+    id: `${taskType}_template`,
+    taskType,
+    systemPrompt: "system prompt",
+    userPrompt: "user prompt",
+    contextNotes: "context notes",
+  };
+}
+
 function buildChapterFormData(
   overrides: Partial<Record<string, string | number>> = {},
 ) {
@@ -147,9 +213,19 @@ describe("chapter actions", () => {
     mocks.tx.aiTask.updateMany.mockResolvedValue({
       count: 1,
     });
+    mocks.prisma.aiTask.findFirst.mockResolvedValue(null);
+    mocks.prisma.aiPromptTemplate.findFirst.mockResolvedValue(
+      buildPromptTemplate("chapter_beat_generation"),
+    );
+    mocks.prisma.aiPromptTemplate.upsert.mockResolvedValue(
+      buildPromptTemplate("chapter_beat_generation"),
+    );
+    mocks.prisma.projectSetting.findUnique.mockResolvedValue({});
+    mocks.prisma.character.findMany.mockResolvedValue([]);
     mocks.prisma.chapter.findMany.mockResolvedValue([]);
     mocks.prisma.outline.findMany.mockResolvedValue([]);
     mocks.prisma.outline.update.mockResolvedValue({});
+    mocks.taskLogger.startLoggedOpenAITextTask.mockResolvedValue({});
     mocks.createOpenAITextResponse.mockReset();
     mocks.markAiTaskCompleted.mockReset();
     mocks.markAiTaskFailed.mockReset();
@@ -381,4 +457,136 @@ describe("chapter actions", () => {
     expect(mocks.tx.chapterVersion.create).not.toHaveBeenCalled();
   });
 
+  it("passes prior reader feedback into beat generation context", async () => {
+    mocks.prisma.chapter.findFirst
+      .mockResolvedValueOnce({
+        ...baseChapter,
+        chapterNumber: 5,
+        title: "第五章",
+        project: projectContext,
+      })
+      .mockResolvedValueOnce({
+        ...baseChapter,
+        chapterNumber: 4,
+        title: "上一章",
+        finalText: "上一章结尾。",
+      });
+    mocks.prisma.chapter.findMany
+      .mockResolvedValueOnce([
+        {
+          ...baseChapter,
+          chapterNumber: 4,
+          title: "上一章",
+          finalText: "上一章正文。",
+        },
+      ])
+      .mockResolvedValueOnce([readerFeedbackChapter]);
+    mocks.prisma.aiPromptTemplate.findFirst.mockResolvedValue(
+      buildPromptTemplate("chapter_beat_generation"),
+    );
+
+    await expect(generateChapterBeats("project_1", "chapter_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.chapter.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: "project_1",
+          chapterNumber: {
+            lt: 5,
+          },
+          OR: [
+            {
+              readerAnalytics: {
+                some: {},
+              },
+            },
+            {
+              readerInsights: {
+                some: {},
+              },
+            },
+          ],
+        }),
+        take: 3,
+      }),
+    );
+    const [taskMeta, request] =
+      mocks.taskLogger.startLoggedOpenAITextTask.mock.calls[0];
+    expect(taskMeta.inputJson.readerFeedback).toEqual([
+      expect.objectContaining({
+        chapterNumber: 3,
+        title: "罗文斌的警告",
+        metrics: expect.objectContaining({
+          completionRate: 0.78,
+          engagementScore: 73,
+        }),
+      }),
+    ]);
+    expect(taskMeta.inputContextSummary).toContain("读者反馈 1 条");
+    expect(request.input).toContain("读者认可压迫感");
+  });
+
+  it("passes prior reader feedback into draft generation context", async () => {
+    mocks.prisma.chapter.findFirst
+      .mockResolvedValueOnce({
+        ...baseChapter,
+        chapterNumber: 5,
+        title: "第五章",
+        beats: "1. 开场反击。\n2. 章末钩子。",
+        project: projectContext,
+      })
+      .mockResolvedValueOnce({
+        ...baseChapter,
+        chapterNumber: 4,
+        title: "上一章",
+        finalText: "上一章结尾。",
+      });
+    mocks.prisma.chapter.findMany.mockResolvedValueOnce([readerFeedbackChapter]);
+    mocks.prisma.aiPromptTemplate.findFirst.mockResolvedValue(
+      buildPromptTemplate("chapter_draft_generation"),
+    );
+
+    await expect(generateChapterDraft("project_1", "chapter_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.chapter.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          projectId: "project_1",
+          chapterNumber: {
+            lt: 5,
+          },
+          OR: [
+            {
+              readerAnalytics: {
+                some: {},
+              },
+            },
+            {
+              readerInsights: {
+                some: {},
+              },
+            },
+          ],
+        }),
+        take: 3,
+      }),
+    );
+    const [taskMeta, request] =
+      mocks.taskLogger.startLoggedOpenAITextTask.mock.calls[0];
+    expect(taskMeta.inputJson.readerFeedback).toEqual([
+      expect.objectContaining({
+        chapterNumber: 3,
+        insight: expect.objectContaining({
+          pacing: "开场少解释，多动作。",
+        }),
+      }),
+    ]);
+    expect(taskMeta.inputContextSummary).toContain("读者反馈 1 条");
+    expect(request.input).toContain("不要直接在正文中提到数据、指标或读者反馈");
+  });
 });

@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-06-26: 0.1.55 Feedback-Driven Next Chapter Generation
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.55`.
+- Added a reusable reader-feedback context builder that compresses recent prior chapter analytics and insights into bounded generation signals.
+- Page display and chapter generation actions now share the same reader-feedback signal loader, so “当前章生成参考” matches the feedback sent into model context.
+- Chapter beat generation now includes recent prior reader feedback in `inputText` and `inputJson`, using it only for pacing, hooks, reader-focus characters, and information-density guidance.
+- Chapter draft generation now includes the same feedback signals while explicitly instructing the model not to mention metrics or reader feedback in the prose.
+- Chapter detail pages now show a “当前章生成参考” panel so the author can see which prior chapter feedback will inform the current chapter's beat/draft generation.
+- Preserved author control: reader feedback remains reference-only and does not automatically modify chapter text, formal settings, characters, outlines, foreshadows, timelines, or structured memory.
+
+Verification:
+
+- `npm run test -- lib/ai/reader-feedback-context.test.ts lib/ai/chapter-beats.test.ts lib/ai/chapter-drafts.test.ts` passed.
+- `npm run test -- app/projects/[projectId]/chapters/actions.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-26: 0.1.54 Reader Feedback Snapshots
 
 Status: completed.

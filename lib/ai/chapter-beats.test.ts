@@ -92,7 +92,40 @@ describe("chapter beat context builder", () => {
 
   it("summarizes context scope for ai task records", () => {
     expect(buildChapterBeatContextSummary(baseInput)).toBe(
-      "第 3 章《合同上的第三个名字》章节节拍生成；大纲 2 条；角色 1 个；最近章节 1 个；包含上一章结尾",
+      "第 3 章《合同上的第三个名字》章节节拍生成；大纲 2 条；角色 1 个；最近章节 1 个；无读者反馈；包含上一章结尾",
     );
+  });
+
+  it("includes recent reader feedback signals as generation guidance", () => {
+    const context = buildChapterBeatContext({
+      ...baseInput,
+      readerFeedback: [
+        {
+          chapterNumber: 2,
+          title: "第一通电话",
+          views: 1280,
+          completionRate: 0.72,
+          engagementScore: 66,
+          dropOffPoint: "中段说明偏长。",
+          focus: "读者希望林野更快行动。",
+          hookStrategy: "章末保留短信威胁。",
+        },
+      ],
+    });
+
+    expect(context.inputText).toContain("# 读者反馈信号");
+    expect(context.inputText).toContain("中段说明偏长");
+    expect(context.inputText).toContain("读者希望林野更快行动");
+    expect(context.inputJson.readerFeedback).toEqual([
+      expect.objectContaining({
+        chapterNumber: 2,
+        title: "第一通电话",
+        metrics: expect.objectContaining({
+          completionRate: 0.72,
+          engagementScore: 66,
+        }),
+      }),
+    ]);
+    expect(context.inputContextSummary).toContain("读者反馈 1 条");
   });
 });

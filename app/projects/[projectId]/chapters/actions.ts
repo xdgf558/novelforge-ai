@@ -27,6 +27,7 @@ import {
   type ChapterSummaryChapterContext,
 } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
+import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
 import { completeRunningSegmentedChapterPolishTask } from "@/lib/ai/segmented-chapter-polish-runner";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import {
@@ -1131,7 +1132,14 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     notFound();
   }
 
-  const [setting, outlines, characters, recentChapters, previousChapter] = await Promise.all([
+  const [
+    setting,
+    outlines,
+    characters,
+    recentChapters,
+    previousChapter,
+    readerFeedbackSignals,
+  ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
@@ -1189,6 +1197,10 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
         chapterNumber: "desc",
       },
     }),
+    loadReaderFeedbackSignalsForChapterGeneration({
+      projectId,
+      beforeChapterNumber: chapter.chapterNumber,
+    }),
   ]);
 
   return {
@@ -1199,6 +1211,7 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     characters,
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
+    readerFeedback: readerFeedbackSignals,
   };
 }
 
@@ -1229,7 +1242,13 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     notFound();
   }
 
-  const [setting, outlines, characters, previousChapter] = await Promise.all([
+  const [
+    setting,
+    outlines,
+    characters,
+    previousChapter,
+    readerFeedbackSignals,
+  ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
@@ -1275,6 +1294,10 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
         chapterNumber: "desc",
       },
     }),
+    loadReaderFeedbackSignalsForChapterGeneration({
+      projectId,
+      beforeChapterNumber: chapter.chapterNumber,
+    }),
   ]);
 
   return {
@@ -1286,6 +1309,7 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     previousChapter: previousChapter
       ? pickChapterDraftContext(previousChapter)
       : null,
+    readerFeedback: readerFeedbackSignals,
   };
 }
 

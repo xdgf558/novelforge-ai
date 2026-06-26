@@ -1,6 +1,11 @@
 import { formatWordRange } from "../format";
 import { outlineLevelLabel, outlineRangeLabel, type OutlineLike } from "../outline-fields";
 import { projectSettingFields } from "../project-setting-fields";
+import {
+  formatReaderFeedbackSignals,
+  readerFeedbackSignalsToJson,
+  type ReaderFeedbackSignal,
+} from "./reader-feedback-context";
 
 export type ChapterBeatProjectContext = {
   title: string;
@@ -54,6 +59,7 @@ export type ChapterBeatContextInput = {
   characters: readonly ChapterBeatCharacterContext[];
   recentChapters: readonly ChapterBeatChapterContext[];
   previousChapter?: ChapterBeatChapterContext | null;
+  readerFeedback?: readonly ReaderFeedbackSignal[];
 };
 
 export type BuiltChapterBeatContext = {
@@ -81,6 +87,8 @@ export function buildChapterBeatContext(
     .map((character) => buildCharacterLine(character))
     .filter(Boolean);
   const recentChapterItems = input.recentChapters.map(buildRecentChapterLine);
+  const readerFeedback = input.readerFeedback ?? [];
+  const readerFeedbackText = formatReaderFeedbackSignals(readerFeedback);
   const forbiddenItems = compact([
     input.setting?.forbiddenItems,
     input.setting?.sensitiveContentRules,
@@ -103,12 +111,14 @@ export function buildChapterBeatContext(
     outlines: outlineItems,
     characters: characterItems,
     recentChapters: recentChapterItems,
+    readerFeedback: readerFeedbackSignalsToJson(readerFeedback),
     previousChapterEnding,
     forbiddenItems,
     outputRequirements: [
       "使用 Markdown 输出。",
       "按顺序给出 8-12 个章节节拍。",
       "包含开场钩子、关键事件、情绪转折、章末钩子。",
+      "读者反馈只作为节奏、钩子、角色权重和爽点补强参考，不得改写已确认事实。",
       "不要宣称已经修改正式设定或角色记忆。",
     ],
   };
@@ -156,6 +166,9 @@ export function buildChapterBeatContext(
       ? recentChapterItems.join("\n")
       : "暂无已保存的前序章节。",
     "",
+    "# 读者反馈信号",
+    readerFeedbackText,
+    "",
     "# 上一章结尾",
     previousChapterEnding || "暂无上一章正文结尾。",
     "",
@@ -166,6 +179,7 @@ export function buildChapterBeatContext(
     "- 使用 Markdown。",
     "- 给出 8-12 个顺序节拍，每个节拍包含剧情动作和情绪作用。",
     "- 明确标出开场钩子、关键转折、章末钩子。",
+    "- 如有读者反馈，优先用它调整下一章开场推进、章末钩子、角色出场权重和信息解释密度；不得把读者反馈当作已经生效的正式设定。",
     "- 保持既有设定与角色边界，不新增未经作者确认的正式设定。",
   ].join("\n");
 
@@ -182,6 +196,7 @@ export function buildChapterBeatContextSummary(input: ChapterBeatContextInput) {
     `大纲 ${(input.outlines ?? []).length} 条`,
     `角色 ${input.characters.length} 个`,
     `最近章节 ${input.recentChapters.length} 个`,
+    input.readerFeedback?.length ? `读者反馈 ${input.readerFeedback.length} 条` : "无读者反馈",
     input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
   ].join("；");
 }

@@ -2,6 +2,11 @@ import { clipText, excerptChapterEnding } from "./chapter-beats";
 import { formatWordRange } from "../format";
 import { outlineLevelLabel, outlineRangeLabel, type OutlineLike } from "../outline-fields";
 import type { ProjectSettingFieldName } from "../project-setting-fields";
+import {
+  formatReaderFeedbackSignals,
+  readerFeedbackSignalsToJson,
+  type ReaderFeedbackSignal,
+} from "./reader-feedback-context";
 
 export type ChapterDraftProjectContext = {
   title: string;
@@ -50,6 +55,7 @@ export type ChapterDraftContextInput = {
   outlines?: readonly OutlineLike[];
   characters: readonly ChapterDraftCharacterContext[];
   previousChapter?: ChapterDraftChapterContext | null;
+  readerFeedback?: readonly ReaderFeedbackSignal[];
 };
 
 export type BuiltChapterDraftContext = {
@@ -90,6 +96,8 @@ export function buildChapterDraftContext(
   const previousChapterEnding = input.previousChapter
     ? excerptChapterEnding(input.previousChapter)
     : "";
+  const readerFeedback = input.readerFeedback ?? [];
+  const readerFeedbackText = formatReaderFeedbackSignals(readerFeedback);
   const characterRules = input.characters
     .map(buildCharacterRuleLine)
     .filter(Boolean);
@@ -132,11 +140,13 @@ export function buildChapterDraftContext(
     styleConstraints,
     characterRules,
     worldConstraints,
+    readerFeedback: readerFeedbackSignalsToJson(readerFeedback),
     previousChapterEnding,
     forbiddenItems,
     outputRequirements: [
       "输出完整章节草稿正文。",
       "严格遵循已确认章节节拍。",
+      "读者反馈只作为段落节奏、钩子强度、角色出场权重和信息解释密度参考。",
       "保持角色说话规则和世界观边界。",
       "不得宣称已经修改正式设定或正式章节。",
     ],
@@ -171,6 +181,9 @@ export function buildChapterDraftContext(
     "# 世界观与剧情约束",
     worldConstraints.length > 0 ? worldConstraints.join("\n") : "未设置。",
     "",
+    "# 读者反馈信号",
+    readerFeedbackText,
+    "",
     "# 上一章结尾",
     previousChapterEnding || "暂无上一章正文结尾。",
     "",
@@ -180,6 +193,7 @@ export function buildChapterDraftContext(
     "# 输出要求",
     "- 直接输出章节草稿正文，不要输出分析过程。",
     "- 按已确认节拍推进，不要新增未经作者确认的核心设定。",
+    "- 如有读者反馈，落实为更清晰的开场推进、段落节奏、追更钩子和读者关注角色的戏份分配；不要直接在正文中提到数据、指标或读者反馈。",
     "- 保持人物语气、行动边界、世界观规则和禁写事项。",
     "- 使用适合连载阅读的开场推进、段落节奏和章末钩子。",
   ].join("\n");
@@ -199,6 +213,7 @@ export function buildChapterDraftContextSummary(
     clean(input.chapter.beats) ? "包含已确认节拍" : "缺少已确认节拍",
     `大纲 ${(input.outlines ?? []).length} 条`,
     `角色 ${input.characters.length} 个`,
+    input.readerFeedback?.length ? `读者反馈 ${input.readerFeedback.length} 条` : "无读者反馈",
     input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
   ].join("；");
 }
