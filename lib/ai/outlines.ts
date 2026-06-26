@@ -39,6 +39,12 @@ export type OutlineGenerationChapterContext = {
   notes?: string | null;
 };
 
+export type OutlineGenerationPreviousChapterContext = {
+  chapterNumber: number;
+  title: string;
+  endingText: string;
+};
+
 export type OutlineGenerationRequest = {
   targetLevel: OutlineLevel;
   chapterCount?: number | null;
@@ -51,6 +57,7 @@ export type OutlineGenerationContextInput = {
   outlines: readonly OutlineLike[];
   characters: readonly OutlineGenerationCharacterContext[];
   recentChapters: readonly OutlineGenerationChapterContext[];
+  previousChapter?: OutlineGenerationPreviousChapterContext | null;
   request: OutlineGenerationRequest;
 };
 
@@ -104,6 +111,13 @@ export function buildOutlineGenerationContext(
     existingOutlines: outlineItems,
     characters: characterItems,
     recentChapters: chapterItems,
+    previousChapter: input.previousChapter
+      ? {
+          chapterNumber: input.previousChapter.chapterNumber,
+          title: input.previousChapter.title,
+          endingText: clipText(input.previousChapter.endingText, 1800),
+        }
+      : null,
   };
 
   const inputText = [
@@ -147,11 +161,21 @@ export function buildOutlineGenerationContext(
       ? chapterItems.join("\n")
       : "暂无已完成章节，可从开篇规划开始。",
     "",
+    "# 必须承接的上一章结尾",
+    input.previousChapter
+      ? [
+          `目标章节的上一章是第 ${input.previousChapter.chapterNumber} 章《${input.previousChapter.title}》。`,
+          "请让本次章节大纲直接承接下面这段结尾里的最后事件、人物状态和章末钩子，不要跳回更早事件，也不要因为新增角色而另起一条与上一章脱节的线。",
+          clipText(input.previousChapter.endingText, 1800),
+        ].join("\n")
+      : "未找到目标章节的上一章正文结尾；请根据已有章节目标和大纲保持顺序衔接。",
+    "",
     "# 输出要求",
     "- 使用 Markdown 输出。",
     "- 保持三层结构清晰：卷大纲、剧情单元大纲、章节大纲。",
     "- 不要直接修改正式设定、角色、世界规则、时间线或伏笔。",
     "- 如果任务是章节大纲，只输出目标章节这一章，不要输出连续章节列表。",
+    "- 如果任务是章节大纲，开篇必须承接上一章最后事件和章末钩子；新增人物只能服务这个承接，不要替换主线衔接。",
     "- 给出可复制到大纲表单的字段：标题、目标、章节范围、核心事件、冲突、爽点、伏笔和章末钩子。",
   ]
     .filter((item) => item !== "")

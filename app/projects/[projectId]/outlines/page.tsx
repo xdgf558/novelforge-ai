@@ -307,6 +307,7 @@ export default async function OutlinesPage({
         progressByOutlineId={progressByOutlineId}
         projectId={project.id}
         title="章节大纲"
+        visibleLimit={3}
       />
     </div>
   );
@@ -740,6 +741,7 @@ function OutlineGroup({
   progressByOutlineId,
   projectId,
   title,
+  visibleLimit,
 }: {
   emptyText: string;
   icon: LucideIcon;
@@ -747,12 +749,23 @@ function OutlineGroup({
   progressByOutlineId: ReadonlyMap<string, OutlineProgress>;
   projectId: string;
   title: string;
+  visibleLimit?: number;
 }) {
+  const visibleOutlines = visibleLimit ? outlines.slice(-visibleLimit) : outlines;
+  const hiddenCount = Math.max(0, outlines.length - visibleOutlines.length);
+
   return (
     <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-      <div className="flex items-center gap-2">
-        <Icon aria-hidden="true" className="h-4 w-4 text-signal-600" />
-        <h2 className="text-base font-semibold text-ink-950">{title}</h2>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Icon aria-hidden="true" className="h-4 w-4 text-signal-600" />
+          <h2 className="text-base font-semibold text-ink-950">{title}</h2>
+        </div>
+        {hiddenCount > 0 ? (
+          <p className="text-xs font-medium text-ink-600">
+            仅显示最近 {visibleOutlines.length} 条，已自动隐藏 {hiddenCount} 条历史大纲。
+          </p>
+        ) : null}
       </div>
 
       {outlines.length === 0 ? (
@@ -761,7 +774,7 @@ function OutlineGroup({
         </div>
       ) : (
         <div className="mt-4 overflow-hidden rounded-lg border border-ink-950/10 bg-paper-50">
-          {outlines.map((outline) => (
+          {visibleOutlines.map((outline) => (
             <OutlineCard
               key={outline.id}
               outline={outline}
