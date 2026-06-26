@@ -8,6 +8,7 @@ What was done:
 
 - Bumped the source app/package version to `0.1.55`.
 - Added a reusable reader-feedback context builder that compresses recent prior chapter analytics and insights into bounded generation signals.
+- Page display and chapter generation actions now share the same reader-feedback signal loader, so “当前章生成参考” matches the feedback sent into model context.
 - Chapter beat generation now includes recent prior reader feedback in `inputText` and `inputJson`, using it only for pacing, hooks, reader-focus characters, and information-density guidance.
 - Chapter draft generation now includes the same feedback signals while explicitly instructing the model not to mention metrics or reader feedback in the prose.
 - Chapter detail pages now show a “当前章生成参考” panel so the author can see which prior chapter feedback will inform the current chapter's beat/draft generation.

@@ -27,8 +27,8 @@ import {
   type ChapterSummaryChapterContext,
 } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
+import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
 import { completeRunningSegmentedChapterPolishTask } from "@/lib/ai/segmented-chapter-polish-runner";
-import { buildReaderFeedbackSignals } from "@/lib/ai/reader-feedback-context";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import {
   createAiTask,
@@ -1138,7 +1138,7 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     characters,
     recentChapters,
     previousChapter,
-    readerFeedbackChapters,
+    readerFeedbackSignals,
   ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
@@ -1197,7 +1197,10 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
         chapterNumber: "desc",
       },
     }),
-    loadReaderFeedbackSignalChapters(projectId, chapter.chapterNumber),
+    loadReaderFeedbackSignalsForChapterGeneration({
+      projectId,
+      beforeChapterNumber: chapter.chapterNumber,
+    }),
   ]);
 
   return {
@@ -1208,7 +1211,7 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     characters,
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
-    readerFeedback: buildReaderFeedbackSignals(readerFeedbackChapters.reverse()),
+    readerFeedback: readerFeedbackSignals,
   };
 }
 
@@ -1244,7 +1247,7 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     outlines,
     characters,
     previousChapter,
-    readerFeedbackChapters,
+    readerFeedbackSignals,
   ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
@@ -1291,7 +1294,10 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
         chapterNumber: "desc",
       },
     }),
-    loadReaderFeedbackSignalChapters(projectId, chapter.chapterNumber),
+    loadReaderFeedbackSignalsForChapterGeneration({
+      projectId,
+      beforeChapterNumber: chapter.chapterNumber,
+    }),
   ]);
 
   return {
@@ -1303,75 +1309,8 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     previousChapter: previousChapter
       ? pickChapterDraftContext(previousChapter)
       : null,
-    readerFeedback: buildReaderFeedbackSignals(readerFeedbackChapters.reverse()),
+    readerFeedback: readerFeedbackSignals,
   };
-}
-
-function loadReaderFeedbackSignalChapters(
-  projectId: string,
-  beforeChapterNumber: number,
-) {
-  return prisma.chapter.findMany({
-    where: {
-      projectId,
-      chapterNumber: {
-        lt: beforeChapterNumber,
-      },
-      OR: [
-        {
-          readerAnalytics: {
-            some: {},
-          },
-        },
-        {
-          readerInsights: {
-            some: {},
-          },
-        },
-      ],
-    },
-    orderBy: {
-      chapterNumber: "desc",
-    },
-    take: 3,
-    select: {
-      chapterNumber: true,
-      title: true,
-      readerAnalytics: {
-        orderBy: {
-          fetchedAt: "desc",
-        },
-        take: 1,
-        select: {
-          fetchedAt: true,
-          views: true,
-          likes: true,
-          comments: true,
-          favorites: true,
-          shares: true,
-          completionRate: true,
-          averageReadSeconds: true,
-          dropOffPoint: true,
-          engagementScore: true,
-        },
-      },
-      readerInsights: {
-        orderBy: {
-          fetchedAt: "desc",
-        },
-        take: 1,
-        select: {
-          fetchedAt: true,
-          summary: true,
-          pacing: true,
-          focus: true,
-          hookStrategy: true,
-          riskNotesJson: true,
-          characterPriorityJson: true,
-        },
-      },
-    },
-  });
 }
 
 async function loadChapterPolishContext(projectId: string, chapterId: string) {

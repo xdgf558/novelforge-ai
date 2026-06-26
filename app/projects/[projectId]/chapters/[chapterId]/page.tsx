@@ -40,10 +40,8 @@ import {
   isSegmentedChapterPolishInputJson,
 } from "@/lib/ai/chapter-polishes";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
-import {
-  buildReaderFeedbackSignals,
-  type ReaderFeedbackSignal,
-} from "@/lib/ai/reader-feedback-context";
+import type { ReaderFeedbackSignal } from "@/lib/ai/reader-feedback-context";
+import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
 import {
   activeAiTaskStatuses,
   aiTaskAdoptionLabel,
@@ -176,7 +174,7 @@ export default async function ChapterPage({
   const hasActiveAiTasks = chapter.aiTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
-  const [stationCatSyncState, generationFeedbackChapters] = await Promise.all([
+  const [stationCatSyncState, generationFeedbackSignals] = await Promise.all([
     prisma.publishSyncState.findFirst({
       where: {
         projectId: chapter.project.id,
@@ -208,71 +206,11 @@ export default async function ChapterPage({
         },
       },
     }),
-    prisma.chapter.findMany({
-      where: {
-        projectId: chapter.project.id,
-        chapterNumber: {
-          lt: chapter.chapterNumber,
-        },
-        OR: [
-          {
-            readerAnalytics: {
-              some: {},
-            },
-          },
-          {
-            readerInsights: {
-              some: {},
-            },
-          },
-        ],
-      },
-      orderBy: {
-        chapterNumber: "desc",
-      },
-      take: 3,
-      select: {
-        chapterNumber: true,
-        title: true,
-        readerAnalytics: {
-          orderBy: {
-            fetchedAt: "desc",
-          },
-          take: 1,
-          select: {
-            fetchedAt: true,
-            views: true,
-            likes: true,
-            comments: true,
-            favorites: true,
-            shares: true,
-            completionRate: true,
-            averageReadSeconds: true,
-            dropOffPoint: true,
-            engagementScore: true,
-          },
-        },
-        readerInsights: {
-          orderBy: {
-            fetchedAt: "desc",
-          },
-          take: 1,
-          select: {
-            fetchedAt: true,
-            summary: true,
-            pacing: true,
-            focus: true,
-            hookStrategy: true,
-            riskNotesJson: true,
-            characterPriorityJson: true,
-          },
-        },
-      },
+    loadReaderFeedbackSignalsForChapterGeneration({
+      projectId: chapter.project.id,
+      beforeChapterNumber: chapter.chapterNumber,
     }),
   ]);
-  const generationFeedbackSignals = buildReaderFeedbackSignals(
-    generationFeedbackChapters.reverse(),
-  );
   const readerRemoteId =
     chapter.readerRemoteId?.trim() || stationCatSyncState?.remoteId?.trim() || "";
 
