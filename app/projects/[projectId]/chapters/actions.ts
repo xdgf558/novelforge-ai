@@ -33,6 +33,7 @@ import {
   markAiTaskRunning,
   startLoggedOpenAITextTask,
 } from "@/lib/ai/task-logger";
+import { readStationCatPublishSecrets } from "@/lib/ai/local-config";
 import {
   chapterFieldNames,
   chapterValuesFromRecord,
@@ -46,6 +47,7 @@ import {
   chapterBelongsToOutline,
 } from "@/lib/outline-progress";
 import { prisma } from "@/lib/prisma";
+import { fetchStationCatReaderFeedback } from "@/lib/reader-feedback";
 
 const optionalChapterText = z
   .preprocess(
@@ -86,6 +88,14 @@ const changeReasonSchema = z
       typeof value === "string" && value.trim() === "" ? undefined : value,
     z.string().trim().max(1000).optional(),
   );
+
+const readerRemoteIdSchema = z
+  .preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() === "" ? null : value,
+    z.string().trim().max(240).nullable(),
+  )
+  .default(null);
 
 const chapterBeatTemplateKey = "chapter_beat_generation";
 const chapterDraftTemplateKey = "chapter_draft_generation";
@@ -294,6 +304,185 @@ export async function deleteChapter(projectId: string, chapterId: string) {
   revalidatePath(`/projects/${projectId}/chapters`);
   revalidatePath(`/projects/${projectId}/outlines`);
   redirect(`/projects/${projectId}/chapters`);
+}
+
+export async function updateChapterReaderRemoteId(
+  projectId: string,
+  chapterId: string,
+  formData: FormData,
+) {
+  const chapter = await prisma.chapter.findFirst({
+    where: {
+      id: chapterId,
+      projectId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
+  const readerRemoteId = readerRemoteIdSchema.parse(
+    formData.get("readerRemoteId"),
+  );
+
+  await prisma.chapter.update({
+    where: {
+      id: chapterId,
+    },
+    data: {
+      readerRemoteId,
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}#reader-feedback`);
+}
+
+export async function fetchChapterReaderFeedback(
+  projectId: string,
+  chapterId: string,
+) {
+  const chapter = await prisma.chapter.findFirst({
+    where: {
+      id: chapterId,
+      projectId,
+    },
+    select: {
+      id: true,
+      readerRemoteId: true,
+    },
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
+  const remoteChapterId =
+    chapter.readerRemoteId?.trim() ||
+    (await latestStationCatChapterRemoteId(projectId, chapterId));
+
+  if (!remoteChapterId) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(
+      `/projects/${projectId}/chapters/${chapterId}?readerFeedbackError=missingRemoteId#reader-feedback`,
+    );
+  }
+
+  const stationCatSecrets = readStationCatPublishSecrets();
+
+  if (!stationCatSecrets.token) {
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(
+      `/projects/${projectId}/chapters/${chapterId}?readerFeedbackError=missingToken#reader-feedback`,
+    );
+  }
+
+  try {
+    const feedback = await fetchStationCatReaderFeedback({
+      apiBaseUrl: stationCatSecrets.apiBaseUrl,
+      token: stationCatSecrets.token,
+      remoteChapterId,
+    });
+
+    await prisma.$transaction(async (tx) => {
+      const fetchedAt = new Date();
+
+      await tx.chapterAnalytics.create({
+        data: {
+          projectId,
+          chapterId,
+          remoteChapterId,
+          views: feedback.analytics.views,
+          likes: feedback.analytics.likes,
+          comments: feedback.analytics.comments,
+          favorites: feedback.analytics.favorites,
+          shares: feedback.analytics.shares,
+          completionRate: feedback.analytics.completionRate,
+          averageReadSeconds: feedback.analytics.averageReadSeconds,
+          dropOffPoint: feedback.analytics.dropOffPoint,
+          engagementScore: feedback.analytics.engagementScore,
+          rawJson: feedback.analytics.rawJson,
+          fetchedAt,
+        },
+      });
+
+      await tx.chapterInsight.create({
+        data: {
+          projectId,
+          chapterId,
+          remoteChapterId,
+          summary: feedback.insight.summary,
+          pacing: feedback.insight.pacing,
+          focus: feedback.insight.focus,
+          hookStrategy: feedback.insight.hookStrategy,
+          riskNotesJson: feedback.insight.riskNotesJson,
+          characterPriorityJson: feedback.insight.characterPriorityJson,
+          rawJson: feedback.insight.rawJson,
+          fetchedAt,
+        },
+      });
+
+      await tx.chapter.update({
+        where: {
+          id: chapterId,
+        },
+        data: {
+          readerFeedbackUpdatedAt: fetchedAt,
+        },
+      });
+    });
+  } catch (error) {
+    const errorMessage = encodeURIComponent(
+      error instanceof Error ? error.message : String(error),
+    );
+
+    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+    redirect(
+      `/projects/${projectId}/chapters/${chapterId}?readerFeedbackError=fetchFailed&readerFeedbackMessage=${errorMessage}#reader-feedback`,
+    );
+  }
+
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+  redirect(
+    `/projects/${projectId}/chapters/${chapterId}?readerFeedbackSaved=1#reader-feedback`,
+  );
+}
+
+async function latestStationCatChapterRemoteId(
+  projectId: string,
+  chapterId: string,
+) {
+  const syncState = await prisma.publishSyncState.findFirst({
+    where: {
+      projectId,
+      localType: "chapter",
+      localId: chapterId,
+      remoteId: {
+        not: null,
+      },
+      target: {
+        platformKey: "station_cat",
+        status: "active",
+      },
+    },
+    orderBy: [
+      {
+        lastSyncedAt: "desc",
+      },
+      {
+        updatedAt: "desc",
+      },
+    ],
+    select: {
+      remoteId: true,
+    },
+  });
+
+  return syncState?.remoteId?.trim() || null;
 }
 
 export async function generateChapterBeats(projectId: string, chapterId: string) {

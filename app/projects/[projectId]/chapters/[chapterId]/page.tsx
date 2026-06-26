@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
+  BarChart3,
   Bot,
   CheckCircle2,
   History,
   ListChecks,
   Pencil,
+  RefreshCw,
   Send,
   ShieldAlert,
   Sparkles,
@@ -17,10 +19,12 @@ import {
   adoptChapterBeats,
   adoptChapterPolish,
   deleteChapter,
+  fetchChapterReaderFeedback,
   generateChapterDraft,
   generateChapterBeats,
   generateChapterPolish,
   generateChapterSummary,
+  updateChapterReaderRemoteId,
 } from "@/app/projects/[projectId]/chapters/actions";
 import { generateContinuityReport } from "@/app/projects/[projectId]/continuity/actions";
 import { generatePendingUpdates } from "@/app/projects/[projectId]/pending-updates/actions";
@@ -60,6 +64,9 @@ type ChapterPageProps = {
   }>;
   searchParams?: Promise<{
     polishError?: string;
+    readerFeedbackError?: string;
+    readerFeedbackMessage?: string;
+    readerFeedbackSaved?: string;
   }>;
 };
 
@@ -68,7 +75,12 @@ export default async function ChapterPage({
   searchParams,
 }: ChapterPageProps) {
   const { projectId, chapterId } = await params;
-  const { polishError } = (await searchParams) ?? {};
+  const {
+    polishError,
+    readerFeedbackError,
+    readerFeedbackMessage,
+    readerFeedbackSaved,
+  } = (await searchParams) ?? {};
   await expireStaleChapterAiTasks(projectId, chapterId);
 
   const chapter = await prisma.chapter.findFirst({
@@ -85,6 +97,18 @@ export default async function ChapterPage({
           continuityReports: true,
           publishPackages: true,
         },
+      },
+      readerAnalytics: {
+        orderBy: {
+          fetchedAt: "desc",
+        },
+        take: 1,
+      },
+      readerInsights: {
+        orderBy: {
+          fetchedAt: "desc",
+        },
+        take: 1,
       },
       aiTasks: {
         where: {
@@ -148,6 +172,39 @@ export default async function ChapterPage({
   const hasActiveAiTasks = chapter.aiTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
+  const stationCatSyncState = await prisma.publishSyncState.findFirst({
+    where: {
+      projectId: chapter.project.id,
+      localType: "chapter",
+      localId: chapter.id,
+      remoteId: {
+        not: null,
+      },
+      target: {
+        platformKey: "station_cat",
+        status: "active",
+      },
+    },
+    orderBy: [
+      {
+        lastSyncedAt: "desc",
+      },
+      {
+        updatedAt: "desc",
+      },
+    ],
+    select: {
+      remoteId: true,
+      lastSyncedAt: true,
+      target: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+  const readerRemoteId =
+    chapter.readerRemoteId?.trim() || stationCatSyncState?.remoteId?.trim() || "";
 
   return (
     <div className="space-y-6">
@@ -211,6 +268,19 @@ export default async function ChapterPage({
       </header>
 
       <AiBudgetNotice projectId={chapter.project.id} />
+
+      <ChapterReaderFeedbackPanel
+        chapterId={chapter.id}
+        error={readerFeedbackError}
+        errorMessage={readerFeedbackMessage}
+        latestAnalytics={chapter.readerAnalytics[0] ?? null}
+        latestInsight={chapter.readerInsights[0] ?? null}
+        projectId={chapter.project.id}
+        readerRemoteId={readerRemoteId}
+        saved={readerFeedbackSaved === "1"}
+        stationCatSyncState={stationCatSyncState}
+        storedReaderRemoteId={chapter.readerRemoteId}
+      />
 
       <ChapterBeatAiPanel
         chapterId={chapter.id}
@@ -325,6 +395,354 @@ type ChapterAiTask = {
     version: number;
   } | null;
 };
+
+type ChapterReaderAnalytics = {
+  views: number | null;
+  likes: number | null;
+  comments: number | null;
+  favorites: number | null;
+  shares: number | null;
+  completionRate: number | null;
+  averageReadSeconds: number | null;
+  dropOffPoint: string | null;
+  engagementScore: number | null;
+  rawJson: string;
+  fetchedAt: Date;
+};
+
+type ChapterReaderInsight = {
+  summary: string | null;
+  pacing: string | null;
+  focus: string | null;
+  hookStrategy: string | null;
+  riskNotesJson: string | null;
+  characterPriorityJson: string | null;
+  rawJson: string;
+  fetchedAt: Date;
+};
+
+type ChapterReaderSyncState = {
+  remoteId: string | null;
+  lastSyncedAt: Date | null;
+  target: {
+    name: string;
+  };
+} | null;
+
+function ChapterReaderFeedbackPanel({
+  chapterId,
+  error,
+  errorMessage,
+  latestAnalytics,
+  latestInsight,
+  projectId,
+  readerRemoteId,
+  saved,
+  stationCatSyncState,
+  storedReaderRemoteId,
+}: {
+  chapterId: string;
+  error?: string;
+  errorMessage?: string;
+  latestAnalytics: ChapterReaderAnalytics | null;
+  latestInsight: ChapterReaderInsight | null;
+  projectId: string;
+  readerRemoteId: string;
+  saved: boolean;
+  stationCatSyncState: ChapterReaderSyncState;
+  storedReaderRemoteId?: string | null;
+}) {
+  const canFetch = Boolean(readerRemoteId.trim());
+  const errorText =
+    error === "missingRemoteId"
+      ? "还没有远端章节 ID。请先发布到 Station Cat，或手动填写网站章节 ID。"
+      : error === "missingToken"
+        ? "Station Cat Token 未配置。请先到本机接入设置里保存发布 Token。"
+        : error === "fetchFailed"
+          ? `读者反馈拉取失败${errorMessage ? `：${errorMessage}` : "。"}`
+          : "";
+
+  return (
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      id="reader-feedback"
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <BarChart3 aria-hidden="true" className="h-4 w-4" />
+            读者反馈
+          </div>
+          <h2 className="mt-2 text-base font-semibold text-ink-950">
+            从网站拉取章节表现与读者洞察
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+            数据只作为下一章规划和作者复盘参考，不会自动修改正文、设定、角色或记忆。
+          </p>
+        </div>
+
+        <PreserveScrollForm
+          action={fetchChapterReaderFeedback.bind(null, projectId, chapterId)}
+          preserveKey={`reader-feedback-${projectId}-${chapterId}`}
+          statusText="已开始拉取读者反馈，页面会留在当前位置并刷新最新快照。"
+        >
+          <button
+            className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
+              canFetch
+                ? "bg-ink-950 text-white hover:bg-ink-800"
+                : "cursor-not-allowed border border-ink-950/15 bg-paper-100 text-ink-700"
+            }`}
+            disabled={!canFetch}
+            type="submit"
+          >
+            <RefreshCw aria-hidden="true" className="h-4 w-4" />
+            拉取读者反馈
+          </button>
+        </PreserveScrollForm>
+      </div>
+
+      {saved ? (
+        <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
+          已保存最新读者反馈快照。
+        </p>
+      ) : null}
+
+      {errorText ? (
+        <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+          {errorText}
+        </p>
+      ) : null}
+
+      <div className="mt-5 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+        <form
+          action={updateChapterReaderRemoteId.bind(null, projectId, chapterId)}
+          className="grid gap-3 lg:grid-cols-[1fr_auto]"
+        >
+          <label className="block">
+            <span className="text-xs font-semibold text-ink-700">
+              远端章节 ID
+            </span>
+            <input
+              className="mt-1 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+              defaultValue={storedReaderRemoteId ?? stationCatSyncState?.remoteId ?? ""}
+              name="readerRemoteId"
+              placeholder="发布同步后可自动识别，也可以手动填写网站章节 ID"
+            />
+          </label>
+          <button
+            className="inline-flex min-h-10 items-center justify-center self-end rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            type="submit"
+          >
+            保存 ID
+          </button>
+        </form>
+
+        <p className="mt-2 text-xs leading-5 text-ink-700">
+          当前使用：{readerRemoteId || "未设置"}
+          {stationCatSyncState?.remoteId ? (
+            <>
+              {" "}
+              / 来自 {stationCatSyncState.target.name}
+              {stationCatSyncState.lastSyncedAt
+                ? `，同步于 ${formatDate(stationCatSyncState.lastSyncedAt)}`
+                : ""}
+            </>
+          ) : null}
+        </p>
+      </div>
+
+      {latestAnalytics || latestInsight ? (
+        <div className="mt-5 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-ink-950">章节表现</h3>
+              <span className="text-xs text-ink-700">
+                {latestAnalytics
+                  ? `更新：${formatDate(latestAnalytics.fetchedAt)}`
+                  : "暂无数据"}
+              </span>
+            </div>
+
+            {latestAnalytics ? (
+              <>
+                <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <ReaderMetric label="阅读量" value={formatMetric(latestAnalytics.views)} />
+                  <ReaderMetric
+                    label="完成率"
+                    value={formatRate(latestAnalytics.completionRate)}
+                  />
+                  <ReaderMetric
+                    label="互动分"
+                    value={formatMetric(latestAnalytics.engagementScore)}
+                  />
+                  <ReaderMetric
+                    label="均读时长"
+                    value={formatSeconds(latestAnalytics.averageReadSeconds)}
+                  />
+                  <ReaderMetric label="点赞" value={formatMetric(latestAnalytics.likes)} />
+                  <ReaderMetric
+                    label="评论"
+                    value={formatMetric(latestAnalytics.comments)}
+                  />
+                  <ReaderMetric
+                    label="收藏"
+                    value={formatMetric(latestAnalytics.favorites)}
+                  />
+                  <ReaderMetric label="分享" value={formatMetric(latestAnalytics.shares)} />
+                </dl>
+                <div className="mt-4 rounded-md bg-white px-3 py-2 text-sm leading-6 text-ink-700">
+                  <span className="font-semibold text-ink-950">主要流失点：</span>
+                  {latestAnalytics.dropOffPoint || "暂未返回。"}
+                </div>
+                <RawJsonDetails title="查看读者数据原始 JSON" value={latestAnalytics.rawJson} />
+              </>
+            ) : (
+              <p className="mt-4 text-sm text-ink-700">还没有章节表现快照。</p>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-ink-950">读者洞察</h3>
+              <span className="text-xs text-ink-700">
+                {latestInsight
+                  ? `更新：${formatDate(latestInsight.fetchedAt)}`
+                  : "暂无数据"}
+              </span>
+            </div>
+
+            {latestInsight ? (
+              <div className="mt-4 space-y-3">
+                <ReaderInsightBlock label="摘要" value={latestInsight.summary} />
+                <ReaderInsightBlock label="节奏" value={latestInsight.pacing} />
+                <ReaderInsightBlock label="读者关注" value={latestInsight.focus} />
+                <ReaderInsightBlock
+                  label="追更钩子"
+                  value={latestInsight.hookStrategy}
+                />
+                <ReaderInsightBlock
+                  label="风险提示"
+                  value={formatJsonText(latestInsight.riskNotesJson)}
+                />
+                <ReaderInsightBlock
+                  label="角色优先级"
+                  value={formatJsonText(latestInsight.characterPriorityJson)}
+                />
+                <RawJsonDetails title="查看洞察原始 JSON" value={latestInsight.rawJson} />
+              </div>
+            ) : (
+              <p className="mt-4 text-sm text-ink-700">还没有读者洞察快照。</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
+          <p className="font-semibold text-ink-950">还没有读者反馈快照</p>
+          <p className="mt-2 leading-6">
+            章节发布到 Station Cat 后，可以拉取网站侧的阅读表现、流失点和读者洞察。第一版只做回流和展示，不把这些内容自动写入下一章。
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ReaderMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-ink-950/10 bg-white px-3 py-2">
+      <dt className="text-xs font-semibold text-ink-700">{label}</dt>
+      <dd className="mt-1 text-base font-semibold text-ink-950">{value}</dd>
+    </div>
+  );
+}
+
+function ReaderInsightBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value?: string | null;
+}) {
+  return (
+    <div className="rounded-md bg-white px-3 py-2">
+      <div className="text-xs font-semibold text-ink-700">{label}</div>
+      <div className="mt-1 whitespace-pre-wrap text-sm leading-6 text-ink-800">
+        {value || "暂未返回。"}
+      </div>
+    </div>
+  );
+}
+
+function RawJsonDetails({ title, value }: { title: string; value: string }) {
+  return (
+    <details className="mt-3 rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm text-ink-700">
+      <summary className="cursor-pointer font-semibold text-ink-900">
+        {title}
+      </summary>
+      <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-ink-700">
+        {value}
+      </pre>
+    </details>
+  );
+}
+
+function formatMetric(value?: number | null) {
+  return value == null ? "未返回" : formatNumber(value);
+}
+
+function formatRate(value?: number | null) {
+  return value == null ? "未返回" : `${Math.round(value * 1000) / 10}%`;
+}
+
+function formatSeconds(value?: number | null) {
+  if (value == null) {
+    return "未返回";
+  }
+
+  if (value < 60) {
+    return `${value} 秒`;
+  }
+
+  const minutes = Math.floor(value / 60);
+  const seconds = value % 60;
+  return seconds ? `${minutes} 分 ${seconds} 秒` : `${minutes} 分`;
+}
+
+function formatJsonText(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => `- ${jsonTextItem(item)}`).join("\n");
+    }
+
+    if (parsed && typeof parsed === "object") {
+      return Object.entries(parsed as Record<string, unknown>)
+        .map(([key, item]) => `${key}：${jsonTextItem(item)}`)
+        .join("\n");
+    }
+  } catch {
+    return value;
+  }
+
+  return value;
+}
+
+function jsonTextItem(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value == null) {
+    return "";
+  }
+
+  return JSON.stringify(value);
+}
 
 function ChapterBeatAiPanel({
   chapterId,

@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.53 终局规划与收尾检查";
+export const appReleaseTitle = "0.1.54 读者反馈回流";
 
 export const appReleaseNotes = [
-  "大纲模块新增“终局规划 / 收尾检查”，会根据总字数目标、章节状态、未回收伏笔和大纲进度给出本地收尾阶段判断。",
-  "新增 AI 终局规划草案任务，输出剩余章节、终局卷、伏笔回收、角色落点和大结局风格建议，但不会自动修改正式大纲或伏笔状态。",
-  "保留作者控制：伏笔回收、废弃、大纲调整和正式记忆变更仍需作者手动确认。",
+  "章节详情页新增“读者反馈”面板，可从 Station Cat 拉取章节阅读表现和读者洞察快照。",
+  "新增本地 chapter_analytics / chapter_insights 记录，保存阅读量、完成率、流失点、互动分、洞察摘要和原始 JSON，方便后续复盘。",
+  "读者数据只作为作者参考，不会自动修改正文、设定、角色、大纲、伏笔或故事记忆。",
 ];

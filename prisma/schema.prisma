@@ -50,6 +50,8 @@ model Project {
   publishTargets         PublishTarget[]
   publishRuns            PublishRun[]
   publishSyncStates      PublishSyncState[]
+  chapterAnalytics       ChapterAnalytics[]
+  chapterInsights        ChapterInsight[]
   audioExports           AudioExport[]
   audioExportSegments    AudioExportSegment[]
 
@@ -202,6 +204,8 @@ model Chapter {
   polishedText  String?
   finalText     String?
   notes         String?
+  readerRemoteId String?
+  readerFeedbackUpdatedAt DateTime?
   wordCount     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -216,12 +220,63 @@ model Chapter {
   characterRelationships CharacterRelationship[]
   continuityReports      ContinuityReport[]
   publishPackages        PublishPackage[]
+  readerAnalytics        ChapterAnalytics[]
+  readerInsights         ChapterInsight[]
   audioExports           AudioExport[]
   audioExportSegments    AudioExportSegment[]
 
   @@index([projectId, status])
   @@index([projectId, chapterNumber])
   @@map("chapters")
+}
+
+model ChapterAnalytics {
+  id                 String   @id @default(cuid())
+  projectId          String
+  chapterId          String
+  remoteChapterId    String?
+  views              Int?
+  likes              Int?
+  comments           Int?
+  favorites          Int?
+  shares             Int?
+  completionRate     Float?
+  averageReadSeconds Int?
+  dropOffPoint       String?
+  engagementScore    Float?
+  rawJson            String
+  fetchedAt          DateTime @default(now())
+  createdAt          DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, fetchedAt])
+  @@index([chapterId, fetchedAt])
+  @@map("chapter_analytics")
+}
+
+model ChapterInsight {
+  id                    String   @id @default(cuid())
+  projectId             String
+  chapterId             String
+  remoteChapterId       String?
+  summary               String?
+  pacing                String?
+  focus                 String?
+  hookStrategy          String?
+  riskNotesJson         String?
+  characterPriorityJson String?
+  rawJson               String
+  fetchedAt             DateTime @default(now())
+  createdAt             DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, fetchedAt])
+  @@index([chapterId, fetchedAt])
+  @@map("chapter_insights")
 }
 
 model ChapterVersion {

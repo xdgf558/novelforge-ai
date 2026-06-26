@@ -1,5 +1,22 @@
 # Development Log
 
+## 2026-06-26: 0.1.54 Reader Feedback Snapshots
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.54`.
+- Added Phase A reader feedback data return from Station Cat into chapter detail pages.
+- Added `chapter_analytics` and `chapter_insights` local snapshot tables plus a manual `Chapter.readerRemoteId` fallback field.
+- Reader feedback fetches use the saved Station Cat API Base URL and token, prefer the chapter's manual remote id, and fall back to the latest Station Cat `publish_sync_states` chapter remote id.
+- The chapter detail page now shows latest reading metrics, completion rate, engagement score, drop-off point, website insight notes, and expandable raw JSON.
+- Preserved author control: reader feedback is read-only reference data in this phase and does not automatically modify chapter text, project settings, characters, outlines, foreshadows, timelines, or structured memory.
+
+Verification:
+
+- Pending this phase's final checks.
+
 ## 2026-06-25: 0.1.53 Ending Planning and Closure Readiness
 
 Status: completed.
