@@ -1,5 +1,24 @@
 # Development Log
 
+## 2026-06-26: 0.1.56 Station Cat Reader Feedback Namespace
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.56`.
+- Updated Station Cat reader feedback endpoints to the NovelForge namespace:
+  `/api/novelforge/analytics/chapter/:chapterId` and
+  `/api/novelforge/analytics/insights/:chapterId`.
+- Kept the user-facing configuration unchanged: authors still only configure
+  Station Cat API Base URL, Station Cat Publish Token, and the chapter remote id.
+
+Verification:
+
+- `npm run test -- lib/reader-feedback.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-26: 0.1.55 Feedback-Driven Next Chapter Generation
 
 Status: completed.

@@ -15,7 +15,9 @@ describe("reader feedback", () => {
         pathPrefix: stationCatChapterAnalyticsPath,
         remoteChapterId: "chapter 1",
       }),
-    ).toBe("https://wwwstationcat.org/api/analytics/chapter/chapter%201");
+    ).toBe(
+      "https://wwwstationcat.org/api/novelforge/analytics/chapter/chapter%201",
+    );
 
     expect(
       buildStationCatReaderFeedbackEndpoint({
@@ -23,7 +25,9 @@ describe("reader feedback", () => {
         pathPrefix: stationCatChapterAnalyticsPath,
         remoteChapterId: "remote_2",
       }),
-    ).toBe("https://wwwstationcat.org/api/analytics/chapter/remote_2");
+    ).toBe(
+      "https://wwwstationcat.org/api/novelforge/analytics/chapter/remote_2",
+    );
   });
 
   it("normalizes flexible analytics and insight response shapes", () => {
@@ -97,6 +101,12 @@ describe("reader feedback", () => {
     );
 
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(String(fetchImpl.mock.calls[0]?.[0])).toBe(
+      "https://wwwstationcat.org/api/novelforge/analytics/chapter/remote_chapter_1",
+    );
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toBe(
+      "https://wwwstationcat.org/api/novelforge/analytics/insights/remote_chapter_1",
+    );
     expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({
       headers: expect.objectContaining({
         Authorization: "Bearer token_123",

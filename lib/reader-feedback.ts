@@ -1,7 +1,9 @@
 import { createServerFetch } from "@/lib/server-fetch";
 
-export const stationCatChapterAnalyticsPath = "/api/analytics/chapter";
-export const stationCatChapterInsightsPath = "/api/analytics/insights";
+export const stationCatChapterAnalyticsPath =
+  "/api/novelforge/analytics/chapter";
+export const stationCatChapterInsightsPath =
+  "/api/novelforge/analytics/insights";
 
 const readerFeedbackRequestTimeoutMs = 60_000;
 const maxReaderFeedbackJsonBytes = 1024 * 1024;
