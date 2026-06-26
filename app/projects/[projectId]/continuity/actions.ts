@@ -8,6 +8,12 @@ import {
   parseContinuityIssues,
   type ContinuityChapterContext,
 } from "@/lib/ai/continuity-reports";
+import {
+  buildContinuityFixPatchContext,
+  continuityFixPatchTaskType,
+  continuityFixPatchTemplateKey,
+  readContinuityFixPatchReportId,
+} from "@/lib/ai/continuity-fix-patches";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
@@ -274,6 +280,137 @@ export async function applyContinuityReportFix(
   redirect(`/projects/${projectId}/continuity?fix=applied`);
 }
 
+export async function generateContinuityFixPatch(
+  projectId: string,
+  reportId: string,
+) {
+  const report = await prisma.continuityReport.findFirst({
+    where: {
+      id: reportId,
+      projectId,
+    },
+    include: {
+      project: {
+        select: {
+          title: true,
+          genre: true,
+          targetAudience: true,
+          platform: true,
+        },
+      },
+      chapter: {
+        select: {
+          id: true,
+          chapterNumber: true,
+          title: true,
+          status: true,
+          goal: true,
+          beats: true,
+          draftText: true,
+          polishedText: true,
+          finalText: true,
+          notes: true,
+        },
+      },
+    },
+  });
+
+  if (!report) {
+    notFound();
+  }
+
+  if (report.status !== "open") {
+    redirect(`/projects/${projectId}/continuity?patch=already-resolved`);
+  }
+
+  if (!report.chapter) {
+    redirect(`/projects/${projectId}/continuity?patch=missing-chapter`);
+  }
+
+  const activeTask = await findActiveContinuityFixPatchTask(
+    projectId,
+    report.id,
+  );
+
+  if (activeTask) {
+    revalidateContinuityPaths(projectId, report.chapter.id);
+    redirect(`/projects/${projectId}/continuity?patch=active#report-${report.id}`);
+  }
+
+  let context: ReturnType<typeof buildContinuityFixPatchContext>;
+
+  try {
+    context = buildContinuityFixPatchContext({
+      project: report.project,
+      report: {
+        id: report.id,
+        severity: report.severity,
+        category: report.category,
+        title: report.title,
+        description: report.description,
+        evidence: report.evidence,
+        conflictingMemory: report.conflictingMemory,
+        suggestedFix: report.suggestedFix,
+      },
+      chapter: report.chapter,
+    });
+  } catch {
+    redirect(`/projects/${projectId}/continuity?patch=missing-text#report-${report.id}`);
+  }
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    continuityFixPatchTemplateKey,
+  );
+
+  await startLoggedOpenAITextTask(
+    {
+      projectId,
+      chapterId: report.chapter.id,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    },
+    {
+      systemPrompt: template.systemPrompt,
+      developerPrompt: [template.userPrompt, template.contextNotes]
+        .filter(Boolean)
+        .join("\n\n"),
+      input: context.inputText,
+    },
+  );
+
+  revalidateContinuityPaths(projectId, report.chapter.id);
+  revalidatePath(`/projects/${projectId}/ai`);
+  redirect(`/projects/${projectId}/continuity?patch=started#report-${report.id}`);
+}
+
+export async function markContinuityFixPatchOrganized(
+  projectId: string,
+  taskId: string,
+) {
+  await updateContinuityFixPatchTaskAdoptionState(
+    projectId,
+    taskId,
+    "adopted",
+    "organized",
+  );
+}
+
+export async function ignoreContinuityFixPatch(
+  projectId: string,
+  taskId: string,
+) {
+  await updateContinuityFixPatchTaskAdoptionState(
+    projectId,
+    taskId,
+    "rejected",
+    "ignored",
+  );
+}
+
 async function loadContinuityContext(projectId: string, chapterId: string) {
   const chapter = await prisma.chapter.findFirst({
     where: {
@@ -414,6 +551,81 @@ async function findActiveContinuityTask(projectId: string, chapterId: string) {
       id: true,
     },
   });
+}
+
+async function findActiveContinuityFixPatchTask(
+  projectId: string,
+  reportId: string,
+) {
+  const tasks = await prisma.aiTask.findMany({
+    where: {
+      projectId,
+      taskType: continuityFixPatchTaskType,
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+      inputJson: true,
+    },
+    take: 50,
+  });
+
+  return tasks.find(
+    (task) => readContinuityFixPatchReportId(task.inputJson) === reportId,
+  );
+}
+
+async function updateContinuityFixPatchTaskAdoptionState(
+  projectId: string,
+  taskId: string,
+  adoptionState: "adopted" | "rejected",
+  resultCode: "organized" | "ignored",
+) {
+  const task = await prisma.aiTask.findFirst({
+    where: {
+      id: taskId,
+      projectId,
+      taskType: continuityFixPatchTaskType,
+      status: "completed",
+    },
+    select: {
+      id: true,
+      chapterId: true,
+      inputJson: true,
+    },
+  });
+
+  if (!task) {
+    notFound();
+  }
+
+  await prisma.aiTask.updateMany({
+    where: {
+      id: task.id,
+      projectId,
+      taskType: continuityFixPatchTaskType,
+      status: "completed",
+      adoptionState: "not_reviewed",
+    },
+    data: {
+      adoptionState,
+    },
+  });
+
+  const reportId = readContinuityFixPatchReportId(task.inputJson);
+
+  revalidateContinuityPaths(projectId, task.chapterId);
+  revalidatePath(`/projects/${projectId}/ai`);
+  redirect(
+    `/projects/${projectId}/continuity?patch=${resultCode}${
+      reportId ? `#report-${reportId}` : ""
+    }`,
+  );
 }
 
 function revalidateContinuityPaths(projectId: string, chapterId?: string | null) {

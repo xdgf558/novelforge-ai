@@ -9,10 +9,15 @@ import {
   chapterValuesFromRecord,
   type ChapterValues,
 } from "@/lib/chapter-fields";
+import { ChapterEditLocator } from "./chapter-edit-locator";
 
 type ChapterFormProps = {
   action: (formData: FormData) => Promise<void>;
   chapter?: Chapter;
+  editLocator?: {
+    fieldName?: string | null;
+    findText?: string | null;
+  };
   formMessage?: string;
   initialValues?: Partial<ChapterValues>;
   project: Project;
@@ -30,6 +35,7 @@ const labelClass = "text-sm font-medium text-ink-800";
 export function ChapterForm({
   action,
   chapter,
+  editLocator,
   formMessage,
   initialValues,
   project,
@@ -84,6 +90,13 @@ export function ChapterForm({
       </div>
 
       <form action={action} className="space-y-5">
+        {editLocator ? (
+          <ChapterEditLocator
+            fieldName={editLocator.fieldName}
+            findText={editLocator.findText}
+          />
+        ) : null}
+
         {formMessage ? (
           <div
             className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"

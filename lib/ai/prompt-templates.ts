@@ -433,6 +433,19 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     }),
   },
   {
+    key: "continuity_fix_patch_generation",
+    name: "连续性修复候选补丁",
+    taskType: "continuity_fix_patch_generation",
+    version: 1,
+    outputFormat: "markdown",
+    systemPrompt:
+      "你是长篇连载小说的连续性修复编辑。只生成供作者审阅的修复候选补丁，不得宣称已经修改正式正文或正式故事记忆。",
+    userPrompt:
+      "根据连续性报告、关联章节正文摘录和作者建议，生成可审阅的修复候选补丁。",
+    contextNotes:
+      "输出必须保持作者控制：优先给出精确查找/替换候选；无法精确替换时给出可粘贴的改写片段和作者核对点。不得自动修改章节正文、设定、角色、时间线或伏笔。",
+  },
+  {
     key: "wechat_publish_packaging",
     name: "公众号发布包装",
     taskType: "wechat_publish_packaging",

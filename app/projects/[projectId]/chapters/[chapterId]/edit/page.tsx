@@ -12,6 +12,8 @@ type EditChapterPageProps = {
   }>;
   searchParams?: Promise<{
     finalizeError?: string;
+    findText?: string;
+    focusField?: string;
   }>;
 };
 
@@ -20,7 +22,7 @@ export default async function EditChapterPage({
   searchParams,
 }: EditChapterPageProps) {
   const { projectId, chapterId } = await params;
-  const { finalizeError } = (await searchParams) ?? {};
+  const { finalizeError, findText, focusField } = (await searchParams) ?? {};
   const chapter = await prisma.chapter.findFirst({
     where: {
       id: chapterId,
@@ -51,6 +53,14 @@ export default async function EditChapterPage({
     <ChapterForm
       action={updateChapter.bind(null, chapter.project.id, chapter.id)}
       chapter={chapter}
+      editLocator={
+        focusField
+          ? {
+              fieldName: focusField,
+              findText,
+            }
+          : undefined
+      }
       formMessage={formMessage}
       project={chapter.project}
       submitLabel="保存并记录版本"

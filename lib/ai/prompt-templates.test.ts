@@ -26,6 +26,7 @@ describe("default AI prompt templates", () => {
         "chapter_summary_extraction",
         "pending_update_extraction",
         "continuity_check",
+        "continuity_fix_patch_generation",
         "wechat_publish_packaging",
         "cover_image_generation",
       ]),
