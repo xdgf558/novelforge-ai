@@ -41,6 +41,10 @@ import {
 } from "@/lib/ai/chapter-polishes";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import {
+  buildReaderFeedbackSignals,
+  type ReaderFeedbackSignal,
+} from "@/lib/ai/reader-feedback-context";
+import {
   activeAiTaskStatuses,
   aiTaskAdoptionLabel,
   aiTaskStatusLabel,
@@ -172,37 +176,103 @@ export default async function ChapterPage({
   const hasActiveAiTasks = chapter.aiTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
-  const stationCatSyncState = await prisma.publishSyncState.findFirst({
-    where: {
-      projectId: chapter.project.id,
-      localType: "chapter",
-      localId: chapter.id,
-      remoteId: {
-        not: null,
-      },
-      target: {
-        platformKey: "station_cat",
-        status: "active",
-      },
-    },
-    orderBy: [
-      {
-        lastSyncedAt: "desc",
-      },
-      {
-        updatedAt: "desc",
-      },
-    ],
-    select: {
-      remoteId: true,
-      lastSyncedAt: true,
-      target: {
-        select: {
-          name: true,
+  const [stationCatSyncState, generationFeedbackChapters] = await Promise.all([
+    prisma.publishSyncState.findFirst({
+      where: {
+        projectId: chapter.project.id,
+        localType: "chapter",
+        localId: chapter.id,
+        remoteId: {
+          not: null,
+        },
+        target: {
+          platformKey: "station_cat",
+          status: "active",
         },
       },
-    },
-  });
+      orderBy: [
+        {
+          lastSyncedAt: "desc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
+      select: {
+        remoteId: true,
+        lastSyncedAt: true,
+        target: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
+    prisma.chapter.findMany({
+      where: {
+        projectId: chapter.project.id,
+        chapterNumber: {
+          lt: chapter.chapterNumber,
+        },
+        OR: [
+          {
+            readerAnalytics: {
+              some: {},
+            },
+          },
+          {
+            readerInsights: {
+              some: {},
+            },
+          },
+        ],
+      },
+      orderBy: {
+        chapterNumber: "desc",
+      },
+      take: 3,
+      select: {
+        chapterNumber: true,
+        title: true,
+        readerAnalytics: {
+          orderBy: {
+            fetchedAt: "desc",
+          },
+          take: 1,
+          select: {
+            fetchedAt: true,
+            views: true,
+            likes: true,
+            comments: true,
+            favorites: true,
+            shares: true,
+            completionRate: true,
+            averageReadSeconds: true,
+            dropOffPoint: true,
+            engagementScore: true,
+          },
+        },
+        readerInsights: {
+          orderBy: {
+            fetchedAt: "desc",
+          },
+          take: 1,
+          select: {
+            fetchedAt: true,
+            summary: true,
+            pacing: true,
+            focus: true,
+            hookStrategy: true,
+            riskNotesJson: true,
+            characterPriorityJson: true,
+          },
+        },
+      },
+    }),
+  ]);
+  const generationFeedbackSignals = buildReaderFeedbackSignals(
+    generationFeedbackChapters.reverse(),
+  );
   const readerRemoteId =
     chapter.readerRemoteId?.trim() || stationCatSyncState?.remoteId?.trim() || "";
 
@@ -275,6 +345,7 @@ export default async function ChapterPage({
         errorMessage={readerFeedbackMessage}
         latestAnalytics={chapter.readerAnalytics[0] ?? null}
         latestInsight={chapter.readerInsights[0] ?? null}
+        generationFeedbackSignals={generationFeedbackSignals}
         projectId={chapter.project.id}
         readerRemoteId={readerRemoteId}
         saved={readerFeedbackSaved === "1"}
@@ -433,6 +504,7 @@ function ChapterReaderFeedbackPanel({
   chapterId,
   error,
   errorMessage,
+  generationFeedbackSignals,
   latestAnalytics,
   latestInsight,
   projectId,
@@ -444,6 +516,7 @@ function ChapterReaderFeedbackPanel({
   chapterId: string;
   error?: string;
   errorMessage?: string;
+  generationFeedbackSignals: readonly ReaderFeedbackSignal[];
   latestAnalytics: ChapterReaderAnalytics | null;
   latestInsight: ChapterReaderInsight | null;
   projectId: string;
@@ -549,6 +622,47 @@ function ChapterReaderFeedbackPanel({
             </>
           ) : null}
         </p>
+      </div>
+
+      <div className="mt-5 rounded-lg border border-signal-500/20 bg-signal-50/60 p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-ink-950">
+              当前章生成参考
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-ink-700">
+              生成节拍和草稿时，系统会把最近前序章节的读者反馈压缩成上下文，帮助调整节奏、钩子和角色权重；它不会自动改写正式设定。
+            </p>
+          </div>
+          <span className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-ink-700">
+            {generationFeedbackSignals.length} 条反馈
+          </span>
+        </div>
+        {generationFeedbackSignals.length > 0 ? (
+          <div className="mt-3 grid gap-2 lg:grid-cols-3">
+            {generationFeedbackSignals.map((signal) => (
+              <div
+                className="rounded-md border border-ink-950/10 bg-white px-3 py-2 text-xs leading-5 text-ink-700"
+                key={`${signal.chapterNumber}-${signal.fetchedAt?.toISOString() ?? signal.title}`}
+              >
+                <div className="font-semibold text-ink-950">
+                  第 {signal.chapterNumber} 章《{signal.title}》
+                </div>
+                <div className="mt-1">
+                  完成率 {formatRate(signal.completionRate)} / 互动分{" "}
+                  {formatMetric(signal.engagementScore)}
+                </div>
+                <div className="mt-1 line-clamp-2">
+                  {signal.focus || signal.hookStrategy || signal.dropOffPoint || "暂无可摘要字段。"}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-md bg-white px-3 py-2 text-sm text-ink-700">
+            还没有可用于当前章生成的前序读者反馈。发布并拉取前序章节反馈后，下一章节拍/草稿会自动参考这些信号。
+          </p>
+        )}
       </div>
 
       {latestAnalytics || latestInsight ? (

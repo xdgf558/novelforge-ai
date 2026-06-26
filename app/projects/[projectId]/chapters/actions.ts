@@ -28,6 +28,7 @@ import {
 } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { completeRunningSegmentedChapterPolishTask } from "@/lib/ai/segmented-chapter-polish-runner";
+import { buildReaderFeedbackSignals } from "@/lib/ai/reader-feedback-context";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import {
   createAiTask,
@@ -1131,7 +1132,14 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     notFound();
   }
 
-  const [setting, outlines, characters, recentChapters, previousChapter] = await Promise.all([
+  const [
+    setting,
+    outlines,
+    characters,
+    recentChapters,
+    previousChapter,
+    readerFeedbackChapters,
+  ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
@@ -1189,6 +1197,7 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
         chapterNumber: "desc",
       },
     }),
+    loadReaderFeedbackSignalChapters(projectId, chapter.chapterNumber),
   ]);
 
   return {
@@ -1199,6 +1208,7 @@ async function loadChapterBeatContext(projectId: string, chapterId: string) {
     characters,
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
+    readerFeedback: buildReaderFeedbackSignals(readerFeedbackChapters.reverse()),
   };
 }
 
@@ -1229,7 +1239,13 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     notFound();
   }
 
-  const [setting, outlines, characters, previousChapter] = await Promise.all([
+  const [
+    setting,
+    outlines,
+    characters,
+    previousChapter,
+    readerFeedbackChapters,
+  ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
@@ -1275,6 +1291,7 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
         chapterNumber: "desc",
       },
     }),
+    loadReaderFeedbackSignalChapters(projectId, chapter.chapterNumber),
   ]);
 
   return {
@@ -1286,7 +1303,75 @@ async function loadChapterDraftContext(projectId: string, chapterId: string) {
     previousChapter: previousChapter
       ? pickChapterDraftContext(previousChapter)
       : null,
+    readerFeedback: buildReaderFeedbackSignals(readerFeedbackChapters.reverse()),
   };
+}
+
+function loadReaderFeedbackSignalChapters(
+  projectId: string,
+  beforeChapterNumber: number,
+) {
+  return prisma.chapter.findMany({
+    where: {
+      projectId,
+      chapterNumber: {
+        lt: beforeChapterNumber,
+      },
+      OR: [
+        {
+          readerAnalytics: {
+            some: {},
+          },
+        },
+        {
+          readerInsights: {
+            some: {},
+          },
+        },
+      ],
+    },
+    orderBy: {
+      chapterNumber: "desc",
+    },
+    take: 3,
+    select: {
+      chapterNumber: true,
+      title: true,
+      readerAnalytics: {
+        orderBy: {
+          fetchedAt: "desc",
+        },
+        take: 1,
+        select: {
+          fetchedAt: true,
+          views: true,
+          likes: true,
+          comments: true,
+          favorites: true,
+          shares: true,
+          completionRate: true,
+          averageReadSeconds: true,
+          dropOffPoint: true,
+          engagementScore: true,
+        },
+      },
+      readerInsights: {
+        orderBy: {
+          fetchedAt: "desc",
+        },
+        take: 1,
+        select: {
+          fetchedAt: true,
+          summary: true,
+          pacing: true,
+          focus: true,
+          hookStrategy: true,
+          riskNotesJson: true,
+          characterPriorityJson: true,
+        },
+      },
+    },
+  });
 }
 
 async function loadChapterPolishContext(projectId: string, chapterId: string) {
