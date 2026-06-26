@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -101,6 +102,7 @@ const chapterBeatTemplateKey = "chapter_beat_generation";
 const chapterDraftTemplateKey = "chapter_draft_generation";
 const chapterPolishTemplateKey = "chapter_polish_generation";
 const chapterSummaryTemplateKey = "chapter_summary_extraction";
+const readerFeedbackSnapshotRetentionLimit = 30;
 
 function parseChapterForm(formData: FormData) {
   const parsedValues = chapterSchema.parse(
@@ -434,6 +436,8 @@ export async function fetchChapterReaderFeedback(
           readerFeedbackUpdatedAt: fetchedAt,
         },
       });
+
+      await pruneChapterReaderFeedbackSnapshots(tx, chapterId);
     });
   } catch (error) {
     const errorMessage = encodeURIComponent(
@@ -450,6 +454,57 @@ export async function fetchChapterReaderFeedback(
   redirect(
     `/projects/${projectId}/chapters/${chapterId}?readerFeedbackSaved=1#reader-feedback`,
   );
+}
+
+async function pruneChapterReaderFeedbackSnapshots(
+  tx: Prisma.TransactionClient,
+  chapterId: string,
+) {
+  const staleAnalytics = await tx.chapterAnalytics.findMany({
+    where: {
+      chapterId,
+    },
+    orderBy: {
+      fetchedAt: "desc",
+    },
+    skip: readerFeedbackSnapshotRetentionLimit,
+    select: {
+      id: true,
+    },
+  });
+
+  if (staleAnalytics.length > 0) {
+    await tx.chapterAnalytics.deleteMany({
+      where: {
+        id: {
+          in: staleAnalytics.map((snapshot) => snapshot.id),
+        },
+      },
+    });
+  }
+
+  const staleInsights = await tx.chapterInsight.findMany({
+    where: {
+      chapterId,
+    },
+    orderBy: {
+      fetchedAt: "desc",
+    },
+    skip: readerFeedbackSnapshotRetentionLimit,
+    select: {
+      id: true,
+    },
+  });
+
+  if (staleInsights.length > 0) {
+    await tx.chapterInsight.deleteMany({
+      where: {
+        id: {
+          in: staleInsights.map((snapshot) => snapshot.id),
+        },
+      },
+    });
+  }
 }
 
 async function latestStationCatChapterRemoteId(

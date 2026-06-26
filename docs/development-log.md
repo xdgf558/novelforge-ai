@@ -11,11 +11,14 @@ What was done:
 - Added `chapter_analytics` and `chapter_insights` local snapshot tables plus a manual `Chapter.readerRemoteId` fallback field.
 - Reader feedback fetches use the saved Station Cat API Base URL and token, prefer the chapter's manual remote id, and fall back to the latest Station Cat `publish_sync_states` chapter remote id.
 - The chapter detail page now shows latest reading metrics, completion rate, engagement score, drop-off point, website insight notes, and expandable raw JSON.
+- Reader feedback snapshots are pruned per chapter after each fetch, keeping the latest 30 analytics and latest 30 insight records.
 - Preserved author control: reader feedback is read-only reference data in this phase and does not automatically modify chapter text, project settings, characters, outlines, foreshadows, timelines, or structured memory.
 
 Verification:
 
-- Pending this phase's final checks.
+- `npm run test -- lib/reader-feedback.test.ts app/projects/[projectId]/chapters/actions.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
 
 ## 2026-06-25: 0.1.53 Ending Planning and Closure Readiness
 
