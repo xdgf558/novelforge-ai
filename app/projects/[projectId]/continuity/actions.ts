@@ -14,6 +14,7 @@ import {
   continuityFixPatchTemplateKey,
   readContinuityFixPatchReportId,
 } from "@/lib/ai/continuity-fix-patches";
+import { expireStaleContinuityFixPatchTasks } from "@/lib/ai/continuity-fix-patch-task-maintenance";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
@@ -284,6 +285,8 @@ export async function generateContinuityFixPatch(
   projectId: string,
   reportId: string,
 ) {
+  await expireStaleContinuityFixPatchTasks(projectId);
+
   const report = await prisma.continuityReport.findFirst({
     where: {
       id: reportId,
@@ -572,7 +575,6 @@ async function findActiveContinuityFixPatchTask(
       id: true,
       inputJson: true,
     },
-    take: 50,
   });
 
   return tasks.find(
@@ -604,7 +606,7 @@ async function updateContinuityFixPatchTaskAdoptionState(
     notFound();
   }
 
-  await prisma.aiTask.updateMany({
+  const updated = await prisma.aiTask.updateMany({
     where: {
       id: task.id,
       projectId,
@@ -616,6 +618,18 @@ async function updateContinuityFixPatchTaskAdoptionState(
       adoptionState,
     },
   });
+
+  if (updated.count !== 1) {
+    const reportId = readContinuityFixPatchReportId(task.inputJson);
+
+    revalidateContinuityPaths(projectId, task.chapterId);
+    revalidatePath(`/projects/${projectId}/ai`);
+    redirect(
+      `/projects/${projectId}/continuity?patch=already-reviewed${
+        reportId ? `#report-${reportId}` : ""
+      }`,
+    );
+  }
 
   const reportId = readContinuityFixPatchReportId(task.inputJson);
 

@@ -23,6 +23,7 @@ import {
   continuityFixPatchTaskType,
   readContinuityFixPatchReportId,
 } from "@/lib/ai/continuity-fix-patches";
+import { expireStaleContinuityFixPatchTasks } from "@/lib/ai/continuity-fix-patch-task-maintenance";
 import {
   aiTaskAdoptionLabel,
   aiTaskStatusLabel,
@@ -61,6 +62,9 @@ export default async function ContinuityPage({
   const resolvedSearchParams = await searchParams;
   const fixMessage = continuityFixMessage(resolvedSearchParams?.fix);
   const patchMessage = continuityPatchMessage(resolvedSearchParams?.patch);
+
+  await expireStaleContinuityFixPatchTasks(projectId);
+
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -705,6 +709,15 @@ function continuityPatchMessage(patch?: string | null) {
       Icon: ShieldAlert,
       description: "这条报告已经处理完成，如需继续生成候选，请先重新打开报告。",
       title: "报告已处理",
+      tone: "warning" as const,
+    };
+  }
+
+  if (patch === "already-reviewed") {
+    return {
+      Icon: ShieldAlert,
+      description: "这份候选补丁已经被整理或忽略，页面状态已刷新。",
+      title: "候选补丁已处理",
       tone: "warning" as const,
     };
   }

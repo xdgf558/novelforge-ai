@@ -149,6 +149,42 @@ describe("continuity fix patch actions", () => {
     );
   });
 
+  it("releases stale candidate patch tasks before checking active locks", async () => {
+    await expect(
+      generateContinuityFixPatch("project_1", "report_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        taskType: "continuity_fix_patch_generation",
+        status: {
+          in: ["pending", "running"],
+        },
+        OR: [
+          {
+            startedAt: {
+              lt: expect.any(Date),
+            },
+          },
+          {
+            startedAt: null,
+            createdAt: {
+              lt: expect.any(Date),
+            },
+          },
+        ],
+      },
+      data: {
+        status: "failed",
+        errorMessage:
+          "AI 任务运行超过 15 分钟，已自动标记为失败。请重新生成。",
+        completedAt: expect.any(Date),
+      },
+    });
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalled();
+  });
+
   it("does not start a second candidate patch task for the same open report", async () => {
     mocks.prisma.aiTask.findMany.mockResolvedValue([
       {
@@ -202,6 +238,29 @@ describe("continuity fix patch actions", () => {
     expect(mocks.prisma.chapterVersion.create).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/continuity?patch=organized#report-report_1",
+    );
+  });
+
+  it("redirects stale review submissions when the candidate patch was already reviewed", async () => {
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "task_patch_1",
+      chapterId: "chapter_6",
+      inputJson: JSON.stringify({
+        report: {
+          id: "report_1",
+        },
+      }),
+    });
+    mocks.prisma.aiTask.updateMany.mockResolvedValueOnce({
+      count: 0,
+    });
+
+    await expect(
+      markContinuityFixPatchOrganized("project_1", "task_patch_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/continuity?patch=already-reviewed#report-report_1",
     );
   });
 
