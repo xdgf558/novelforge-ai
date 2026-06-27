@@ -2,16 +2,33 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
+  Bot,
   CheckCircle2,
+  PencilLine,
   RotateCcw,
   ShieldAlert,
   Wrench,
 } from "lucide-react";
 import {
   applyContinuityReportFix,
+  generateContinuityFixPatch,
+  ignoreContinuityFixPatch,
+  markContinuityFixPatchOrganized,
   reopenContinuityReport,
   resolveContinuityReport,
 } from "@/app/projects/[projectId]/continuity/actions";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { FormActionButton } from "@/components/form-action-button";
+import {
+  continuityFixPatchTaskType,
+  readContinuityFixPatchReportId,
+} from "@/lib/ai/continuity-fix-patches";
+import { expireStaleContinuityFixPatchTasks } from "@/lib/ai/continuity-fix-patch-task-maintenance";
+import {
+  aiTaskAdoptionLabel,
+  aiTaskStatusLabel,
+  isActiveAiTaskStatus,
+} from "@/lib/ai/status";
 import {
   continuityCategoryLabel,
   continuitySeverityLabel,
@@ -19,6 +36,7 @@ import {
 } from "@/lib/continuity-reports";
 import {
   describeContinuityReplacementFix,
+  getContinuityReplacements,
   parseContinuityReplacementFix,
 } from "@/lib/continuity-fixes";
 import { formatDate, formatNumber } from "@/lib/format";
@@ -32,6 +50,7 @@ type ContinuityPageProps = {
   }>;
   searchParams?: Promise<{
     fix?: string;
+    patch?: string;
   }>;
 };
 
@@ -42,6 +61,10 @@ export default async function ContinuityPage({
   const { projectId } = await params;
   const resolvedSearchParams = await searchParams;
   const fixMessage = continuityFixMessage(resolvedSearchParams?.fix);
+  const patchMessage = continuityPatchMessage(resolvedSearchParams?.patch);
+
+  await expireStaleContinuityFixPatchTasks(projectId);
+
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -77,6 +100,25 @@ export default async function ContinuityPage({
           },
         ],
       },
+      aiTasks: {
+        where: {
+          taskType: continuityFixPatchTaskType,
+        },
+        include: {
+          promptTemplate: {
+            select: {
+              name: true,
+              version: true,
+            },
+          },
+        },
+        orderBy: [
+          {
+            createdAt: "desc",
+          },
+        ],
+        take: 100,
+      },
     },
   });
 
@@ -93,9 +135,28 @@ export default async function ContinuityPage({
   const highRiskCount = project.continuityReports.filter((report) =>
     ["high", "critical"].includes(report.severity),
   ).length;
+  const patchTasksByReportId = new Map<string, typeof project.aiTasks>();
+
+  project.aiTasks.forEach((task) => {
+    const reportId = readContinuityFixPatchReportId(task.inputJson);
+
+    if (!reportId) {
+      return;
+    }
+
+    const tasks = patchTasksByReportId.get(reportId) ?? [];
+    tasks.push(task);
+    patchTasksByReportId.set(reportId, tasks);
+  });
+
+  const hasActivePatchTask = project.aiTasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
 
   return (
     <div className="space-y-6">
+      <AutoRefresh enabled={hasActivePatchTask} />
+
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
         href={`/projects/${project.id}`}
@@ -153,6 +214,30 @@ export default async function ContinuityPage({
         </section>
       ) : null}
 
+      {patchMessage ? (
+        <section
+          className={`flex items-start gap-3 rounded-lg border p-4 text-sm leading-6 ${
+            patchMessage.tone === "success"
+              ? "border-signal-600/25 bg-signal-600/10 text-ink-800"
+              : "border-ember-500/25 bg-ember-500/10 text-ink-800"
+          }`}
+          role="status"
+        >
+          <patchMessage.Icon
+            aria-hidden="true"
+            className={`mt-0.5 h-5 w-5 shrink-0 ${
+              patchMessage.tone === "success"
+                ? "text-signal-600"
+                : "text-ember-500"
+            }`}
+          />
+          <div>
+            <p className="font-semibold text-ink-950">{patchMessage.title}</p>
+            <p>{patchMessage.description}</p>
+          </div>
+        </section>
+      ) : null}
+
       {project.continuityReports.length === 0 ? (
         <section className="rounded-lg border border-dashed border-ink-950/20 bg-white p-8 text-sm text-ink-700 shadow-panel">
           <h2 className="text-base font-semibold text-ink-950">
@@ -172,9 +257,21 @@ export default async function ContinuityPage({
                 evidence: report.evidence,
               },
             );
+            const manualFixHref = report.chapter
+              ? buildManualContinuityFixHref({
+                  chapterId: report.chapter.id,
+                  projectId: project.id,
+                  replacementText: replacementFix
+                    ? getContinuityReplacements(replacementFix)[0]?.from
+                    : null,
+                  fallbackText:
+                    report.evidence ?? report.suggestedFix ?? report.description,
+                })
+              : null;
 
             return (
               <article
+                id={`report-${report.id}`}
                 className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
                 key={report.id}
               >
@@ -249,6 +346,16 @@ export default async function ContinuityPage({
                       </p>
                     )}
 
+                    {manualFixHref ? (
+                      <Link
+                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                        href={manualFixHref}
+                      >
+                        <PencilLine aria-hidden="true" className="h-4 w-4" />
+                        去定稿正文定位
+                      </Link>
+                    ) : null}
+
                     <form
                       action={resolveContinuityReport.bind(
                         null,
@@ -293,6 +400,13 @@ export default async function ContinuityPage({
                 <DetailBlock label="建议修复" value={report.suggestedFix} />
               </div>
 
+              <ContinuityFixPatchPanel
+                canGenerate={report.status === "open" && Boolean(report.chapter)}
+                projectId={project.id}
+                reportId={report.id}
+                tasks={patchTasksByReportId.get(report.id) ?? []}
+              />
+
               {report.aiTask ? (
                 <p className="mt-4 text-xs leading-5 text-ink-700">
                   来源任务：{report.aiTask.model} /{" "}
@@ -312,6 +426,146 @@ export default async function ContinuityPage({
         </section>
       )}
     </div>
+  );
+}
+
+type ContinuityFixPatchTask = {
+  id: string;
+  status: string;
+  adoptionState: string;
+  model: string;
+  inputContextSummary: string;
+  outputText?: string | null;
+  errorMessage?: string | null;
+  createdAt: Date;
+  promptTemplate?: {
+    name: string;
+    version: number;
+  } | null;
+};
+
+function ContinuityFixPatchPanel({
+  canGenerate,
+  projectId,
+  reportId,
+  tasks,
+}: {
+  canGenerate: boolean;
+  projectId: string;
+  reportId: string;
+  tasks: ContinuityFixPatchTask[];
+}) {
+  const hasActiveTask = tasks.some((task) => isActiveAiTaskStatus(task.status));
+
+  return (
+    <section className="mt-4 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-signal-600/10 text-signal-600">
+            <Bot aria-hidden="true" className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-ink-950">
+              AI 修复候选补丁
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-ink-700">
+              生成可审阅的查找/替换建议或改写片段。候选不会自动写入正文，作者整理后再标记处理。
+            </p>
+          </div>
+        </div>
+
+        {canGenerate ? (
+          <form action={generateContinuityFixPatch.bind(null, projectId, reportId)}>
+            <FormActionButton
+              disabled={hasActiveTask}
+              icon="play"
+              idleLabel={hasActiveTask ? "补丁生成中" : "生成候选补丁"}
+              pendingLabel="正在生成"
+              statusText="正在提交修复候选补丁任务，页面会保持当前位置并自动刷新结果。"
+            />
+          </form>
+        ) : (
+          <p className="rounded-md bg-white px-3 py-2 text-xs leading-5 text-ink-700">
+            已处理报告或缺少关联章节时不能继续生成候选。
+          </p>
+        )}
+      </div>
+
+      {hasActiveTask ? (
+        <p className="mt-3 rounded-md bg-white px-3 py-2 text-xs leading-5 text-ink-700">
+          当前报告已有候选补丁任务在后台运行，完成前不会重复调用模型。
+        </p>
+      ) : null}
+
+      {tasks.length === 0 ? (
+        <p className="mt-3 rounded-md border border-dashed border-ink-950/15 bg-white px-3 py-2 text-xs leading-5 text-ink-700">
+          还没有候选补丁。适合用于时间线错位、角色信息源不合理、伏笔回收方式需要改写这类无法直接一键替换的问题。
+        </p>
+      ) : (
+        <div className="mt-3 space-y-3">
+          {tasks.map((task) => (
+            <article
+              className="rounded-md border border-ink-950/10 bg-white p-3 text-sm"
+              key={task.id}
+            >
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                <span className="rounded-md bg-paper-100 px-2.5 py-1">
+                  {aiTaskStatusLabel(task.status)}
+                </span>
+                <span className="rounded-md bg-paper-100 px-2.5 py-1">
+                  {continuityPatchAdoptionLabel(task.adoptionState)}
+                </span>
+                <span>{formatDate(task.createdAt)}</span>
+              </div>
+              <p className="mt-3 font-semibold text-ink-950">
+                {task.model} /{" "}
+                {task.promptTemplate?.name ?? "连续性修复候选补丁"} v
+                {task.promptTemplate?.version ?? 1}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-ink-700">
+                {task.inputContextSummary}
+              </p>
+              {task.status === "completed" &&
+              task.adoptionState === "not_reviewed" ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <form
+                    action={markContinuityFixPatchOrganized.bind(
+                      null,
+                      projectId,
+                      task.id,
+                    )}
+                  >
+                    <FormActionButton
+                      icon="save"
+                      idleLabel="标记已整理"
+                      pendingLabel="正在标记"
+                      statusText="正在把这份候选补丁标记为已整理。"
+                    />
+                  </form>
+                  <form
+                    action={ignoreContinuityFixPatch.bind(
+                      null,
+                      projectId,
+                      task.id,
+                    )}
+                  >
+                    <FormActionButton
+                      icon="save"
+                      idleLabel="忽略候选"
+                      pendingLabel="正在忽略"
+                      statusText="正在把这份候选补丁标记为忽略。"
+                    />
+                  </form>
+                </div>
+              ) : null}
+              <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md bg-ink-950/5 p-3 text-xs leading-5 text-ink-800">
+                {task.outputText || task.errorMessage || "任务尚未产生输出。"}
+              </pre>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -391,4 +645,130 @@ function continuityFixMessage(fix?: string | null) {
   }
 
   return null;
+}
+
+function continuityPatchMessage(patch?: string | null) {
+  if (patch === "started") {
+    return {
+      Icon: Bot,
+      description:
+        "已提交 AI 修复候选补丁任务。候选只会写入任务记录，不会自动修改章节正文。",
+      title: "候选补丁生成中",
+      tone: "success" as const,
+    };
+  }
+
+  if (patch === "active") {
+    return {
+      Icon: ShieldAlert,
+      description: "这条报告已有候选补丁任务正在运行，请等待当前任务完成。",
+      title: "候选补丁已在生成",
+      tone: "warning" as const,
+    };
+  }
+
+  if (patch === "organized") {
+    return {
+      Icon: CheckCircle2,
+      description:
+        "已把这份候选补丁标记为已整理。报告本身是否处理完成仍由你手动确认。",
+      title: "候选补丁已整理",
+      tone: "success" as const,
+    };
+  }
+
+  if (patch === "ignored") {
+    return {
+      Icon: CheckCircle2,
+      description: "已忽略这份候选补丁，不会修改任何正文或正式记忆。",
+      title: "候选补丁已忽略",
+      tone: "success" as const,
+    };
+  }
+
+  if (patch === "missing-text") {
+    return {
+      Icon: ShieldAlert,
+      description: "关联章节没有可用于生成补丁的定稿、精修或草稿正文。",
+      title: "缺少章节正文",
+      tone: "warning" as const,
+    };
+  }
+
+  if (patch === "missing-chapter") {
+    return {
+      Icon: ShieldAlert,
+      description: "这条报告没有关联到可读取的章节，请手动核对。",
+      title: "缺少关联章节",
+      tone: "warning" as const,
+    };
+  }
+
+  if (patch === "already-resolved") {
+    return {
+      Icon: ShieldAlert,
+      description: "这条报告已经处理完成，如需继续生成候选，请先重新打开报告。",
+      title: "报告已处理",
+      tone: "warning" as const,
+    };
+  }
+
+  if (patch === "already-reviewed") {
+    return {
+      Icon: ShieldAlert,
+      description: "这份候选补丁已经被整理或忽略，页面状态已刷新。",
+      title: "候选补丁已处理",
+      tone: "warning" as const,
+    };
+  }
+
+  return null;
+}
+
+function continuityPatchAdoptionLabel(adoptionState?: string | null) {
+  if (adoptionState === "adopted") {
+    return "已整理";
+  }
+
+  if (adoptionState === "rejected") {
+    return "已忽略";
+  }
+
+  return aiTaskAdoptionLabel(adoptionState);
+}
+
+function buildManualContinuityFixHref({
+  chapterId,
+  fallbackText,
+  projectId,
+  replacementText,
+}: {
+  chapterId: string;
+  fallbackText?: string | null;
+  projectId: string;
+  replacementText?: string | null;
+}) {
+  const params = new URLSearchParams();
+  params.set("focusField", "finalText");
+
+  const findText = buildManualFixFindText(replacementText || fallbackText);
+
+  if (findText) {
+    params.set("findText", findText);
+  }
+
+  return `/projects/${projectId}/chapters/${chapterId}/edit?${params.toString()}#finalText`;
+}
+
+function buildManualFixFindText(value?: string | null) {
+  const cleaned = (value ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/^["“”「」『』'‘’]+|["“”「」『』'‘’]+$/g, "")
+    .trim();
+
+  if (!cleaned) {
+    return "";
+  }
+
+  return cleaned.length > 180 ? cleaned.slice(0, 180).trim() : cleaned;
 }

@@ -1,5 +1,25 @@
 # Development Log
 
+## 2026-06-27: 0.1.57 Continuity Fix Patch Candidates
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.57`.
+- Added a logged `continuity_fix_patch_generation` AI task and default prompt template.
+- Continuity reports can now generate an AI “修复候选补丁” that reads the report, linked chapter text, evidence, conflicting memory, and suggested fix, then outputs reviewable exact replacement ideas or rewrite snippets.
+- The continuity report page now shows candidate patch task status/output per report, auto-refreshes while a patch task is running, and lets authors mark a candidate as organized or ignored.
+- Stale continuity fix patch tasks are automatically marked failed after the standard 15-minute AI task timeout before page display or new generation, so a crashed background task does not permanently lock a report.
+- Open reports with linked chapters now include a “去定稿正文定位” shortcut that opens the chapter editor, focuses the final text field, and attempts to select the report evidence or replacement source text for manual editing.
+- Preserved author control: candidate patches never write chapter text, formal settings, characters, timelines, foreshadows, or structured memory. Existing one-click repair remains limited to explicit “将 A 改为 B” replacements and still creates a chapter version snapshot only after the author clicks.
+
+Verification:
+
+- `npm run test -- lib/ai/continuity-fix-patches.test.ts app/projects/[projectId]/continuity/actions.test.ts lib/ai/prompt-templates.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-26: 0.1.56 Station Cat Reader Feedback Namespace
 
 Status: completed.
