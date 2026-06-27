@@ -53,7 +53,6 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
             aiTasks: true,
             pendingUpdates: true,
             continuityReports: true,
-            publishPackages: true,
             audioExports: true,
           },
         },
@@ -330,7 +329,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 发布与导出
               </h2>
               <p className="mt-1 text-sm leading-6 text-ink-700">
-                {project._count.publishPackages} 个公众号发布包装，可复制 Markdown 或导出项目数据。
+                公众号排版导出、Station Cat 同步材料和项目备份集中管理。
               </p>
             </div>
           </div>

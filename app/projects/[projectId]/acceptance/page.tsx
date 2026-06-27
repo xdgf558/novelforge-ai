@@ -85,7 +85,7 @@ export default async function AcceptancePage({ params }: AcceptancePageProps) {
               {project.title} 验收看板
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
-              对照 MVP 验收标准检查当前项目是否已经覆盖完整创作链路：项目、设定、角色、章节、AI 任务、待审更新、连续性检查、发布包装和导出。
+              对照 MVP 验收标准检查当前项目是否已经覆盖完整创作链路：项目、设定、角色、章节、AI 任务、待审更新、连续性检查、排版导出和项目导出。
             </p>
           </div>
 

@@ -44,22 +44,6 @@ export const projectPublishInclude = {
     ],
   },
   chapters: {
-    include: {
-      _count: {
-        select: {
-          publishPackages: true,
-        },
-      },
-      aiTasks: {
-        where: {
-          taskType: "wechat_publish_packaging",
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 5,
-      },
-    },
     orderBy: {
       chapterNumber: "asc",
     },

@@ -1,5 +1,25 @@
 # Development Log
 
+## 2026-06-27: 0.1.58 Retire Legacy Chapter Publish Packaging
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.58`.
+- Removed the old “生成章节发布包装” and “发布包装记录” surfaces from the project publish page so public-account output now centers on the newer “公众号排版导出” flow.
+- Removed the chapter detail quick entry for legacy publish-package generation.
+- Removed the default `wechat_publish_packaging` prompt template and MVP acceptance requirement for generating old publish packages.
+- Removed the legacy publish-package AI helper modules and tests; no new UI/server action path creates these records.
+- Kept historical `publish_packages` records and standard Station Cat package compatibility so existing projects and exports remain readable.
+- Renamed the Markdown export section for old package records to “历史发布包装” to distinguish it from the current WeChat layout export.
+
+Verification:
+
+- `npm run test -- lib/ai/prompt-templates.test.ts lib/mvp-acceptance.test.ts lib/ai/cover-images.test.ts lib/project-export.test.ts lib/publish-platforms.test.ts lib/station-cat-publisher.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-27: 0.1.57 Continuity Fix Patch Candidates
 
 Status: completed.

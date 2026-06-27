@@ -94,7 +94,7 @@ describe("project export builders", () => {
     expect(markdown).toContain("第一章大纲");
     expect(markdown).toContain("## 章节");
     expect(markdown).toContain("短信来自一个死人");
-    expect(markdown).toContain("## 公众号发布包装");
+    expect(markdown).toContain("## 历史发布包装");
     expect(markdown).toContain("死人给他发来短信");
     expect(markdown).toContain("## AI 任务记录");
   });

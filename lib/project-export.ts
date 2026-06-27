@@ -171,7 +171,7 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["修复建议", report.suggestedFix],
       ]),
     ]),
-    buildRecordSection("公众号发布包装", data.publishPackages, (item) => [
+    buildRecordSection("历史发布包装", data.publishPackages, (item) => [
       `### ${formatScalar(item.selectedTitle) || "未选择标题"}`,
       buildKeyValueList([
         ["状态", item.status],

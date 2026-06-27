@@ -43,7 +43,7 @@ export async function AppShell({ children }: AppShellProps) {
                 本地 SQLite 持久化
               </div>
               <p className="text-sm leading-6 text-[#c7b090]">
-                设定库、角色库、章节编辑器、AI 任务记录、待审更新、连续性报告、发布包装与导出都已接入。
+                设定库、角色库、章节编辑器、AI 任务记录、待审更新、连续性报告、排版导出都已接入。
               </p>
               <div className="mt-4 flex items-center gap-2 text-sm text-[#c7b090]">
                 <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />

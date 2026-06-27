@@ -59,7 +59,6 @@ const requiredLoggedTaskTypes = [
   "chapter_summary_extraction",
   "pending_update_extraction",
   "continuity_check",
-  "wechat_publish_packaging",
 ] as const;
 
 export function buildMvpAcceptanceReport(
@@ -245,15 +244,6 @@ export function buildMvpAcceptanceReport(
         ? "已通过重新连接数据库验证。"
         : "当前页面数据来自 SQLite 持久化读取。",
       actionHint: "运行 npm run mvp:acceptance 做重新连接验证。",
-    }),
-    check({
-      id: "publish_package_created",
-      category: "release",
-      label: "可以生成公众号发布包装",
-      description: "至少存在一个章节发布包装记录。",
-      passed: snapshot.publishPackages.length > 0,
-      evidence: `当前发布包装数：${snapshot.publishPackages.length}`,
-      actionHint: "保存定稿正文后生成公众号发布包装。",
     }),
     check({
       id: "export_ready",

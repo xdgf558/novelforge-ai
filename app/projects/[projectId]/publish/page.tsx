@@ -11,7 +11,6 @@ import {
   type LucideIcon,
   KeyRound,
   PackageCheck,
-  Send,
   Sparkles,
   Trash2,
   UploadCloud,
@@ -20,9 +19,7 @@ import {
 import {
   adoptGeneratedProjectCover,
   generateProjectCoverImage,
-  generatePublishPackage,
   generateWechatLayoutCandidates,
-  markPublishPackageExported,
   prepareGlobalStationCatPublishRun,
   preparePublishRun,
   rejectGeneratedProjectCover,
@@ -54,11 +51,6 @@ import {
 } from "@/lib/ai/cover-images";
 import { wechatLayoutCandidateTaskType } from "@/lib/ai/wechat-layout-candidates";
 import { formatDate, formatNumber } from "@/lib/format";
-import {
-  buildPublishMarkdown,
-  parseStoredStringList,
-  publishPackageStatusLabel,
-} from "@/lib/publish-packages";
 import {
   buildProjectJsonExport,
   buildProjectMarkdownExport,
@@ -128,8 +120,6 @@ export default async function PublishPage({
   );
   const cover = publishPackageForExport.cover;
   const coverPromptDefault =
-    project.publishPackages.find((publishPackage) => publishPackage.coverPrompt)
-      ?.coverPrompt ||
     cover.prompt ||
     project.description ||
     project.title;
@@ -157,9 +147,6 @@ export default async function PublishPage({
   const hasActiveWechatLayoutCandidateTask = wechatLayoutCandidateTasks.some(
     (task) => isActiveAiTaskStatus(task.status),
   );
-  const hasActivePublishPackageTask = project.chapters.some((chapter) =>
-    chapter.aiTasks.some((task) => isActiveAiTaskStatus(task.status)),
-  );
   const publishableChapters = project.chapters
     .filter((chapter) => hasConfirmedChapterText(chapter))
     .map((chapter) => ({
@@ -176,8 +163,6 @@ export default async function PublishPage({
     (target) => target.id !== globalStationCatTarget?.id,
   );
   const latestGlobalStationCatRun = globalStationCatTarget?.runs[0] ?? null;
-  const visiblePublishPackages = project.publishPackages.slice(0, 1);
-  const hiddenPublishPackages = project.publishPackages.slice(1);
   const wechatLayoutChapters = project.chapters
     .map((chapter) => ({
       id: chapter.id,
@@ -193,161 +178,11 @@ export default async function PublishPage({
         chapter.finalText?.trim() ||
         chapter.draftText?.trim(),
     );
-  const renderPublishPackageCard = (
-    publishPackage: (typeof project.publishPackages)[number],
-  ) => {
-    const titleCandidates = parseStoredStringList(
-      publishPackage.titleCandidatesJson,
-    );
-    const checklist = parseStoredStringList(publishPackage.checklistJson);
-    const markdownBody =
-      publishPackage.markdownBody ||
-      buildPublishMarkdown({
-        selectedTitle: publishPackage.selectedTitle,
-        openingGuide: publishPackage.openingGuide,
-        chapterSummary: publishPackage.chapterSummary,
-        finalText: publishPackage.chapter.finalText,
-        endingQuestion: publishPackage.endingQuestion,
-        nextChapterPreview: publishPackage.nextChapterPreview,
-        commentGuide: publishPackage.commentGuide,
-      });
-    const filename = `${baseFilename}-chapter-${publishPackage.chapter.chapterNumber}-publish.md`;
-
-    return (
-      <article
-        className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
-        key={publishPackage.id}
-      >
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
-              <span className="rounded-md bg-paper-100 px-2 py-0.5">
-                {publishPackageStatusLabel(publishPackage.status)}
-              </span>
-              <span>
-                第 {formatNumber(publishPackage.chapter.chapterNumber)} 章
-              </span>
-              <span>{formatDate(publishPackage.createdAt)}</span>
-            </div>
-            <h3 className="mt-1.5 text-base font-semibold text-ink-950">
-              {publishPackage.selectedTitle || "未选择标题"}
-            </h3>
-            <p className="mt-0.5 text-xs text-ink-700">
-              {publishPackage.chapter.title}
-            </p>
-          </div>
-
-          {publishPackage.status !== "exported" ? (
-            <form
-              action={markPublishPackageExported.bind(
-                null,
-                project.id,
-                publishPackage.id,
-              )}
-            >
-              <button
-                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                type="submit"
-              >
-                <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-                标记已导出
-              </button>
-            </form>
-          ) : null}
-        </div>
-
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          <InfoBlock
-            compact
-            expandable
-            label="开头引导"
-            value={publishPackage.openingGuide}
-          />
-          <InfoBlock
-            compact
-            expandable
-            label="本章摘要"
-            value={publishPackage.chapterSummary}
-          />
-          <InfoBlock
-            compact
-            expandable
-            label="互动问题"
-            value={publishPackage.endingQuestion}
-          />
-          <InfoBlock
-            compact
-            expandable
-            label="下章预告"
-            value={publishPackage.nextChapterPreview}
-          />
-          <InfoBlock
-            compact
-            expandable
-            label="评论引导"
-            value={publishPackage.commentGuide}
-          />
-          <InfoBlock
-            compact
-            expandable
-            label="封面提示词"
-            value={publishPackage.coverPrompt}
-          />
-        </div>
-
-        {titleCandidates.length > 0 || checklist.length > 0 ? (
-          <div className="mt-3 grid gap-2 lg:grid-cols-2">
-            {titleCandidates.length > 0 ? (
-              <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-ink-950">
-                  标题候选（{formatNumber(titleCandidates.length)}）
-                </summary>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-5 text-ink-700">
-                  {titleCandidates.map((title) => (
-                    <li key={title}>{title}</li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-
-            {checklist.length > 0 ? (
-              <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-ink-950">
-                  发布检查清单（{formatNumber(checklist.length)}）
-                </summary>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-5 text-ink-700">
-                  {checklist.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-          </div>
-        ) : null}
-
-        <details className="mt-3 rounded-lg border border-ink-950/10 bg-paper-50 p-3">
-          <summary className="cursor-pointer text-sm font-semibold text-ink-950">
-            Markdown 发布版
-          </summary>
-          <div className="mt-3">
-            <CopyExportPanel
-              compact
-              content={markdownBody}
-              filename={filename}
-              rows={8}
-              title="Markdown 发布版"
-            />
-          </div>
-        </details>
-      </article>
-    );
-  };
 
   return (
     <div className="space-y-6">
       <AutoRefresh
         enabled={
-          hasActivePublishPackageTask ||
           hasActiveCoverImageTask ||
           hasActiveWechatLayoutCandidateTask
         }
@@ -371,7 +206,7 @@ export default async function PublishPage({
               {project.title} 发布与导出
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
-              生成公众号发布包装、排版导出和项目备份，并把 Station Cat 目标接入真实导入 API。默认排版模式只整理格式，不改正文。
+              整理公众号排版导出、项目备份和 Station Cat 网站同步材料。默认排版模式只整理格式，不改正文。
             </p>
           </div>
         </div>
@@ -384,9 +219,9 @@ export default async function PublishPage({
           value={`${formatNumber(project._count.chapters)} 个`}
         />
         <InfoTile
-          icon={Send}
-          label="发布包装"
-          value={`${formatNumber(project._count.publishPackages)} 个`}
+          icon={FileText}
+          label="可排版章节"
+          value={`${formatNumber(wechatLayoutChapters.length)} 个`}
         />
         <InfoTile
           icon={FileJson}
@@ -552,7 +387,7 @@ export default async function PublishPage({
                     defaultValue={coverPromptDefault}
                     maxLength={3000}
                     name="coverPrompt"
-                    placeholder="可复用发布包装里的封面提示词，也可以手动改写。"
+                    placeholder="可复用已有封面提示词，也可以手动改写。"
                   />
                 </label>
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -935,130 +770,6 @@ export default async function PublishPage({
         </details>
       </section>
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
-        <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
-          <Sparkles aria-hidden="true" className="h-4 w-4" />
-          生成章节发布包装
-        </div>
-        <h2 className="mt-2 text-base font-semibold text-ink-950">
-          选择已定稿章节
-        </h2>
-        <p className="mt-1 text-sm leading-6 text-ink-700">
-          包装上下文只读取章节定稿正文、项目发布定位、最近标题和章节摘要任务输出。未配置 API Key 时仍可复制/下载已有包装与项目导出。
-        </p>
-
-        {!hasApiKey ? (
-          <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-            未配置 API Key，暂不能生成新的 AI 发布包装。
-          </p>
-        ) : null}
-
-        <div className="mt-5 grid gap-3 lg:grid-cols-2">
-          {project.chapters.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
-              还没有章节。先创建并保存定稿正文后，再生成发布包装。
-            </div>
-          ) : (
-            project.chapters.map((chapter) => {
-              const hasFinalText = hasConfirmedChapterText(chapter);
-              const hasActiveTask = chapter.aiTasks.some((task) =>
-                isActiveAiTaskStatus(task.status),
-              );
-              const canGenerate = hasApiKey && hasFinalText && !hasActiveTask;
-
-              return (
-                <article
-                  className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
-                  key={chapter.id}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-signal-600">
-                        第 {formatNumber(chapter.chapterNumber)} 章
-                      </p>
-                      <Link
-                        className="mt-1 block text-sm font-semibold text-ink-950 hover:text-signal-600"
-                        href={`/projects/${project.id}/chapters/${chapter.id}`}
-                      >
-                        {chapter.title}
-                      </Link>
-                      <p className="mt-1 text-xs text-ink-700">
-                        已有发布包装 {chapter._count.publishPackages} 个 /{" "}
-                        {hasFinalText ? "已保存定稿" : "缺少定稿正文"}
-                      </p>
-                      {hasActiveTask ? (
-                        <p className="mt-2 rounded-md bg-white px-3 py-2 text-xs leading-5 text-ink-700">
-                          发布包装正在后台生成，页面会自动刷新显示结果。
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <PreserveScrollForm
-                      action={generatePublishPackage.bind(
-                        null,
-                        project.id,
-                        chapter.id,
-                      )}
-                      preserveKey={`publish-page-package-${project.id}-${chapter.id}`}
-                      statusText="已开始生成发布包装，页面会留在当前位置并自动刷新结果。"
-                    >
-                      <button
-                        className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
-                          canGenerate
-                            ? "bg-ink-950 text-white hover:bg-ink-800"
-                            : "cursor-not-allowed border border-ink-950/15 bg-white text-ink-700"
-                        }`}
-                        disabled={!canGenerate}
-                        type="submit"
-                      >
-                        <Sparkles aria-hidden="true" className="h-4 w-4" />
-                        {hasActiveTask ? "生成中" : "生成包装"}
-                      </button>
-                    </PreserveScrollForm>
-                  </div>
-                </article>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
-            <Send aria-hidden="true" className="h-4 w-4" />
-            发布包装记录
-          </div>
-          <h2 className="mt-2 text-base font-semibold text-ink-950">
-            可复制到公众号编辑器的材料
-          </h2>
-        </div>
-
-        {project.publishPackages.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-ink-950/20 bg-white p-6 text-sm text-ink-700 shadow-panel">
-            还没有发布包装。选择一个已保存定稿的章节生成后，会在这里显示标题候选、正文 Markdown、封面提示词和发布检查清单。
-          </div>
-        ) : (
-          <>
-            {visiblePublishPackages.map(renderPublishPackageCard)}
-            {hiddenPublishPackages.length > 0 ? (
-              <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
-                <summary className="cursor-pointer text-sm font-semibold text-ink-950">
-                  历史发布包装记录（已隐藏{" "}
-                  {formatNumber(hiddenPublishPackages.length)} 条）
-                </summary>
-                <p className="mt-2 text-sm leading-6 text-ink-700">
-                  旧包装记录仍保存在本地数据库中，需要回看或复制时可以展开这里。
-                </p>
-                <div className="mt-4 space-y-4">
-                  {hiddenPublishPackages.map(renderPublishPackageCard)}
-                </div>
-              </details>
-            ) : null}
-          </>
-        )}
-      </section>
-
       <section className="space-y-3 rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -1071,7 +782,7 @@ export default async function PublishPage({
             </h2>
           </div>
           <p className="max-w-2xl text-xs leading-5 text-ink-700">
-            包含项目、设定、角色、章节、结构化记忆、发布包装和 AI 任务引用。
+            包含项目、设定、角色、章节、结构化记忆、历史发布数据和 AI 任务引用。
           </p>
         </div>
 

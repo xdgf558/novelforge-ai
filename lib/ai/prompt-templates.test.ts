@@ -27,7 +27,6 @@ describe("default AI prompt templates", () => {
         "pending_update_extraction",
         "continuity_check",
         "continuity_fix_patch_generation",
-        "wechat_publish_packaging",
         "cover_image_generation",
       ]),
     );

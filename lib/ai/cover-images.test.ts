@@ -31,7 +31,7 @@ describe("cover image generation helpers", () => {
       key: "book_cover",
       suggestedSize: "1024x1536",
     });
-    expect(context.inputContextSummary).toContain("发布包装封面提示词");
+    expect(context.inputContextSummary).toContain("已有封面提示词");
     expect(context.prompt).toContain("1999 年县城夏天");
     expect(context.prompt).toContain("不要生成可读文字");
   });

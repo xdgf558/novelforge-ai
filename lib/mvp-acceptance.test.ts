@@ -8,7 +8,6 @@ const completedCoreTasks = [
   "chapter_summary_extraction",
   "pending_update_extraction",
   "continuity_check",
-  "wechat_publish_packaging",
 ].map((taskType) => ({ taskType, status: "completed" }));
 
 describe("MVP acceptance report", () => {

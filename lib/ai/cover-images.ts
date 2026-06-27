@@ -214,7 +214,7 @@ export function coverPromptSourceLabel(
   }
 
   if (source === "publish_package_prompt") {
-    return "发布包装封面提示词";
+    return "已有封面提示词";
   }
 
   return "项目基础信息";

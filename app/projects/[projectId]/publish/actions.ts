@@ -14,12 +14,6 @@ import {
   type GeneratedImageResult,
 } from "@/lib/ai/image-client";
 import { expireStaleCoverImageTasks } from "@/lib/ai/cover-image-task-maintenance";
-import {
-  buildPublishPackageContext,
-  parsePublishPackageOutput,
-  type PublishPackageChapterContext,
-} from "@/lib/ai/publish-packages";
-import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import {
@@ -72,9 +66,6 @@ import {
   stationCatItemSucceeded,
   type StationCatPublishResult,
 } from "@/lib/station-cat-publisher";
-
-const publishPackageTemplateKey = "wechat_publish_packaging";
-const publishPackageTaskType = "wechat_publish_packaging";
 
 export async function uploadProjectCover(projectId: string, formData: FormData) {
   await assertProject(projectId);
@@ -182,7 +173,6 @@ export async function generateProjectCoverImage(
     projectId,
     coverImageGenerationTemplateKey,
   );
-  const latestCoverPrompt = project.publishPackages[0]?.coverPrompt ?? null;
   const requestedPrompt = parseCoverImageRequestPrompt(
     formData.get("coverPrompt")?.toString(),
   );
@@ -194,7 +184,7 @@ export async function generateProjectCoverImage(
 
   const context = buildCoverImagePromptContext({
     imageCount: Number(formData.get("imageCount")?.toString()),
-    latestCoverPrompt,
+    latestCoverPrompt: null,
     project: {
       title: project.title,
       genre: project.genre,
@@ -372,95 +362,6 @@ export async function rejectGeneratedProjectCover(projectId: string, taskId: str
   redirect(`/projects/${projectId}/publish`);
 }
 
-export async function generatePublishPackage(
-  projectId: string,
-  chapterId: string,
-) {
-  const activeTask = await findActivePublishPackageTask(projectId, chapterId);
-
-  if (activeTask) {
-    revalidatePublishPaths(projectId, chapterId);
-    redirect(`/projects/${projectId}/publish`);
-  }
-
-  const contextInput = await loadPublishPackageContext(projectId, chapterId);
-
-  if (!hasConfirmedChapterText(contextInput.chapter)) {
-    revalidatePublishPaths(projectId, chapterId);
-    redirect(`/projects/${projectId}/publish`);
-  }
-
-  const template = await ensureDefaultPromptTemplate(
-    projectId,
-    publishPackageTemplateKey,
-  );
-  const context = buildPublishPackageContext(contextInput);
-
-  await startLoggedOpenAITextTask(
-    {
-      projectId,
-      chapterId,
-      promptTemplateId: template.id,
-      taskType: template.taskType,
-      model: undefined,
-      inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
-    },
-    {
-      systemPrompt: template.systemPrompt,
-      developerPrompt: [
-        template.userPrompt,
-        template.contextNotes,
-        template.responseSchema
-          ? `请严格输出符合以下 JSON Schema 的 JSON：\n${template.responseSchema}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
-      input: context.inputText,
-    },
-    {
-      onCompleted: async (task) => {
-        const suggestion = parsePublishPackageOutput(task.outputText, {
-          chapterTitle: contextInput.chapter.title,
-          finalText: contextInput.chapter.finalText,
-        });
-
-        if (!suggestion) {
-          return;
-        }
-
-        await prisma.publishPackage.create({
-          data: {
-            projectId,
-            chapterId,
-            aiTaskId: task.id,
-            titleCandidatesJson: JSON.stringify(
-              suggestion.titleCandidates,
-              null,
-              2,
-            ),
-            selectedTitle: suggestion.selectedTitle,
-            openingGuide: suggestion.openingGuide,
-            chapterSummary: suggestion.chapterSummary,
-            endingQuestion: suggestion.endingQuestion,
-            nextChapterPreview: suggestion.nextChapterPreview,
-            commentGuide: suggestion.commentGuide,
-            collectionTitle: suggestion.collectionTitle,
-            coverPrompt: suggestion.coverPrompt,
-            markdownBody: suggestion.markdownBody,
-            checklistJson: JSON.stringify(suggestion.checklist, null, 2),
-            status: "draft",
-          },
-        });
-      },
-    },
-  );
-
-  revalidatePublishPaths(projectId, chapterId);
-  redirect(`/projects/${projectId}/publish`);
-}
-
 export async function generateWechatLayoutCandidates(
   projectId: string,
   chapterId: string,
@@ -525,52 +426,6 @@ export async function generateWechatLayoutCandidates(
 
   revalidatePublishPaths(projectId, chapterId);
   redirect(redirectPath);
-}
-
-export async function markPublishPackageExported(
-  projectId: string,
-  publishPackageId: string,
-) {
-  const publishPackage = await prisma.publishPackage.findFirst({
-    where: {
-      id: publishPackageId,
-      projectId,
-    },
-    select: {
-      id: true,
-      chapterId: true,
-      aiTaskId: true,
-    },
-  });
-
-  if (!publishPackage) {
-    notFound();
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.publishPackage.update({
-      where: {
-        id: publishPackage.id,
-      },
-      data: {
-        status: "exported",
-      },
-    });
-
-    if (publishPackage.aiTaskId) {
-      await tx.aiTask.update({
-        where: {
-          id: publishPackage.aiTaskId,
-        },
-        data: {
-          adoptionState: "adopted",
-        },
-      });
-    }
-  });
-
-  revalidatePublishPaths(projectId, publishPackage.chapterId);
-  redirect(`/projects/${projectId}/publish`);
 }
 
 export async function savePublishTarget(projectId: string, formData: FormData) {
@@ -1010,75 +865,6 @@ async function runStationCatPublishAttempt({
   }
 }
 
-async function loadPublishPackageContext(projectId: string, chapterId: string) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    include: {
-      project: {
-        include: {
-          setting: true,
-        },
-      },
-    },
-  });
-
-  if (!chapter) {
-    notFound();
-  }
-
-  const [latestSummaryTask, recentPublishPackages] = await Promise.all([
-    prisma.aiTask.findFirst({
-      where: {
-        projectId,
-        chapterId,
-        taskType: "chapter_summary_extraction",
-        status: "completed",
-      },
-      orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
-      select: {
-        id: true,
-        inputContextSummary: true,
-        outputText: true,
-        completedAt: true,
-      },
-    }),
-    prisma.publishPackage.findMany({
-      where: {
-        projectId,
-        chapterId: {
-          not: chapterId,
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 5,
-      select: {
-        selectedTitle: true,
-        titleCandidatesJson: true,
-      },
-    }),
-  ]);
-
-  return {
-    project: {
-      title: chapter.project.title,
-      genre: chapter.project.genre,
-      targetAudience: chapter.project.targetAudience,
-      platform: chapter.project.platform,
-      description: chapter.project.description,
-      wechatPositioning: chapter.project.wechatPositioning,
-    },
-    setting: chapter.project.setting,
-    chapter: pickPublishPackageChapterContext(chapter),
-    latestSummaryTask,
-    recentPublishPackages,
-  };
-}
-
 async function loadWechatLayoutCandidateContext(
   projectId: string,
   chapterId: string,
@@ -1177,15 +963,6 @@ async function loadProjectForCoverImage(projectId: string) {
       id: projectId,
     },
     include: {
-      publishPackages: {
-        orderBy: {
-          createdAt: "desc",
-        },
-        select: {
-          coverPrompt: true,
-        },
-        take: 1,
-      },
       setting: {
         select: {
           forbiddenItems: true,
@@ -1218,22 +995,6 @@ async function findActiveCoverImageTask(projectId: string) {
     where: {
       projectId,
       taskType: coverImageGenerationTaskType,
-      status: {
-        in: [...activeAiTaskStatuses],
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
-}
-
-async function findActivePublishPackageTask(projectId: string, chapterId: string) {
-  return prisma.aiTask.findFirst({
-    where: {
-      projectId,
-      chapterId,
-      taskType: publishPackageTaskType,
       status: {
         in: [...activeAiTaskStatuses],
       },
@@ -1422,16 +1183,6 @@ function normalizeImageIndex(value?: string | null) {
   }
 
   return index;
-}
-
-function pickPublishPackageChapterContext(chapter: PublishPackageChapterContext) {
-  return {
-    chapterNumber: chapter.chapterNumber,
-    title: chapter.title,
-    goal: chapter.goal,
-    finalText: chapter.finalText,
-    notes: chapter.notes,
-  };
 }
 
 function revalidatePublishPaths(projectId: string, chapterId?: string | null) {
