@@ -1,5 +1,22 @@
 # Development Log
 
+## 2026-06-27: 0.1.59 Chapter List Folding
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.59`.
+- Updated the chapter editor list to show only the latest 3 chapters by default.
+- Older chapters are folded into a collapsible “历史章节” section and remain clickable for detail/edit workflows.
+- Kept chapter data, versions, AI tasks, summaries, continuity, and publishing flows unchanged.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run desktop:dist:mac` passed.
+- Expanded `release/desktop/NovelForge-AI-0.1.59-mac-arm64.pkg` payload reported `CFBundleShortVersionString=0.1.59` and passed `codesign --verify --deep --strict`.
+
 ## 2026-06-27: 0.1.58 Retire Legacy Chapter Publish Packaging
 
 Status: completed.

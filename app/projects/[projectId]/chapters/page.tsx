@@ -56,6 +56,53 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
       },
     ],
   });
+  const recentChapters = chapters.slice(-3);
+  const historicalChapters = chapters.slice(0, Math.max(0, chapters.length - 3));
+  const renderChapterLink = (chapter: (typeof chapters)[number]) => (
+    <Link
+      className="group grid gap-3 border-b border-ink-950/10 px-4 py-3 transition last:border-b-0 hover:bg-paper-50/80 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+      href={`/projects/${project.id}/chapters/${chapter.id}`}
+      key={chapter.id}
+    >
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="shrink-0 text-xs font-semibold text-signal-600">
+            第 {formatNumber(chapter.chapterNumber)} 章
+          </p>
+          <span className="shrink-0 rounded bg-paper-100 px-2 py-0.5 text-[11px] font-semibold text-ink-700">
+            {chapterStatusLabel(chapter.status)}
+          </span>
+          <h2 className="truncate text-base font-semibold text-ink-950 transition group-hover:text-signal-700">
+            {chapter.title}
+          </h2>
+        </div>
+        <p className="mt-1 truncate text-sm text-ink-700">
+          目标：{chapter.goal || "未设置"}
+        </p>
+      </div>
+
+      <dl className="grid grid-cols-3 gap-3 text-xs text-ink-700 sm:w-[18rem]">
+        <div className="min-w-0">
+          <dt>字数</dt>
+          <dd className="mt-0.5 truncate font-semibold text-ink-950">
+            {formatChapterWordCount(chapter.wordCount)}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt>版本</dt>
+          <dd className="mt-0.5 truncate font-semibold text-ink-950">
+            {chapter._count.versions}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt>更新</dt>
+          <dd className="mt-0.5 truncate font-semibold text-ink-950">
+            {formatDate(chapter.updatedAt)}
+          </dd>
+        </div>
+      </dl>
+    </Link>
+  );
 
   return (
     <div className="space-y-6">
@@ -109,52 +156,28 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
           </Link>
         </section>
       ) : (
-        <section className="overflow-hidden rounded-lg border border-ink-950/10 bg-white shadow-panel">
-          {chapters.map((chapter) => (
-            <Link
-              className="group grid gap-3 border-b border-ink-950/10 px-4 py-3 transition last:border-b-0 hover:bg-paper-50/80 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-              href={`/projects/${project.id}/chapters/${chapter.id}`}
-              key={chapter.id}
-            >
-              <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-2">
-                  <p className="shrink-0 text-xs font-semibold text-signal-600">
-                    第 {formatNumber(chapter.chapterNumber)} 章
-                  </p>
-                  <span className="shrink-0 rounded bg-paper-100 px-2 py-0.5 text-[11px] font-semibold text-ink-700">
-                    {chapterStatusLabel(chapter.status)}
-                  </span>
-                  <h2 className="truncate text-base font-semibold text-ink-950 transition group-hover:text-signal-700">
-                    {chapter.title}
-                  </h2>
-                </div>
-                <p className="mt-1 truncate text-sm text-ink-700">
-                  目标：{chapter.goal || "未设置"}
-                </p>
-              </div>
+        <section className="space-y-3">
+          <div className="overflow-hidden rounded-lg border border-ink-950/10 bg-white shadow-panel">
+            {recentChapters.map(renderChapterLink)}
+          </div>
 
-              <dl className="grid grid-cols-3 gap-3 text-xs text-ink-700 sm:w-[18rem]">
-                <div className="min-w-0">
-                  <dt>字数</dt>
-                  <dd className="mt-0.5 truncate font-semibold text-ink-950">
-                    {formatChapterWordCount(chapter.wordCount)}
-                  </dd>
-                </div>
-                <div className="min-w-0">
-                  <dt>版本</dt>
-                  <dd className="mt-0.5 truncate font-semibold text-ink-950">
-                    {chapter._count.versions}
-                  </dd>
-                </div>
-                <div className="min-w-0">
-                  <dt>更新</dt>
-                  <dd className="mt-0.5 truncate font-semibold text-ink-950">
-                    {formatDate(chapter.updatedAt)}
-                  </dd>
-                </div>
-              </dl>
-            </Link>
-          ))}
+          {historicalChapters.length > 0 ? (
+            <details className="rounded-lg border border-ink-950/10 bg-white/80 p-3 shadow-panel">
+              <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+                历史章节（已折叠 {formatNumber(historicalChapters.length)} 章）
+                <span className="ml-2 text-xs font-normal text-ink-700">
+                  展开查看第 {formatNumber(historicalChapters[0].chapterNumber)}-
+                  {formatNumber(
+                    historicalChapters[historicalChapters.length - 1]
+                      .chapterNumber,
+                  )} 章
+                </span>
+              </summary>
+              <div className="mt-3 overflow-hidden rounded-lg border border-ink-950/10 bg-white">
+                {historicalChapters.map(renderChapterLink)}
+              </div>
+            </details>
+          ) : null}
         </section>
       )}
     </div>
