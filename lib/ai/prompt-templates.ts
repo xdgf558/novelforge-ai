@@ -154,6 +154,62 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
       "输入应包含当前字数进度、总设定结局方向、已有大纲、未回收伏笔、角色弧线、最近章节和时间线。输出必须保持作者控制：只给建议，不宣称已回收伏笔或已修改大纲。",
   },
   {
+    key: "storyline_generation",
+    name: "故事线草案生成",
+    taskType: "storyline_generation",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是长篇连载小说的多故事线规划助手。只输出供作者审核的故事线候选，不得宣称已经写入正式故事线、角色、伏笔、章节或大纲。",
+    userPrompt:
+      "根据项目设定、已有故事线、角色、伏笔、章节摘要和大纲，梳理可供作者确认的多故事线候选。",
+    contextNotes:
+      "输入应包含项目基础信息、总设定摘要、已有正式故事线、可用角色 ID、可用伏笔 ID、可用章节 ID、可用大纲 ID。输出只能是 JSON，且关系字段只能引用输入中提供的 ID。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["storylines"],
+      properties: {
+        storylines: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["name", "type", "status", "coreGoal", "currentProgress"],
+            properties: {
+              name: { type: "string" },
+              type: {
+                type: "string",
+                enum: [
+                  "mainline",
+                  "subplot",
+                  "character_arc",
+                  "business_line",
+                  "antagonist_line",
+                  "foreshadow_line",
+                  "world_line",
+                  "other",
+                ],
+              },
+              status: {
+                type: "string",
+                enum: ["planned", "active", "paused", "completed"],
+              },
+              startChapter: { type: "integer" },
+              endChapter: { type: "integer" },
+              coreGoal: { type: "string" },
+              currentProgress: { type: "string" },
+              notes: { type: "string" },
+              characterIds: { type: "array", items: { type: "string" } },
+              foreshadowIds: { type: "array", items: { type: "string" } },
+              chapterIds: { type: "array", items: { type: "string" } },
+              outlineIds: { type: "array", items: { type: "string" } },
+              rationale: { type: "string" },
+            },
+          },
+        },
+      },
+    }),
+  },
+  {
     key: "character_generation",
     name: "人物草案生成",
     taskType: "character_generation",

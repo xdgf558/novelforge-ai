@@ -5,19 +5,39 @@ import {
   Archive,
   ArrowLeft,
   BookOpenText,
+  Bot,
   GitBranch,
   Layers3,
   ListChecks,
   type LucideIcon,
   Pencil,
+  Sparkles,
   Users,
 } from "lucide-react";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
 import {
   archiveStoryline,
   createStoryline,
+  generateStorylineDrafts,
+  saveStorylineDraftCandidate,
   updateStoryline,
+  updateStorylineDraftTaskAdoptionState,
 } from "@/app/projects/[projectId]/storylines/actions";
 import { FormActionButton } from "@/components/form-action-button";
+import { PreserveScrollForm } from "@/components/preserve-scroll-form";
+import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
+import { expireStaleStorylineAiTasks } from "@/lib/ai/storyline-task-maintenance";
+import {
+  parseStorylineGenerationOutput,
+  storylineGenerationTaskType,
+  type ParsedStorylineDraft,
+} from "@/lib/ai/storylines";
+import {
+  aiTaskAdoptionLabel,
+  aiTaskStatusLabel,
+  isActiveAiTaskStatus,
+} from "@/lib/ai/status";
 import { formatDate, formatNumber } from "@/lib/format";
 import { outlineLevelLabel, outlineRangeLabel } from "@/lib/outline-fields";
 import {
@@ -38,6 +58,7 @@ type StorylinesPageProps = {
   }>;
   searchParams?: Promise<{
     editId?: string;
+    storylineAi?: string;
     storylineError?: string;
     storylineSaved?: string;
   }>;
@@ -49,6 +70,8 @@ export default async function StorylinesPage({
 }: StorylinesPageProps) {
   const { projectId } = await params;
   const query = (await searchParams) ?? {};
+
+  await expireStaleStorylineAiTasks(projectId);
 
   const project = await prisma.project.findUnique({
     where: {
@@ -186,6 +209,23 @@ export default async function StorylinesPage({
           endChapter: true,
         },
       },
+      aiTasks: {
+        where: {
+          taskType: storylineGenerationTaskType,
+        },
+        include: {
+          promptTemplate: {
+            select: {
+              name: true,
+              version: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        take: 5,
+      },
     },
   });
 
@@ -208,9 +248,15 @@ export default async function StorylinesPage({
       query.storylineError as StorylineValidationErrorCode
     ];
   const savedMessage = storylineSavedMessage(query.storylineSaved);
+  const aiMessage = storylineAiMessage(query.storylineAi);
+  const hasActiveStorylineTask = project.aiTasks.some((task) =>
+    isActiveAiTaskStatus(task.status),
+  );
+  const hasApiKey = hasConfiguredOpenAIKey();
 
   return (
     <div className="space-y-6" id="storylines">
+      <AutoRefresh enabled={hasActiveStorylineTask} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <Link
@@ -255,6 +301,24 @@ export default async function StorylinesPage({
           {savedMessage}
         </div>
       ) : null}
+
+      {aiMessage ? (
+        <div className="rounded-lg border border-signal-500/25 bg-signal-500/10 px-4 py-3 text-sm font-medium text-signal-800">
+          {aiMessage}
+        </div>
+      ) : null}
+
+      <StorylineAiDraftPanel
+        characters={project.characters}
+        chapters={project.chapters}
+        foreshadows={project.foreshadows}
+        hasActiveTask={hasActiveStorylineTask}
+        hasApiKey={hasApiKey}
+        outlines={project.outlines}
+        projectId={project.id}
+        tasks={project.aiTasks}
+      />
+      <AiBudgetNotice projectId={project.id} />
 
       <details
         className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
@@ -406,7 +470,7 @@ export default async function StorylinesPage({
                           chapters={project.chapters}
                           foreshadows={project.foreshadows}
                           outlines={project.outlines}
-                          storyline={storyline}
+                          storyline={storylineFormInitialFromRecord(storyline)}
                           submitLabel="保存修改"
                         />
                       </div>
@@ -419,6 +483,247 @@ export default async function StorylinesPage({
         )}
       </section>
     </div>
+  );
+}
+
+function StorylineAiDraftPanel({
+  characters,
+  chapters,
+  foreshadows,
+  hasActiveTask,
+  hasApiKey,
+  outlines,
+  projectId,
+  tasks,
+}: {
+  characters: readonly CharacterOption[];
+  chapters: readonly ChapterOption[];
+  foreshadows: readonly ForeshadowOption[];
+  hasActiveTask: boolean;
+  hasApiKey: boolean;
+  outlines: readonly OutlineOption[];
+  projectId: string;
+  tasks: readonly StorylineAiTask[];
+}) {
+  const canGenerate = hasApiKey && !hasActiveTask;
+
+  return (
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
+      id="storyline-ai"
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <Sparkles aria-hidden="true" className="h-4 w-4" />
+            AI 故事线草案
+          </p>
+          <h2 className="mt-1.5 text-base font-semibold text-ink-950">
+            自动梳理故事线候选
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
+            AI 会读取项目设定、角色、伏笔、章节和大纲，生成可审阅候选；保存前都可以手动修改，正式故事线只会在你确认后写入。
+          </p>
+        </div>
+      </div>
+
+      <PreserveScrollForm
+        action={generateStorylineDrafts.bind(null, projectId)}
+        className="mt-4 flex flex-wrap items-center gap-3"
+        preserveKey={`storyline-generation-${projectId}`}
+        statusText="已开始生成故事线候选，页面会留在当前位置并自动刷新结果。"
+      >
+        <button
+          className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-55"
+          disabled={!canGenerate}
+          type="submit"
+        >
+          <Bot aria-hidden="true" className="h-4 w-4" />
+          {hasActiveTask ? "生成中" : "生成故事线候选"}
+        </button>
+        {!hasApiKey ? (
+          <p className="text-sm text-ink-700">
+            未配置 API Key，暂不能调用模型；已有候选任务仍可查看。
+          </p>
+        ) : null}
+        {hasActiveTask ? (
+          <p className="text-sm text-ink-700">
+            当前已有故事线生成任务在后台运行，完成前不会重复发起。
+          </p>
+        ) : null}
+      </PreserveScrollForm>
+
+      {tasks.length === 0 ? (
+        <div className="mt-4 rounded-lg border border-dashed border-ink-950/15 bg-paper-50 p-4 text-sm text-ink-700">
+          还没有故事线候选任务。生成后会显示候选故事线，每条都可以先改再保存。
+        </div>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {tasks.map((task) => (
+            <StorylineAiTaskCard
+              characters={characters}
+              chapters={chapters}
+              foreshadows={foreshadows}
+              key={task.id}
+              outlines={outlines}
+              projectId={projectId}
+              task={task}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StorylineAiTaskCard({
+  characters,
+  chapters,
+  foreshadows,
+  outlines,
+  projectId,
+  task,
+}: {
+  characters: readonly CharacterOption[];
+  chapters: readonly ChapterOption[];
+  foreshadows: readonly ForeshadowOption[];
+  outlines: readonly OutlineOption[];
+  projectId: string;
+  task: StorylineAiTask;
+}) {
+  const drafts = parseStorylineGenerationOutput(task.outputText);
+  const canReview =
+    task.status === "completed" &&
+    task.adoptionState === "not_reviewed" &&
+    drafts.length > 0;
+
+  return (
+    <article className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap gap-2">
+            <Badge>{aiTaskStatusLabel(task.status)}</Badge>
+            <Badge>{aiTaskAdoptionLabel(task.adoptionState)}</Badge>
+            <Badge>{formatDate(task.createdAt)}</Badge>
+          </div>
+          <p className="mt-3 text-sm font-semibold text-ink-950">
+            {task.promptTemplate
+              ? `${task.promptTemplate.name} v${task.promptTemplate.version}`
+              : "故事线草案生成"}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-ink-700">
+            {task.inputContextSummary}
+          </p>
+        </div>
+
+        {canReview ? (
+          <div className="flex flex-wrap gap-2">
+            <form
+              action={updateStorylineDraftTaskAdoptionState.bind(
+                null,
+                projectId,
+                task.id,
+                "adopted",
+              )}
+            >
+              <button
+                className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-2 text-xs font-semibold text-ink-800 transition hover:bg-paper-100"
+                type="submit"
+              >
+                标记已整理
+              </button>
+            </form>
+            <form
+              action={updateStorylineDraftTaskAdoptionState.bind(
+                null,
+                projectId,
+                task.id,
+                "rejected",
+              )}
+            >
+              <button
+                className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-2 text-xs font-semibold text-ink-800 transition hover:bg-paper-100"
+                type="submit"
+              >
+                忽略候选
+              </button>
+            </form>
+          </div>
+        ) : null}
+      </div>
+
+      {task.status === "failed" ? (
+        <pre className="mt-3 whitespace-pre-wrap rounded-md bg-ember-500/10 p-3 text-xs leading-5 text-ember-700">
+          {task.errorMessage || "故事线候选生成失败。"}
+        </pre>
+      ) : null}
+
+      {task.status !== "completed" ? (
+        <p className="mt-3 rounded-md bg-white px-3 py-2 text-sm text-ink-700">
+          任务正在后台处理，页面会自动刷新。
+        </p>
+      ) : null}
+
+      {task.status === "completed" && drafts.length === 0 ? (
+        <details className="mt-3 rounded-md bg-white p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-ink-800">
+            未解析到可保存候选，查看原始输出
+          </summary>
+          <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap text-xs leading-5 text-ink-700">
+            {task.outputText || "任务没有输出。"}
+          </pre>
+        </details>
+      ) : null}
+
+      {drafts.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {drafts.map((draft, index) => (
+            <details
+              className="rounded-lg border border-ink-950/10 bg-white p-3"
+              key={`${task.id}-${index}-${draft.name}`}
+              open={index === 0 && canReview}
+            >
+              <summary className="cursor-pointer text-sm font-semibold text-ink-950">
+                {draft.name}
+                <span className="ml-2 text-xs font-normal text-ink-600">
+                  {storylineTypeLabel(draft.type)} /{" "}
+                  {storylineStatusLabel(draft.status)}
+                </span>
+              </summary>
+              {draft.rationale ? (
+                <p className="mt-2 rounded-md bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700">
+                  推荐理由：{draft.rationale}
+                </p>
+              ) : null}
+              {canReview ? (
+                <div className="mt-3">
+                  <StorylineForm
+                    action={saveStorylineDraftCandidate.bind(
+                      null,
+                      projectId,
+                      task.id,
+                    )}
+                    characters={characters}
+                    chapters={chapters}
+                    foreshadows={foreshadows}
+                    outlines={outlines}
+                    storyline={storylineFormInitialFromDraft(draft)}
+                    submitLabel="确认保存这条故事线"
+                  />
+                </div>
+              ) : (
+                <CompactText
+                  label="候选内容"
+                  value={[draft.coreGoal, draft.currentProgress]
+                    .filter(Boolean)
+                    .join("\n")}
+                />
+              )}
+            </details>
+          ))}
+        </div>
+      ) : null}
+    </article>
   );
 }
 
@@ -436,21 +741,13 @@ function StorylineForm({
   chapters: readonly ChapterOption[];
   foreshadows: readonly ForeshadowOption[];
   outlines: readonly OutlineOption[];
-  storyline?: StorylineWithRelations;
+  storyline?: StorylineFormInitial;
   submitLabel: string;
 }) {
-  const selectedCharacterIds = new Set(
-    storyline?.characters.map((item) => item.characterId) ?? [],
-  );
-  const selectedForeshadowIds = new Set(
-    storyline?.foreshadows.map((item) => item.foreshadowId) ?? [],
-  );
-  const selectedChapterIds = new Set(
-    storyline?.chapters.map((item) => item.chapterId) ?? [],
-  );
-  const selectedOutlineIds = new Set(
-    storyline?.outlines.map((item) => item.outlineId) ?? [],
-  );
+  const selectedCharacterIds = new Set(storyline?.characterIds ?? []);
+  const selectedForeshadowIds = new Set(storyline?.foreshadowIds ?? []);
+  const selectedChapterIds = new Set(storyline?.chapterIds ?? []);
+  const selectedOutlineIds = new Set(storyline?.outlineIds ?? []);
 
   return (
     <form action={action} className="space-y-4">
@@ -459,7 +756,7 @@ function StorylineForm({
           <span>故事线名称</span>
           <input
             className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 text-sm text-ink-950 outline-none transition focus:border-signal-500"
-            defaultValue={storyline?.name}
+            defaultValue={storyline?.name ?? ""}
             maxLength={160}
             name="name"
             required
@@ -793,6 +1090,8 @@ function storylineSavedMessage(value?: string) {
   switch (value) {
     case "created":
       return "已保存故事线。";
+    case "adopted":
+      return "已从 AI 候选保存为正式故事线。";
     case "updated":
       return "已更新故事线。";
     case "archived":
@@ -800,6 +1099,55 @@ function storylineSavedMessage(value?: string) {
     default:
       return null;
   }
+}
+
+function storylineAiMessage(value?: string) {
+  switch (value) {
+    case "started":
+      return "已开始生成故事线候选，完成后会在下方显示。";
+    case "active":
+      return "已有故事线候选任务正在运行，请等待当前任务完成。";
+    default:
+      return null;
+  }
+}
+
+function storylineFormInitialFromRecord(
+  storyline: StorylineWithRelations,
+): StorylineFormInitial {
+  return {
+    name: storyline.name,
+    type: storyline.type,
+    status: storyline.status,
+    startChapter: storyline.startChapter,
+    endChapter: storyline.endChapter,
+    coreGoal: storyline.coreGoal,
+    currentProgress: storyline.currentProgress,
+    notes: storyline.notes,
+    characterIds: storyline.characters.map((item) => item.characterId),
+    foreshadowIds: storyline.foreshadows.map((item) => item.foreshadowId),
+    chapterIds: storyline.chapters.map((item) => item.chapterId),
+    outlineIds: storyline.outlines.map((item) => item.outlineId),
+  };
+}
+
+function storylineFormInitialFromDraft(
+  draft: ParsedStorylineDraft,
+): StorylineFormInitial {
+  return {
+    name: draft.name,
+    type: draft.type,
+    status: draft.status,
+    startChapter: draft.startChapter,
+    endChapter: draft.endChapter,
+    coreGoal: draft.coreGoal,
+    currentProgress: draft.currentProgress,
+    notes: draft.notes,
+    characterIds: draft.characterIds,
+    foreshadowIds: draft.foreshadowIds,
+    chapterIds: draft.chapterIds,
+    outlineIds: draft.outlineIds,
+  };
 }
 
 type StorylineWithRelations = Awaited<
@@ -821,6 +1169,35 @@ type StorylineWithRelations = Awaited<
     outlineId: string;
     outline: OutlineOption;
   }[];
+};
+
+type StorylineFormInitial = {
+  name?: string | null;
+  type?: string | null;
+  status?: string | null;
+  startChapter?: number | null;
+  endChapter?: number | null;
+  coreGoal?: string | null;
+  currentProgress?: string | null;
+  notes?: string | null;
+  characterIds?: string[];
+  foreshadowIds?: string[];
+  chapterIds?: string[];
+  outlineIds?: string[];
+};
+
+type StorylineAiTask = {
+  id: string;
+  status: string;
+  adoptionState: string;
+  inputContextSummary: string;
+  outputText: string | null;
+  errorMessage: string | null;
+  createdAt: Date;
+  promptTemplate: {
+    name: string;
+    version: number;
+  } | null;
 };
 
 type CharacterOption = {

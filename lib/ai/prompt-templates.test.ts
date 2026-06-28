@@ -27,6 +27,7 @@ describe("default AI prompt templates", () => {
         "pending_update_extraction",
         "continuity_check",
         "continuity_fix_patch_generation",
+        "storyline_generation",
         "cover_image_generation",
       ]),
     );

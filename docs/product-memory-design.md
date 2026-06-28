@@ -126,7 +126,7 @@ Tracks long-running narrative threads across outlines and chapters:
 - Related chapters
 - Related outlines
 
-Storylines are formal planning memory. They should be edited by the author or through explicit author-approved adoption only; AI may use them as context but must not silently create, link, or mutate them.
+Storylines are formal planning memory. They should be edited by the author or through explicit author-approved adoption only; AI may use them as context or generate reviewable candidates, but must not silently create, link, or mutate them. Candidate generation can prefill a save form; the formal row and relation rows are written only after the author confirms.
 
 ### 8. AI Task Memory
 
