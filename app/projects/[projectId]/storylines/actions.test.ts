@@ -399,6 +399,7 @@ describe("storyline actions", () => {
     mocks.prisma.aiTask.findFirst.mockResolvedValueOnce({
       id: "task_1",
     });
+    mocks.prisma.storyline.findFirst.mockResolvedValueOnce(null);
 
     await expect(
       saveStorylineDraftCandidate(
@@ -458,6 +459,51 @@ describe("storyline actions", () => {
     expect(mocks.prisma.aiTask.updateMany).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/storylines?storylineSaved=adopted#storylines",
+    );
+  });
+
+  it("rejects duplicate AI draft candidate saves by name, type, and chapter range", async () => {
+    mocks.prisma.aiTask.findFirst.mockResolvedValueOnce({
+      id: "task_1",
+    });
+    mocks.prisma.storyline.findFirst.mockResolvedValueOnce({
+      id: "existing_storyline",
+    });
+
+    await expect(
+      saveStorylineDraftCandidate(
+        "project_1",
+        "task_1",
+        formData({
+          name: "县城第一桶金主线",
+          type: "mainline",
+          status: "active",
+          startChapter: 1,
+          endChapter: 30,
+          coreGoal: "重复候选不应再次写入正式故事线。",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.storyline.findFirst).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        name: "县城第一桶金主线",
+        type: "mainline",
+        startChapter: 1,
+        endChapter: 30,
+        status: {
+          not: "archived",
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.tx.storyline.create).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/storylines?storylineError=duplicateStoryline#storylines",
     );
   });
 

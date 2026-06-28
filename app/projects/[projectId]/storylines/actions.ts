@@ -378,6 +378,12 @@ export async function saveStorylineDraftCandidate(
     redirectStorylineError(projectId, relationError);
   }
 
+  const duplicate = await findDuplicateStorylineCandidate(projectId, parsed.values);
+
+  if (duplicate) {
+    redirectStorylineError(projectId, "duplicateStoryline");
+  }
+
   await prisma.$transaction(async (tx) => {
     const storyline = await tx.storyline.create({
       data: {
@@ -577,6 +583,27 @@ async function assertStoryline(projectId: string, storylineId: string) {
   if (!storyline) {
     notFound();
   }
+}
+
+async function findDuplicateStorylineCandidate(
+  projectId: string,
+  values: StorylineFormValues,
+) {
+  return prisma.storyline.findFirst({
+    where: {
+      projectId,
+      name: values.name,
+      type: normalizeStorylineType(values.type),
+      startChapter: values.startChapter,
+      endChapter: values.endChapter,
+      status: {
+        not: "archived",
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
 }
 
 async function validateRelationIds(
