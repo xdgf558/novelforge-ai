@@ -5,6 +5,14 @@ import { notFound, redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
+  buildStorylineGenerationContext,
+  storylineGenerationTaskType,
+} from "@/lib/ai/storylines";
+import { expireStaleStorylineAiTasks } from "@/lib/ai/storyline-task-maintenance";
+import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
+import { activeAiTaskStatuses } from "@/lib/ai/status";
+import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import {
   normalizeStorylineStatus,
   normalizeStorylineType,
   storylineStatusOptions,
@@ -112,6 +120,324 @@ export async function createStoryline(projectId: string, formData: FormData) {
 
   revalidateStorylinePaths(projectId);
   redirect(`/projects/${projectId}/storylines?storylineSaved=created`);
+}
+
+export async function generateStorylineDrafts(projectId: string) {
+  await expireStaleStorylineAiTasks(projectId);
+
+  const activeTask = await findActiveStorylineGenerationTask(projectId);
+
+  if (activeTask) {
+    redirect(`/projects/${projectId}/storylines?storylineAi=active#storyline-ai`);
+  }
+
+  const project = await prisma.project.findUnique({
+    where: {
+      id: projectId,
+    },
+    include: {
+      setting: true,
+    },
+  });
+
+  if (!project) {
+    notFound();
+  }
+
+  const [
+    characters,
+    foreshadows,
+    chapters,
+    outlines,
+    existingStorylines,
+  ] = await Promise.all([
+    prisma.character.findMany({
+      where: {
+        projectId,
+        status: {
+          not: "archived",
+        },
+      },
+      orderBy: [
+        {
+          updatedAt: "desc",
+        },
+        {
+          name: "asc",
+        },
+      ],
+      take: 80,
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        roleInStory: true,
+        identity: true,
+        characterArc: true,
+        latestAppearance: true,
+      },
+    }),
+    prisma.foreshadow.findMany({
+      where: {
+        projectId,
+        status: {
+          not: "abandoned",
+        },
+      },
+      orderBy: [
+        {
+          importance: "asc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
+      take: 60,
+      select: {
+        id: true,
+        content: true,
+        status: true,
+        importance: true,
+        expectedResolveChapter: true,
+      },
+    }),
+    prisma.chapter.findMany({
+      where: {
+        projectId,
+      },
+      orderBy: {
+        chapterNumber: "desc",
+      },
+      take: 12,
+      select: {
+        id: true,
+        chapterNumber: true,
+        title: true,
+        status: true,
+        goal: true,
+        aiTasks: {
+          where: {
+            taskType: "chapter_summary_extraction",
+            status: "completed",
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 1,
+          select: {
+            outputText: true,
+          },
+        },
+      },
+    }),
+    prisma.outline.findMany({
+      where: {
+        projectId,
+        status: {
+          not: "archived",
+        },
+      },
+      orderBy: [
+        {
+          level: "asc",
+        },
+        {
+          sortOrder: "asc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
+      take: 30,
+      select: {
+        id: true,
+        level: true,
+        title: true,
+        status: true,
+        chapterNumber: true,
+        startChapter: true,
+        endChapter: true,
+        goal: true,
+        mainlineProgression: true,
+        coreEvents: true,
+        characterChanges: true,
+        foreshadow: true,
+        resolvedForeshadow: true,
+      },
+    }),
+    prisma.storyline.findMany({
+      where: {
+        projectId,
+        status: {
+          not: "archived",
+        },
+      },
+      orderBy: [
+        {
+          status: "asc",
+        },
+        {
+          updatedAt: "desc",
+        },
+      ],
+      take: 30,
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        status: true,
+        startChapter: true,
+        endChapter: true,
+        coreGoal: true,
+        currentProgress: true,
+      },
+    }),
+  ]);
+
+  const template = await ensureDefaultPromptTemplate(
+    projectId,
+    storylineGenerationTaskType,
+  );
+  const context = buildStorylineGenerationContext({
+    project,
+    setting: project.setting,
+    characters,
+    foreshadows,
+    chapters: chapters
+      .reverse()
+      .map((chapter) => ({
+        ...chapter,
+        summaryOutput: chapter.aiTasks[0]?.outputText ?? "",
+      })),
+    outlines,
+    existingStorylines,
+  });
+
+  await startLoggedOpenAITextTask(
+    {
+      projectId,
+      promptTemplateId: template.id,
+      taskType: template.taskType,
+      model: undefined,
+      inputContextSummary: context.inputContextSummary,
+      inputJson: context.inputJson,
+    },
+    {
+      systemPrompt: template.systemPrompt,
+      developerPrompt: [
+        template.userPrompt,
+        template.contextNotes,
+        template.responseSchema
+          ? `请严格输出符合以下 JSON Schema 的 JSON：\n${template.responseSchema}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+      input: context.inputText,
+    },
+  );
+
+  revalidateStorylinePaths(projectId);
+  revalidatePath(`/projects/${projectId}/ai`);
+  redirect(`/projects/${projectId}/storylines?storylineAi=started#storyline-ai`);
+}
+
+export async function saveStorylineDraftCandidate(
+  projectId: string,
+  taskId: string,
+  formData: FormData,
+) {
+  await assertProject(projectId);
+
+  const task = await prisma.aiTask.findFirst({
+    where: {
+      id: taskId,
+      projectId,
+      taskType: storylineGenerationTaskType,
+      status: "completed",
+      adoptionState: "not_reviewed",
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!task) {
+    notFound();
+  }
+
+  const parsed = parseStorylineForm(formData);
+
+  if (!parsed.ok) {
+    redirectStorylineError(projectId, parsed.error);
+  }
+
+  const relationError = await validateRelationIds(projectId, parsed.relationIds);
+
+  if (relationError) {
+    redirectStorylineError(projectId, relationError);
+  }
+
+  const duplicate = await findDuplicateStorylineCandidate(projectId, parsed.values);
+
+  if (duplicate) {
+    redirectStorylineError(projectId, "duplicateStoryline");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const storyline = await tx.storyline.create({
+      data: {
+        projectId,
+        ...storylineData(parsed.values),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    await replaceStorylineRelations(
+      tx,
+      projectId,
+      storyline.id,
+      parsed.relationIds,
+    );
+  });
+
+  revalidateStorylinePaths(projectId);
+  revalidatePath(`/projects/${projectId}/ai`);
+  redirect(`/projects/${projectId}/storylines?storylineSaved=adopted#storylines`);
+}
+
+export async function updateStorylineDraftTaskAdoptionState(
+  projectId: string,
+  taskId: string,
+  adoptionState: "adopted" | "rejected",
+) {
+  await assertProject(projectId);
+
+  const result = await prisma.aiTask.updateMany({
+    where: {
+      id: taskId,
+      projectId,
+      taskType: storylineGenerationTaskType,
+      status: "completed",
+      adoptionState: "not_reviewed",
+    },
+    data: {
+      adoptionState,
+    },
+  });
+
+  revalidateStorylinePaths(projectId);
+  revalidatePath(`/projects/${projectId}/ai`);
+
+  if (result.count !== 1) {
+    redirect(
+      `/projects/${projectId}/storylines?storylineAi=already-reviewed#storyline-ai`,
+    );
+  }
+
+  redirect(`/projects/${projectId}/storylines#storyline-ai`);
 }
 
 export async function updateStoryline(
@@ -257,6 +583,27 @@ async function assertStoryline(projectId: string, storylineId: string) {
   if (!storyline) {
     notFound();
   }
+}
+
+async function findDuplicateStorylineCandidate(
+  projectId: string,
+  values: StorylineFormValues,
+) {
+  return prisma.storyline.findFirst({
+    where: {
+      projectId,
+      name: values.name,
+      type: normalizeStorylineType(values.type),
+      startChapter: values.startChapter,
+      endChapter: values.endChapter,
+      status: {
+        not: "archived",
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
 }
 
 async function validateRelationIds(
@@ -417,4 +764,19 @@ function revalidateStorylinePaths(projectId: string) {
   revalidatePath(`/projects/${projectId}/storylines`);
   revalidatePath(`/projects/${projectId}/chapters`);
   revalidatePath(`/projects/${projectId}/outlines`);
+}
+
+async function findActiveStorylineGenerationTask(projectId: string) {
+  return prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      taskType: storylineGenerationTaskType,
+      status: {
+        in: [...activeAiTaskStatuses],
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
 }

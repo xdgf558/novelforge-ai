@@ -22,6 +22,7 @@ export const storylineValidationErrorMessages = {
   invalidForm: "故事线表单内容不完整，请检查名称、章节范围和文本长度。",
   invalidRange: "故事线结束章节不能小于起始章节。",
   invalidRelation: "关联项不属于当前项目，请刷新后重试。",
+  duplicateStoryline: "已存在同名、同类型、同章节范围的故事线，请勿重复保存候选。",
   recordNotFound: "没有找到这条故事线，可能已被删除或归档。",
 } as const;
 

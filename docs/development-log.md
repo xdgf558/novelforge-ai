@@ -1,5 +1,25 @@
 # Development Log
 
+## 2026-06-28: 0.1.61 AI Storyline Draft Generation
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.61`.
+- Added an AI draft-generation panel to the “多故事线” page.
+- Storyline draft generation reads compressed project setting, active characters, non-abandoned foreshadows, recent chapters with summaries, existing outlines, and existing formal storylines.
+- Added the default `storyline_generation` prompt template and parser for JSON storyline candidates.
+- Candidate storylines can prefill the formal storyline form with suggested type, status, chapter range, goal, progress, notes, and project-scoped relation ids.
+- Preserved author control: AI generation only creates `ai_tasks` draft records. A formal `storylines` row and relation rows are written only after the author explicitly confirms and saves a candidate.
+- Added stale `storyline_generation` task cleanup so interrupted background tasks do not permanently lock the generation button.
+
+Verification:
+
+- `npm run test -- lib/ai/storylines.test.ts app/projects/[projectId]/storylines/actions.test.ts lib/ai/prompt-templates.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-28: 0.1.60 Multi-Storyline Foundation
 
 Status: completed.
