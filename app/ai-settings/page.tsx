@@ -27,6 +27,7 @@ import {
 import { FormActionButton } from "@/components/form-action-button";
 import {
   readAiConnectionSettings,
+  type TtsGenerationSettings,
   readImageGenerationSettings,
   readNetworkProxySettings,
   readStationCatPublishSettings,
@@ -73,6 +74,9 @@ export default async function AiSettingsPage({
   const activeTtsModel = resolvedSearchParams?.ttsModel || ttsSettings.model;
   const activeTtsLanguage =
     resolvedSearchParams?.ttsLanguage || ttsSettings.languageCode;
+  const activeTtsProviderLabel =
+    ttsProviderOptions.find((option) => option.value === ttsSettings.providerId)
+      ?.label ?? "当前 TTS 供应商";
   const savedMessage = settingsSavedMessage(
     resolvedSearchParams?.saved,
     {
@@ -212,7 +216,7 @@ export default async function AiSettingsPage({
               有声小说导出参数
             </div>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-              使用 Google Gemini TTS 生成本地 WAV 音频。音频导出只读取章节文本并生成本地音频文件，不会修改正式故事记忆。
+              使用当前 TTS 供应商生成本地 WAV 音频。音频导出默认读取个人网站正式发布正文并生成本地音频文件，不会修改章节和故事记忆。
             </p>
           </div>
           <form action="/ai-settings#tts-settings" className="flex flex-wrap gap-2" method="get">
@@ -240,7 +244,7 @@ export default async function AiSettingsPage({
               idleLabel="刷新音色列表"
               name="ttsVoiceLookupAction"
               pendingLabel="刷新中..."
-              statusText="正在读取 Google Gemini 可用音色，完成后会显示列表。"
+              statusText="正在读取当前 TTS 供应商可用音色，完成后会显示列表。"
               value="refresh"
             />
           </form>
@@ -317,8 +321,8 @@ export default async function AiSettingsPage({
               name="ttsApiKey"
               placeholder={
                 ttsSettings.hasApiKey
-                  ? "留空则保留当前 Google Gemini API Key"
-                  : "输入 Google Gemini API Key"
+                  ? "留空则保留当前 TTS API Key"
+                  : "输入当前 TTS API Key"
               }
               type="password"
             />
@@ -329,7 +333,7 @@ export default async function AiSettingsPage({
               <div>
                 <p className="text-sm font-semibold text-ink-950">音色</p>
                 <p className="text-xs leading-5 text-ink-700">
-                  可以从刷新后的列表选择，也可以在高级输入里手填 Google Gemini voice name。
+                  可以从刷新后的列表选择，也可以在高级输入里手填当前供应商的 voice name。
                 </p>
               </div>
               <span className="text-xs text-ink-700">
@@ -371,7 +375,7 @@ export default async function AiSettingsPage({
               <p className="rounded-md border border-dashed border-ink-950/15 bg-white px-3 py-3 text-sm leading-6 text-ink-700">
                 {ttsVoiceLookup.kind === "error"
                   ? ttsVoiceLookup.message
-                  : "点击“刷新音色列表”后，可以在这里选择 Google Gemini 可用音色。"}
+                  : `点击“刷新音色列表”后，可以在这里选择 ${activeTtsProviderLabel} 可用音色。`}
               </p>
             )}
 
@@ -474,7 +478,7 @@ export default async function AiSettingsPage({
             <div className="text-sm leading-6 text-ink-700">
               <span className="font-semibold text-ink-950">TTS 接口：</span>
               <span className="break-all">
-                {ttsSettings.apiBaseUrl}/models/{ttsSettings.model}:generateContent
+                {formatTtsEndpointPreview(ttsSettings)}
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -484,7 +488,7 @@ export default async function AiSettingsPage({
                 idleLabel="试听音色"
                 name="ttsSettingsAction"
                 pendingLabel="试听生成中..."
-                statusText="正在调用 Google Gemini TTS 生成试听音频。"
+                statusText="正在调用当前 TTS 供应商生成试听音频。"
                 value="preview"
               />
               <FormActionButton
@@ -993,6 +997,16 @@ function formatFileSize(bytes?: string | number) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function formatTtsEndpointPreview(settings: TtsGenerationSettings) {
+  const baseUrl = settings.apiBaseUrl.replace(/\/+$/, "");
+
+  if (settings.providerId === "glm_tts") {
+    return `${baseUrl}/audio/speech`;
+  }
+
+  return `${baseUrl}/models/${settings.model}:generateContent`;
+}
+
 function settingsSavedMessage(
   saved?: string,
   detail: {
@@ -1063,7 +1077,7 @@ function settingsSavedMessage(
     return {
       kind: "error",
       title: "音色试听失败",
-      description: "请先填写或保存 Google Gemini API Key，再试听音色。",
+      description: "请先填写或保存当前 TTS API Key，再试听音色。",
     };
   }
 

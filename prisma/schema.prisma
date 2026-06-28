@@ -784,6 +784,9 @@ model AudioExport {
   sourceTextHash     String
   outputFormat       String    @default("mp3")
   outputDirectory    String?
+  mergedAudioPath    String?
+  mergedMimeType     String?
+  mergedSizeBytes    Int?
   status             String    @default("pending")
   totalChars         Int       @default(0)
   totalSegments      Int       @default(0)

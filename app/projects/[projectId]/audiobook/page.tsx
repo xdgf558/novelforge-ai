@@ -10,6 +10,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { FormActionButton } from "@/components/form-action-button";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import {
+  deleteAudioExport,
   openAudioExportFolder,
   retryFailedAudioExportSegments,
   startChapterAudioExport,
@@ -22,7 +23,8 @@ import {
   formatEstimatedCost,
   modelInputLimit,
 } from "@/lib/audio/estimate-cost";
-import { ttsModelOptions } from "@/lib/audio/providers/registry";
+import { loadStationCatPublishedChapterIds } from "@/lib/audio/published-source";
+import { ttsModelOptionsForProvider } from "@/lib/audio/providers/registry";
 import {
   audioSourceTextTypeLabel,
   resolveChapterAudioSourceText,
@@ -37,7 +39,9 @@ type AudiobookPageProps = {
     projectId: string;
   }>;
   searchParams?: Promise<{
+    audioDeleted?: string;
     audioError?: string;
+    audioErrorDetail?: string;
     audioStarted?: string;
   }>;
 };
@@ -50,7 +54,7 @@ export default async function AudiobookPage({
     params,
     searchParams,
   ]);
-  const [project, chapters, audioExports] = await Promise.all([
+  const [project, chapters, audioExports, publishedChapterIds] = await Promise.all([
     prisma.project.findUnique({
       where: {
         id: projectId,
@@ -98,6 +102,7 @@ export default async function AudiobookPage({
       },
       take: 20,
     }),
+    loadStationCatPublishedChapterIds(projectId),
   ]);
 
   if (!project) {
@@ -105,21 +110,25 @@ export default async function AudiobookPage({
   }
 
   const ttsSettings = readTtsGenerationSettings();
-  const selectedChapter = chapters.find((chapter) =>
-    resolveChapterAudioSourceText(chapter),
-  );
-  const selectedSource = selectedChapter
+  const modelOptions = ttsModelOptionsForProvider(ttsSettings.providerId);
+  const selectedChapter =
+    chapters.find((chapter) => publishedChapterIds.has(chapter.id)) ??
+    chapters.find((chapter) => resolveChapterAudioSourceText(chapter));
+  const selectedLocalSource = selectedChapter
     ? resolveChapterAudioSourceText(selectedChapter)
     : null;
-  const estimatedSegments = selectedSource
-    ? chunkAudioText(selectedSource.text, {
+  const estimatedSegments = selectedLocalSource
+    ? chunkAudioText(selectedLocalSource.text, {
         maxChars: modelInputLimit(ttsSettings.model),
       })
     : [];
   const hasActiveExport = audioExports.some((audioExport) =>
     ["pending", "running"].includes(audioExport.status),
   );
-  const errorMessage = audioErrorMessage(resolvedSearchParams?.audioError);
+  const errorMessage = audioErrorMessage(
+    resolvedSearchParams?.audioError,
+    resolvedSearchParams?.audioErrorDetail,
+  );
 
   return (
     <div className="space-y-6">
@@ -139,7 +148,7 @@ export default async function AudiobookPage({
             有声小说导出
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-            将章节正文分段合成为本地音频文件。默认读取精修正文，其次定稿正文，最后回退到草稿正文；导出不会修改章节和故事记忆。
+            将个人网站正式发布正文分段合成为本地音频文件，并在成功后自动合并整章 WAV。导出不会修改章节和故事记忆。
           </p>
         </div>
 
@@ -175,12 +184,25 @@ export default async function AudiobookPage({
         </div>
       ) : null}
 
+      {resolvedSearchParams?.audioDeleted ? (
+        <div className="flex items-start gap-3 rounded-lg border border-signal-600/25 bg-signal-600/10 p-4 text-sm leading-6 text-ink-800">
+          <CheckCircle2
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0 text-signal-600"
+          />
+          <div>
+            <p className="font-semibold text-ink-950">导出记录已删除</p>
+            <p>对应的本机音频文件和导出历史记录已清理。</p>
+          </div>
+        </div>
+      ) : null}
+
       <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-ink-950">单章导出</h2>
             <p className="mt-1 text-sm leading-6 text-ink-700">
-              第一版先稳定生成每章独立分段音频。整本合并和视频素材包会在后续阶段继续扩展。
+              默认实时读取 Station Cat 网站当前公开正文；软件内精修、定稿和草稿可作为手动备用来源。
             </p>
           </div>
           <div className="rounded-md bg-paper-100 px-3 py-2 text-sm text-ink-700">
@@ -203,15 +225,20 @@ export default async function AudiobookPage({
             >
               {chapters.map((chapter) => {
                 const sourceText = resolveChapterAudioSourceText(chapter);
+                const hasWebsiteSource = publishedChapterIds.has(chapter.id);
 
                 return (
                   <option
-                    disabled={!sourceText}
+                    disabled={!sourceText && !hasWebsiteSource}
                     key={chapter.id}
                     value={chapter.id}
                   >
                     第 {chapter.chapterNumber} 章：{chapter.title}
-                    {sourceText ? "" : "（无可导出正文）"}
+                    {hasWebsiteSource
+                      ? ""
+                      : sourceText
+                        ? "（未发布到网站，可手动选软件内文本）"
+                        : "（无可导出正文）"}
                   </option>
                 );
               })}
@@ -222,10 +249,11 @@ export default async function AudiobookPage({
             <span className="text-sm font-semibold text-ink-800">文本来源</span>
             <select
               className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
-              defaultValue="auto"
+              defaultValue="publishedText"
               name="sourceTextType"
             >
-              <option value="auto">自动：精修 → 定稿 → 草稿</option>
+              <option value="publishedText">个人网站正式发布版</option>
+              <option value="auto">软件内自动：精修 → 定稿 → 草稿</option>
               <option value="polishedText">精修正文</option>
               <option value="finalText">定稿正文</option>
               <option value="draftText">草稿正文</option>
@@ -239,7 +267,7 @@ export default async function AudiobookPage({
               defaultValue={ttsSettings.model}
               name="modelId"
             >
-              {ttsModelOptions.map((option) => (
+              {modelOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -293,22 +321,26 @@ export default async function AudiobookPage({
           <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4 text-sm leading-6 text-ink-700 lg:col-span-2">
             <p>
               当前预估：
-              {selectedSource
-                ? `${formatNumber(selectedSource.text.length)} 字，${estimatedSegments.length} 段，约 ${Math.ceil(
-                    estimateAudioDurationSeconds(selectedSource.text.length) / 60,
-                  )} 分钟。来源：${audioSourceTextTypeLabel(selectedSource.type)}。`
-                : "还没有可导出的章节正文。"}
+              {publishedChapterIds.has(selectedChapter?.id ?? "")
+                ? "网站正文将在导出时实时读取，字数与分段以网站当前公开版本为准。"
+                : selectedLocalSource
+                  ? `${formatNumber(selectedLocalSource.text.length)} 字，${estimatedSegments.length} 段，约 ${Math.ceil(
+                      estimateAudioDurationSeconds(selectedLocalSource.text.length) / 60,
+                    )} 分钟。来源：软件内${audioSourceTextTypeLabel(selectedLocalSource.type)}。`
+                  : "还没有可导出的章节正文。"}
             </p>
             <p>
               费用提示：
-              {selectedSource
-                ? formatEstimatedCost(
-                    estimateTtsCostCents({
-                      charCount: selectedSource.text.length,
-                      modelId: ttsSettings.model,
-                    }),
-                  )
-                : "需要先选择有正文的章节。"}
+              {publishedChapterIds.has(selectedChapter?.id ?? "")
+                ? "网站正式版会在开始导出后按实际正文计算。"
+                : selectedLocalSource
+                  ? formatEstimatedCost(
+                      estimateTtsCostCents({
+                        charCount: selectedLocalSource.text.length,
+                        modelId: ttsSettings.model,
+                      }),
+                    )
+                  : "需要先选择有正文的章节。"}
             </p>
           </div>
 
@@ -331,7 +363,7 @@ export default async function AudiobookPage({
         <div>
           <h2 className="text-lg font-semibold text-ink-950">导出历史</h2>
           <p className="mt-1 text-sm leading-6 text-ink-700">
-            当前显示最近 20 条导出记录。失败分段可以重试；成功音频保存在本机数据目录。
+            当前显示最近 20 条导出记录。成功记录优先提供整章合并音频；分段仍保留用于排查和重试。
           </p>
         </div>
 
@@ -380,6 +412,27 @@ export default async function AudiobookPage({
                       {audioExport.outputDirectory}
                     </p>
                   ) : null}
+                  {audioExport.mergedAudioPath ? (
+                    <div className="mt-3 rounded-md border border-signal-600/20 bg-signal-600/10 p-3">
+                      <p className="text-xs font-semibold text-ink-800">
+                        整章合并音频
+                        {audioExport.mergedSizeBytes
+                          ? ` / ${formatNumber(audioExport.mergedSizeBytes)} bytes`
+                          : ""}
+                      </p>
+                      <audio
+                        className="mt-2 w-full"
+                        controls
+                        src={`/projects/${project.id}/audio-assets?assetPath=${encodeURIComponent(
+                          audioExport.mergedAudioPath,
+                        )}`}
+                      />
+                    </div>
+                  ) : audioExport.status === "succeeded" ? (
+                    <p className="mt-3 rounded-md border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-900">
+                      暂未生成整章合并音频，可打开目录查看分段文件。
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {audioExport.failedSegments > 0 &&
@@ -425,39 +478,61 @@ export default async function AudiobookPage({
                       value={`open-${audioExport.id}`}
                     />
                   </form>
+                  <form
+                    action={deleteAudioExport.bind(
+                      null,
+                      project.id,
+                      audioExport.id,
+                    )}
+                  >
+                    <FormActionButton
+                      icon="trash"
+                      idleLabel="删除记录"
+                      name="audioExportAction"
+                      pendingLabel="正在删除..."
+                      statusText="正在删除导出记录和本机音频文件。"
+                      value={`delete-${audioExport.id}`}
+                      variant="danger"
+                    />
+                  </form>
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {audioExport.segments.map((segment) => (
-                  <div
-                    className="rounded-md border border-ink-950/10 bg-paper-50 p-3"
-                    key={segment.id}
-                  >
-                    <div className="flex items-center justify-between gap-3 text-xs font-semibold text-ink-700">
-                      <span>分段 {segment.segmentIndex}</span>
-                      <span>{audioExportStatusLabel(segment.status)}</span>
-                    </div>
-                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-800">
-                      {segment.inputPreview}
-                    </p>
-                    {segment.localPath ? (
-                      <audio
-                        className="mt-3 w-full"
-                        controls
-                        src={`/projects/${project.id}/audio-assets?assetPath=${encodeURIComponent(
-                          segment.localPath,
-                        )}`}
-                      />
-                    ) : null}
-                    {segment.errorMessage ? (
-                      <p className="mt-2 text-xs leading-5 text-red-700">
-                        {segment.errorMessage}
+              <details className="mt-5 rounded-md border border-ink-950/10 bg-paper-50 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-ink-800">
+                  查看分段明细（{audioExport.segments.length} 段）
+                </summary>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {audioExport.segments.map((segment) => (
+                    <div
+                      className="rounded-md border border-ink-950/10 bg-white p-3"
+                      key={segment.id}
+                    >
+                      <div className="flex items-center justify-between gap-3 text-xs font-semibold text-ink-700">
+                        <span>分段 {segment.segmentIndex}</span>
+                        <span>{audioExportStatusLabel(segment.status)}</span>
+                      </div>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-800">
+                        {segment.inputPreview}
                       </p>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
+                      {segment.localPath ? (
+                        <audio
+                          className="mt-3 w-full"
+                          controls
+                          src={`/projects/${project.id}/audio-assets?assetPath=${encodeURIComponent(
+                            segment.localPath,
+                          )}`}
+                        />
+                      ) : null}
+                      {segment.errorMessage ? (
+                        <p className="mt-2 text-xs leading-5 text-red-700">
+                          {segment.errorMessage}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </details>
             </article>
           ))
         )}
@@ -486,13 +561,19 @@ function audioExportStatusLabel(status: string) {
   return "等待中";
 }
 
-function audioErrorMessage(error?: string) {
+function audioErrorMessage(error?: string, detail?: string) {
   if (error === "missingTtsApiKey") {
-    return "还没有配置 Google Gemini API Key，请先到本机设置里保存有声导出参数。";
+    return "还没有配置 TTS API Key，请先到本机设置里保存有声导出参数。";
   }
 
   if (error === "missingChapterText") {
     return "所选章节没有可导出的精修、定稿或草稿正文。";
+  }
+
+  if (error === "publishedTextUnavailable") {
+    return detail
+      ? `无法读取个人网站正式发布正文：${detail}`
+      : "无法读取个人网站正式发布正文。请确认章节已发布、远端 ID 已同步，并且网站端正文 API 已上线。";
   }
 
   if (error === "invalidForm") {
@@ -504,7 +585,7 @@ function audioErrorMessage(error?: string) {
   }
 
   if (error === "legacyProviderExport") {
-    return "这是旧供应商的有声导出记录，不能用当前 Google Gemini 配置重试。请新建一次有声导出任务。";
+    return "这是旧供应商的有声导出记录，不能用当前 TTS 配置重试。请新建一次有声导出任务。";
   }
 
   return "";

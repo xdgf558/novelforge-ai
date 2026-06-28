@@ -7,8 +7,14 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
-import { readTtsGenerationSecrets } from "@/lib/ai/local-config";
-import { audioDirectoryForExport } from "@/lib/audio/audio-assets";
+import {
+  normalizeTtsModelForProvider,
+  readTtsGenerationSecrets,
+} from "@/lib/ai/local-config";
+import {
+  audioDirectoryForExport,
+  deleteAudioExportAssets,
+} from "@/lib/audio/audio-assets";
 import { chunkAudioText } from "@/lib/audio/chunk-text";
 import {
   estimateAudioDurationSeconds,
@@ -16,6 +22,7 @@ import {
   modelInputLimit,
 } from "@/lib/audio/estimate-cost";
 import { processAudioExport } from "@/lib/audio/export-runner";
+import { resolveWebsitePublishedAudioSource } from "@/lib/audio/published-source";
 import {
   hashAudioSourceText,
   resolveChapterAudioSourceText,
@@ -25,8 +32,8 @@ import { prisma } from "@/lib/prisma";
 const execFileAsync = promisify(execFile);
 
 const audioSourceSchema = z
-  .enum(["auto", "polishedText", "finalText", "draftText"])
-  .default("auto");
+  .enum(["publishedText", "auto", "polishedText", "finalText", "draftText"])
+  .default("publishedText");
 
 const chapterAudioExportSchema = z.object({
   chapterId: z.string().trim().min(1),
@@ -55,7 +62,7 @@ export async function startChapterAudioExport(
     languageCode: formData.get("languageCode")?.toString() || secrets.languageCode,
     modelId: formData.get("modelId")?.toString() || secrets.model,
     outputFormat: formData.get("outputFormat")?.toString() || secrets.outputFormat,
-    sourceTextType: formData.get("sourceTextType")?.toString() || "auto",
+    sourceTextType: formData.get("sourceTextType")?.toString() || "publishedText",
     stylePrompt: formData.get("stylePrompt")?.toString() || secrets.stylePrompt,
     voiceId: formData.get("voiceId")?.toString() || secrets.voiceId,
     voiceName: formData.get("voiceName")?.toString() || secrets.voiceName,
@@ -65,6 +72,10 @@ export async function startChapterAudioExport(
     revalidateAudiobookPaths(projectId);
     redirect(`/projects/${projectId}/audiobook?audioError=invalidForm`);
   }
+  const modelId = normalizeTtsModelForProvider(
+    parsed.data.modelId,
+    secrets.providerId,
+  );
 
   const chapter = await prisma.chapter.findFirst({
     where: {
@@ -95,10 +106,10 @@ export async function startChapterAudioExport(
     redirect(`/projects/${projectId}/audiobook?audioError=activeExport`);
   }
 
-  const sourceText = resolveChapterAudioSourceText(
-    chapter,
-    parsed.data.sourceTextType,
-  );
+  const sourceText =
+    parsed.data.sourceTextType === "publishedText"
+      ? await resolveWebsitePublishedSourceOrRedirect(projectId, chapter.id)
+      : resolveChapterAudioSourceText(chapter, parsed.data.sourceTextType);
 
   if (!sourceText) {
     revalidateAudiobookPaths(projectId);
@@ -106,7 +117,7 @@ export async function startChapterAudioExport(
   }
 
   const chunks = chunkAudioText(sourceText.text, {
-    maxChars: modelInputLimit(parsed.data.modelId),
+    maxChars: modelInputLimit(modelId),
   });
 
   if (chunks.length === 0) {
@@ -124,7 +135,7 @@ export async function startChapterAudioExport(
           chapterId: chapter.id,
           estimatedCostCents: estimateTtsCostCents({
             charCount: sourceText.text.length,
-            modelId: parsed.data.modelId,
+            modelId,
           }),
           estimatedSeconds: estimateAudioDurationSeconds(sourceText.text.length),
           failedSegments: 0,
@@ -132,9 +143,13 @@ export async function startChapterAudioExport(
           metadataJson: JSON.stringify({
             chapterNumber: chapter.chapterNumber,
             chapterTitle: chapter.title,
-            modelInputLimit: modelInputLimit(parsed.data.modelId),
+            modelInputLimit: modelInputLimit(modelId),
+            remoteChapterId:
+              "remoteChapterId" in sourceText ? sourceText.remoteChapterId : null,
+            remoteUpdatedAt:
+              "remoteUpdatedAt" in sourceText ? sourceText.remoteUpdatedAt : null,
           }),
-          modelId: parsed.data.modelId,
+          modelId,
           outputFormat,
           projectId,
           providerId: secrets.providerId,
@@ -339,9 +354,71 @@ export async function openAudioExportFolder(projectId: string, audioExportId: st
   redirect(`/projects/${projectId}/audiobook`);
 }
 
+export async function deleteAudioExport(projectId: string, audioExportId: string) {
+  const audioExport = await prisma.audioExport.findFirst({
+    where: {
+      id: audioExportId,
+      projectId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!audioExport) {
+    notFound();
+  }
+
+  await deleteAudioExportAssets({
+    audioExportId: audioExport.id,
+    projectId,
+  });
+  await prisma.audioExport.delete({
+    where: {
+      id: audioExport.id,
+    },
+  });
+
+  revalidateAudiobookPaths(projectId);
+  redirect(`/projects/${projectId}/audiobook?audioDeleted=1`);
+}
+
+async function resolveWebsitePublishedSourceOrRedirect(
+  projectId: string,
+  chapterId: string,
+) {
+  try {
+    return await resolveWebsitePublishedAudioSource({
+      chapterId,
+      projectId,
+    });
+  } catch (error) {
+    const params = new URLSearchParams({
+      audioError: "publishedTextUnavailable",
+      audioErrorDetail: sanitizeAudioError(error),
+    });
+
+    revalidateAudiobookPaths(projectId);
+    redirect(`/projects/${projectId}/audiobook?${params.toString()}`);
+  }
+}
+
 function revalidateAudiobookPaths(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/audiobook`);
+}
+
+function sanitizeAudioError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+
+  return message
+    .replace(/sk-[A-Za-z0-9_-]{6,}/g, "sk-***")
+    .replace(
+      /[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/g,
+      "***",
+    )
+    .trim()
+    .slice(0, 220);
 }
 
 function isUniqueConstraintError(error: unknown) {

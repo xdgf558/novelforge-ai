@@ -184,6 +184,12 @@ export const DEFAULT_TTS_API_BASE_URL =
 export const DEFAULT_TTS_MODEL = "gemini-2.5-flash-preview-tts";
 export const DEFAULT_TTS_VOICE_ID = "Kore";
 export const DEFAULT_TTS_VOICE_NAME = "Kore - Firm";
+export const DEFAULT_GLM_TTS_PROVIDER_ID = "glm_tts";
+export const DEFAULT_GLM_TTS_API_BASE_URL =
+  "https://open.bigmodel.cn/api/paas/v4";
+export const DEFAULT_GLM_TTS_MODEL = "glm-tts";
+export const DEFAULT_GLM_TTS_VOICE_ID = "female";
+export const DEFAULT_GLM_TTS_VOICE_NAME = "彤彤（默认）";
 export const DEFAULT_TTS_LANGUAGE_CODE = "cmn";
 export const DEFAULT_TTS_OUTPUT_FORMAT = "wav";
 export const DEFAULT_TTS_STYLE_PROMPT =
@@ -484,13 +490,17 @@ export function saveTtsGenerationSettings(
       ? ""
       : currentFileEnv.TTS_API_KEY?.trim() || env.TTS_API_KEY?.trim() || "";
   const nextApiKey = input.clearApiKey ? "" : apiKeyInput || currentApiKey;
+  const providerId = normalizeTtsProviderId(input.providerId);
   const nextEnv: Partial<Record<TtsConfigKey, string>> = {
-    TTS_PROVIDER_ID: normalizeTtsProviderId(input.providerId),
+    TTS_PROVIDER_ID: providerId,
     TTS_API_KEY: nextApiKey,
-    TTS_API_BASE_URL: normalizeTtsApiBaseUrl(input.apiBaseUrl),
-    TTS_MODEL: normalizeTtsModel(input.model),
-    TTS_VOICE_ID: normalizeTtsVoiceId(input.voiceId),
-    TTS_VOICE_NAME: normalizeTtsVoiceName(input.voiceName),
+    TTS_API_BASE_URL: normalizeTtsApiBaseUrlForProvider(
+      input.apiBaseUrl,
+      providerId,
+    ),
+    TTS_MODEL: normalizeTtsModelForProvider(input.model, providerId),
+    TTS_VOICE_ID: normalizeTtsVoiceIdForProvider(input.voiceId, providerId),
+    TTS_VOICE_NAME: normalizeTtsVoiceNameForProvider(input.voiceName, providerId),
     TTS_LANGUAGE_CODE: normalizeTtsLanguageCode(input.languageCode),
     TTS_OUTPUT_FORMAT: normalizeTtsOutputFormat(input.outputFormat),
     TTS_STYLE_PROMPT: normalizeTtsStylePrompt(input.stylePrompt),
@@ -750,9 +760,12 @@ export function normalizeImageQuality(quality?: string | null) {
 }
 
 export function normalizeTtsProviderId(providerId?: string | null) {
-  const normalized = providerId?.trim() || DEFAULT_TTS_PROVIDER_ID;
+  const normalized = providerId?.trim().toLowerCase() || DEFAULT_TTS_PROVIDER_ID;
 
-  if (normalized !== "google_tts") {
+  if (
+    normalized !== DEFAULT_TTS_PROVIDER_ID &&
+    normalized !== DEFAULT_GLM_TTS_PROVIDER_ID
+  ) {
     return DEFAULT_TTS_PROVIDER_ID;
   }
 
@@ -772,18 +785,57 @@ export function normalizeTtsApiBaseUrl(apiBaseUrl?: string | null) {
   return normalized;
 }
 
+export function normalizeTtsApiBaseUrlForProvider(
+  apiBaseUrl: string | null | undefined,
+  providerId: string,
+) {
+  const cleanApiBaseUrl = apiBaseUrl?.trim().replace(/\/+$/, "") || "";
+
+  if (
+    !cleanApiBaseUrl ||
+    (providerId === DEFAULT_GLM_TTS_PROVIDER_ID &&
+      cleanApiBaseUrl === DEFAULT_TTS_API_BASE_URL) ||
+    (providerId === DEFAULT_TTS_PROVIDER_ID &&
+      cleanApiBaseUrl === DEFAULT_GLM_TTS_API_BASE_URL)
+  ) {
+    return normalizeTtsApiBaseUrl(defaultTtsApiBaseUrlForProvider(providerId));
+  }
+
+  return normalizeTtsApiBaseUrl(cleanApiBaseUrl);
+}
+
+function defaultTtsApiBaseUrlForProvider(providerId: string) {
+  return providerId === DEFAULT_GLM_TTS_PROVIDER_ID
+    ? DEFAULT_GLM_TTS_API_BASE_URL
+    : DEFAULT_TTS_API_BASE_URL;
+}
+
 function normalizeTtsRuntimeEnv(env: AiRuntimeEnv): TtsGenerationSecrets {
   const isLegacyPpqConfig = isLegacyPpqTtsConfig(env);
+  const providerId = normalizeTtsProviderId(
+    isLegacyPpqConfig ? "" : env.TTS_PROVIDER_ID,
+  );
 
   return {
-    providerId: DEFAULT_TTS_PROVIDER_ID,
+    providerId,
     apiBaseUrl: normalizeTtsApiBaseUrl(
-      isLegacyPpqConfig ? "" : env.TTS_API_BASE_URL,
+      isLegacyPpqConfig
+        ? ""
+        : env.TTS_API_BASE_URL || defaultTtsApiBaseUrlForProvider(providerId),
     ),
     apiKey: isLegacyPpqConfig ? "" : env.TTS_API_KEY?.trim() ?? "",
-    model: normalizeTtsModel(isLegacyPpqConfig ? "" : env.TTS_MODEL),
-    voiceId: normalizeTtsVoiceId(isLegacyPpqConfig ? "" : env.TTS_VOICE_ID),
-    voiceName: normalizeTtsVoiceName(isLegacyPpqConfig ? "" : env.TTS_VOICE_NAME),
+    model: normalizeTtsModelForProvider(
+      isLegacyPpqConfig ? "" : env.TTS_MODEL,
+      providerId,
+    ),
+    voiceId: normalizeTtsVoiceIdForProvider(
+      isLegacyPpqConfig ? "" : env.TTS_VOICE_ID,
+      providerId,
+    ),
+    voiceName: normalizeTtsVoiceNameForProvider(
+      isLegacyPpqConfig ? "" : env.TTS_VOICE_NAME,
+      providerId,
+    ),
     languageCode: normalizeTtsLanguageCode(
       isLegacyPpqConfig ? "" : env.TTS_LANGUAGE_CODE,
     ),
@@ -810,19 +862,61 @@ function isLegacyPpqTtsConfig(env: AiRuntimeEnv) {
 export function normalizeTtsModel(model?: string | null) {
   const normalized = model?.trim() || DEFAULT_TTS_MODEL;
 
-  if (!normalized.toLowerCase().startsWith("gemini-")) {
+  if (
+    !normalized.toLowerCase().startsWith("gemini-") &&
+    normalized.toLowerCase() !== DEFAULT_GLM_TTS_MODEL
+  ) {
     return DEFAULT_TTS_MODEL;
   }
 
   return normalized;
 }
 
+export function normalizeTtsModelForProvider(
+  model: string | null | undefined,
+  providerId: string,
+) {
+  const normalized = model?.trim();
+
+  if (providerId === DEFAULT_GLM_TTS_PROVIDER_ID) {
+    return normalized?.toLowerCase() === DEFAULT_GLM_TTS_MODEL
+      ? DEFAULT_GLM_TTS_MODEL
+      : DEFAULT_GLM_TTS_MODEL;
+  }
+
+  return normalized?.toLowerCase().startsWith("gemini-")
+    ? normalized
+    : DEFAULT_TTS_MODEL;
+}
+
 export function normalizeTtsVoiceId(voiceId?: string | null) {
   return voiceId?.trim() || DEFAULT_TTS_VOICE_ID;
 }
 
+export function normalizeTtsVoiceIdForProvider(
+  voiceId: string | null | undefined,
+  providerId: string,
+) {
+  if (providerId === DEFAULT_GLM_TTS_PROVIDER_ID) {
+    return voiceId?.trim() || DEFAULT_GLM_TTS_VOICE_ID;
+  }
+
+  return normalizeTtsVoiceId(voiceId);
+}
+
 export function normalizeTtsVoiceName(voiceName?: string | null) {
   return voiceName?.trim().slice(0, 160) || DEFAULT_TTS_VOICE_NAME;
+}
+
+export function normalizeTtsVoiceNameForProvider(
+  voiceName: string | null | undefined,
+  providerId: string,
+) {
+  if (providerId === DEFAULT_GLM_TTS_PROVIDER_ID) {
+    return voiceName?.trim().slice(0, 160) || DEFAULT_GLM_TTS_VOICE_NAME;
+  }
+
+  return normalizeTtsVoiceName(voiceName);
 }
 
 export function normalizeTtsLanguageCode(languageCode?: string | null) {

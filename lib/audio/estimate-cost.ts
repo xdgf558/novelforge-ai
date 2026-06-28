@@ -6,6 +6,7 @@ const geminiWavChannels = 1;
 const geminiWavBytesPerSample = 2;
 const geminiWavHeaderBytes = 44;
 const geminiAudioBudgetSafetyRatio = 0.8;
+const glmAudioBudgetSafetyRatio = 0.72;
 
 export function estimateAudioDurationSeconds(charCount: number) {
   const safeChars = Math.max(0, charCount);
@@ -63,6 +64,10 @@ export function modelInputLimit(modelId: string) {
     return geminiTtsInputLimit();
   }
 
+  if (normalizedModel === "glm-tts" || normalizedModel.includes("glm-tts")) {
+    return glmTtsInputLimit();
+  }
+
   return 3000;
 }
 
@@ -90,4 +95,18 @@ export function geminiTtsInputLimit() {
   );
 
   return Math.max(1, Math.min(1800, maxCharsByAudioBudget));
+}
+
+export function glmTtsInputLimit() {
+  const maxSeconds = Math.floor(
+    (maxAudioSegmentBytes - geminiWavHeaderBytes) /
+      (geminiWavSampleRate * geminiWavChannels * geminiWavBytesPerSample),
+  );
+  const maxCharsByAudioBudget = Math.floor(
+    (maxSeconds / 60) *
+      estimatedTtsCharsPerMinute *
+      glmAudioBudgetSafetyRatio,
+  );
+
+  return Math.max(1, Math.min(1600, maxCharsByAudioBudget));
 }

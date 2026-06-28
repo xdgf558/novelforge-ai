@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.61 AI 故事线草案生成";
+export const appReleaseTitle = "0.1.62 有声导出增强";
 
 export const appReleaseNotes = [
-  "多故事线页面新增 AI 故事线候选生成，会读取总设定、角色、伏笔、章节摘要、大纲和已有故事线，给出可审阅草案。",
-  "AI 候选可以直接填入正式故事线表单，但必须由作者确认保存后才会写入正式故事线和关联关系。",
-  "故事线生成任务接入 AI 任务记录、预算提醒和卡死任务清理，保持可追踪、可恢复、作者可控。",
+  "有声导出默认实时读取 Station Cat 网站当前公开正文，适合网站后台继续修文后的最终音频生成。",
+  "章节音频仍按安全分段生成，但成功后会自动合并为整章 WAV，并在导出历史中优先播放合并文件。",
+  "导出历史新增删除功能，并接入 GLM-TTS（智谱）作为可选中文有声阅读模型。",
 ];

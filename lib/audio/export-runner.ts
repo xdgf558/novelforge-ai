@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import {
   audioDirectoryForExport,
+  mergeWavAudioExportSegments,
   saveAudioExportSegmentAsset,
   writeAudioExportMetadata,
 } from "./audio-assets";
 import { chunkAudioText } from "./chunk-text";
 import { modelInputLimit } from "./estimate-cost";
+import { resolveWebsitePublishedAudioSource } from "./published-source";
 import { getConfiguredTtsProvider } from "./providers/registry";
 import type { TtsProviderId } from "./providers/types";
 import { resolveChapterAudioSourceText } from "./text-source";
@@ -38,10 +40,19 @@ export async function processAudioExport({
   }
 
   try {
-    const sourceText = resolveChapterAudioSourceText(
-      audioExport.chapter,
-      audioExport.sourceTextType as "draftText" | "finalText" | "polishedText",
-    );
+    const sourceText =
+      audioExport.sourceTextType === "publishedText"
+        ? await resolveWebsitePublishedAudioSource({
+            chapterId: audioExport.chapter.id,
+            projectId: audioExport.projectId,
+          })
+        : resolveChapterAudioSourceText(
+            audioExport.chapter,
+            audioExport.sourceTextType as
+              | "draftText"
+              | "finalText"
+              | "polishedText",
+          );
 
     if (!sourceText || sourceText.hash !== audioExport.sourceTextHash) {
       throw new Error("章节文本已变化，请创建新的有声导出任务。");
@@ -216,6 +227,36 @@ export async function finalizeAudioExport(
     audioExport.id,
   );
   let metadataErrorMessage = "";
+  let mergedAsset:
+    | {
+        relativePath: string;
+        mimeType: string;
+        sizeBytes: number;
+      }
+    | null = null;
+  let mergeErrorMessage = "";
+
+  if (status === "succeeded" && audioExport.outputFormat === "wav") {
+    const segmentPaths = audioExport.segments
+      .map((segment) => segment.localPath)
+      .filter((localPath): localPath is string => Boolean(localPath));
+
+    if (segmentPaths.length === audioExport.totalSegments) {
+      try {
+        mergedAsset = await mergeWavAudioExportSegments({
+          audioExportId: audioExport.id,
+          chapterNumber: audioExport.chapter?.chapterNumber ?? 0,
+          chapterTitle: audioExport.chapter?.title ?? "chapter",
+          projectId: audioExport.projectId,
+          segmentPaths,
+        });
+      } catch (error) {
+        mergeErrorMessage = `合并整章音频失败：${
+          error instanceof Error ? error.message : String(error)
+        }`;
+      }
+    }
+  }
 
   try {
     await writeAudioExportMetadata({
@@ -229,6 +270,7 @@ export async function finalizeAudioExport(
         modelId: audioExport.modelId,
         outputFormat: audioExport.outputFormat,
         providerId: audioExport.providerId,
+        mergedAudioPath: mergedAsset?.relativePath ?? null,
         segments: audioExport.segments.map((segment) => ({
           charCount: segment.charCount,
           localPath: segment.localPath,
@@ -256,10 +298,14 @@ export async function finalizeAudioExport(
       completedAt: runningSegments > 0 ? null : new Date(),
       errorMessage:
         metadataErrorMessage ||
+        mergeErrorMessage ||
         (failedSegments > 0
           ? options.fallbackErrorMessage || "部分或全部音频分段生成失败。"
           : null),
       failedSegments,
+      mergedAudioPath: mergedAsset?.relativePath ?? audioExport.mergedAudioPath,
+      mergedMimeType: mergedAsset?.mimeType ?? audioExport.mergedMimeType,
+      mergedSizeBytes: mergedAsset?.sizeBytes ?? audioExport.mergedSizeBytes,
       outputDirectory,
       status,
       succeededSegments,

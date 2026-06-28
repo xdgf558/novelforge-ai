@@ -6,7 +6,9 @@ import {
   getAudioAssetRoot,
   isAudioPreviewPath,
   maxAudioSegmentBytes,
+  mergeWavAudioExportSegments,
   saveAudioPreviewAsset,
+  saveAudioExportSegmentAsset,
 } from "./audio-assets";
 
 const sampleMp3Bytes = Buffer.from([0xff, 0xfb, 0x90, 0x64]);
@@ -127,4 +129,62 @@ describe("audio assets", () => {
     expect(savedAsset.fileName.endsWith(".pcm")).toBe(true);
     expect(savedAsset.mimeType).toBe("application/octet-stream");
   });
+
+  it("merges same-format WAV export segments into one chapter file", async () => {
+    const first = await saveAudioExportSegmentAsset({
+      audioBytes: makeTinyWav(Buffer.from([0, 0, 1, 0])),
+      audioExportId: "audio_export_1",
+      chapterNumber: 1,
+      chapterTitle: "第一章",
+      contentType: "audio/wav",
+      outputFormat: "wav",
+      projectId: "project_1",
+      segmentIndex: 1,
+    });
+    const second = await saveAudioExportSegmentAsset({
+      audioBytes: makeTinyWav(Buffer.from([2, 0, 3, 0])),
+      audioExportId: "audio_export_1",
+      chapterNumber: 1,
+      chapterTitle: "第一章",
+      contentType: "audio/wav",
+      outputFormat: "wav",
+      projectId: "project_1",
+      segmentIndex: 2,
+    });
+
+    const merged = await mergeWavAudioExportSegments({
+      audioExportId: "audio_export_1",
+      chapterNumber: 1,
+      chapterTitle: "第一章",
+      projectId: "project_1",
+      segmentPaths: [first.relativePath, second.relativePath],
+    });
+    const mergedBytes = await fs.readFile(
+      path.join(getAudioAssetRoot(), merged.relativePath),
+    );
+
+    expect(merged.fileName.endsWith(".merged.wav")).toBe(true);
+    expect(mergedBytes.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    expect(mergedBytes.readUInt32LE(40)).toBe(8);
+  });
 });
+
+function makeTinyWav(pcm: Buffer) {
+  const header = Buffer.alloc(44);
+
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(36 + pcm.byteLength, 4);
+  header.write("WAVE", 8, "ascii");
+  header.write("fmt ", 12, "ascii");
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(24000, 24);
+  header.writeUInt32LE(48000, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36, "ascii");
+  header.writeUInt32LE(pcm.byteLength, 40);
+
+  return Buffer.concat([header, pcm]);
+}

@@ -1,6 +1,15 @@
 import { createHash } from "node:crypto";
 
-export type AudioSourceTextType = "auto" | "polishedText" | "finalText" | "draftText";
+export type AudioSourceTextType =
+  | "auto"
+  | "publishedText"
+  | "polishedText"
+  | "finalText"
+  | "draftText";
+type LocalAudioSourceTextType = Exclude<
+  AudioSourceTextType,
+  "auto" | "publishedText"
+>;
 
 export type AudioSourceChapter = {
   draftText?: string | null;
@@ -18,7 +27,11 @@ export function resolveChapterAudioSourceText(
   chapter: AudioSourceChapter,
   requestedSource: AudioSourceTextType = "auto",
 ): ResolvedAudioSourceText | null {
-  const sources: Array<Exclude<AudioSourceTextType, "auto">> =
+  if (requestedSource === "publishedText") {
+    return null;
+  }
+
+  const sources: LocalAudioSourceTextType[] =
     requestedSource === "auto"
       ? ["polishedText", "finalText", "draftText"]
       : [requestedSource];
@@ -43,6 +56,10 @@ export function hashAudioSourceText(text: string) {
 }
 
 export function audioSourceTextTypeLabel(type: string) {
+  if (type === "publishedText") {
+    return "个人网站正式发布版";
+  }
+
   if (type === "polishedText") {
     return "精修正文";
   }

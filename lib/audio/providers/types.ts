@@ -1,4 +1,8 @@
-export type TtsProviderId = "ppq_tts" | "google_tts" | "aliyun_bailian_tts";
+export type TtsProviderId =
+  | "ppq_tts"
+  | "google_tts"
+  | "glm_tts"
+  | "aliyun_bailian_tts";
 
 export type TtsVoice = {
   id: string;

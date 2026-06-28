@@ -1,5 +1,28 @@
 # Development Log
 
+## 2026-06-28: 0.1.62 Audiobook Export Enhancements
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.62`.
+- Changed audiobook export's default text source to the personal website's current published chapter content.
+- Added the Station Cat content client for `GET /api/novelforge/chapters/:remoteChapterId/content`, authenticated with the saved Station Cat Publish Token. The software uses local `publish_sync_states` only to find the remote chapter id; chapter body text is read live from the website API at export time.
+- Kept software-local text sources as manual fallback options: polished text, final text, draft text, and local auto selection.
+- Kept safe per-segment TTS generation, then added automatic WAV merging after all segments succeed so export history can play a whole-chapter file while still retaining segment-level retry/debug data.
+- Added delete support for audiobook export history; deleting a record also removes that export's local audio directory.
+- Added GLM-TTS as a second TTS provider using BigModel's non-streaming WAV speech endpoint, with conservative segment sizing and built-in voice options.
+- Updated the TTS settings page so provider labels, endpoint preview, voice lookup copy, and preview status are no longer hard-coded to Google Gemini.
+
+Verification:
+
+- `npx prisma format` passed.
+- `npx prisma generate` passed.
+- `npm run test -- lib/station-cat-chapter-content.test.ts lib/audio/providers/glm-tts.test.ts lib/audio/audio-assets.test.ts lib/audio/estimate-cost.test.ts lib/ai/local-config.test.ts 'app/projects/[projectId]/audiobook/actions.test.ts' lib/audio/export-runner.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-28: 0.1.61 AI Storyline Draft Generation
 
 Status: completed.

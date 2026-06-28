@@ -6,15 +6,15 @@ import { promisify } from "node:util";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  normalizeTtsApiBaseUrl,
+  normalizeTtsApiBaseUrlForProvider,
   isGenericTtsLanguageCode,
   normalizeTtsLanguageCode,
-  normalizeTtsModel,
+  normalizeTtsModelForProvider,
   normalizeTtsOutputFormat,
   normalizeTtsProviderId,
   normalizeTtsStylePrompt,
-  normalizeTtsVoiceId,
-  normalizeTtsVoiceName,
+  normalizeTtsVoiceIdForProvider,
+  normalizeTtsVoiceNameForProvider,
   saveAiConnectionSettings,
   saveImageGenerationSettings,
   saveNetworkProxySettings,
@@ -240,14 +240,29 @@ function ttsSecretsFromForm(formData: FormData) {
   const currentSecrets = readTtsGenerationSecrets();
   const apiKeyInput = formData.get("ttsApiKey")?.toString().trim() ?? "";
   const clearApiKey = formData.get("clearTtsApiKey") === "on";
+  const providerId = normalizeTtsProviderId(
+    formData.get("ttsProviderId")?.toString(),
+  );
 
   return {
-    providerId: normalizeTtsProviderId(formData.get("ttsProviderId")?.toString()),
-    apiBaseUrl: normalizeTtsApiBaseUrl(formData.get("ttsApiBaseUrl")?.toString()),
+    providerId,
+    apiBaseUrl: normalizeTtsApiBaseUrlForProvider(
+      formData.get("ttsApiBaseUrl")?.toString(),
+      providerId,
+    ),
     apiKey: clearApiKey ? "" : apiKeyInput || currentSecrets.apiKey,
-    model: normalizeTtsModel(formData.get("ttsModel")?.toString()),
-    voiceId: normalizeTtsVoiceId(readTtsVoiceIdFromForm(formData)),
-    voiceName: normalizeTtsVoiceName(readTtsVoiceNameFromForm(formData)),
+    model: normalizeTtsModelForProvider(
+      formData.get("ttsModel")?.toString(),
+      providerId,
+    ),
+    voiceId: normalizeTtsVoiceIdForProvider(
+      readTtsVoiceIdFromForm(formData),
+      providerId,
+    ),
+    voiceName: normalizeTtsVoiceNameForProvider(
+      readTtsVoiceNameFromForm(formData),
+      providerId,
+    ),
     languageCode: normalizeTtsLanguageCode(readTtsLanguageCodeFromForm(formData)),
     outputFormat: normalizeTtsOutputFormat(
       formData.get("ttsOutputFormat")?.toString(),

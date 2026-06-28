@@ -6,12 +6,19 @@ import {
   Play,
   RefreshCw,
   Save,
+  Trash2,
   Volume2,
 } from "lucide-react";
 import { useFormStatus } from "react-dom";
 
-type FormActionButtonIcon = "folder" | "play" | "refresh" | "save" | "volume";
-type FormActionButtonVariant = "dark" | "outline";
+type FormActionButtonIcon =
+  | "folder"
+  | "play"
+  | "refresh"
+  | "save"
+  | "trash"
+  | "volume";
+type FormActionButtonVariant = "danger" | "dark" | "outline";
 
 type FormActionButtonProps = {
   disabled?: boolean;
@@ -30,6 +37,7 @@ const iconMap = {
   play: Play,
   refresh: RefreshCw,
   save: Save,
+  trash: Trash2,
   volume: Volume2,
 } satisfies Record<FormActionButtonIcon, typeof Play>;
 
@@ -99,6 +107,14 @@ function buttonClassName({
       isDisabled
         ? `${disabledClass} bg-ink-800 text-white`
         : "bg-ink-950 text-white hover:bg-ink-800"
+    }`;
+  }
+
+  if (variant === "danger") {
+    return `${base} border border-red-500/25 ${
+      isDisabled
+        ? `${disabledClass} bg-red-50 text-red-700`
+        : "bg-red-50 text-red-700 hover:bg-red-100"
     }`;
   }
 

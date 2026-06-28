@@ -7,6 +7,9 @@ import {
   DEFAULT_IMAGE_MODEL,
   DEFAULT_IMAGE_QUALITY,
   DEFAULT_IMAGE_SIZE,
+  DEFAULT_GLM_TTS_API_BASE_URL,
+  DEFAULT_GLM_TTS_MODEL,
+  DEFAULT_GLM_TTS_VOICE_ID,
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_MODEL,
   DEFAULT_STATION_CAT_API_BASE_URL,
@@ -582,6 +585,35 @@ describe("TTS generation local config", () => {
       source: "environment",
       voiceId: "Kore",
     });
+  });
+
+  it("supports GLM-TTS settings and provider-specific defaults", () => {
+    const configPath = makeTempConfigPath();
+
+    const settings = saveTtsGenerationSettings(
+      {
+        apiBaseUrl: DEFAULT_TTS_API_BASE_URL,
+        apiKey: "glm-secret",
+        languageCode: "zh",
+        model: "gemini-2.5-flash-preview-tts",
+        outputFormat: "wav",
+        providerId: "glm_tts",
+        voiceId: "",
+        voiceName: "",
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+
+    expect(settings).toMatchObject({
+      apiBaseUrl: DEFAULT_GLM_TTS_API_BASE_URL,
+      hasApiKey: true,
+      model: DEFAULT_GLM_TTS_MODEL,
+      providerId: "glm_tts",
+      voiceId: DEFAULT_GLM_TTS_VOICE_ID,
+    });
+    expect(fs.readFileSync(configPath, "utf8")).toContain('TTS_MODEL="glm-tts"');
   });
 });
 
