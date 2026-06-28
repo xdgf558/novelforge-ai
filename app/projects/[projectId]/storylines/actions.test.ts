@@ -443,10 +443,54 @@ describe("storyline actions", () => {
         },
       ],
     });
+    expect(mocks.prisma.aiTask.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "task_1",
+        projectId: "project_1",
+        taskType: "storyline_generation",
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      select: {
+        id: true,
+      },
+    });
     expect(mocks.prisma.aiTask.updateMany).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/storylines?storylineSaved=adopted#storylines",
     );
+  });
+
+  it("rejects stale candidate forms after the AI task has already been reviewed", async () => {
+    mocks.prisma.aiTask.findFirst.mockResolvedValueOnce(null);
+
+    await expect(
+      saveStorylineDraftCandidate(
+        "project_1",
+        "task_1",
+        formData({
+          name: "旧页面候选",
+          type: "mainline",
+          status: "active",
+          coreGoal: "旧页面不应再写入正式故事线。",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+
+    expect(mocks.prisma.aiTask.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "task_1",
+        projectId: "project_1",
+        taskType: "storyline_generation",
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.tx.storyline.create).not.toHaveBeenCalled();
   });
 
   it("marks a reviewed storyline draft task as adopted or rejected", async () => {
@@ -468,6 +512,18 @@ describe("storyline actions", () => {
     });
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/storylines#storyline-ai",
+    );
+  });
+
+  it("reports already-reviewed storyline draft tasks when review state update matches nothing", async () => {
+    mocks.prisma.aiTask.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      updateStorylineDraftTaskAdoptionState("project_1", "task_1", "adopted"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/storylines?storylineAi=already-reviewed#storyline-ai",
     );
   });
 

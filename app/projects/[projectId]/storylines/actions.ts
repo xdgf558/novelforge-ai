@@ -355,6 +355,7 @@ export async function saveStorylineDraftCandidate(
       projectId,
       taskType: storylineGenerationTaskType,
       status: "completed",
+      adoptionState: "not_reviewed",
     },
     select: {
       id: true,
@@ -408,7 +409,7 @@ export async function updateStorylineDraftTaskAdoptionState(
 ) {
   await assertProject(projectId);
 
-  await prisma.aiTask.updateMany({
+  const result = await prisma.aiTask.updateMany({
     where: {
       id: taskId,
       projectId,
@@ -423,6 +424,13 @@ export async function updateStorylineDraftTaskAdoptionState(
 
   revalidateStorylinePaths(projectId);
   revalidatePath(`/projects/${projectId}/ai`);
+
+  if (result.count !== 1) {
+    redirect(
+      `/projects/${projectId}/storylines?storylineAi=already-reviewed#storyline-ai`,
+    );
+  }
+
   redirect(`/projects/${projectId}/storylines#storyline-ai`);
 }
 

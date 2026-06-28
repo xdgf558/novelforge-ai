@@ -1107,6 +1107,8 @@ function storylineAiMessage(value?: string) {
       return "已开始生成故事线候选，完成后会在下方显示。";
     case "active":
       return "已有故事线候选任务正在运行，请等待当前任务完成。";
+    case "already-reviewed":
+      return "这组故事线候选已经被整理或忽略，页面已刷新当前状态。";
     default:
       return null;
   }
