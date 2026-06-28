@@ -6,6 +6,7 @@ export type ProjectExportData = {
   characters?: readonly Record<string, Scalar>[];
   characterRelationships?: readonly Record<string, Scalar>[];
   outlines?: readonly Record<string, Scalar>[];
+  storylines?: readonly Record<string, Scalar>[];
   chapters?: readonly Record<string, Scalar>[];
   worldRules?: readonly Record<string, Scalar>[];
   foreshadows?: readonly Record<string, Scalar>[];
@@ -94,6 +95,22 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["回收伏笔", outline.resolvedForeshadow],
         ["章末钩子", outline.endingHook],
         ["补充备注", outline.content],
+      ]),
+    ]),
+    buildRecordSection("多故事线", data.storylines, (storyline) => [
+      `### ${formatScalar(storyline.name) || "未命名故事线"}`,
+      buildKeyValueList([
+        ["类型", storyline.type],
+        ["状态", storyline.status],
+        ["起始章节", storyline.startChapter],
+        ["结束章节", storyline.endChapter],
+        ["核心目标", storyline.coreGoal],
+        ["当前进展", storyline.currentProgress],
+        ["关联人物", storyline.relatedCharacters],
+        ["关联伏笔", storyline.relatedForeshadows],
+        ["推进章节", storyline.relatedChapters],
+        ["关联大纲", storyline.relatedOutlines],
+        ["备注", storyline.notes],
       ]),
     ]),
     buildRecordSection("章节", data.chapters, (chapter) => [

@@ -41,6 +41,11 @@ model Project {
   foreshadows            Foreshadow[]
   timelineEvents         TimelineEvent[]
   characterRelationships CharacterRelationship[]
+  storylines             Storyline[]
+  storylineCharacters    StorylineCharacter[]
+  storylineForeshadows   StorylineForeshadow[]
+  storylineChapters      StorylineChapter[]
+  storylineOutlines      StorylineOutline[]
   aiPromptTemplates      AiPromptTemplate[]
   aiTasks                AiTask[]
   aiUsageDaily           AiUsageDaily[]
@@ -139,6 +144,7 @@ model Character {
   versions              CharacterVersion[]
   outgoingRelationships CharacterRelationship[] @relation("SourceCharacterRelationships")
   incomingRelationships CharacterRelationship[] @relation("TargetCharacterRelationships")
+  storylineCharacters   StorylineCharacter[]
 
   @@index([projectId, status])
   @@index([projectId, name])
@@ -193,22 +199,22 @@ model CharacterRelationship {
 }
 
 model Chapter {
-  id            String   @id @default(cuid())
-  projectId     String
-  chapterNumber Int
-  title         String
-  status        String   @default("draft")
-  goal          String?
-  beats         String?
-  draftText     String?
-  polishedText  String?
-  finalText     String?
-  notes         String?
-  readerRemoteId String?
+  id                      String    @id @default(cuid())
+  projectId               String
+  chapterNumber           Int
+  title                   String
+  status                  String    @default("draft")
+  goal                    String?
+  beats                   String?
+  draftText               String?
+  polishedText            String?
+  finalText               String?
+  notes                   String?
+  readerRemoteId          String?
   readerFeedbackUpdatedAt DateTime?
-  wordCount     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  wordCount               Int       @default(0)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   project                Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
   versions               ChapterVersion[]
@@ -218,6 +224,7 @@ model Chapter {
   resolvedForeshadows    Foreshadow[]            @relation("ResolvedChapter")
   timelineEvents         TimelineEvent[]
   characterRelationships CharacterRelationship[]
+  storylineChapters      StorylineChapter[]
   continuityReports      ContinuityReport[]
   publishPackages        PublishPackage[]
   readerAnalytics        ChapterAnalytics[]
@@ -333,12 +340,105 @@ model Outline {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storylineOutlines StorylineOutline[]
 
   @@index([projectId, level, sortOrder])
   @@index([projectId, level, volumeNumber])
   @@index([projectId, chapterNumber])
   @@map("outlines")
+}
+
+model Storyline {
+  id              String   @id @default(cuid())
+  projectId       String
+  name            String
+  type            String   @default("mainline")
+  status          String   @default("active")
+  startChapter    Int?
+  endChapter      Int?
+  coreGoal        String?
+  currentProgress String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project     Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  characters  StorylineCharacter[]
+  foreshadows StorylineForeshadow[]
+  chapters    StorylineChapter[]
+  outlines    StorylineOutline[]
+
+  @@index([projectId, status])
+  @@index([projectId, type])
+  @@index([projectId, startChapter])
+  @@map("storylines")
+}
+
+model StorylineCharacter {
+  id          String   @id @default(cuid())
+  projectId   String
+  storylineId String
+  characterId String
+  createdAt   DateTime @default(now())
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storyline Storyline @relation(fields: [storylineId], references: [id], onDelete: Cascade)
+  character Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([storylineId, characterId])
+  @@index([projectId, characterId])
+  @@map("storyline_characters")
+}
+
+model StorylineForeshadow {
+  id           String   @id @default(cuid())
+  projectId    String
+  storylineId  String
+  foreshadowId String
+  createdAt    DateTime @default(now())
+
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storyline  Storyline  @relation(fields: [storylineId], references: [id], onDelete: Cascade)
+  foreshadow Foreshadow @relation(fields: [foreshadowId], references: [id], onDelete: Cascade)
+
+  @@unique([storylineId, foreshadowId])
+  @@index([projectId, foreshadowId])
+  @@map("storyline_foreshadows")
+}
+
+model StorylineChapter {
+  id              String   @id @default(cuid())
+  projectId       String
+  storylineId     String
+  chapterId       String
+  progressSummary String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storyline Storyline @relation(fields: [storylineId], references: [id], onDelete: Cascade)
+  chapter   Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([storylineId, chapterId])
+  @@index([projectId, chapterId])
+  @@map("storyline_chapters")
+}
+
+model StorylineOutline {
+  id          String   @id @default(cuid())
+  projectId   String
+  storylineId String
+  outlineId   String
+  createdAt   DateTime @default(now())
+
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storyline Storyline @relation(fields: [storylineId], references: [id], onDelete: Cascade)
+  outline   Outline   @relation(fields: [outlineId], references: [id], onDelete: Cascade)
+
+  @@unique([storylineId, outlineId])
+  @@index([projectId, outlineId])
+  @@map("storyline_outlines")
 }
 
 model AiPromptTemplate {
@@ -467,10 +567,11 @@ model Foreshadow {
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
-  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  plantedChapter  Chapter?       @relation("PlantedChapter", fields: [plantedChapterId], references: [id], onDelete: SetNull)
-  resolvedChapter Chapter?       @relation("ResolvedChapter", fields: [resolvedChapterId], references: [id], onDelete: SetNull)
-  pendingUpdate   PendingUpdate? @relation(fields: [pendingUpdateId], references: [id], onDelete: SetNull)
+  project              Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  plantedChapter       Chapter?              @relation("PlantedChapter", fields: [plantedChapterId], references: [id], onDelete: SetNull)
+  resolvedChapter      Chapter?              @relation("ResolvedChapter", fields: [resolvedChapterId], references: [id], onDelete: SetNull)
+  pendingUpdate        PendingUpdate?        @relation(fields: [pendingUpdateId], references: [id], onDelete: SetNull)
+  storylineForeshadows StorylineForeshadow[]
 
   @@index([projectId, status])
   @@index([plantedChapterId])

@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bot,
   CheckCircle2,
+  GitBranch,
   History,
   ListChecks,
   Pencil,
@@ -54,6 +55,10 @@ import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { formatDate, formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import {
+  storylineStatusLabel,
+  storylineTypeLabel,
+} from "@/lib/storyline-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -134,6 +139,23 @@ export default async function ChapterPage({
           createdAt: "desc",
         },
         take: 15,
+      },
+      storylineChapters: {
+        include: {
+          storyline: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              status: true,
+              coreGoal: true,
+              currentProgress: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
       },
     },
   });
@@ -270,6 +292,11 @@ export default async function ChapterPage({
 
       <AiBudgetNotice projectId={chapter.project.id} />
 
+      <ChapterStorylinesPanel
+        projectId={chapter.project.id}
+        storylines={chapter.storylineChapters.map((item) => item.storyline)}
+      />
+
       <ChapterReaderFeedbackPanel
         chapterId={chapter.id}
         error={readerFeedbackError}
@@ -336,6 +363,77 @@ export default async function ChapterPage({
 
       <ChapterSnapshot values={chapter} />
     </div>
+  );
+}
+
+function ChapterStorylinesPanel({
+  projectId,
+  storylines,
+}: {
+  projectId: string;
+  storylines: readonly {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    coreGoal: string | null;
+    currentProgress: string | null;
+  }[];
+}) {
+  return (
+    <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <GitBranch aria-hidden="true" className="h-4 w-4" />
+            本章故事线
+          </div>
+          <h2 className="mt-1.5 text-base font-semibold text-ink-950">
+            本章推进了哪些线
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-ink-700">
+            这些关联由作者在多故事线模块中手动维护，后续 AI 生成会读取为参考，不会自动改写。
+          </p>
+        </div>
+        <Link
+          className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+          href={`/projects/${projectId}/storylines`}
+        >
+          <GitBranch aria-hidden="true" className="h-4 w-4" />
+          管理故事线
+        </Link>
+      </div>
+
+      {storylines.length === 0 ? (
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          本章还没有关联故事线。可以在“多故事线”里把本章挂到主线、角色线或伏笔线上。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          {storylines.map((storyline) => (
+            <article
+              className="rounded-md border border-ink-950/10 bg-paper-50 p-3"
+              key={storyline.id}
+            >
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                <span className="rounded bg-white px-2 py-0.5">
+                  {storylineTypeLabel(storyline.type)}
+                </span>
+                <span className="rounded bg-white px-2 py-0.5">
+                  {storylineStatusLabel(storyline.status)}
+                </span>
+              </div>
+              <h3 className="mt-2 text-sm font-semibold text-ink-950">
+                {storyline.name}
+              </h3>
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-700">
+                {storyline.currentProgress || storyline.coreGoal || "暂未填写进展。"}
+              </p>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

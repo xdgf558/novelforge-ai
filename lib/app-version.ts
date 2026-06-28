@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.59 章节列表折叠优化";
+export const appReleaseTitle = "0.1.60 多故事线底座";
 
 export const appReleaseNotes = [
-  "章节编辑器默认只显示章节号最新的 3 章，历史章节自动折叠，长篇项目列表更容易扫读。",
-  "折叠的历史章节仍可展开查看并进入详情页，不影响旧章节编辑、版本快照或连续性检查。",
-  "保留 0.1.58 的旧发布包装模块移除：公众号输出统一走公众号排版导出。",
+  "新增多故事线模块，可手动维护主线、支线、角色线、商业线、反派线、伏笔线等正式故事线。",
+  "故事线可关联角色、伏笔、章节和大纲；章节详情页会显示本章推进了哪些故事线，大纲列表会显示关联故事线。",
+  "多故事线仍保持作者控制：本阶段不接 AI 自动识别或自动改写，只作为后续章节生成读取的结构化底座。",
 ];

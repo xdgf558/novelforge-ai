@@ -43,6 +43,56 @@ export const projectPublishInclude = {
       },
     ],
   },
+  storylines: {
+    include: {
+      characters: {
+        include: {
+          character: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+      foreshadows: {
+        include: {
+          foreshadow: {
+            select: {
+              content: true,
+            },
+          },
+        },
+      },
+      chapters: {
+        include: {
+          chapter: {
+            select: {
+              chapterNumber: true,
+              title: true,
+            },
+          },
+        },
+      },
+      outlines: {
+        include: {
+          outline: {
+            select: {
+              title: true,
+              level: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [
+      {
+        status: "asc",
+      },
+      {
+        updatedAt: "desc",
+      },
+    ],
+  },
   chapters: {
     orderBy: {
       chapterNumber: "asc",
@@ -147,6 +197,7 @@ export const projectPublishInclude = {
       publishPackages: true,
       aiTasks: true,
       outlines: true,
+      storylines: true,
       publishTargets: true,
       aiUsageDaily: true,
     },
@@ -304,6 +355,35 @@ export function buildExportData(project: PublishProject) {
         "updatedAt",
       ]),
     ),
+    storylines: project.storylines.map((storyline) => ({
+      ...pickScalarRecord(storyline, [
+        "id",
+        "name",
+        "type",
+        "status",
+        "startChapter",
+        "endChapter",
+        "coreGoal",
+        "currentProgress",
+        "notes",
+        "createdAt",
+        "updatedAt",
+      ]),
+      relatedCharacters: storyline.characters
+        .map((item) => item.character.name)
+        .join("、"),
+      relatedForeshadows: storyline.foreshadows
+        .map((item) => item.foreshadow.content)
+        .join("、"),
+      relatedChapters: storyline.chapters
+        .map(
+          (item) => `第 ${item.chapter.chapterNumber} 章《${item.chapter.title}》`,
+        )
+        .join("、"),
+      relatedOutlines: storyline.outlines
+        .map((item) => `${item.outline.level}:${item.outline.title}`)
+        .join("、"),
+    })),
     worldRules: project.worldRules.map((rule) =>
       pickScalarRecord(rule, [
         "id",

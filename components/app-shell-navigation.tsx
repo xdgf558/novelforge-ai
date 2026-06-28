@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BookOpenText,
   ClipboardList,
+  GitBranch,
   Headphones,
   LayoutDashboard,
   Layers3,
@@ -43,6 +44,11 @@ const projectToolItems = [
     path: "outlines",
     label: "大纲",
     icon: Layers3,
+  },
+  {
+    path: "storylines",
+    label: "故事线",
+    icon: GitBranch,
   },
   {
     path: "chapters",

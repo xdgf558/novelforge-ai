@@ -111,7 +111,24 @@ Tracks event order and story-time conflicts:
 - Related location
 - Event impact
 
-### 7. AI Task Memory
+### 7. Storyline Memory
+
+Tracks long-running narrative threads across outlines and chapters:
+
+- Storyline name
+- Storyline type, such as mainline, subplot, character arc, business line, antagonist line, foreshadow line, or world line
+- Status
+- Start and end chapter range
+- Core goal
+- Current progress
+- Related characters
+- Related foreshadows
+- Related chapters
+- Related outlines
+
+Storylines are formal planning memory. They should be edited by the author or through explicit author-approved adoption only; AI may use them as context but must not silently create, link, or mutate them.
+
+### 8. AI Task Memory
 
 Every AI call should be saved:
 

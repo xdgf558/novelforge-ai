@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-06-28: 0.1.60 Multi-Storyline Foundation
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.60`.
+- Added formal `storylines` memory with project-scoped relation tables for characters, foreshadows, chapters, and outlines.
+- Added a “多故事线” management page where authors can create, edit, archive, and manually relate mainlines, subplots, character arcs, business lines, antagonist lines, foreshadow lines, and other storylines.
+- Added the “多故事线” entry to the project dashboard and app sidebar.
+- Chapter detail pages now show which formal storylines the chapter advances.
+- Outline cards now show associated storylines and link back to the storyline editor.
+- Project export JSON/Markdown now includes storylines and their related characters, foreshadows, chapters, and outlines.
+- Preserved author control: this phase does not add AI automatic storyline detection, adoption, or mutation.
+
+Verification:
+
+- `npx prisma format` passed.
+- `npx prisma generate` passed.
+- `npm run typecheck` passed.
+
 ## 2026-06-27: 0.1.59 Chapter List Folding
 
 Status: completed.

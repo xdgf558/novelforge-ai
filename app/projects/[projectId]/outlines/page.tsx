@@ -6,6 +6,7 @@ import {
   BookOpenText,
   FileText,
   Flag,
+  GitBranch,
   Layers3,
   Pencil,
   Route,
@@ -56,6 +57,7 @@ import {
   type OutlineProgress,
 } from "@/lib/outline-progress";
 import { prisma } from "@/lib/prisma";
+import { storylineStatusLabel, storylineTypeLabel } from "@/lib/storyline-fields";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +86,23 @@ export default async function OutlinesPage({
     },
     include: {
       outlines: {
+        include: {
+          storylineOutlines: {
+            include: {
+              storyline: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                  status: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
         orderBy: [
           {
             level: "asc",
@@ -745,7 +764,7 @@ function OutlineGroup({
 }: {
   emptyText: string;
   icon: LucideIcon;
-  outlines: readonly OutlineLike[];
+  outlines: readonly OutlineWithStorylines[];
   progressByOutlineId: ReadonlyMap<string, OutlineProgress>;
   projectId: string;
   title: string;
@@ -815,7 +834,7 @@ function OutlineCard({
   progress,
   projectId,
 }: {
-  outline: OutlineLike;
+  outline: OutlineWithStorylines;
   progress?: OutlineProgress;
   projectId: string;
 }) {
@@ -839,6 +858,24 @@ function OutlineCard({
             {outline.goal || outline.mainConflict || outline.coreEvents || "未填写目标或核心事件。"}
           </p>
           {progress ? <OutlineProgressLine progress={progress} /> : null}
+          {outline.storylineOutlines && outline.storylineOutlines.length > 0 ? (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-ink-700">
+              <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-signal-700">
+                <GitBranch aria-hidden="true" className="h-3.5 w-3.5" />
+                关联故事线
+              </span>
+              {outline.storylineOutlines.map((item) => (
+                <Link
+                  className="rounded-md bg-white px-2 py-1 transition hover:text-signal-700"
+                  href={`/projects/${projectId}/storylines?editId=${item.storyline.id}#storyline-${item.storyline.id}`}
+                  key={item.storyline.id}
+                >
+                  {item.storyline.name} · {storylineTypeLabel(item.storyline.type)}
+                  · {storylineStatusLabel(item.storyline.status)}
+                </Link>
+              ))}
+            </div>
+          ) : null}
         </div>
         <div className="flex gap-2">
           <Link
@@ -877,6 +914,17 @@ function OutlineCard({
     </article>
   );
 }
+
+type OutlineWithStorylines = OutlineLike & {
+  storylineOutlines?: {
+    storyline: {
+      id: string;
+      name: string;
+      type: string;
+      status: string;
+    };
+  }[];
+};
 
 function OutlineProgressLine({ progress }: { progress: OutlineProgress }) {
   const totalText = progress.expectedChapters
