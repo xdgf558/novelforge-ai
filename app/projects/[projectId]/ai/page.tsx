@@ -75,13 +75,10 @@ export default async function AiWorkspacePage({
       },
       orderBy: [
         {
-          taskType: "asc",
+          updatedAt: "desc",
         },
         {
-          key: "asc",
-        },
-        {
-          version: "desc",
+          id: "desc",
         },
       ],
     }),
@@ -126,9 +123,134 @@ export default async function AiWorkspacePage({
     budget: project.aiDailyTokenBudget,
     tokenTotal: usageSummary.totals.tokenTotal,
   });
+  const visibleTemplateLimit = 3;
+  const visibleTaskLimit = 3;
+  const visibleTemplates = templates.slice(0, visibleTemplateLimit);
+  const hiddenTemplates = templates.slice(visibleTemplateLimit);
+  const visibleTasks = tasks.slice(0, visibleTaskLimit);
+  const hiddenTasks = tasks.slice(visibleTaskLimit);
+
+  const renderTemplateCard = (template: (typeof templates)[number]) => (
+    <article
+      className="rounded-lg border border-ink-950/10 bg-paper-50 p-3 text-sm"
+      key={template.id}
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h3 className="truncate font-semibold text-ink-950">
+              {template.name}
+            </h3>
+            <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-ink-700">
+              v{template.version}
+            </span>
+            <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-ink-700">
+              {template.status === "active" ? "启用" : "停用"}
+            </span>
+            <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-ink-700">
+              {template.outputFormat}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-xs text-ink-700">
+            {template.key} / {template.taskType}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <form
+            action={copyPromptTemplateVersion.bind(
+              null,
+              project.id,
+              template.id,
+            )}
+          >
+            <button className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+              复制新版
+            </button>
+          </form>
+          <form
+            action={togglePromptTemplateStatus.bind(
+              null,
+              project.id,
+              template.id,
+            )}
+          >
+            <button className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+              {template.status === "active" ? "停用" : "启用"}
+            </button>
+          </form>
+          <form
+            action={resetPromptTemplateToDefault.bind(
+              null,
+              project.id,
+              template.id,
+            )}
+          >
+            <button className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+              恢复默认
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <details className="mt-3 rounded-md border border-ink-950/10 bg-white p-3">
+        <summary className="cursor-pointer text-xs font-semibold text-ink-800">
+          查看 / 复制模板全文
+        </summary>
+        <div className="mt-3 space-y-3">
+          <PromptTemplateCopyButton text={formatPromptTemplateText(template)} />
+          <TemplateBlock label="System" value={template.systemPrompt} />
+          <TemplateBlock label="User" value={template.userPrompt} />
+          <TemplateBlock
+            label="Context Notes"
+            value={template.contextNotes || "未设置"}
+          />
+          <TemplateBlock
+            label="Response Schema"
+            value={template.responseSchema || "未设置"}
+          />
+        </div>
+      </details>
+    </article>
+  );
+
+  const renderTaskRows = (taskItems: typeof tasks) =>
+    taskItems.map((task) => (
+      <div
+        className="grid gap-2 px-3 py-3 text-sm lg:grid-cols-[88px_minmax(0,1fr)_84px_126px] lg:items-start"
+        key={task.id}
+      >
+        <div>
+          <span className="rounded-md bg-paper-100 px-2 py-1 text-xs font-semibold text-ink-700">
+            {aiTaskStatusLabel(task.status)}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-ink-950">{task.taskType}</p>
+          <p className="mt-1 truncate text-xs text-ink-700">
+            {task.model}
+            {task.promptTemplate
+              ? ` / ${task.promptTemplate.name} v${task.promptTemplate.version}`
+              : ""}
+            {task.chapter
+              ? ` / 第 ${task.chapter.chapterNumber} 章 ${task.chapter.title}`
+              : ""}
+          </p>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-700">
+            {task.outputText || task.errorMessage || task.inputContextSummary}
+          </p>
+        </div>
+        <div className="text-xs font-semibold text-ink-700">
+          {aiTaskAdoptionLabel(task.adoptionState)}
+        </div>
+        <div className="text-xs leading-5 text-ink-700">
+          {formatDate(task.createdAt)}
+        </div>
+      </div>
+    ));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <Link
@@ -178,7 +300,7 @@ export default async function AiWorkspacePage({
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <InfoTile
           icon={Bot}
           label="默认模型"
@@ -201,7 +323,7 @@ export default async function AiWorkspacePage({
         />
       </section>
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-base font-semibold text-ink-950">
@@ -222,7 +344,7 @@ export default async function AiWorkspacePage({
           </p>
         ) : null}
 
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <div className="mt-3 grid gap-2 md:grid-cols-4">
           <UsageTile label="调用次数" value={`${usageSummary.totals.callCount} 次`} />
           <UsageTile
             label="输入 token"
@@ -238,20 +360,20 @@ export default async function AiWorkspacePage({
           />
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
           <UsageBreakdown title="按任务类型" rows={usageSummary.byTaskType} />
           <UsageBreakdown title="按模型" rows={usageSummary.byModel} />
         </div>
       </section>
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-ink-950">
               Prompt Templates
             </h2>
             <p className="mt-1 text-sm leading-6 text-ink-700">
-              当前项目已保存 {templates.length} 个模板版本。
+              当前项目已保存 {templates.length} 个模板版本，默认展示最新 {Math.min(templates.length, visibleTemplateLimit)} 个。
             </p>
           </div>
         </div>
@@ -262,106 +384,35 @@ export default async function AiWorkspacePage({
             body="同步默认模板后，后续 AI 阶段会按模板版本记录每次调用。"
           />
         ) : (
-          <div className="mt-5 space-y-3">
+          <div className="mt-4 space-y-3">
             {templateMessage(resolvedSearchParams) ? (
               <p className="rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm text-ink-800">
                 {templateMessage(resolvedSearchParams)}
               </p>
             ) : null}
 
-            {templates.map((template) => (
-              <article
-                className="rounded-lg border border-ink-950/10 bg-paper-50 p-4 text-sm"
-                key={template.id}
-              >
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold text-ink-950">
-                        {template.name}
-                      </h3>
-                      <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink-700">
-                        v{template.version}
-                      </span>
-                      <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink-700">
-                        {template.status === "active" ? "启用" : "停用"}
-                      </span>
-                      <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-ink-700">
-                        {template.outputFormat}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-ink-700">
-                      {template.key} / {template.taskType}
-                    </p>
-                  </div>
+            {visibleTemplates.map(renderTemplateCard)}
 
-                  <div className="flex flex-wrap gap-2">
-                    <form
-                      action={copyPromptTemplateVersion.bind(
-                        null,
-                        project.id,
-                        template.id,
-                      )}
-                    >
-                      <button className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
-                        复制新版
-                      </button>
-                    </form>
-                    <form
-                      action={togglePromptTemplateStatus.bind(
-                        null,
-                        project.id,
-                        template.id,
-                      )}
-                    >
-                      <button className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
-                        {template.status === "active" ? "停用" : "启用"}
-                      </button>
-                    </form>
-                    <form
-                      action={resetPromptTemplateToDefault.bind(
-                        null,
-                        project.id,
-                        template.id,
-                      )}
-                    >
-                      <button className="inline-flex min-h-9 items-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
-                        恢复默认
-                      </button>
-                    </form>
-                  </div>
+            {hiddenTemplates.length > 0 ? (
+              <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+                <summary className="cursor-pointer text-sm font-semibold text-ink-800">
+                  展开历史模板（{hiddenTemplates.length} 个）
+                </summary>
+                <div className="mt-3 space-y-3">
+                  {hiddenTemplates.map(renderTemplateCard)}
                 </div>
-
-                <details className="mt-3 rounded-md border border-ink-950/10 bg-white p-3">
-                  <summary className="cursor-pointer text-xs font-semibold text-ink-800">
-                    查看 / 复制模板全文
-                  </summary>
-                  <div className="mt-3 space-y-3">
-                    <PromptTemplateCopyButton text={formatPromptTemplateText(template)} />
-                    <TemplateBlock label="System" value={template.systemPrompt} />
-                    <TemplateBlock label="User" value={template.userPrompt} />
-                    <TemplateBlock
-                      label="Context Notes"
-                      value={template.contextNotes || "未设置"}
-                    />
-                    <TemplateBlock
-                      label="Response Schema"
-                      value={template.responseSchema || "未设置"}
-                    />
-                  </div>
-                </details>
-              </article>
-            ))}
+              </details>
+            ) : null}
           </div>
         )}
       </section>
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+      <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div>
           <h2 className="text-base font-semibold text-ink-950">Recent Tasks</h2>
           <p className="mt-1 text-sm leading-6 text-ink-700">
             最近 {projectAiTaskRetentionLimit} 条 AI
-            任务记录会保留状态、模型、模板版本和输出摘要；更早的已结束任务会自动清理。
+            任务记录会保留状态、模型、模板版本和输出摘要；默认展示最新 {Math.min(tasks.length, visibleTaskLimit)} 条，其余折叠。
           </p>
         </div>
 
@@ -371,8 +422,8 @@ export default async function AiWorkspacePage({
             body="记录本地检查会创建一条不调用外部模型的审计记录。"
           />
         ) : (
-          <div className="mt-5 overflow-hidden rounded-lg border border-ink-950/10">
-            <div className="grid grid-cols-[120px_1fr_120px_160px] border-b border-ink-950/10 bg-paper-50 px-4 py-3 text-sm font-semibold text-ink-800 max-lg:hidden">
+          <div className="mt-4 overflow-hidden rounded-lg border border-ink-950/10">
+            <div className="grid grid-cols-[88px_minmax(0,1fr)_84px_126px] border-b border-ink-950/10 bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-800 max-lg:hidden">
               <div>状态</div>
               <div>任务</div>
               <div>审阅</div>
@@ -380,38 +431,19 @@ export default async function AiWorkspacePage({
             </div>
 
             <div className="divide-y divide-ink-950/10">
-              {tasks.map((task) => (
-                <div
-                  className="grid gap-2 px-4 py-4 text-sm lg:grid-cols-[120px_1fr_120px_160px] lg:items-start"
-                  key={task.id}
-                >
-                  <div>
-                    <span className="rounded-md bg-paper-100 px-2.5 py-1 text-xs font-semibold text-ink-700">
-                      {aiTaskStatusLabel(task.status)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-ink-950">{task.taskType}</p>
-                    <p className="mt-1 text-xs text-ink-700">
-                      {task.model}
-                      {task.promptTemplate
-                        ? ` / ${task.promptTemplate.name} v${task.promptTemplate.version}`
-                        : ""}
-                      {task.chapter
-                        ? ` / 第 ${task.chapter.chapterNumber} 章 ${task.chapter.title}`
-                        : ""}
-                    </p>
-                    <p className="mt-2 line-clamp-2 text-ink-700">
-                      {task.outputText || task.errorMessage || task.inputContextSummary}
-                    </p>
-                  </div>
-                  <div className="text-ink-700">
-                    {aiTaskAdoptionLabel(task.adoptionState)}
-                  </div>
-                  <div className="text-ink-700">{formatDate(task.createdAt)}</div>
-                </div>
-              ))}
+              {renderTaskRows(visibleTasks)}
             </div>
+
+            {hiddenTasks.length > 0 ? (
+              <details className="border-t border-ink-950/10 bg-paper-50">
+                <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-ink-800">
+                  展开历史任务（{hiddenTasks.length} 条）
+                </summary>
+                <div className="divide-y divide-ink-950/10 bg-white">
+                  {renderTaskRows(hiddenTasks)}
+                </div>
+              </details>
+            ) : null}
           </div>
         )}
       </section>
@@ -429,21 +461,23 @@ function InfoTile({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-      <div className="flex items-center gap-2 text-sm text-ink-700">
+    <div className="min-w-0 rounded-lg border border-ink-950/10 bg-white p-3 shadow-panel">
+      <div className="flex items-center gap-2 text-xs font-semibold text-ink-700">
         <Icon aria-hidden="true" className="h-4 w-4 text-signal-600" />
         {label}
       </div>
-      <p className="mt-3 text-lg font-semibold text-ink-950">{value}</p>
+      <p className="mt-2 break-all text-base font-semibold leading-6 text-ink-950">
+        {value}
+      </p>
     </div>
   );
 }
 
 function UsageTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+    <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-2.5">
       <p className="text-xs font-medium text-ink-700">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-ink-950">{value}</p>
+      <p className="mt-1 text-base font-semibold text-ink-950">{value}</p>
     </div>
   );
 }
@@ -464,7 +498,7 @@ function UsageBreakdown({
         <div className="mt-3 space-y-2">
           {rows.slice(0, 8).map((row) => (
             <div
-              className="grid gap-2 rounded-md bg-white px-3 py-2 text-xs text-ink-700 sm:grid-cols-[minmax(0,1fr)_80px_110px]"
+              className="grid gap-2 rounded-md bg-white px-3 py-2 text-xs text-ink-700 sm:grid-cols-[minmax(0,1fr)_56px_92px]"
               key={row.label}
             >
               <span className="truncate font-semibold text-ink-950">

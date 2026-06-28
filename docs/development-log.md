@@ -1,5 +1,22 @@
 # Development Log
 
+## 2026-06-28: 0.1.63 Compact AI Task Workspace
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.63`.
+- Tightened the AI task record page spacing and top summary cards.
+- Fixed long AI API Base URL display so it wraps inside the interface-address card instead of overflowing into the next card.
+- Changed Prompt Templates to show the latest 3 templates by default and fold older templates into a history section.
+- Changed Recent Tasks to show the latest 3 AI tasks by default and fold older retained tasks into a history section.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-28: 0.1.62 Audiobook Export Enhancements
 
 Status: completed.
