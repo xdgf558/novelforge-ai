@@ -202,14 +202,20 @@ export async function mergeWavAudioExportSegments({
   const absolutePath = resolveAudioAssetPath(relativePath);
 
   await fs.promises.mkdir(path.dirname(absolutePath), { recursive: true });
-  await writeMergedWavFile({
-    absolutePath,
-    dataBytes,
-    format: first,
-    segments: segmentInfos,
-  });
+  let stat: fs.Stats;
 
-  const stat = await fs.promises.stat(absolutePath);
+  try {
+    await writeMergedWavFile({
+      absolutePath,
+      dataBytes,
+      format: first,
+      segments: segmentInfos,
+    });
+    stat = await fs.promises.stat(absolutePath);
+  } catch (error) {
+    await fs.promises.rm(absolutePath, { force: true }).catch(() => undefined);
+    throw error;
+  }
 
   return {
     relativePath,

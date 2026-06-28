@@ -1,7 +1,9 @@
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Readable } from "node:stream";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getAudioAssetRoot,
   isAudioPreviewPath,
@@ -24,6 +26,8 @@ describe("audio assets", () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
+
     if (previousDataDir === undefined) {
       delete process.env.NOVELFORGE_DESKTOP_DATA_DIR;
     } else {
@@ -166,6 +170,68 @@ describe("audio assets", () => {
     expect(merged.fileName.endsWith(".merged.wav")).toBe(true);
     expect(mergedBytes.subarray(0, 4).toString("ascii")).toBe("RIFF");
     expect(mergedBytes.readUInt32LE(40)).toBe(8);
+  });
+
+  it("removes a partial merged WAV if streaming fails", async () => {
+    const first = await saveAudioExportSegmentAsset({
+      audioBytes: makeTinyWav(Buffer.from([0, 0, 1, 0])),
+      audioExportId: "audio_export_1",
+      chapterNumber: 1,
+      chapterTitle: "第一章",
+      contentType: "audio/wav",
+      outputFormat: "wav",
+      projectId: "project_1",
+      segmentIndex: 1,
+    });
+    const second = await saveAudioExportSegmentAsset({
+      audioBytes: makeTinyWav(Buffer.from([2, 0, 3, 0])),
+      audioExportId: "audio_export_1",
+      chapterNumber: 1,
+      chapterTitle: "第一章",
+      contentType: "audio/wav",
+      outputFormat: "wav",
+      projectId: "project_1",
+      segmentIndex: 2,
+    });
+    const originalCreateReadStream = fsSync.createReadStream.bind(fsSync);
+
+    vi.spyOn(fsSync, "createReadStream").mockImplementation(
+      ((filePath: fsSync.PathLike, options?: unknown) => {
+        if (String(filePath).includes("segment-002")) {
+          return new Readable({
+            read() {
+              this.destroy(new Error("segment stream failed"));
+            },
+          }) as ReturnType<typeof fsSync.createReadStream>;
+        }
+
+        return originalCreateReadStream(
+          filePath,
+          options as Parameters<typeof fsSync.createReadStream>[1],
+        );
+      }) as typeof fsSync.createReadStream,
+    );
+
+    await expect(
+      mergeWavAudioExportSegments({
+        audioExportId: "audio_export_1",
+        chapterNumber: 1,
+        chapterTitle: "第一章",
+        projectId: "project_1",
+        segmentPaths: [first.relativePath, second.relativePath],
+      }),
+    ).rejects.toThrow("segment stream failed");
+
+    await expect(
+      fs.access(
+        path.join(
+          getAudioAssetRoot(),
+          "project_1",
+          "audio_export_1",
+          "001-第一章.merged.wav",
+        ),
+      ),
+    ).rejects.toThrow();
   });
 });
 
