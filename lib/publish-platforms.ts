@@ -5,8 +5,6 @@ import {
 } from "./project-cover-assets";
 import type { ProjectExportData } from "./project-export";
 
-type Scalar = string | number | boolean | Date | null | undefined;
-
 export const publishPlatformOptions = [
   {
     value: "station_cat",
@@ -408,7 +406,7 @@ function buildPricingSuggestion({
   };
 }
 
-function latestCoverPrompt(publishPackages?: readonly Record<string, Scalar>[]) {
+function latestCoverPrompt(publishPackages?: readonly Record<string, unknown>[]) {
   const latest = publishPackages?.find((item) => stringValue(item.coverPrompt));
 
   return latest ? stringValue(latest.coverPrompt) : "";
@@ -442,15 +440,22 @@ function syncKey(localType: string, localId: string) {
   return `${localType}:${localId}`;
 }
 
-function stringValue(value: Scalar) {
+function stringValue(value: unknown) {
   if (value == null) {
+    return "";
+  }
+
+  if (
+    Array.isArray(value) ||
+    (typeof value === "object" && !(value instanceof Date))
+  ) {
     return "";
   }
 
   return value instanceof Date ? value.toISOString() : String(value).trim();
 }
 
-function numberValue(value: Scalar) {
+function numberValue(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
@@ -464,7 +469,7 @@ function numberValue(value: Scalar) {
   return null;
 }
 
-function dateString(value: Scalar) {
+function dateString(value: unknown) {
   if (value instanceof Date) {
     return value.toISOString();
   }
@@ -472,6 +477,6 @@ function dateString(value: Scalar) {
   return stringValue(value) || null;
 }
 
-function countTextWords(value: Scalar) {
+function countTextWords(value: unknown) {
   return stringValue(value).replace(/\s/g, "").length;
 }

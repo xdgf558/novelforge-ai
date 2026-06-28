@@ -41,6 +41,45 @@ const exportData = {
       endingHook: "死者短信再次出现。",
     },
   ],
+  storylines: [
+    {
+      name: "地下契约线",
+      type: "mystery_thread",
+      status: "active",
+      startChapter: 1,
+      coreGoal: "追踪寿命交易网络的主线推进。",
+      relatedCharacters: "林野",
+      relatedForeshadows: "死者短信再次出现",
+      relatedChapters: "第 1 章《第一封短信》",
+      relatedOutlines: "chapter:第一章大纲",
+      relatedCharacterItems: [
+        {
+          id: "character_1",
+          name: "林野",
+        },
+      ],
+      relatedForeshadowItems: [
+        {
+          id: "foreshadow_1",
+          content: "死者短信再次出现",
+        },
+      ],
+      relatedChapterItems: [
+        {
+          id: "chapter_1",
+          chapterNumber: 1,
+          title: "第一封短信",
+        },
+      ],
+      relatedOutlineItems: [
+        {
+          id: "outline_1",
+          level: "chapter",
+          title: "第一章大纲",
+        },
+      ],
+    },
+  ],
   chapters: [
     {
       chapterNumber: 1,
@@ -77,6 +116,17 @@ describe("project export builders", () => {
     expect(parsed.version).toBe(1);
     expect(parsed.exportedAt).toEqual(expect.any(String));
     expect(parsed.project.title).toBe("借命人");
+    expect(parsed.storylines[0].relatedCharacterItems).toEqual([
+      {
+        id: "character_1",
+        name: "林野",
+      },
+    ]);
+    expect(parsed.storylines[0].relatedChapterItems[0]).toEqual({
+      id: "chapter_1",
+      chapterNumber: 1,
+      title: "第一封短信",
+    });
     expect(parsed.publishPackages[0].selectedTitle).toBe("死人给他发来短信");
   });
 
@@ -92,6 +142,9 @@ describe("project export builders", () => {
     expect(markdown).toContain("两人共同追查借命契约");
     expect(markdown).toContain("## 大纲");
     expect(markdown).toContain("第一章大纲");
+    expect(markdown).toContain("## 多故事线");
+    expect(markdown).toContain("地下契约线");
+    expect(markdown).toContain("关联人物: 林野");
     expect(markdown).toContain("## 章节");
     expect(markdown).toContain("短信来自一个死人");
     expect(markdown).toContain("## 历史发布包装");

@@ -383,6 +383,24 @@ export function buildExportData(project: PublishProject) {
       relatedOutlines: storyline.outlines
         .map((item) => `${item.outline.level}:${item.outline.title}`)
         .join("、"),
+      relatedCharacterItems: storyline.characters.map((item) => ({
+        id: item.characterId,
+        name: item.character.name,
+      })),
+      relatedForeshadowItems: storyline.foreshadows.map((item) => ({
+        id: item.foreshadowId,
+        content: item.foreshadow.content,
+      })),
+      relatedChapterItems: storyline.chapters.map((item) => ({
+        id: item.chapterId,
+        chapterNumber: item.chapter.chapterNumber,
+        title: item.chapter.title,
+      })),
+      relatedOutlineItems: storyline.outlines.map((item) => ({
+        id: item.outlineId,
+        level: item.outline.level,
+        title: item.outline.title,
+      })),
     })),
     worldRules: project.worldRules.map((rule) =>
       pickScalarRecord(rule, [

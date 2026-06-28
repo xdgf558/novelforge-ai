@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createStoryline } from "./actions";
+import { archiveStoryline, createStoryline, updateStoryline } from "./actions";
 
 const mocks = vi.hoisted(() => {
   const tx = {
@@ -105,6 +105,16 @@ describe("storyline actions", () => {
     );
     mocks.tx.storyline.create.mockResolvedValue({
       id: "storyline_1",
+    });
+    mocks.tx.storyline.update.mockResolvedValue({
+      id: "storyline_1",
+    });
+    mocks.prisma.storyline.findFirst.mockResolvedValue({
+      id: "storyline_1",
+    });
+    mocks.prisma.storyline.update.mockResolvedValue({
+      id: "storyline_1",
+      status: "archived",
     });
     mocks.tx.storylineCharacter.deleteMany.mockResolvedValue({ count: 0 });
     mocks.tx.storylineForeshadow.deleteMany.mockResolvedValue({ count: 0 });
@@ -222,5 +232,123 @@ describe("storyline actions", () => {
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/storylines?storylineError=invalidRelation#storylines",
     );
+  });
+
+  it("replaces all storyline relation tables when updating", async () => {
+    await expect(
+      updateStoryline(
+        "project_1",
+        "storyline_1",
+        formData({
+          name: "谢勇信任线",
+          type: "character_arc",
+          status: "paused",
+          startChapter: 3,
+          endChapter: 18,
+          coreGoal: "跟踪谢勇从绝对信任到利益考验的变化。",
+          characterIds: ["character_2"],
+          foreshadowIds: ["foreshadow_2"],
+          chapterIds: ["chapter_3"],
+          outlineIds: ["outline_2"],
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.storyline.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "storyline_1",
+        projectId: "project_1",
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(mocks.tx.storyline.update).toHaveBeenCalledWith({
+      where: {
+        id: "storyline_1",
+      },
+      data: expect.objectContaining({
+        name: "谢勇信任线",
+        type: "character_arc",
+        status: "paused",
+        startChapter: 3,
+        endChapter: 18,
+      }),
+    });
+    expect(mocks.tx.storylineCharacter.deleteMany).toHaveBeenCalledWith({
+      where: {
+        storylineId: "storyline_1",
+      },
+    });
+    expect(mocks.tx.storylineForeshadow.deleteMany).toHaveBeenCalledWith({
+      where: {
+        storylineId: "storyline_1",
+      },
+    });
+    expect(mocks.tx.storylineChapter.deleteMany).toHaveBeenCalledWith({
+      where: {
+        storylineId: "storyline_1",
+      },
+    });
+    expect(mocks.tx.storylineOutline.deleteMany).toHaveBeenCalledWith({
+      where: {
+        storylineId: "storyline_1",
+      },
+    });
+    expect(mocks.tx.storylineCharacter.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: "project_1",
+          storylineId: "storyline_1",
+          characterId: "character_2",
+        },
+      ],
+    });
+    expect(mocks.tx.storylineForeshadow.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: "project_1",
+          storylineId: "storyline_1",
+          foreshadowId: "foreshadow_2",
+        },
+      ],
+    });
+    expect(mocks.tx.storylineChapter.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: "project_1",
+          storylineId: "storyline_1",
+          chapterId: "chapter_3",
+        },
+      ],
+    });
+    expect(mocks.tx.storylineOutline.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: "project_1",
+          storylineId: "storyline_1",
+          outlineId: "outline_2",
+        },
+      ],
+    });
+  });
+
+  it("archives a storyline without deleting relation rows", async () => {
+    await expect(
+      archiveStoryline("project_1", "storyline_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.storyline.update).toHaveBeenCalledWith({
+      where: {
+        id: "storyline_1",
+      },
+      data: {
+        status: "archived",
+      },
+    });
+    expect(mocks.tx.storylineCharacter.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.tx.storylineForeshadow.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.tx.storylineChapter.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.tx.storylineOutline.deleteMany).not.toHaveBeenCalled();
   });
 });

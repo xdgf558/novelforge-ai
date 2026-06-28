@@ -1,21 +1,24 @@
 type Scalar = string | number | boolean | Date | null | undefined;
+type StructuredExportItem = Record<string, Scalar>;
+type ExportValue = Scalar | readonly StructuredExportItem[];
+type ProjectExportRecord = Record<string, ExportValue>;
 
 export type ProjectExportData = {
-  project: Record<string, Scalar>;
-  setting?: Record<string, Scalar> | null;
-  characters?: readonly Record<string, Scalar>[];
-  characterRelationships?: readonly Record<string, Scalar>[];
-  outlines?: readonly Record<string, Scalar>[];
-  storylines?: readonly Record<string, Scalar>[];
-  chapters?: readonly Record<string, Scalar>[];
-  worldRules?: readonly Record<string, Scalar>[];
-  foreshadows?: readonly Record<string, Scalar>[];
-  timelineEvents?: readonly Record<string, Scalar>[];
-  pendingUpdates?: readonly Record<string, Scalar>[];
-  continuityReports?: readonly Record<string, Scalar>[];
-  publishPackages?: readonly Record<string, Scalar>[];
-  aiTasks?: readonly Record<string, Scalar>[];
-  aiUsageDaily?: readonly Record<string, Scalar>[];
+  project: ProjectExportRecord;
+  setting?: ProjectExportRecord | null;
+  characters?: readonly ProjectExportRecord[];
+  characterRelationships?: readonly ProjectExportRecord[];
+  outlines?: readonly ProjectExportRecord[];
+  storylines?: readonly ProjectExportRecord[];
+  chapters?: readonly ProjectExportRecord[];
+  worldRules?: readonly ProjectExportRecord[];
+  foreshadows?: readonly ProjectExportRecord[];
+  timelineEvents?: readonly ProjectExportRecord[];
+  pendingUpdates?: readonly ProjectExportRecord[];
+  continuityReports?: readonly ProjectExportRecord[];
+  publishPackages?: readonly ProjectExportRecord[];
+  aiTasks?: readonly ProjectExportRecord[];
+  aiUsageDaily?: readonly ProjectExportRecord[];
 };
 
 export function buildProjectJsonExport(data: ProjectExportData) {
@@ -226,7 +229,7 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
   return sections.filter(Boolean).join("\n\n").trim();
 }
 
-function buildSettingSection(setting?: Record<string, Scalar> | null) {
+function buildSettingSection(setting?: ProjectExportRecord | null) {
   if (!setting) {
     return "## 项目设定\n\n暂无项目设定。";
   }
@@ -246,8 +249,8 @@ function buildSettingSection(setting?: Record<string, Scalar> | null) {
 
 function buildRecordSection(
   title: string,
-  records: readonly Record<string, Scalar>[] | undefined,
-  renderRecord: (record: Record<string, Scalar>) => string[],
+  records: readonly ProjectExportRecord[] | undefined,
+  renderRecord: (record: ProjectExportRecord) => string[],
 ) {
   if (!records || records.length === 0) {
     return `## ${title}\n\n暂无记录。`;
@@ -259,7 +262,7 @@ function buildRecordSection(
   ].join("\n\n");
 }
 
-function buildKeyValueList(items: readonly (readonly [string, Scalar])[]) {
+function buildKeyValueList(items: readonly (readonly [string, ExportValue])[]) {
   const lines = items
     .map(([label, value]) => [label, formatScalar(value)] as const)
     .filter(([, value]) => Boolean(value))
@@ -268,8 +271,12 @@ function buildKeyValueList(items: readonly (readonly [string, Scalar])[]) {
   return lines.length > 0 ? lines.join("\n") : "暂无内容。";
 }
 
-function formatScalar(value: Scalar) {
+function formatScalar(value: ExportValue) {
   if (value == null) {
+    return "";
+  }
+
+  if (Array.isArray(value)) {
     return "";
   }
 
