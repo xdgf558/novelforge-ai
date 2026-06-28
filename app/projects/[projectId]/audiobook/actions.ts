@@ -362,6 +362,7 @@ export async function deleteAudioExport(projectId: string, audioExportId: string
     },
     select: {
       id: true,
+      status: true,
     },
   });
 
@@ -369,14 +370,21 @@ export async function deleteAudioExport(projectId: string, audioExportId: string
     notFound();
   }
 
-  await deleteAudioExportAssets({
-    audioExportId: audioExport.id,
-    projectId,
-  });
+  if (isActiveAudioExportStatus(audioExport.status)) {
+    revalidateAudiobookPaths(projectId);
+    redirect(`/projects/${projectId}/audiobook?audioError=deleteActiveExport`);
+  }
+
   await prisma.audioExport.delete({
     where: {
       id: audioExport.id,
     },
+  });
+  await deleteAudioExportAssets({
+    audioExportId: audioExport.id,
+    projectId,
+  }).catch((error) => {
+    console.warn("Failed to delete audiobook export assets:", error);
   });
 
   revalidateAudiobookPaths(projectId);
@@ -419,6 +427,10 @@ function sanitizeAudioError(error: unknown) {
     )
     .trim()
     .slice(0, 220);
+}
+
+function isActiveAudioExportStatus(status: string) {
+  return status === "pending" || status === "running";
 }
 
 function isUniqueConstraintError(error: unknown) {

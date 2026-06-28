@@ -35,7 +35,7 @@ export function buildStationCatChapterContentEndpoint(
     throw new Error("Station Cat API Base URL must use http or https.");
   }
 
-  const path = url.pathname.replace(/\/+$/, "");
+  const path = normalizeStationCatNovelForgePath(url.pathname);
   const encodedId = encodeURIComponent(remoteChapterId);
 
   if (path.endsWith("/api/novelforge/chapters")) {
@@ -50,6 +50,16 @@ export function buildStationCatChapterContentEndpoint(
   url.hash = "";
 
   return url.toString();
+}
+
+function normalizeStationCatNovelForgePath(pathname: string) {
+  const path = pathname.replace(/\/+$/, "");
+
+  if (path.endsWith("/api/novelforge/import")) {
+    return path.slice(0, -"/import".length);
+  }
+
+  return path;
 }
 
 export async function fetchStationCatPublishedChapterContent(

@@ -24,6 +24,15 @@ describe("Station Cat published chapter content", () => {
     ).toBe(
       "https://wwwstationcat.org/api/novelforge/chapters/remote_1/content",
     );
+
+    expect(
+      buildStationCatChapterContentEndpoint(
+        "https://wwwstationcat.org/api/novelforge/import",
+        "remote_1",
+      ),
+    ).toBe(
+      "https://wwwstationcat.org/api/novelforge/chapters/remote_1/content",
+    );
   });
 
   it("parses published body from flexible response shapes", () => {

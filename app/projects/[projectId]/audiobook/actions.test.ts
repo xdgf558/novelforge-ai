@@ -96,6 +96,7 @@ describe("audiobook actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.processAudioExport.mockResolvedValue(undefined);
+    mocks.deleteAudioExportAssets.mockResolvedValue(undefined);
     mocks.redirect.mockImplementation((url: string) => {
       const error = new Error("NEXT_REDIRECT");
       Object.assign(error, { url });
@@ -338,6 +339,7 @@ describe("audiobook actions", () => {
   it("deletes an audio export record and its local assets", async () => {
     mocks.prisma.audioExport.findFirst.mockResolvedValue({
       id: "audio_export_1",
+      status: "succeeded",
     });
 
     await expect(
@@ -355,6 +357,23 @@ describe("audiobook actions", () => {
     });
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/audiobook?audioDeleted=1",
+    );
+  });
+
+  it("does not delete a running audio export", async () => {
+    mocks.prisma.audioExport.findFirst.mockResolvedValue({
+      id: "audio_export_1",
+      status: "running",
+    });
+
+    await expect(
+      deleteAudioExport("project_1", "audio_export_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.deleteAudioExportAssets).not.toHaveBeenCalled();
+    expect(mocks.prisma.audioExport.delete).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/audiobook?audioError=deleteActiveExport",
     );
   });
 });

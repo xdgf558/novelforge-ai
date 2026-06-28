@@ -381,7 +381,12 @@ export default async function AudiobookPage({
             </p>
           </div>
         ) : (
-          audioExports.map((audioExport) => (
+          audioExports.map((audioExport) => {
+            const isActiveExport = ["pending", "running"].includes(
+              audioExport.status,
+            );
+
+            return (
             <article
               className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
               key={audioExport.id}
@@ -478,23 +483,29 @@ export default async function AudiobookPage({
                       value={`open-${audioExport.id}`}
                     />
                   </form>
-                  <form
-                    action={deleteAudioExport.bind(
-                      null,
-                      project.id,
-                      audioExport.id,
-                    )}
-                  >
-                    <FormActionButton
-                      icon="trash"
-                      idleLabel="删除记录"
-                      name="audioExportAction"
-                      pendingLabel="正在删除..."
-                      statusText="正在删除导出记录和本机音频文件。"
-                      value={`delete-${audioExport.id}`}
-                      variant="danger"
-                    />
-                  </form>
+                  {isActiveExport ? (
+                    <p className="max-w-xs rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700">
+                      导出完成或失败后可删除。
+                    </p>
+                  ) : (
+                    <form
+                      action={deleteAudioExport.bind(
+                        null,
+                        project.id,
+                        audioExport.id,
+                      )}
+                    >
+                      <FormActionButton
+                        icon="trash"
+                        idleLabel="删除记录"
+                        name="audioExportAction"
+                        pendingLabel="正在删除..."
+                        statusText="正在删除导出记录和本机音频文件。"
+                        value={`delete-${audioExport.id}`}
+                        variant="danger"
+                      />
+                    </form>
+                  )}
                 </div>
               </div>
 
@@ -534,7 +545,8 @@ export default async function AudiobookPage({
                 </div>
               </details>
             </article>
-          ))
+            );
+          })
         )}
       </section>
     </div>
@@ -582,6 +594,10 @@ function audioErrorMessage(error?: string, detail?: string) {
 
   if (error === "activeExport") {
     return "这章已经有有声导出正在进行中，请等待当前任务完成后再重新导出，避免重复扣费。";
+  }
+
+  if (error === "deleteActiveExport") {
+    return "有声导出仍在生成中，不能删除。请等待任务完成或失败后再清理记录。";
   }
 
   if (error === "legacyProviderExport") {
