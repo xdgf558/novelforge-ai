@@ -47,7 +47,7 @@ export type OpenAITextResult = {
 
 type FetchLike = typeof fetch;
 
-const openAIRequestTimeoutMs = 120_000;
+export const defaultOpenAIRequestTimeoutMs = 120_000;
 
 export function getConfiguredOpenAIModel(env: EnvLike = getAiRuntimeEnv()) {
   return env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
@@ -144,6 +144,7 @@ export async function createOpenAITextResponse(
   options: {
     env?: EnvLike;
     fetchImpl?: FetchLike;
+    timeoutMs?: number;
   } = {},
 ): Promise<OpenAITextResult> {
   assertServerOnly();
@@ -167,30 +168,42 @@ export async function createOpenAITextResponse(
     : buildOpenAIChatCompletionsPayload(resolvedRequest);
   const endpoint = `${baseUrl}/${useResponsesApi ? "responses" : "chat/completions"}`;
   const requestBody = JSON.stringify(payload);
+  const timeoutMs = normalizeOpenAIRequestTimeoutMs(options.timeoutMs);
   const abortController = new AbortController();
-  const timeoutId = setTimeout(
-    () => abortController.abort(),
-    openAIRequestTimeoutMs,
-  );
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      abortController.abort();
+      reject(createOpenAIRequestTimeoutError());
+    }, timeoutMs);
+  });
   let response: Response;
+  let responseText: string;
 
   try {
-    response = await fetchImpl(endpoint, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: requestBody,
-      signal: abortController.signal,
-    });
+    response = await Promise.race([
+      fetchImpl(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: requestBody,
+        signal: abortController.signal,
+      }),
+      timeoutPromise,
+    ]);
+    responseText = await Promise.race([response.text(), timeoutPromise]);
   } catch (error) {
-    throw new Error(formatOpenAIRequestFailure(error, endpoint, requestBody.length));
+    throw new Error(
+      formatOpenAIRequestFailure(error, endpoint, requestBody.length, timeoutMs),
+    );
   } finally {
-    clearTimeout(timeoutId);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 
-  const responseText = await response.text();
   const responseJson = parseOpenAIResponseBody(responseText, response.status);
 
   if (!response.ok) {
@@ -332,9 +345,10 @@ function formatOpenAIRequestFailure(
   error: unknown,
   endpoint: string,
   payloadLength: number,
+  timeoutMs: number,
 ) {
   if (isAbortError(error)) {
-    return `AI 接口请求超时（${openAIRequestTimeoutMs / 1000} 秒）：${endpoint}，请求体约 ${formatPayloadLength(payloadLength)}。请稍后重试，或缩短本次输入。`;
+    return `AI 接口请求超时（${timeoutMs / 1000} 秒）：${endpoint}，请求体约 ${formatPayloadLength(payloadLength)}。请稍后重试，或缩短本次输入。`;
   }
 
   const message = error instanceof Error ? error.message : String(error);
@@ -351,6 +365,20 @@ function formatOpenAIRequestFailure(
   ]
     .filter(Boolean)
     .join("；");
+}
+
+function normalizeOpenAIRequestTimeoutMs(timeoutMs?: number) {
+  if (!Number.isFinite(timeoutMs) || !timeoutMs || timeoutMs <= 0) {
+    return defaultOpenAIRequestTimeoutMs;
+  }
+
+  return Math.max(1_000, Math.round(timeoutMs));
+}
+
+function createOpenAIRequestTimeoutError() {
+  const error = new Error("AI request timed out.");
+  error.name = "AbortError";
+  return error;
 }
 
 function isAbortError(error: unknown) {

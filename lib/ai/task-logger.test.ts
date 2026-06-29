@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createAiTask,
+  longWritingAiRequestTimeoutMs,
   resolveAiTaskExecutionEnv,
+  resolveAiTaskRequestTimeoutMs,
   startLoggedOpenAITextTask,
 } from "./task-logger";
 import { createOpenAITextResponse } from "@/lib/ai/openai-client";
@@ -332,8 +334,19 @@ describe("AI task logger", () => {
           OPENAI_MODEL: "kimi-k2.6",
           OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
         },
+        timeoutMs: longWritingAiRequestTimeoutMs,
       },
     );
+  });
+
+  it("uses longer model request timeouts only for long-form writing tasks", () => {
+    expect(resolveAiTaskRequestTimeoutMs("chapter_draft_generation")).toBe(
+      longWritingAiRequestTimeoutMs,
+    );
+    expect(resolveAiTaskRequestTimeoutMs("chapter_polish_generation")).toBe(
+      longWritingAiRequestTimeoutMs,
+    );
+    expect(resolveAiTaskRequestTimeoutMs("chapter_beat_generation")).toBeUndefined();
   });
 
   it("uses the task route snapshot instead of falling back to the current default env", () => {

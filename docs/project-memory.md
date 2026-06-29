@@ -120,7 +120,7 @@ Prioritize these tables early:
 - Frontend must never access `OPENAI_API_KEY`.
 - All AI calls go through backend routes/actions.
 - Store model name, prompt template version, input context summary, output, status, token usage when available, created time, and adoption state.
-- The default AI connection remains the structural/editorial model route, intended for planning, outlines, beats, summaries, continuity checks, and other management tasks. Chapter draft and chapter polish tasks may use task-level OpenAI-compatible routes such as Kimi K2.6; when a route has no saved API key, it safely falls back to the default AI connection. Routed tasks store a non-secret execution snapshot with route source, model, and base URL in `ai_tasks.inputJson`, while API keys remain only in local config.
+- The default AI connection remains the structural/editorial model route, intended for planning, outlines, beats, summaries, continuity checks, and other management tasks. Chapter draft and chapter polish tasks may use task-level OpenAI-compatible routes such as Kimi K2.6; when a route has no saved API key, it safely falls back to the default AI connection. Routed tasks store a non-secret execution snapshot with route source, model, and base URL in `ai_tasks.inputJson`, while API keys remain only in local config. Long-form writing tasks (`chapter_draft_generation` and `chapter_polish_generation`) use a longer 10 minute model request timeout; structural/editorial tasks keep the default 120 second timeout.
 - Structured tasks should use JSON Schema:
   - Project setting generation
   - Character generation

@@ -52,6 +52,8 @@ type AiTaskExecutionRouteSnapshot = {
   baseUrl: string;
 };
 
+export const longWritingAiRequestTimeoutMs = 10 * 60 * 1000;
+
 export function stringifyAiTaskPayload(value: unknown) {
   if (value == null) {
     return undefined;
@@ -181,11 +183,13 @@ async function completeRunningOpenAITextTask(
   options: RunLoggedOpenAITextTaskOptions,
 ) {
   try {
+    const timeoutMs = resolveAiTaskRequestTimeoutMs(task.taskType);
     const result = await createOpenAITextResponse({
       ...request,
       model: task.model,
     }, {
       env: resolveAiTaskExecutionEnv(task),
+      ...(timeoutMs ? { timeoutMs } : {}),
     });
 
     const completedTask = await markAiTaskCompleted(task.id, {
@@ -229,6 +233,17 @@ export function resolveAiTaskExecutionEnv(task: {
   }
 
   return getAiRuntimeEnvForTaskType(task.taskType);
+}
+
+export function resolveAiTaskRequestTimeoutMs(taskType: string) {
+  if (
+    taskType === "chapter_draft_generation" ||
+    taskType === "chapter_polish_generation"
+  ) {
+    return longWritingAiRequestTimeoutMs;
+  }
+
+  return undefined;
 }
 
 function buildAiTaskExecutionRouteSnapshot(

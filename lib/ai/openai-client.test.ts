@@ -4,6 +4,7 @@ import {
   buildOpenAIInputMessages,
   buildOpenAIResponsesPayload,
   createOpenAITextResponse,
+  defaultOpenAIRequestTimeoutMs,
   extractOpenAIOutputText,
   extractOpenAIUsage,
   getConfiguredOpenAIBaseUrl,
@@ -275,5 +276,78 @@ describe("OpenAI client helpers", () => {
     expect((thrownError as Error).message).toContain(
       "UND_ERR_SOCKET other side closed",
     );
+  });
+
+  it("uses custom request timeout details in abort errors", async () => {
+    const abortError = Object.assign(new Error("aborted"), {
+      name: "AbortError",
+    });
+    const fetchImpl = vi.fn(async () => {
+      throw abortError;
+    });
+    let thrownError: unknown;
+
+    try {
+      await createOpenAITextResponse(
+        {
+          model: "kimi-k2.6",
+          input: "生成章节草稿",
+        },
+        {
+          env: {
+            OPENAI_API_KEY: "sk-test",
+            OPENAI_MODEL: "kimi-k2.6",
+            OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+          },
+          fetchImpl,
+          timeoutMs: defaultOpenAIRequestTimeoutMs * 5,
+        },
+      );
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBeInstanceOf(Error);
+    expect((thrownError as Error).message).toContain(
+      "AI 接口请求超时（600 秒）：https://api.moonshot.cn/v1/chat/completions",
+    );
+  });
+
+  it("keeps the request timeout active while reading the response body", async () => {
+    vi.useFakeTimers();
+    try {
+      const stalledResponse = {
+        ok: true,
+        status: 200,
+        text: vi.fn(() => new Promise<string>(() => {})),
+      } as unknown as Response;
+      const fetchImpl = vi.fn(async () => stalledResponse);
+      const responsePromise = createOpenAITextResponse(
+        {
+          model: "kimi-k2.6",
+          input: "生成章节草稿",
+        },
+        {
+          env: {
+            OPENAI_API_KEY: "sk-test",
+            OPENAI_MODEL: "kimi-k2.6",
+            OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+          },
+          fetchImpl,
+          timeoutMs: 1000,
+        },
+      );
+
+      const rejectionExpectation = expect(responsePromise).rejects.toThrow(
+        "AI 接口请求超时（1 秒）：https://api.moonshot.cn/v1/chat/completions",
+      );
+
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1000);
+      await rejectionExpectation;
+      expect(fetchImpl).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
