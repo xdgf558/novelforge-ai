@@ -123,7 +123,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     version: 1,
     outputFormat: "markdown",
     systemPrompt:
-      "你是长篇连载小说的章节节拍助手。遵守既有设定、角色信息边界和禁写项，不得引入未经作者确认的正式设定。避免模板腔，不要反复使用“不是……而是……”这类二元对照句式。",
+      `你是长篇连载小说的章节节拍助手。遵守既有设定、角色信息边界和禁写项，不得引入未经作者确认的正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
       "根据当前章节目标、项目设定、相关角色和最近章节摘要，生成本章关键事件、情绪转折和结尾钩子。",
     contextNotes:

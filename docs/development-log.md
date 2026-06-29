@@ -14,7 +14,7 @@ What was done:
 
 Verification:
 
-- `npm run test -- lib/ai/chapter-drafts.test.ts lib/ai/chapter-polishes.test.ts lib/ai/prompt-templates.test.ts` passed.
+- `npm run test -- lib/ai/chapter-beats.test.ts lib/ai/chapter-drafts.test.ts lib/ai/chapter-polishes.test.ts lib/ai/prompt-templates.test.ts` passed.
 - `npm run typecheck` passed.
 - `npm run build` passed.
 
