@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.68 Kimi 长文本写作超时修复";
+export const appReleaseTitle = "0.1.69 紧凑侧栏导航";
 
 export const appReleaseNotes = [
-  "章节草稿生成和正文精修这类长文本写作任务的接口超时放宽到 10 分钟，降低 Kimi K2.6 写完整章节时 120 秒超时失败的概率。",
-  "大纲、章节节拍、摘要、连续性检查等结构管理任务仍保持默认 120 秒超时，避免短任务卡住太久。",
-  "超时错误提示会显示当前任务实际使用的秒数，方便判断是网络问题、供应商响应慢，还是输入过长。",
+  "左侧导航改为更紧凑的双列一级入口，减少长篇创作时的纵向占用。",
+  "桌面侧栏从 320px 收窄到 288px，品牌区、图标和导航按钮尺寸同步压缩。",
+  "隐藏底部“本地 SQLite 持久化”提示卡，保留本地持久化能力但不再占用导航空间。",
 ];

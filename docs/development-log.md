@@ -1,5 +1,22 @@
 # Development Log
 
+## 2026-06-29: 0.1.69 Compact Sidebar Navigation
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.69`.
+- Reduced the desktop app sidebar width from `320px` to `288px`.
+- Tightened the sidebar brand area, navigation icon size, row height, padding, and active-state shadow.
+- Changed the desktop sidebar navigation into a compact two-column first-level entry grid for project and creative-tool modules.
+- Removed the bottom “本地 SQLite 持久化” status card and decorative sidebar illustration so local persistence remains a baseline capability instead of a persistent navigation block.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-29: 0.1.68 Kimi Long-Form Writing Timeout Fix
 
 Status: completed.

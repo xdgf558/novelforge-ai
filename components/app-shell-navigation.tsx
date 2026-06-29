@@ -86,7 +86,7 @@ export function AppShellNavigation({
 
   return (
     <>
-      <nav className="flex gap-2 overflow-x-auto px-5 pb-5 lg:flex-col lg:overflow-visible">
+      <nav className="grid grid-flow-col auto-cols-max gap-2 overflow-x-auto px-4 pb-4 lg:grid-flow-row lg:grid-cols-2 lg:overflow-visible">
         {mainNavItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -100,20 +100,20 @@ export function AppShellNavigation({
               href={item.href}
               key={item.href}
             >
-              <Icon aria-hidden="true" className="h-5 w-5" />
+              <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
               {item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="hidden px-6 lg:block">
-        <div className="mb-4 h-px bg-gradient-to-r from-transparent via-[#a87943]/25 to-transparent" />
-        <p className="mb-3 flex items-center gap-2 text-xs font-medium text-[#8b765b]">
+      <div className="hidden px-4 lg:block">
+        <div className="mb-3 h-px bg-gradient-to-r from-transparent via-[#a87943]/25 to-transparent" />
+        <p className="mb-2 flex items-center gap-2 px-1 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-[#8b765b]">
           <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
           创作工具
         </p>
-        <div className="space-y-1.5">
+        <div className="grid grid-cols-2 gap-1.5">
           {projectToolItems.map((item) => {
             const Icon = item.icon;
             const href = projectId ? `/projects/${projectId}/${item.path}` : null;
@@ -126,7 +126,7 @@ export function AppShellNavigation({
                   className="nf-nav-item nf-nav-item-muted"
                   key={item.path}
                 >
-                  <Icon aria-hidden="true" className="h-5 w-5" />
+                  <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
                   {item.label}
                 </div>
               );
@@ -140,7 +140,7 @@ export function AppShellNavigation({
                 href={href}
                 key={item.path}
               >
-                <Icon aria-hidden="true" className="h-5 w-5" />
+                <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
                 {item.label}
               </Link>
             );

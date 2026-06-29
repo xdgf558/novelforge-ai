@@ -1,15 +1,9 @@
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
-import {
-  Bell,
-  CheckCircle2,
-  Database,
-  PackageCheck,
-  Settings,
-} from "lucide-react";
+import { Bell, PackageCheck, Settings } from "lucide-react";
 import { AppShellNavigation } from "@/components/app-shell-navigation";
 import { FormScrollRestoration } from "@/components/form-scroll-restoration";
-import { NovelForgeMark, SidebarNocturneArt } from "@/components/story-illustrations";
+import { NovelForgeMark } from "@/components/story-illustrations";
 import { appVersion } from "@/lib/app-version";
 import { prisma } from "@/lib/prisma";
 
@@ -23,38 +17,21 @@ export async function AppShell({ children }: AppShellProps) {
   return (
     <div className="nocturne-shell min-h-screen overflow-hidden lg:flex">
       <FormScrollRestoration />
-      <aside className="nf-sidebar z-30 max-h-screen overflow-y-auto border-b border-amber-200/10 lg:fixed lg:inset-y-0 lg:left-0 lg:w-80 lg:border-b-0 lg:border-r">
-        <div className="flex min-h-full flex-col">
-          <div className="flex items-center gap-3 px-6 py-7">
-            <NovelForgeMark className="h-14 w-14 shrink-0 rounded-2xl shadow-[0_0_34px_rgba(241,168,76,0.12)]" />
+      <aside className="nf-sidebar z-30 max-h-screen overflow-y-auto border-b border-amber-200/10 lg:fixed lg:inset-y-0 lg:left-0 lg:w-72 lg:border-b-0 lg:border-r">
+        <div className="flex min-h-full flex-col pb-4">
+          <div className="flex items-center gap-3 px-5 py-5">
+            <NovelForgeMark className="h-12 w-12 shrink-0 rounded-xl shadow-[0_0_30px_rgba(241,168,76,0.12)]" />
             <div>
-              <p className="text-lg font-semibold text-[#ffc274]">NovelForge AI</p>
-              <p className="mt-1 text-sm text-[#a89577]">长篇连载创作工作台</p>
+              <p className="text-base font-semibold text-[#ffc274]">NovelForge AI</p>
+              <p className="mt-0.5 text-xs text-[#a89577]">长篇连载创作工作台</p>
             </div>
           </div>
 
           <AppShellNavigation fallbackProjectId={fallbackProjectId} />
-
-          <div className="mt-auto hidden p-6 lg:block">
-            <SidebarNocturneArt className="nf-sidebar-art mb-5 h-auto max-h-40 w-full rounded-2xl opacity-90 shadow-[0_18px_55px_rgba(0,0,0,0.32)]" />
-            <div className="nf-pinned-note">
-              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#f5d49d]">
-                <Database aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />
-                本地 SQLite 持久化
-              </div>
-              <p className="text-sm leading-6 text-[#c7b090]">
-                设定库、角色库、多故事线、章节编辑器、AI 任务记录、待审更新、连续性报告、排版导出都已接入。
-              </p>
-              <div className="mt-4 flex items-center gap-2 text-sm text-[#c7b090]">
-                <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />
-                本地已连接
-              </div>
-            </div>
-          </div>
         </div>
       </aside>
 
-      <main className="relative min-h-screen flex-1 lg:pl-80">
+      <main className="relative min-h-screen flex-1 lg:pl-72">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_18%,rgba(241,168,76,0.12),transparent_26%),radial-gradient(circle_at_28%_72%,rgba(88,215,199,0.10),transparent_30%)]" />
         <div className="relative mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
           <div className="mb-5 flex items-center justify-end gap-4">
