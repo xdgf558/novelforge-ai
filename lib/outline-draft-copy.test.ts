@@ -127,6 +127,27 @@ describe("outline draft copy helpers", () => {
     });
   });
 
+  it("stops markdown heading sections at colon-labelled fields", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary:
+        "《离线未来》章节大纲生成；已有大纲 6 条；目标第 7 章；固定 1 条章节大纲",
+      outputText: `
+## 标题
+第7章《断供》
+**目标：** 承接第6章后的断供危机。
+**章节范围：** 第7章
+**核心事件：** 罗文斌制造配件断供。
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "chapter",
+      title: "第7章《断供》",
+      goal: "承接第6章后的断供危机。",
+      chapterNumber: 7,
+    });
+  });
+
   it("infers the target level from the task summary before scanning draft text", () => {
     expect(
       inferOutlineDraftLevel(

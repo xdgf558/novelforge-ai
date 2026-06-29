@@ -1,5 +1,22 @@
 # Development Log
 
+## 2026-06-29: 0.1.66 Outline Copy and Storyline Board Hardening
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.66`.
+- Hardened chapter-outline draft copy parsing so Markdown heading sections stop when the next line is a colon-labelled field such as `**目标：**` or `**章节范围：**`.
+- Changed the formal storyline board's default visible list to preserve status priority before slicing to 3 items, so active storylines stay ahead of completed or archived storylines even when closed rows have newer `updatedAt` values.
+- Added regression tests for mixed Markdown heading plus labelled-field outline output and storyline board status-priority sorting.
+
+Verification:
+
+- `npm run test -- lib/outline-draft-copy.test.ts lib/storyline-sort.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-29: 0.1.65 Outline Copy and Storyline Closure Hints
 
 Status: completed.

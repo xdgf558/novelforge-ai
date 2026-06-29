@@ -233,7 +233,10 @@ function firstHeadingSection(text: string, labels: readonly string[]) {
     for (let nextIndex = index + 1; nextIndex < lines.length; nextIndex += 1) {
       const nextLine = lines[nextIndex] ?? "";
 
-      if (/^\s*#{1,6}\s+/.test(nextLine)) {
+      if (
+        /^\s*#{1,6}\s+/.test(nextLine) ||
+        labelStopPattern.test(nextLine.replace(/\*\*/g, ""))
+      ) {
         break;
       }
 
