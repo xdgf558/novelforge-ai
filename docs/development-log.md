@@ -1,5 +1,23 @@
 # Development Log
 
+## 2026-06-29: 0.1.64 Prose Anti-Template Guardrails
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.64`.
+- Added shared prose style guardrails for chapter generation that specifically reduce repetitive “不是……而是……” / “不是因为……而是因为……” binary contrast phrasing.
+- Injected the guardrails into chapter beat, chapter draft, and chapter polish contexts so future AI calls carry the style constraint even when project settings are unchanged.
+- Updated the default chapter beat/draft/polish prompt templates with the same anti-template phrasing guidance.
+- Kept the change scoped to future AI generation and polishing; existing chapter text and formal story memory are not modified automatically.
+
+Verification:
+
+- `npm run test -- lib/ai/chapter-drafts.test.ts lib/ai/chapter-polishes.test.ts lib/ai/prompt-templates.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-28: 0.1.63 Compact AI Task Workspace
 
 Status: completed.

@@ -61,6 +61,14 @@ describe("chapter draft context builder", () => {
     expect(context.inputText).toContain("第 4 章《死者发来的短信》");
     expect(context.inputText).toContain("第三个名字对应死者");
     expect(context.inputText).toContain("短句推进，悬疑压迫感强");
+    expect(context.inputText).toContain("不是……而是……");
+    expect(context.inputText).toContain("优先用动作、细节和人物反应表达含义");
+    expect(context.inputJson.styleConstraints).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("反模板腔"),
+        expect.stringContaining("不是……而是……"),
+      ]),
+    );
     expect(context.inputText).toContain("林野");
     expect(context.inputText).toContain("死亡合同调查");
     expect(context.inputText).toContain("医院旧档案");

@@ -55,6 +55,14 @@ describe("chapter polish context builder", () => {
     expect(context.inputText).toContain("第 4 章《死者发来的短信》");
     expect(context.inputText).toContain("林野翻出旧合同");
     expect(context.inputText).toContain("删除“【开场钩子】");
+    expect(context.inputText).toContain("不是……而是……");
+    expect(context.inputText).toContain("清理 AI 腔和模板腔");
+    expect(context.inputJson.styleConstraints).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("反模板腔"),
+        expect.stringContaining("不是……而是……"),
+      ]),
+    );
     expect(context.inputText).toContain("不能让 AI 直接改写正式设定");
     expect(context.inputJson.chapter).toMatchObject({
       chapterNumber: 4,
@@ -128,6 +136,7 @@ describe("chapter polish context builder", () => {
     expect(context.segments[0].inputText).toContain(
       "只输出本段精修正文",
     );
+    expect(context.segments[0].inputText).toContain("不是……而是……");
     expect(context.inputContextSummary).toContain("自动分段精修");
     expect(isExcerptedChapterPolishInputJson(JSON.stringify(context.inputJson))).toBe(
       false,

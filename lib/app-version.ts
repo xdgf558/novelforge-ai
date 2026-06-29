@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.63 AI 任务页紧凑化";
+export const appReleaseTitle = "0.1.64 正文反模板腔约束";
 
 export const appReleaseNotes = [
-  "AI 任务记录页改成更紧凑的管理视图，顶部统计卡避免长接口地址撑出卡片。",
-  "Prompt Templates 默认只展示最近 3 个模板版本，历史模板折叠保留可查看、复制和管理。",
-  "Recent Tasks 默认只展示最新 3 条任务记录，其余任务折叠，长篇项目扫记录时更清爽。",
+  "章节节拍、章节草稿和正文精修都加入反模板腔约束，减少“不是……而是……”等高频 AI 句式。",
+  "草稿生成会优先用动作、细节、人物反应和因果推进表达含义，降低抽象总结感。",
+  "正文精修会主动清理连续出现的二元对照句式，但不改变剧情事实、人物关系和正式设定。",
 ];

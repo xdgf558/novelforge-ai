@@ -7,6 +7,7 @@ import {
   readerFeedbackSignalsToJson,
   type ReaderFeedbackSignal,
 } from "./reader-feedback-context";
+import { proseStyleGuardrails } from "./prose-style-guardrails";
 
 export type ChapterDraftProjectContext = {
   title: string;
@@ -106,6 +107,7 @@ export function buildChapterDraftContext(
     input.project.wechatPositioning
       ? `公众号定位：${input.project.wechatPositioning}`
       : "",
+    ...proseStyleGuardrails,
   ].filter(Boolean);
   const worldConstraints = buildLabeledSettingLines(
     input.setting,
@@ -148,6 +150,7 @@ export function buildChapterDraftContext(
       "严格遵循已确认章节节拍。",
       "读者反馈只作为段落节奏、钩子强度、角色出场权重和信息解释密度参考。",
       "保持角色说话规则和世界观边界。",
+      "避免模板腔，尤其不要反复使用“不是……而是……”这类二元对照句式。",
       "不得宣称已经修改正式设定或正式章节。",
     ],
   };
@@ -196,6 +199,7 @@ export function buildChapterDraftContext(
     "- 如有读者反馈，落实为更清晰的开场推进、段落节奏、追更钩子和读者关注角色的戏份分配；不要直接在正文中提到数据、指标或读者反馈。",
     "- 保持人物语气、行动边界、世界观规则和禁写事项。",
     "- 使用适合连载阅读的开场推进、段落节奏和章末钩子。",
+    "- 避免 AI 腔和模板腔：不要频繁使用“不是……而是……”“不是因为……而是因为……”“真正的……不是……而是……”等句式；优先用动作、细节和人物反应表达含义。",
   ].join("\n");
 
   return {

@@ -6,6 +6,7 @@ import {
   readerFeedbackSignalsToJson,
   type ReaderFeedbackSignal,
 } from "./reader-feedback-context";
+import { proseStyleGuardrails } from "./prose-style-guardrails";
 
 export type ChapterBeatProjectContext = {
   title: string;
@@ -119,8 +120,10 @@ export function buildChapterBeatContext(
       "按顺序给出 8-12 个章节节拍。",
       "包含开场钩子、关键事件、情绪转折、章末钩子。",
       "读者反馈只作为节奏、钩子、角色权重和爽点补强参考，不得改写已确认事实。",
+      "节拍草案也要避免模板腔，不要反复使用“不是……而是……”这类二元对照句式。",
       "不要宣称已经修改正式设定或角色记忆。",
     ],
+    proseStyleGuardrails,
   };
 
   const inputText = [
@@ -181,6 +184,7 @@ export function buildChapterBeatContext(
     "- 明确标出开场钩子、关键转折、章末钩子。",
     "- 如有读者反馈，优先用它调整下一章开场推进、章末钩子、角色出场权重和信息解释密度；不得把读者反馈当作已经生效的正式设定。",
     "- 保持既有设定与角色边界，不新增未经作者确认的正式设定。",
+    "- 节拍草案也要避免模板腔，少用“不是……而是……”这类二元对照句式；能用具体行动、选择和后果表达，就不要用抽象总结。",
   ].join("\n");
 
   return {
