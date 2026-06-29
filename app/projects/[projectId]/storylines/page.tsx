@@ -50,6 +50,7 @@ import {
   storylineValidationErrorMessages,
   type StorylineValidationErrorCode,
 } from "@/lib/storyline-fields";
+import { sortStorylines } from "@/lib/storyline-sort";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -249,11 +250,8 @@ export default async function StorylinesPage({
     0,
     ...project.chapters.map((chapter) => chapter.chapterNumber),
   );
-  const recentStorylines = [...storylines].sort(
-    (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
-  );
-  const visibleStorylines = recentStorylines.slice(0, 3);
-  const hiddenStorylines = recentStorylines.slice(3);
+  const visibleStorylines = storylines.slice(0, 3);
+  const hiddenStorylines = storylines.slice(3);
   const errorMessage =
     storylineValidationErrorMessages[
       query.storylineError as StorylineValidationErrorCode
@@ -1138,29 +1136,6 @@ function outlineLabel(outline: OutlineOption) {
   return `${outlineLevelLabel(outline.level)}：${outline.title}（${outlineRangeLabel(
     outline,
   )}）`;
-}
-
-function sortStorylines<T extends { status: string; updatedAt: Date }>(
-  storylines: readonly T[],
-) {
-  const statusRank: Record<string, number> = {
-    active: 0,
-    planned: 1,
-    paused: 2,
-    completed: 3,
-    archived: 4,
-  };
-
-  return [...storylines].sort((a, b) => {
-    const byStatus =
-      (statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9);
-
-    if (byStatus !== 0) {
-      return byStatus;
-    }
-
-    return b.updatedAt.getTime() - a.updatedAt.getTime();
-  });
 }
 
 function storylineCompletionSuggestion(
