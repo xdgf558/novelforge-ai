@@ -73,6 +73,60 @@ describe("outline draft copy helpers", () => {
     });
   });
 
+  it("parses single chapter drafts that use markdown sections for title and goal", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary:
+        "《离线未来》章节大纲生成；已有大纲 6 条；目标第 7 章；固定 1 条章节大纲",
+      outputText: `
+# 第7章《断供》章节大纲（草案）
+
+---
+
+## 标题
+第7章《断供》
+
+## 目标
+承接第6章结尾罗文斌施压升级的预判与方老板对省城渠道的摸底，将冲突从“试探”推进到“实质施压”。
+
+## 章节范围
+- **时间**：1999年6月29日至7月1日
+- **地点**：新世纪电脑培训班、陈家
+
+## 核心事件
+罗文斌通过控制本地配件供应，对培训班实施实质性断供威胁。
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "chapter",
+      title: "第7章《断供》",
+      goal:
+        "承接第6章结尾罗文斌施压升级的预判与方老板对省城渠道的摸底，将冲突从“试探”推进到“实质施压”。",
+      chapterNumber: 7,
+    });
+  });
+
+  it("does not treat ordinary chapter-related section headings as chapter titles", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary:
+        "《离线未来》章节大纲生成；已有大纲 6 条；目标第 7 章；固定 1 条章节大纲",
+      outputText: `
+## 章节范围
+- 时间：1999年6月29日至7月1日
+
+## 目标
+承接第6章后的断供危机。
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "chapter",
+      title: "",
+      goal: "承接第6章后的断供危机。",
+      chapterNumber: 7,
+    });
+  });
+
   it("infers the target level from the task summary before scanning draft text", () => {
     expect(
       inferOutlineDraftLevel(

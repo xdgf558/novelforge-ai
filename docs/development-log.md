@@ -1,5 +1,23 @@
 # Development Log
 
+## 2026-06-29: 0.1.65 Outline Copy and Storyline Closure Hints
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.65`.
+- Fixed chapter-outline draft copy parsing when AI outputs Markdown sections such as `## 标题`, `## 目标`, and `## 章节范围`; the copy helper no longer treats `章节范围` as the chapter title.
+- Added a regression test for the single-chapter outline format produced by recent AI outline drafts.
+- Added a safe semi-automatic storyline closure hint: storylines may show “可能可以收束” when the project has reached the end chapter or all linked chapters are finalized/published, but the system still requires the author to click “标记完成” or “归档”.
+- Changed the formal storyline board to show the latest 3 storylines by default and fold the rest into a history section.
+
+Verification:
+
+- `npm run test -- lib/outline-draft-copy.test.ts 'app/projects/[projectId]/storylines/actions.test.ts'` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-29: 0.1.64 Prose Anti-Template Guardrails
 
 Status: completed.

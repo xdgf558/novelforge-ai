@@ -30,7 +30,7 @@ export function parseOutlineDraftCopySuggestion({
   const level = inferOutlineDraftLevel(inputContextSummary, text);
 
   if (level === "chapter") {
-    return parseChapterSuggestion(text);
+    return parseChapterSuggestion(text, inputContextSummary);
   }
 
   if (level === "unit") {
@@ -105,14 +105,24 @@ function parseRangeSuggestion(
   };
 }
 
-function parseChapterSuggestion(text: string): OutlineDraftCopySuggestion | null {
+function parseChapterSuggestion(
+  text: string,
+  inputContextSummary?: string | null,
+): OutlineDraftCopySuggestion | null {
   const block = firstFutureChapterBlock(text) ?? text;
   const title =
-    firstBlockLabel(block, ["章节标题", "标题"]) || chapterTitleFromHeading(block) || "";
-  const goal = firstBlockLabel(block, ["章节目标", "目标"]) || "";
+    firstBlockLabel(block, ["章节标题", "标题"]) ||
+    firstHeadingSection(block, ["章节标题", "标题"]) ||
+    chapterTitleFromHeading(block) ||
+    "";
+  const goal =
+    firstBlockLabel(block, ["章节目标", "目标"]) ||
+    firstHeadingSection(block, ["章节目标", "目标"]) ||
+    "";
   const chapterNumber =
     firstPositiveInteger(firstBlockLabel(block, ["章节号"]) || "") ||
-    arabicChapterNumberFromHeading(block);
+    arabicChapterNumberFromHeading(block) ||
+    targetChapterNumberFromSummary(inputContextSummary);
   const expectedWords = firstPositiveInteger(firstBlockLabel(block, ["预计字数"]) || "");
 
   if (!title && !goal && !chapterNumber && !expectedWords) {
@@ -129,7 +139,9 @@ function parseChapterSuggestion(text: string): OutlineDraftCopySuggestion | null
 }
 
 function firstFutureChapterBlock(text: string) {
-  const headingMatches = [...text.matchAll(/^##\s+(.+)$/gm)];
+  const headingMatches = [...text.matchAll(/^#{1,6}\s+(.+)$/gm)].filter(
+    (match) => isChapterOutlineHeading(match[1] ?? ""),
+  );
 
   for (let index = 0; index < headingMatches.length; index += 1) {
     const match = headingMatches[index];
@@ -150,6 +162,12 @@ function firstFutureChapterBlock(text: string) {
   }
 
   return null;
+}
+
+function isChapterOutlineHeading(heading: string) {
+  const cleaned = cleanInlineText(heading);
+
+  return /第\s*(?:\d+|[一二三四五六七八九十百千万]+)\s*章/.test(cleaned);
 }
 
 function firstBlockLabel(text: string, labels: readonly string[]) {
@@ -194,6 +212,44 @@ function firstBlockLabel(text: string, labels: readonly string[]) {
   return "";
 }
 
+function firstHeadingSection(text: string, labels: readonly string[]) {
+  const lines = text.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const heading = lines[index]?.match(/^\s*#{1,6}\s+(.+?)\s*$/)?.[1];
+
+    if (!heading) {
+      continue;
+    }
+
+    const cleanedHeading = cleanInlineText(heading);
+
+    if (!labels.some((label) => cleanedHeading === label)) {
+      continue;
+    }
+
+    const collected: string[] = [];
+
+    for (let nextIndex = index + 1; nextIndex < lines.length; nextIndex += 1) {
+      const nextLine = lines[nextIndex] ?? "";
+
+      if (/^\s*#{1,6}\s+/.test(nextLine)) {
+        break;
+      }
+
+      const cleanedLine = cleanInlineText(nextLine);
+
+      if (cleanedLine) {
+        collected.push(cleanedLine);
+      }
+    }
+
+    return collected.join("\n").trim();
+  }
+
+  return "";
+}
+
 function headingTitle(text: string, level: "volume" | "unit") {
   const heading = text.match(/^##\s+(.+)$/m)?.[1] ?? "";
   const titleFromColon = heading.match(/[：:]\s*([^（(]+)$/)?.[1]?.trim();
@@ -217,19 +273,33 @@ function headingTitle(text: string, level: "volume" | "unit") {
 }
 
 function chapterTitleFromHeading(text: string) {
-  const heading = text.match(/^##\s+(.+)$/m)?.[1] ?? "";
+  const heading = text.match(/^#{1,6}\s+(.+)$/m)?.[1] ?? "";
+  const cleanedHeading = cleanInlineText(heading);
+
+  if (!isChapterOutlineHeading(cleanedHeading)) {
+    return "";
+  }
 
   return cleanInlineText(
-    heading.match(/《([^》]+)》/)?.[1] ??
-      heading.match(/[：:]\s*([^（(]+)$/)?.[1] ??
-      heading.replace(/^.*第\s*\d+\s*章\s*/, ""),
+    cleanedHeading.match(/《([^》]+)》/)?.[1] ??
+      cleanedHeading.match(/[：:]\s*([^（(]+)$/)?.[1] ??
+      cleanedHeading.replace(
+        /^.*第\s*(?:\d+|[一二三四五六七八九十百千万]+)\s*章\s*/,
+        "",
+      ),
   );
 }
 
 function arabicChapterNumberFromHeading(text: string) {
-  const heading = text.match(/^##\s+(.+)$/m)?.[1] ?? "";
+  const heading = text.match(/^#{1,6}\s+(.+)$/m)?.[1] ?? "";
 
   return firstPositiveInteger(heading.match(/第\s*(\d+)\s*章/)?.[1] ?? "");
+}
+
+function targetChapterNumberFromSummary(inputContextSummary?: string | null) {
+  return firstPositiveInteger(
+    inputContextSummary?.match(/目标第\s*(\d+)\s*章/)?.[1] ?? "",
+  );
 }
 
 function chapterRangeFromText(text: string) {

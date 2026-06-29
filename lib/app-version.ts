@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.64 正文反模板腔约束";
+export const appReleaseTitle = "0.1.65 大纲复制与故事线收束提醒";
 
 export const appReleaseNotes = [
-  "章节节拍、章节草稿和正文精修都加入反模板腔约束，减少“不是……而是……”等高频 AI 句式。",
-  "草稿生成会优先用动作、细节、人物反应和因果推进表达含义，降低抽象总结感。",
-  "正文精修会主动清理连续出现的二元对照句式，但不改变剧情事实、人物关系和正式设定。",
+  "修复 AI 章节大纲草案复制到表单时，把“章节范围”误填为标题的问题。",
+  "故事线看板默认只显示最近 3 条，其余故事线折叠到历史区域。",
+  "故事线到达结束章节或关联章节均已定稿/发布时，只提示可能可以收束，由作者手动标记完成或归档。",
 ];
