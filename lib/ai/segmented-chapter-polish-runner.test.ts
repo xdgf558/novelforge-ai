@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   markAiTaskCompleted: vi.fn(),
   markAiTaskFailed: vi.fn(),
   resolveAiTaskExecutionEnv: vi.fn(),
+  resolveAiTaskRequestTimeoutMs: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -35,6 +36,7 @@ vi.mock("@/lib/ai/task-logger", () => ({
   markAiTaskCompleted: mocks.markAiTaskCompleted,
   markAiTaskFailed: mocks.markAiTaskFailed,
   resolveAiTaskExecutionEnv: mocks.resolveAiTaskExecutionEnv,
+  resolveAiTaskRequestTimeoutMs: mocks.resolveAiTaskRequestTimeoutMs,
 }));
 
 const longDraftText = [
@@ -128,6 +130,7 @@ describe("completeRunningSegmentedChapterPolishTask", () => {
       OPENAI_MODEL: "kimi-k2.6",
       OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
     });
+    mocks.resolveAiTaskRequestTimeoutMs.mockReturnValue(600000);
   });
 
   it("runs segmented polish in order and stores stitched output with token totals", async () => {
@@ -185,6 +188,7 @@ describe("completeRunningSegmentedChapterPolishTask", () => {
           OPENAI_MODEL: "kimi-k2.6",
           OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
         },
+        timeoutMs: 600000,
       },
     );
     expect(mocks.createOpenAITextResponse).toHaveBeenNthCalledWith(

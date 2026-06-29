@@ -1,5 +1,24 @@
 # Development Log
 
+## 2026-06-29: 0.1.68 Kimi Long-Form Writing Timeout Fix
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.68`.
+- Added per-call timeout support to the OpenAI-compatible text client.
+- Increased the timeout for long-form writing tasks (`chapter_draft_generation` and `chapter_polish_generation`) from the default 120 seconds to 10 minutes, reducing Kimi K2.6 chapter-draft failures on full-length chapter generation.
+- Kept planning/review tasks such as outline generation, chapter beats, summaries, and continuity checks on the default 120 second timeout.
+- Updated timeout error messages to report the actual timeout seconds used by the task.
+- Review follow-up: the same request timeout now remains active while reading the response body, covering providers that return headers but stall before sending the full body.
+
+Verification:
+
+- `npm run test -- lib/ai/openai-client.test.ts lib/ai/task-logger.test.ts lib/ai/segmented-chapter-polish-runner.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-29: 0.1.67 Task-Level Kimi Writing Routes
 
 Status: completed.

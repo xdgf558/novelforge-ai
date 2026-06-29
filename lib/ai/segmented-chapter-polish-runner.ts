@@ -11,6 +11,7 @@ import {
   markAiTaskCompleted,
   markAiTaskFailed,
   resolveAiTaskExecutionEnv,
+  resolveAiTaskRequestTimeoutMs,
 } from "@/lib/ai/task-logger";
 import { prisma } from "@/lib/prisma";
 
@@ -136,6 +137,7 @@ async function runSegmentedChapterPolishTask(
       input: segment.inputText,
     }, {
       env: resolveAiTaskExecutionEnv(task),
+      timeoutMs: resolveAiTaskRequestTimeoutMs(task.taskType),
     });
     const outputText = cleanSegmentedPolishOutput(result.outputText);
 
