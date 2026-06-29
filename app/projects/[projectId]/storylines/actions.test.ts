@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   archiveStoryline,
+  completeStoryline,
   createStoryline,
   generateStorylineDrafts,
   saveStorylineDraftCandidate,
@@ -64,6 +65,7 @@ const mocks = vi.hoisted(() => {
         findFirst: vi.fn(),
         findMany: vi.fn(),
         update: vi.fn(),
+        updateMany: vi.fn(),
       },
       $transaction: vi.fn(),
     },
@@ -207,6 +209,7 @@ describe("storyline actions", () => {
       id: "storyline_1",
       status: "archived",
     });
+    mocks.prisma.storyline.updateMany.mockResolvedValue({ count: 1 });
     mocks.prisma.aiTask.findFirst.mockResolvedValue(null);
     mocks.prisma.aiTask.updateMany.mockResolvedValue({ count: 1 });
     mocks.ensureDefaultPromptTemplate.mockResolvedValue({
@@ -689,5 +692,59 @@ describe("storyline actions", () => {
     expect(mocks.tx.storylineForeshadow.deleteMany).not.toHaveBeenCalled();
     expect(mocks.tx.storylineChapter.deleteMany).not.toHaveBeenCalled();
     expect(mocks.tx.storylineOutline.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("marks a storyline completed without deleting relation rows", async () => {
+    await expect(
+      completeStoryline("project_1", "storyline_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.storyline.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "storyline_1",
+        projectId: "project_1",
+        status: {
+          notIn: ["archived", "completed"],
+        },
+      },
+      data: {
+        status: "completed",
+      },
+    });
+    expect(mocks.tx.storylineCharacter.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.tx.storylineForeshadow.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.tx.storylineChapter.deleteMany).not.toHaveBeenCalled();
+    expect(mocks.tx.storylineOutline.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("does not complete a storyline whose state already changed", async () => {
+    mocks.prisma.storyline.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      completeStoryline("project_1", "storyline_1"),
+    ).rejects.toMatchObject({
+      url: "/projects/project_1/storylines?storylineSaved=already-updated#storylines",
+    });
+
+    expect(mocks.prisma.storyline.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "storyline_1",
+        projectId: "project_1",
+        status: {
+          notIn: ["archived", "completed"],
+        },
+      },
+      data: {
+        status: "completed",
+      },
+    });
+    expect(mocks.prisma.storyline.update).not.toHaveBeenCalledWith({
+      where: {
+        id: "storyline_1",
+      },
+      data: {
+        status: "completed",
+      },
+    });
   });
 });

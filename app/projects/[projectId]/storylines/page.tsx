@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   BookOpenText,
   Bot,
+  CheckCircle2,
   GitBranch,
   Layers3,
   ListChecks,
@@ -18,6 +19,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
 import {
   archiveStoryline,
+  completeStoryline,
   createStoryline,
   generateStorylineDrafts,
   saveStorylineDraftCandidate,
@@ -243,6 +245,15 @@ export default async function StorylinesPage({
       item.chapters.map((chapterLink) => chapterLink.chapterId),
     ),
   ).size;
+  const latestChapterNumber = Math.max(
+    0,
+    ...project.chapters.map((chapter) => chapter.chapterNumber),
+  );
+  const recentStorylines = [...storylines].sort(
+    (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
+  );
+  const visibleStorylines = recentStorylines.slice(0, 3);
+  const hiddenStorylines = recentStorylines.slice(3);
   const errorMessage =
     storylineValidationErrorMessages[
       query.storylineError as StorylineValidationErrorCode
@@ -360,129 +371,195 @@ export default async function StorylinesPage({
           </div>
         ) : (
           <div className="mt-4 space-y-3">
-            {storylines.map((storyline) => {
-              const isEditing = query.editId === storyline.id;
-
-              return (
-                <article
-                  className="rounded-lg border border-ink-950/10 bg-paper-50 p-3"
-                  key={storyline.id}
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
-                        <Badge>{storylineTypeLabel(storyline.type)}</Badge>
-                        <Badge>{storylineStatusLabel(storyline.status)}</Badge>
-                        <Badge>{storylineRangeLabel(storyline)}</Badge>
-                      </div>
-                      <h3 className="mt-2 text-lg font-semibold text-ink-950">
-                        {storyline.name}
-                      </h3>
-                      <p className="mt-1 line-clamp-2 text-sm leading-6 text-ink-700">
-                        {storyline.coreGoal || "暂未填写核心目标。"}
-                      </p>
-                    </div>
-
-                    <div className="flex shrink-0 flex-wrap gap-2">
-                      <Link
-                        className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                        href={`/projects/${project.id}/storylines?editId=${storyline.id}#storyline-${storyline.id}`}
-                      >
-                        <Pencil aria-hidden="true" className="h-4 w-4" />
-                        编辑
-                      </Link>
-                      {storyline.status !== "archived" ? (
-                        <form
-                          action={archiveStoryline.bind(
-                            null,
-                            project.id,
-                            storyline.id,
-                          )}
-                        >
-                          <button
-                            className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                            type="submit"
-                          >
-                            <Archive aria-hidden="true" className="h-4 w-4" />
-                            归档
-                          </button>
-                        </form>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <CompactText label="当前进展" value={storyline.currentProgress} />
-                    <CompactText label="备注" value={storyline.notes} />
-                  </div>
-
-                  <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                    <RelationSummary
-                      icon={Users}
-                      label="关联人物"
-                      values={storyline.characters.map(
-                        (item) => item.character.name,
-                      )}
+            {visibleStorylines.map((storyline) => (
+              <StorylineCard
+                characters={project.characters}
+                chapters={project.chapters}
+                foreshadows={project.foreshadows}
+                isEditing={query.editId === storyline.id}
+                key={storyline.id}
+                latestChapterNumber={latestChapterNumber}
+                outlines={project.outlines}
+                projectId={project.id}
+                storyline={storyline}
+              />
+            ))}
+            {hiddenStorylines.length > 0 ? (
+              <details
+                className="rounded-lg border border-dashed border-ink-950/15 bg-paper-50/70 p-3"
+                open={hiddenStorylines.some(
+                  (storyline) => query.editId === storyline.id,
+                )}
+              >
+                <summary className="cursor-pointer text-sm font-semibold text-ink-800">
+                  展开历史故事线（{hiddenStorylines.length} 条）
+                </summary>
+                <div className="mt-3 space-y-3">
+                  {hiddenStorylines.map((storyline) => (
+                    <StorylineCard
+                      characters={project.characters}
+                      chapters={project.chapters}
+                      foreshadows={project.foreshadows}
+                      isEditing={query.editId === storyline.id}
+                      key={storyline.id}
+                      latestChapterNumber={latestChapterNumber}
+                      outlines={project.outlines}
+                      projectId={project.id}
+                      storyline={storyline}
                     />
-                    <RelationSummary
-                      icon={BookOpenText}
-                      label="推进章节"
-                      values={storyline.chapters.map((item) =>
-                        chapterLabel(item.chapter),
-                      )}
-                    />
-                    <RelationSummary
-                      icon={Layers3}
-                      label="关联大纲"
-                      values={storyline.outlines.map((item) =>
-                        outlineLabel(item.outline),
-                      )}
-                    />
-                    <RelationSummary
-                      icon={ListChecks}
-                      label="关联伏笔"
-                      values={storyline.foreshadows.map(
-                        (item) => item.foreshadow.content,
-                      )}
-                    />
-                  </div>
-
-                  <p className="mt-3 text-xs text-ink-600">
-                    更新：{formatDate(storyline.updatedAt)}
-                  </p>
-
-                  {isEditing ? (
-                    <div
-                      className="mt-4 rounded-lg border border-ink-950/10 bg-white p-3"
-                      id={`storyline-${storyline.id}`}
-                    >
-                      <h4 className="text-sm font-semibold text-ink-950">
-                        编辑故事线
-                      </h4>
-                      <div className="mt-3">
-                        <StorylineForm
-                          action={updateStoryline.bind(
-                            null,
-                            project.id,
-                            storyline.id,
-                          )}
-                          characters={project.characters}
-                          chapters={project.chapters}
-                          foreshadows={project.foreshadows}
-                          outlines={project.outlines}
-                          storyline={storylineFormInitialFromRecord(storyline)}
-                          submitLabel="保存修改"
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-                </article>
-              );
-            })}
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </div>
         )}
       </section>
     </div>
+  );
+}
+
+function StorylineCard({
+  characters,
+  chapters,
+  foreshadows,
+  isEditing,
+  latestChapterNumber,
+  outlines,
+  projectId,
+  storyline,
+}: {
+  characters: readonly CharacterOption[];
+  chapters: readonly ChapterOption[];
+  foreshadows: readonly ForeshadowOption[];
+  isEditing: boolean;
+  latestChapterNumber: number;
+  outlines: readonly OutlineOption[];
+  projectId: string;
+  storyline: StorylineWithRelations;
+}) {
+  const completionSuggestion = storylineCompletionSuggestion(
+    storyline,
+    latestChapterNumber,
+  );
+
+  return (
+    <article
+      className="rounded-lg border border-ink-950/10 bg-paper-50 p-3"
+      id={`storyline-${storyline.id}`}
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+            <Badge>{storylineTypeLabel(storyline.type)}</Badge>
+            <Badge>{storylineStatusLabel(storyline.status)}</Badge>
+            <Badge>{storylineRangeLabel(storyline)}</Badge>
+          </div>
+          <h3 className="mt-2 text-lg font-semibold text-ink-950">
+            {storyline.name}
+          </h3>
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-ink-700">
+            {storyline.coreGoal || "暂未填写核心目标。"}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Link
+            className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            href={`/projects/${projectId}/storylines?editId=${storyline.id}#storyline-${storyline.id}`}
+          >
+            <Pencil aria-hidden="true" className="h-4 w-4" />
+            编辑
+          </Link>
+          {storyline.status !== "archived" ? (
+            <form action={archiveStoryline.bind(null, projectId, storyline.id)}>
+              <button
+                className="inline-flex min-h-9 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                type="submit"
+              >
+                <Archive aria-hidden="true" className="h-4 w-4" />
+                归档
+              </button>
+            </form>
+          ) : null}
+        </div>
+      </div>
+
+      {completionSuggestion ? (
+        <div className="mt-3 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <p className="font-semibold">可能可以收束</p>
+          <p className="mt-1 leading-6">{completionSuggestion}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <form action={completeStoryline.bind(null, projectId, storyline.id)}>
+              <button
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                type="submit"
+              >
+                <CheckCircle2 aria-hidden="true" className="h-3.5 w-3.5" />
+                标记完成
+              </button>
+            </form>
+            <form action={archiveStoryline.bind(null, projectId, storyline.id)}>
+              <button
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                type="submit"
+              >
+                <Archive aria-hidden="true" className="h-3.5 w-3.5" />
+                归档
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <CompactText label="当前进展" value={storyline.currentProgress} />
+        <CompactText label="备注" value={storyline.notes} />
+      </div>
+
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <RelationSummary
+          icon={Users}
+          label="关联人物"
+          values={storyline.characters.map((item) => item.character.name)}
+        />
+        <RelationSummary
+          icon={BookOpenText}
+          label="推进章节"
+          values={storyline.chapters.map((item) => chapterLabel(item.chapter))}
+        />
+        <RelationSummary
+          icon={Layers3}
+          label="关联大纲"
+          values={storyline.outlines.map((item) => outlineLabel(item.outline))}
+        />
+        <RelationSummary
+          icon={ListChecks}
+          label="关联伏笔"
+          values={storyline.foreshadows.map((item) => item.foreshadow.content)}
+        />
+      </div>
+
+      <p className="mt-3 text-xs text-ink-600">
+        更新：{formatDate(storyline.updatedAt)}
+      </p>
+
+      {isEditing ? (
+        <div className="mt-4 rounded-lg border border-ink-950/10 bg-white p-3">
+          <h4 className="text-sm font-semibold text-ink-950">编辑故事线</h4>
+          <div className="mt-3">
+            <StorylineForm
+              action={updateStoryline.bind(null, projectId, storyline.id)}
+              characters={characters}
+              chapters={chapters}
+              foreshadows={foreshadows}
+              outlines={outlines}
+              storyline={storylineFormInitialFromRecord(storyline)}
+              submitLabel="保存修改"
+            />
+          </div>
+        </div>
+      ) : null}
+    </article>
   );
 }
 
@@ -1086,6 +1163,43 @@ function sortStorylines<T extends { status: string; updatedAt: Date }>(
   });
 }
 
+function storylineCompletionSuggestion(
+  storyline: StorylineWithRelations,
+  latestChapterNumber: number,
+) {
+  if (storyline.status === "completed" || storyline.status === "archived") {
+    return null;
+  }
+
+  const linkedChapters = storyline.chapters.map((item) => item.chapter);
+  const allLinkedChaptersSettled =
+    linkedChapters.length > 0 &&
+    linkedChapters.every((chapter) =>
+      ["final", "published"].includes(chapter.status),
+    );
+  const reachedEndChapter =
+    typeof storyline.endChapter === "number" &&
+    latestChapterNumber >= storyline.endChapter;
+
+  if (reachedEndChapter && allLinkedChaptersSettled) {
+    return `当前项目已写到第 ${formatNumber(
+      latestChapterNumber,
+    )} 章，已到达这条故事线的结束章节；关联章节也都已定稿或发布，可以检查是否标记完成或归档。`;
+  }
+
+  if (reachedEndChapter) {
+    return `当前项目已写到第 ${formatNumber(
+      latestChapterNumber,
+    )} 章，已到达这条故事线的结束章节。系统不会自动改状态，你可以确认是否标记完成或归档。`;
+  }
+
+  if (!storyline.endChapter && allLinkedChaptersSettled) {
+    return "这条故事线关联的章节都已定稿或发布，且未设置后续结束章节；可以检查是否已经完成阶段性任务。";
+  }
+
+  return null;
+}
+
 function storylineSavedMessage(value?: string) {
   switch (value) {
     case "created":
@@ -1094,8 +1208,12 @@ function storylineSavedMessage(value?: string) {
       return "已从 AI 候选保存为正式故事线。";
     case "updated":
       return "已更新故事线。";
+    case "completed":
+      return "已标记故事线完成。";
     case "archived":
       return "已归档故事线。";
+    case "already-updated":
+      return "这条故事线状态已经变化，页面已刷新当前状态。";
     default:
       return null;
   }

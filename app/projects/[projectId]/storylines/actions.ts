@@ -495,6 +495,33 @@ export async function archiveStoryline(projectId: string, storylineId: string) {
   redirect(`/projects/${projectId}/storylines?storylineSaved=archived`);
 }
 
+export async function completeStoryline(projectId: string, storylineId: string) {
+  await assertStoryline(projectId, storylineId);
+
+  const result = await prisma.storyline.updateMany({
+    where: {
+      id: storylineId,
+      projectId,
+      status: {
+        notIn: ["archived", "completed"],
+      },
+    },
+    data: {
+      status: "completed",
+    },
+  });
+
+  revalidateStorylinePaths(projectId);
+
+  if (result.count !== 1) {
+    redirect(
+      `/projects/${projectId}/storylines?storylineSaved=already-updated#storylines`,
+    );
+  }
+
+  redirect(`/projects/${projectId}/storylines?storylineSaved=completed`);
+}
+
 function parseStorylineForm(formData: FormData): ParseStorylineResult {
   const parsed = storylineSchema.safeParse({
     name: formData.get("name"),
