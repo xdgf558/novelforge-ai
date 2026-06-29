@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   createOpenAITextResponse: vi.fn(),
   markAiTaskCompleted: vi.fn(),
   markAiTaskFailed: vi.fn(),
+  resolveAiTaskExecutionEnv: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -33,6 +34,7 @@ vi.mock("@/lib/ai/openai-client", () => ({
 vi.mock("@/lib/ai/task-logger", () => ({
   markAiTaskCompleted: mocks.markAiTaskCompleted,
   markAiTaskFailed: mocks.markAiTaskFailed,
+  resolveAiTaskExecutionEnv: mocks.resolveAiTaskExecutionEnv,
 }));
 
 const longDraftText = [
@@ -54,6 +56,7 @@ function buildRunningTask(overrides = {}) {
     id: "task_1",
     projectId: "project_1",
     chapterId: "chapter_1",
+    taskType: "chapter_polish_generation",
     model: "deepseek-v4-pro",
     inputJson: JSON.stringify({
       chapter: {
@@ -120,6 +123,11 @@ describe("completeRunningSegmentedChapterPolishTask", () => {
     mockChapter();
     mocks.markAiTaskCompleted.mockResolvedValue({});
     mocks.markAiTaskFailed.mockResolvedValue({});
+    mocks.resolveAiTaskExecutionEnv.mockReturnValue({
+      OPENAI_API_KEY: "kimi-key",
+      OPENAI_MODEL: "kimi-k2.6",
+      OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+    });
   });
 
   it("runs segmented polish in order and stores stitched output with token totals", async () => {
@@ -171,17 +179,34 @@ describe("completeRunningSegmentedChapterPolishTask", () => {
         systemPrompt: "系统提示",
         input: expect.stringContaining("第 1 / 3 段"),
       }),
+      {
+        env: {
+          OPENAI_API_KEY: "kimi-key",
+          OPENAI_MODEL: "kimi-k2.6",
+          OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+        },
+      },
     );
     expect(mocks.createOpenAITextResponse).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         input: expect.stringContaining("第 2 / 3 段"),
       }),
+      expect.objectContaining({
+        env: expect.objectContaining({
+          OPENAI_MODEL: "kimi-k2.6",
+        }),
+      }),
     );
     expect(mocks.createOpenAITextResponse).toHaveBeenNthCalledWith(
       3,
       expect.objectContaining({
         input: expect.stringContaining("第 3 / 3 段"),
+      }),
+      expect.objectContaining({
+        env: expect.objectContaining({
+          OPENAI_MODEL: "kimi-k2.6",
+        }),
       }),
     );
     expect(mocks.markAiTaskCompleted).toHaveBeenCalledWith("task_1", {

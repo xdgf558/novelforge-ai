@@ -8,6 +8,12 @@ export type AiRuntimeEnv = {
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   OPENAI_BASE_URL?: string;
+  CHAPTER_DRAFT_API_KEY?: string;
+  CHAPTER_DRAFT_MODEL?: string;
+  CHAPTER_DRAFT_BASE_URL?: string;
+  CHAPTER_POLISH_API_KEY?: string;
+  CHAPTER_POLISH_MODEL?: string;
+  CHAPTER_POLISH_BASE_URL?: string;
   IMAGE_API_KEY?: string;
   IMAGE_API_BASE_URL?: string;
   IMAGE_MODEL?: string;
@@ -52,6 +58,49 @@ export type SaveAiConnectionSettingsInput = {
   clearApiKey?: boolean;
   model?: string | null;
   baseUrl?: string | null;
+};
+
+export type AiTaskModelRouteTaskType =
+  | "chapter_draft_generation"
+  | "chapter_polish_generation";
+
+export type AiTaskModelRouteSettings = {
+  configPath: string;
+  fileExists: boolean;
+  routes: {
+    chapterDraft: AiTaskModelRouteSetting;
+    chapterPolish: AiTaskModelRouteSetting;
+  };
+};
+
+export type AiTaskModelRouteSetting = {
+  taskType: AiTaskModelRouteTaskType;
+  label: string;
+  hasApiKey: boolean;
+  maskedApiKey: string;
+  model: string;
+  baseUrl: string;
+  isActive: boolean;
+  source: "file" | "environment" | "default";
+};
+
+export type AiTaskModelRouteSecrets = {
+  taskType: AiTaskModelRouteTaskType;
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+  isActive: boolean;
+};
+
+export type SaveAiTaskModelRouteSettingsInput = {
+  draftApiKey?: string | null;
+  clearDraftApiKey?: boolean;
+  draftModel?: string | null;
+  draftBaseUrl?: string | null;
+  polishApiKey?: string | null;
+  clearPolishApiKey?: boolean;
+  polishModel?: string | null;
+  polishBaseUrl?: string | null;
 };
 
 export type NetworkProxySettings = {
@@ -161,12 +210,14 @@ export type SaveStationCatPublishSettingsInput = {
 };
 
 type AiConfigKey = (typeof aiConfigKeys)[number];
+type AiTaskRouteConfigKey = (typeof aiTaskRouteConfigKeys)[number];
 type ImageConfigKey = (typeof imageConfigKeys)[number];
 type TtsConfigKey = (typeof ttsConfigKeys)[number];
 type StationCatConfigKey = (typeof stationCatConfigKeys)[number];
 type NetworkProxyConfigKey = (typeof networkProxyConfigKeys)[number];
 type LocalConfigKey =
   | AiConfigKey
+  | AiTaskRouteConfigKey
   | ImageConfigKey
   | TtsConfigKey
   | StationCatConfigKey
@@ -174,6 +225,8 @@ type LocalConfigKey =
 
 export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+export const DEFAULT_KIMI_API_BASE_URL = "https://api.moonshot.cn/v1";
+export const DEFAULT_KIMI_K2_6_MODEL = "kimi-k2.6";
 export const DEFAULT_IMAGE_API_BASE_URL = "https://api.ppq.ai/v1";
 export const DEFAULT_IMAGE_MODEL = "qwen-image-2";
 export const DEFAULT_IMAGE_SIZE = "default";
@@ -200,6 +253,14 @@ export const aiConfigKeys = [
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
   "OPENAI_BASE_URL",
+] as const;
+export const aiTaskRouteConfigKeys = [
+  "CHAPTER_DRAFT_API_KEY",
+  "CHAPTER_DRAFT_MODEL",
+  "CHAPTER_DRAFT_BASE_URL",
+  "CHAPTER_POLISH_API_KEY",
+  "CHAPTER_POLISH_MODEL",
+  "CHAPTER_POLISH_BASE_URL",
 ] as const;
 export const imageConfigKeys = [
   "IMAGE_API_KEY",
@@ -233,6 +294,7 @@ export const networkProxyConfigKeys = [
 
 const localConfigKeySet = new Set<string>([
   ...aiConfigKeys,
+  ...aiTaskRouteConfigKeys,
   ...imageConfigKeys,
   ...ttsConfigKeys,
   ...stationCatConfigKeys,
@@ -246,6 +308,30 @@ export function getAiRuntimeEnv(env: AiRuntimeEnv = process.env) {
     ...env,
     ...compactNetworkProxyEnv(fileEnv),
     ...compactAiEnv(fileEnv),
+  };
+}
+
+export function getAiRuntimeEnvForTaskType(
+  taskType?: string | null,
+  env: AiRuntimeEnv = process.env,
+) {
+  const runtimeEnv = getAiRuntimeEnv(env);
+
+  if (!isAiTaskModelRouteTaskType(taskType)) {
+    return runtimeEnv;
+  }
+
+  const route = readAiTaskModelRouteSecrets(taskType, env);
+
+  if (!route.isActive) {
+    return runtimeEnv;
+  }
+
+  return {
+    ...runtimeEnv,
+    OPENAI_API_KEY: route.apiKey,
+    OPENAI_MODEL: route.model,
+    OPENAI_BASE_URL: route.baseUrl,
   };
 }
 
@@ -297,6 +383,85 @@ export function saveAiConnectionSettings(
   process.env.OPENAI_BASE_URL = nextEnv.OPENAI_BASE_URL;
 
   return readAiConnectionSettings(env);
+}
+
+export function readAiTaskModelRouteSettings(
+  env: AiRuntimeEnv = process.env,
+): AiTaskModelRouteSettings {
+  const configPath = getAiConfigPath(env);
+
+  return {
+    configPath,
+    fileExists: fs.existsSync(configPath),
+    routes: {
+      chapterDraft: readAiTaskModelRouteSetting(
+        "chapter_draft_generation",
+        env,
+      ),
+      chapterPolish: readAiTaskModelRouteSetting(
+        "chapter_polish_generation",
+        env,
+      ),
+    },
+  };
+}
+
+export function readAiTaskModelRouteSecrets(
+  taskType: AiTaskModelRouteTaskType,
+  env: AiRuntimeEnv = process.env,
+): AiTaskModelRouteSecrets {
+  const route = readAiTaskModelRouteSetting(taskType, env);
+
+  return {
+    taskType,
+    apiKey: readRouteApiKey(taskType, env),
+    model: route.model,
+    baseUrl: route.baseUrl,
+    isActive: route.isActive,
+  };
+}
+
+export function saveAiTaskModelRouteSettings(
+  input: SaveAiTaskModelRouteSettingsInput,
+  env: AiRuntimeEnv = process.env,
+) {
+  const configPath = getAiConfigPath(env);
+  const currentFileEnv = readLocalConfigFile(configPath);
+  const draftApiKeyInput = input.draftApiKey?.trim() ?? "";
+  const polishApiKeyInput = input.polishApiKey?.trim() ?? "";
+  const currentDraftApiKey =
+    currentFileEnv.CHAPTER_DRAFT_API_KEY?.trim() ||
+    env.CHAPTER_DRAFT_API_KEY?.trim() ||
+    "";
+  const currentPolishApiKey =
+    currentFileEnv.CHAPTER_POLISH_API_KEY?.trim() ||
+    env.CHAPTER_POLISH_API_KEY?.trim() ||
+    "";
+  const nextDraftApiKey = input.clearDraftApiKey
+    ? ""
+    : draftApiKeyInput || currentDraftApiKey;
+  const nextPolishApiKey = input.clearPolishApiKey
+    ? ""
+    : polishApiKeyInput || currentPolishApiKey;
+  const nextEnv: Partial<Record<AiTaskRouteConfigKey, string>> = {
+    CHAPTER_DRAFT_API_KEY: nextDraftApiKey,
+    CHAPTER_DRAFT_MODEL: normalizeKimiModel(input.draftModel),
+    CHAPTER_DRAFT_BASE_URL: normalizeKimiBaseUrl(input.draftBaseUrl),
+    CHAPTER_POLISH_API_KEY: nextPolishApiKey,
+    CHAPTER_POLISH_MODEL: normalizeKimiModel(input.polishModel),
+    CHAPTER_POLISH_BASE_URL: normalizeKimiBaseUrl(input.polishBaseUrl),
+  };
+
+  writeLocalConfigFile(configPath, nextEnv, aiTaskRouteConfigKeys);
+
+  process.env.CHAPTER_DRAFT_API_KEY = nextDraftApiKey || "";
+  process.env.CHAPTER_DRAFT_MODEL = nextEnv.CHAPTER_DRAFT_MODEL;
+  process.env.CHAPTER_DRAFT_BASE_URL = nextEnv.CHAPTER_DRAFT_BASE_URL;
+  process.env.CHAPTER_POLISH_API_KEY = nextPolishApiKey || "";
+  process.env.CHAPTER_POLISH_MODEL = nextEnv.CHAPTER_POLISH_MODEL;
+  process.env.CHAPTER_POLISH_BASE_URL = nextEnv.CHAPTER_POLISH_BASE_URL;
+
+  return readAiTaskModelRouteSettings(env);
 }
 
 export function readNetworkProxySettings(
@@ -626,6 +791,19 @@ export function parseAiEnv(content: string) {
   return env;
 }
 
+export function parseAiTaskModelRouteEnv(content: string) {
+  const localEnv = parseLocalConfigEnv(content);
+  const env: Partial<Record<AiTaskRouteConfigKey, string>> = {};
+
+  for (const key of aiTaskRouteConfigKeys) {
+    if (localEnv[key] !== undefined) {
+      env[key] = localEnv[key];
+    }
+  }
+
+  return env;
+}
+
 export function parseStationCatEnv(content: string) {
   const localEnv = parseLocalConfigEnv(content);
   const env: Partial<Record<StationCatConfigKey, string>> = {};
@@ -716,6 +894,23 @@ export function normalizeAiBaseUrl(baseUrl?: string | null) {
 
   if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
     throw new Error("AI 接口地址必须是 http 或 https URL。");
+  }
+
+  return normalized;
+}
+
+export function normalizeKimiModel(model?: string | null) {
+  return model?.trim() || DEFAULT_KIMI_K2_6_MODEL;
+}
+
+export function normalizeKimiBaseUrl(baseUrl?: string | null) {
+  const normalized = (baseUrl?.trim() || DEFAULT_KIMI_API_BASE_URL).replace(
+    /\/+$/,
+    "",
+  );
+
+  if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
+    throw new Error("Kimi API Base URL 必须是 http 或 https URL。");
   }
 
   return normalized;
@@ -1051,6 +1246,20 @@ function compactAiEnv(env: Partial<Record<LocalConfigKey, string>>) {
   return compacted;
 }
 
+function compactAiTaskRouteEnv(env: Partial<Record<LocalConfigKey, string>>) {
+  const compacted: Partial<Record<AiTaskRouteConfigKey, string>> = {};
+
+  for (const key of aiTaskRouteConfigKeys) {
+    const value = env[key]?.trim();
+
+    if (value) {
+      compacted[key] = value;
+    }
+  }
+
+  return compacted;
+}
+
 function compactStationCatEnv(env: Partial<Record<LocalConfigKey, string>>) {
   const compacted: Partial<Record<StationCatConfigKey, string>> = {};
 
@@ -1120,6 +1329,25 @@ function detectConfigSource(
     env.OPENAI_MODEL?.trim() ||
     env.OPENAI_BASE_URL?.trim()
   ) {
+    return "environment";
+  }
+
+  return "default";
+}
+
+function detectAiTaskRouteSource(
+  taskType: AiTaskModelRouteTaskType,
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+  env: AiRuntimeEnv,
+) {
+  const keys = routeConfigKeysForTaskType(taskType);
+  const routeKeys = [keys.apiKey, keys.model, keys.baseUrl] as const;
+
+  if (routeKeys.some((key) => fileEnv[key]?.trim())) {
+    return "file";
+  }
+
+  if (routeKeys.some((key) => env[key]?.trim())) {
     return "environment";
   }
 
@@ -1242,4 +1470,77 @@ function unwrapEnvValue(value: string) {
   }
 
   return value;
+}
+
+function isAiTaskModelRouteTaskType(
+  taskType?: string | null,
+): taskType is AiTaskModelRouteTaskType {
+  return (
+    taskType === "chapter_draft_generation" ||
+    taskType === "chapter_polish_generation"
+  );
+}
+
+function readAiTaskModelRouteSetting(
+  taskType: AiTaskModelRouteTaskType,
+  env: AiRuntimeEnv,
+): AiTaskModelRouteSetting {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactAiTaskRouteEnv(fileEnv),
+  };
+  const keys = routeConfigKeysForTaskType(taskType);
+  const apiKey = runtimeEnv[keys.apiKey]?.trim() ?? "";
+
+  return {
+    taskType,
+    label: aiTaskModelRouteLabel(taskType),
+    hasApiKey: Boolean(apiKey),
+    maskedApiKey: maskSecret(apiKey),
+    model: normalizeKimiModel(runtimeEnv[keys.model]),
+    baseUrl: normalizeKimiBaseUrl(runtimeEnv[keys.baseUrl]),
+    isActive: Boolean(apiKey),
+    source: detectAiTaskRouteSource(taskType, fileEnv, env),
+  };
+}
+
+function readRouteApiKey(
+  taskType: AiTaskModelRouteTaskType,
+  env: AiRuntimeEnv,
+) {
+  const configPath = getAiConfigPath(env);
+  const fileEnv = readLocalConfigFile(configPath);
+  const runtimeEnv = {
+    ...env,
+    ...compactAiTaskRouteEnv(fileEnv),
+  };
+  const keys = routeConfigKeysForTaskType(taskType);
+
+  return runtimeEnv[keys.apiKey]?.trim() ?? "";
+}
+
+function routeConfigKeysForTaskType(taskType: AiTaskModelRouteTaskType) {
+  if (taskType === "chapter_draft_generation") {
+    return {
+      apiKey: "CHAPTER_DRAFT_API_KEY",
+      model: "CHAPTER_DRAFT_MODEL",
+      baseUrl: "CHAPTER_DRAFT_BASE_URL",
+    } as const;
+  }
+
+  return {
+    apiKey: "CHAPTER_POLISH_API_KEY",
+    model: "CHAPTER_POLISH_MODEL",
+    baseUrl: "CHAPTER_POLISH_BASE_URL",
+  } as const;
+}
+
+function aiTaskModelRouteLabel(taskType: AiTaskModelRouteTaskType) {
+  if (taskType === "chapter_draft_generation") {
+    return "章节草稿生成";
+  }
+
+  return "正文精修";
 }

@@ -10,6 +10,8 @@ import {
   DEFAULT_GLM_TTS_API_BASE_URL,
   DEFAULT_GLM_TTS_MODEL,
   DEFAULT_GLM_TTS_VOICE_ID,
+  DEFAULT_KIMI_API_BASE_URL,
+  DEFAULT_KIMI_K2_6_MODEL,
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_MODEL,
   DEFAULT_STATION_CAT_API_BASE_URL,
@@ -20,16 +22,19 @@ import {
   getAiRuntimeEnv,
   maskApiKey,
   parseAiEnv,
+  parseAiTaskModelRouteEnv,
   parseImageGenerationEnv,
   parseNetworkProxyEnv,
   parseStationCatEnv,
   parseTtsGenerationEnv,
   readAiConnectionSettings,
+  readAiTaskModelRouteSettings,
   readImageGenerationSettings,
   readNetworkProxySettings,
   readStationCatPublishSettings,
   readTtsGenerationSettings,
   saveAiConnectionSettings,
+  saveAiTaskModelRouteSettings,
   saveImageGenerationSettings,
   saveNetworkProxySettings,
   saveStationCatPublishSettings,
@@ -41,6 +46,12 @@ const originalEnv = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_MODEL: process.env.OPENAI_MODEL,
   OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
+  CHAPTER_DRAFT_API_KEY: process.env.CHAPTER_DRAFT_API_KEY,
+  CHAPTER_DRAFT_MODEL: process.env.CHAPTER_DRAFT_MODEL,
+  CHAPTER_DRAFT_BASE_URL: process.env.CHAPTER_DRAFT_BASE_URL,
+  CHAPTER_POLISH_API_KEY: process.env.CHAPTER_POLISH_API_KEY,
+  CHAPTER_POLISH_MODEL: process.env.CHAPTER_POLISH_MODEL,
+  CHAPTER_POLISH_BASE_URL: process.env.CHAPTER_POLISH_BASE_URL,
   IMAGE_API_KEY: process.env.IMAGE_API_KEY,
   IMAGE_API_BASE_URL: process.env.IMAGE_API_BASE_URL,
   IMAGE_MODEL: process.env.IMAGE_MODEL,
@@ -76,6 +87,12 @@ afterEach(() => {
   process.env.OPENAI_API_KEY = originalEnv.OPENAI_API_KEY;
   process.env.OPENAI_MODEL = originalEnv.OPENAI_MODEL;
   process.env.OPENAI_BASE_URL = originalEnv.OPENAI_BASE_URL;
+  process.env.CHAPTER_DRAFT_API_KEY = originalEnv.CHAPTER_DRAFT_API_KEY;
+  process.env.CHAPTER_DRAFT_MODEL = originalEnv.CHAPTER_DRAFT_MODEL;
+  process.env.CHAPTER_DRAFT_BASE_URL = originalEnv.CHAPTER_DRAFT_BASE_URL;
+  process.env.CHAPTER_POLISH_API_KEY = originalEnv.CHAPTER_POLISH_API_KEY;
+  process.env.CHAPTER_POLISH_MODEL = originalEnv.CHAPTER_POLISH_MODEL;
+  process.env.CHAPTER_POLISH_BASE_URL = originalEnv.CHAPTER_POLISH_BASE_URL;
   process.env.IMAGE_API_KEY = originalEnv.IMAGE_API_KEY;
   process.env.IMAGE_API_BASE_URL = originalEnv.IMAGE_API_BASE_URL;
   process.env.IMAGE_MODEL = originalEnv.IMAGE_MODEL;
@@ -223,6 +240,142 @@ describe("AI local connection config", () => {
       baseUrl: "https://env.example/v1",
       source: "environment",
     });
+  });
+});
+
+describe("AI task model route config", () => {
+  it("parses only supported task-level route keys", () => {
+    expect(
+      parseAiTaskModelRouteEnv(
+        [
+          "CHAPTER_DRAFT_API_KEY=kimi-draft",
+          "CHAPTER_DRAFT_MODEL=kimi-k2.6",
+          "CHAPTER_DRAFT_BASE_URL=https://api.moonshot.cn/v1/",
+          "CHAPTER_POLISH_API_KEY=kimi-polish",
+          "CHAPTER_POLISH_MODEL=kimi-k2.6-polish",
+          "CHAPTER_POLISH_BASE_URL=https://kimi.example/v1",
+          "OPENAI_API_KEY=ignored",
+        ].join("\n"),
+      ),
+    ).toEqual({
+      CHAPTER_DRAFT_API_KEY: "kimi-draft",
+      CHAPTER_DRAFT_MODEL: "kimi-k2.6",
+      CHAPTER_DRAFT_BASE_URL: "https://api.moonshot.cn/v1/",
+      CHAPTER_POLISH_API_KEY: "kimi-polish",
+      CHAPTER_POLISH_MODEL: "kimi-k2.6-polish",
+      CHAPTER_POLISH_BASE_URL: "https://kimi.example/v1",
+    });
+  });
+
+  it("reads inactive Kimi routes as defaults until their keys are configured", () => {
+    const settings = readAiTaskModelRouteSettings({
+      NOVELFORGE_AI_CONFIG_PATH: makeTempConfigPath(),
+    });
+
+    expect(settings.routes.chapterDraft).toMatchObject({
+      taskType: "chapter_draft_generation",
+      model: DEFAULT_KIMI_K2_6_MODEL,
+      baseUrl: DEFAULT_KIMI_API_BASE_URL,
+      hasApiKey: false,
+      isActive: false,
+      source: "default",
+    });
+    expect(settings.routes.chapterPolish).toMatchObject({
+      taskType: "chapter_polish_generation",
+      model: DEFAULT_KIMI_K2_6_MODEL,
+      baseUrl: DEFAULT_KIMI_API_BASE_URL,
+      hasApiKey: false,
+      isActive: false,
+      source: "default",
+    });
+  });
+
+  it("saves task-level Kimi route settings while preserving existing keys", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "OPENAI_API_KEY=deepseek-existing",
+        "CHAPTER_DRAFT_API_KEY=kimi-draft-existing",
+      ].join("\n"),
+    );
+
+    const settings = saveAiTaskModelRouteSettings(
+      {
+        draftApiKey: "",
+        draftModel: "kimi-k2.6",
+        draftBaseUrl: "https://api.moonshot.cn/v1/",
+        polishApiKey: "kimi-polish-new",
+        polishModel: "kimi-k2.6",
+        polishBaseUrl: "https://api.moonshot.cn/v1",
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const savedContent = fs.readFileSync(configPath, "utf8");
+
+    expect(settings.routes.chapterDraft).toMatchObject({
+      hasApiKey: true,
+      maskedApiKey: "kimi-d...ting",
+      model: "kimi-k2.6",
+      baseUrl: "https://api.moonshot.cn/v1",
+      isActive: true,
+      source: "file",
+    });
+    expect(settings.routes.chapterPolish).toMatchObject({
+      hasApiKey: true,
+      maskedApiKey: "kimi-p...-new",
+      model: "kimi-k2.6",
+      baseUrl: "https://api.moonshot.cn/v1",
+      isActive: true,
+      source: "file",
+    });
+    expect(savedContent).toContain("OPENAI_API_KEY=deepseek-existing");
+    expect(savedContent).toContain(
+      'CHAPTER_DRAFT_API_KEY="kimi-draft-existing"',
+    );
+    expect(savedContent).toContain('CHAPTER_POLISH_API_KEY="kimi-polish-new"');
+  });
+
+  it("can clear one task route key without clearing the other route", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "CHAPTER_DRAFT_API_KEY=kimi-draft",
+        "CHAPTER_POLISH_API_KEY=kimi-polish",
+      ].join("\n"),
+    );
+
+    const settings = saveAiTaskModelRouteSettings(
+      {
+        clearDraftApiKey: true,
+        draftModel: "",
+        draftBaseUrl: "",
+        polishApiKey: "",
+        polishModel: "kimi-k2.6",
+        polishBaseUrl: "https://api.moonshot.cn/v1",
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const savedContent = fs.readFileSync(configPath, "utf8");
+
+    expect(settings.routes.chapterDraft).toMatchObject({
+      hasApiKey: false,
+      isActive: false,
+      model: DEFAULT_KIMI_K2_6_MODEL,
+      baseUrl: DEFAULT_KIMI_API_BASE_URL,
+    });
+    expect(settings.routes.chapterPolish).toMatchObject({
+      hasApiKey: true,
+      isActive: true,
+      model: "kimi-k2.6",
+    });
+    expect(savedContent).toContain("CHAPTER_DRAFT_API_KEY=");
+    expect(savedContent).toContain('CHAPTER_POLISH_API_KEY="kimi-polish"');
   });
 });
 

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createAiTask, startLoggedOpenAITextTask } from "./task-logger";
+import {
+  createAiTask,
+  resolveAiTaskExecutionEnv,
+  startLoggedOpenAITextTask,
+} from "./task-logger";
 import { createOpenAITextResponse } from "@/lib/ai/openai-client";
 import { prisma } from "@/lib/prisma";
 
@@ -7,8 +11,11 @@ const mocks = vi.hoisted(() => ({
   aiTaskCreate: vi.fn(),
   aiTaskUpdate: vi.fn(),
   createOpenAITextResponse: vi.fn(),
-  getConfiguredOpenAIModel: vi.fn(),
+  getAiRuntimeEnv: vi.fn(),
+  getAiRuntimeEnvForTaskType: vi.fn(),
+  getConfiguredOpenAIModelForTaskType: vi.fn(),
   pruneProjectAiTasks: vi.fn(),
+  readAiTaskModelRouteSecrets: vi.fn(),
   recordAiTaskUsage: vi.fn(),
 }));
 
@@ -23,7 +30,13 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/ai/openai-client", () => ({
   createOpenAITextResponse: mocks.createOpenAITextResponse,
-  getConfiguredOpenAIModel: mocks.getConfiguredOpenAIModel,
+  getConfiguredOpenAIModelForTaskType: mocks.getConfiguredOpenAIModelForTaskType,
+}));
+
+vi.mock("@/lib/ai/local-config", () => ({
+  getAiRuntimeEnv: mocks.getAiRuntimeEnv,
+  getAiRuntimeEnvForTaskType: mocks.getAiRuntimeEnvForTaskType,
+  readAiTaskModelRouteSecrets: mocks.readAiTaskModelRouteSecrets,
 }));
 
 vi.mock("./task-retention", () => ({
@@ -37,7 +50,24 @@ vi.mock("./usage", () => ({
 describe("AI task logger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.getConfiguredOpenAIModel.mockReturnValue("deepseek-v4-pro");
+    mocks.getConfiguredOpenAIModelForTaskType.mockReturnValue("deepseek-v4-pro");
+    mocks.getAiRuntimeEnv.mockReturnValue({
+      OPENAI_API_KEY: "deepseek-key",
+      OPENAI_MODEL: "deepseek-v4-pro",
+      OPENAI_BASE_URL: "https://api.deepseek.com",
+    });
+    mocks.getAiRuntimeEnvForTaskType.mockReturnValue({
+      OPENAI_API_KEY: "deepseek-key",
+      OPENAI_MODEL: "deepseek-v4-pro",
+      OPENAI_BASE_URL: "https://api.deepseek.com",
+    });
+    mocks.readAiTaskModelRouteSecrets.mockReturnValue({
+      taskType: "chapter_draft_generation",
+      apiKey: "",
+      model: "kimi-k2.6",
+      baseUrl: "https://api.moonshot.cn/v1",
+      isActive: false,
+    });
     mocks.recordAiTaskUsage.mockResolvedValue(undefined);
     mocks.aiTaskCreate.mockResolvedValue({
       id: "task_1",
@@ -127,10 +157,19 @@ describe("AI task logger", () => {
         }),
       }),
     );
-    expect(createOpenAITextResponse).toHaveBeenCalledWith({
-      input: "生成章节节拍",
-      model: "deepseek-v4-pro",
-    });
+    expect(createOpenAITextResponse).toHaveBeenCalledWith(
+      {
+        input: "生成章节节拍",
+        model: "deepseek-v4-pro",
+      },
+      {
+        env: {
+          OPENAI_API_KEY: "deepseek-key",
+          OPENAI_MODEL: "deepseek-v4-pro",
+          OPENAI_BASE_URL: "https://api.deepseek.com",
+        },
+      },
+    );
 
     resolveResponse?.({
       outputText: "节拍结果",
@@ -198,6 +237,145 @@ describe("AI task logger", () => {
           }),
         }),
       );
+    });
+  });
+
+  it("records and runs chapter draft tasks with the task-level Kimi route", async () => {
+    mocks.getConfiguredOpenAIModelForTaskType.mockImplementation((taskType) =>
+      taskType === "chapter_draft_generation"
+        ? "kimi-k2.6"
+        : "deepseek-v4-pro",
+    );
+    mocks.getAiRuntimeEnvForTaskType.mockImplementation((taskType) =>
+      taskType === "chapter_draft_generation"
+        ? {
+            OPENAI_API_KEY: "kimi-key",
+            OPENAI_MODEL: "kimi-k2.6",
+            OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+          }
+        : {
+            OPENAI_API_KEY: "deepseek-key",
+            OPENAI_MODEL: "deepseek-v4-pro",
+            OPENAI_BASE_URL: "https://api.deepseek.com",
+          },
+    );
+    mocks.readAiTaskModelRouteSecrets.mockReturnValue({
+      taskType: "chapter_draft_generation",
+      apiKey: "kimi-key",
+      model: "kimi-k2.6",
+      baseUrl: "https://api.moonshot.cn/v1",
+      isActive: true,
+    });
+    mocks.aiTaskCreate.mockResolvedValueOnce({
+      id: "task_kimi",
+      projectId: "project_1",
+      taskType: "chapter_draft_generation",
+      model: "kimi-k2.6",
+      status: "pending",
+    });
+    mocks.aiTaskUpdate.mockImplementationOnce(async ({ where, data }) => ({
+      id: where.id,
+      projectId: "project_1",
+      taskType: "chapter_draft_generation",
+      model: "kimi-k2.6",
+      ...data,
+    }));
+    mocks.createOpenAITextResponse.mockResolvedValue({
+      outputText: "Kimi 正文草稿",
+      responseJson: {
+        ok: true,
+      },
+      usage: {
+        inputTokens: 10,
+        outputTokens: 20,
+        totalTokens: 30,
+      },
+    });
+
+    await startLoggedOpenAITextTask(
+      {
+        projectId: "project_1",
+        chapterId: "chapter_1",
+        taskType: "chapter_draft_generation",
+        inputContextSummary: "第 1 章草稿",
+      },
+      {
+        input: "生成章节草稿",
+      },
+    );
+
+    expect(prisma.aiTask.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          model: "kimi-k2.6",
+          taskType: "chapter_draft_generation",
+        }),
+      }),
+    );
+    const createCall = mocks.aiTaskCreate.mock.calls.at(-1)?.[0];
+    const inputJson = JSON.parse(createCall.data.inputJson);
+    expect(inputJson.aiExecutionRoute).toMatchObject({
+      kind: "task_model_route",
+      routeSource: "task_route",
+      taskType: "chapter_draft_generation",
+      model: "kimi-k2.6",
+      baseUrl: "https://api.moonshot.cn/v1",
+    });
+    expect(createOpenAITextResponse).toHaveBeenCalledWith(
+      {
+        input: "生成章节草稿",
+        model: "kimi-k2.6",
+      },
+      {
+        env: {
+          OPENAI_API_KEY: "kimi-key",
+          OPENAI_MODEL: "kimi-k2.6",
+          OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+        },
+      },
+    );
+  });
+
+  it("uses the task route snapshot instead of falling back to the current default env", () => {
+    mocks.getAiRuntimeEnv.mockReturnValue({
+      OPENAI_API_KEY: "deepseek-key",
+      OPENAI_MODEL: "deepseek-v4-pro",
+      OPENAI_BASE_URL: "https://api.deepseek.com",
+    });
+    mocks.getAiRuntimeEnvForTaskType.mockReturnValue({
+      OPENAI_API_KEY: "deepseek-key",
+      OPENAI_MODEL: "deepseek-v4-pro",
+      OPENAI_BASE_URL: "https://api.deepseek.com",
+    });
+    mocks.readAiTaskModelRouteSecrets.mockReturnValue({
+      taskType: "chapter_polish_generation",
+      apiKey: "new-kimi-key",
+      model: "kimi-k2.6-renamed",
+      baseUrl: "https://changed.example/v1",
+      isActive: true,
+    });
+
+    expect(
+      resolveAiTaskExecutionEnv({
+        taskType: "chapter_polish_generation",
+        model: "kimi-k2.6",
+        inputJson: JSON.stringify({
+          chapter: {
+            sourceTextLength: 100,
+          },
+          aiExecutionRoute: {
+            kind: "task_model_route",
+            routeSource: "task_route",
+            taskType: "chapter_polish_generation",
+            model: "kimi-k2.6",
+            baseUrl: "https://api.moonshot.cn/v1",
+          },
+        }),
+      }),
+    ).toMatchObject({
+      OPENAI_API_KEY: "new-kimi-key",
+      OPENAI_MODEL: "kimi-k2.6",
+      OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
     });
   });
 

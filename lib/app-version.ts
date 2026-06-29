@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.66 大纲复制与故事线看板加固";
+export const appReleaseTitle = "0.1.67 章节写作模型路由";
 
 export const appReleaseNotes = [
-  "继续加固 AI 章节大纲复制：Markdown 标题段遇到“目标：”“章节范围：”等字段会停止收集，避免串到错误表单字段。",
-  "故事线看板默认展示保留状态优先级，推进中故事线会排在已完成或已归档故事线前面。",
-  "保留 0.1.65 的故事线收束提醒和历史折叠能力，正式状态仍由作者手动确认。",
+  "新增章节写作模型路由：章节草稿生成和正文精修可以分别配置 Kimi K2.6 的 OpenAI-compatible 接口、模型和 API Key。",
+  "大纲、章节节拍、连续性检查等结构管理任务继续使用默认 AI 接入，适合保持 DeepSeek V4 Pro 作为主编模型。",
+  "AI 任务记录会继续保存实际使用的模型名称，便于回看每个环节由 DeepSeek 还是 Kimi 完成。",
 ];

@@ -16,6 +16,7 @@ import {
   normalizeTtsVoiceIdForProvider,
   normalizeTtsVoiceNameForProvider,
   saveAiConnectionSettings,
+  saveAiTaskModelRouteSettings,
   saveImageGenerationSettings,
   saveNetworkProxySettings,
   saveStationCatPublishSettings,
@@ -55,6 +56,29 @@ export async function saveAiConnectionSettingsAction(formData: FormData) {
   revalidatePath("/ai-settings");
   revalidatePath("/");
   redirect("/ai-settings?saved=ai");
+}
+
+export async function saveAiTaskModelRouteSettingsAction(formData: FormData) {
+  try {
+    saveAiTaskModelRouteSettings({
+      draftApiKey: formData.get("draftApiKey")?.toString(),
+      clearDraftApiKey: formData.get("clearDraftApiKey") === "on",
+      draftModel: formData.get("draftModel")?.toString(),
+      draftBaseUrl: formData.get("draftBaseUrl")?.toString(),
+      polishApiKey: formData.get("polishApiKey")?.toString(),
+      clearPolishApiKey: formData.get("clearPolishApiKey") === "on",
+      polishModel: formData.get("polishModel")?.toString(),
+      polishBaseUrl: formData.get("polishBaseUrl")?.toString(),
+    });
+  } catch {
+    revalidatePath("/ai-settings");
+    revalidatePath("/");
+    redirect("/ai-settings?saved=ai-route-error#writing-model-routes");
+  }
+
+  revalidatePath("/ai-settings");
+  revalidatePath("/");
+  redirect("/ai-settings?saved=ai-route#writing-model-routes");
 }
 
 export async function saveStationCatPublishSettingsAction(formData: FormData) {
