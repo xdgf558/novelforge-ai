@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { clipText } from "./chapter-beats";
+import { proseStyleGuardrails } from "./prose-style-guardrails";
 import { formatWordRange } from "../format";
 import type { ProjectSettingFieldName } from "../project-setting-fields";
 
@@ -138,6 +139,7 @@ export function buildChapterPolishContext(
       "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
       "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
       "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
+      "压低模板腔，尤其清理过多的“不是……而是……”二元对照句式。",
       "不得宣称已经写入定稿或正式故事记忆。",
     ],
   };
@@ -187,6 +189,7 @@ export function buildChapterPolishContext(
     "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
     "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
+    "- 清理 AI 腔和模板腔：如果原文连续出现“不是……而是……”“不是因为……而是因为……”“真正的……不是……而是……”等句式，请改成更自然的动作、细节、台词或因果推进。",
   ].join("\n");
 
   return {
@@ -240,6 +243,7 @@ export function buildSegmentedChapterPolishContext(
         "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
         "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
         "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
+        "压低模板腔，尤其清理过多的“不是……而是……”二元对照句式。",
       ],
     },
     inputContextSummary: buildSegmentedChapterPolishContextSummary(input),
@@ -532,6 +536,7 @@ function buildChapterPolishSegmentContext(
     "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
     "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
+    "- 清理 AI 腔和模板腔：如果本段连续出现“不是……而是……”“不是因为……而是因为……”“真正的……不是……而是……”等句式，请改成更自然的动作、细节、台词或因果推进。",
     "- 不要输出“本段精修如下”“第 X 段”等说明文字。",
   ].join("\n");
 
@@ -567,6 +572,7 @@ function buildChapterPolishSharedContext(
     input.project.wechatPositioning
       ? `公众号定位：${input.project.wechatPositioning}`
       : "",
+    ...proseStyleGuardrails,
   ].filter(Boolean);
   const storyConstraints = buildLabeledSettingLines(
     input.setting,

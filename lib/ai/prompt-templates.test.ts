@@ -40,4 +40,21 @@ describe("default AI prompt templates", () => {
       ),
     ).toBe(true);
   });
+
+  it("keeps prose generation templates guarded against repetitive AI phrasing", () => {
+    const proseTemplates = DEFAULT_AI_PROMPT_TEMPLATES.filter((template) =>
+      [
+        "chapter_beat_generation",
+        "chapter_draft_generation",
+        "chapter_polish_generation",
+      ].includes(template.key),
+    );
+
+    expect(proseTemplates).toHaveLength(3);
+    expect(
+      proseTemplates.every((template) =>
+        template.systemPrompt.includes("不是……而是……"),
+      ),
+    ).toBe(true);
+  });
 });

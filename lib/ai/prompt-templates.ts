@@ -1,3 +1,5 @@
+import { formatProseStyleGuardrails } from "./prose-style-guardrails";
+
 export type PromptOutputFormat = "json" | "markdown" | "text";
 
 export type DefaultPromptTemplate = {
@@ -121,7 +123,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     version: 1,
     outputFormat: "markdown",
     systemPrompt:
-      "你是长篇连载小说的章节节拍助手。遵守既有设定、角色信息边界和禁写项，不得引入未经作者确认的正式设定。",
+      `你是长篇连载小说的章节节拍助手。遵守既有设定、角色信息边界和禁写项，不得引入未经作者确认的正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
       "根据当前章节目标、项目设定、相关角色和最近章节摘要，生成本章关键事件、情绪转折和结尾钩子。",
     contextNotes:
@@ -335,7 +337,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     version: 1,
     outputFormat: "text",
     systemPrompt:
-      "你是长篇连载小说草稿助手。严格按已确认节拍写作，保持人物说话规则和世界观边界。",
+      `你是长篇连载小说草稿助手。严格按已确认节拍写作，保持人物说话规则和世界观边界。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
       "根据已确认章节节拍、文风样本、角色说话规则和目标字数，生成章节草稿。",
     contextNotes:
@@ -348,7 +350,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     version: 1,
     outputFormat: "text",
     systemPrompt:
-      "你是长篇连载小说正文精修助手。只优化表达、节奏、段落衔接和可读性，不改变作者已确认的剧情事实和正式设定。",
+      `你是长篇连载小说正文精修助手。只优化表达、节奏、段落衔接和可读性，不改变作者已确认的剧情事实和正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
       "根据章节草稿或已有精修稿、章节目标、文风样本、角色说话规则和禁写事项，输出完整精修正文。",
     contextNotes:

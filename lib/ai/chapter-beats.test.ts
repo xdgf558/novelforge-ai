@@ -128,4 +128,13 @@ describe("chapter beat context builder", () => {
     ]);
     expect(context.inputContextSummary).toContain("读者反馈 1 条");
   });
+
+  it("includes prose anti-template guardrails for beat generation", () => {
+    const context = buildChapterBeatContext(baseInput);
+
+    expect(context.inputText).toContain("不是……而是……");
+    expect(context.inputJson.proseStyleGuardrails).toEqual(
+      expect.arrayContaining([expect.stringContaining("反模板腔")]),
+    );
+  });
 });
