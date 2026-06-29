@@ -1,9 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import {
   createOpenAITextResponse,
-  getConfiguredOpenAIModel,
+  getConfiguredOpenAIModelForTaskType,
   type OpenAITextRequest,
 } from "@/lib/ai/openai-client";
+import {
+  getAiRuntimeEnv,
+  getAiRuntimeEnvForTaskType,
+  readAiTaskModelRouteSecrets,
+  type AiRuntimeEnv,
+  type AiTaskModelRouteTaskType,
+} from "@/lib/ai/local-config";
 import { recordAiTaskUsage } from "./usage";
 import { pruneProjectAiTasks } from "./task-retention";
 
@@ -37,6 +44,14 @@ type StartLoggedOpenAITextTaskOptions = Pick<
   "onCompleted"
 >;
 
+type AiTaskExecutionRouteSnapshot = {
+  kind: "task_model_route";
+  routeSource: "task_route";
+  taskType: AiTaskModelRouteTaskType;
+  model: string;
+  baseUrl: string;
+};
+
 export function stringifyAiTaskPayload(value: unknown) {
   if (value == null) {
     return undefined;
@@ -46,17 +61,22 @@ export function stringifyAiTaskPayload(value: unknown) {
 }
 
 export async function createAiTask(input: CreateAiTaskInput) {
+  const model = input.model ?? getConfiguredOpenAIModelForTaskType(input.taskType);
+  const inputJson = withAiTaskExecutionRouteSnapshot(
+    input.inputJson,
+    buildAiTaskExecutionRouteSnapshot(input.taskType, model),
+  );
   const task = await prisma.aiTask.create({
     data: {
       projectId: input.projectId,
       promptTemplateId: input.promptTemplateId,
       chapterId: input.chapterId,
       taskType: input.taskType,
-      model: input.model ?? getConfiguredOpenAIModel(),
+      model,
       status: "pending",
       adoptionState: "not_reviewed",
       inputContextSummary: input.inputContextSummary,
-      inputJson: stringifyAiTaskPayload(input.inputJson),
+      inputJson: stringifyAiTaskPayload(inputJson),
     },
   });
 
@@ -164,6 +184,8 @@ async function completeRunningOpenAITextTask(
     const result = await createOpenAITextResponse({
       ...request,
       model: task.model,
+    }, {
+      env: resolveAiTaskExecutionEnv(task),
     });
 
     const completedTask = await markAiTaskCompleted(task.id, {
@@ -186,4 +208,120 @@ async function completeRunningOpenAITextTask(
 
     throw error;
   }
+}
+
+export function resolveAiTaskExecutionEnv(task: {
+  taskType: string;
+  model: string;
+  inputJson?: string | null;
+}): AiRuntimeEnv {
+  const snapshot = parseAiTaskExecutionRouteSnapshot(task.inputJson);
+
+  if (snapshot && snapshot.taskType === task.taskType) {
+    const route = readAiTaskModelRouteSecrets(snapshot.taskType);
+
+    return {
+      ...getAiRuntimeEnv(),
+      OPENAI_API_KEY: route.apiKey,
+      OPENAI_MODEL: snapshot.model,
+      OPENAI_BASE_URL: snapshot.baseUrl,
+    };
+  }
+
+  return getAiRuntimeEnvForTaskType(task.taskType);
+}
+
+function buildAiTaskExecutionRouteSnapshot(
+  taskType: string,
+  model: string,
+): AiTaskExecutionRouteSnapshot | null {
+  if (!isAiTaskModelRouteTaskType(taskType)) {
+    return null;
+  }
+
+  const route = readAiTaskModelRouteSecrets(taskType);
+
+  if (!route.isActive) {
+    return null;
+  }
+
+  return {
+    kind: "task_model_route",
+    routeSource: "task_route",
+    taskType,
+    model,
+    baseUrl: route.baseUrl,
+  };
+}
+
+function withAiTaskExecutionRouteSnapshot(
+  inputJson: unknown,
+  snapshot: AiTaskExecutionRouteSnapshot | null,
+) {
+  if (!snapshot) {
+    return inputJson;
+  }
+
+  if (isRecord(inputJson)) {
+    return {
+      ...inputJson,
+      aiExecutionRoute: snapshot,
+    };
+  }
+
+  return {
+    aiExecutionRoute: snapshot,
+    payload: inputJson ?? null,
+  };
+}
+
+function parseAiTaskExecutionRouteSnapshot(
+  inputJson?: string | null,
+): AiTaskExecutionRouteSnapshot | null {
+  if (!inputJson?.trim()) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(inputJson);
+
+    if (!isRecord(parsed) || !isRecord(parsed.aiExecutionRoute)) {
+      return null;
+    }
+
+    const route = parsed.aiExecutionRoute;
+
+    if (
+      route.kind !== "task_model_route" ||
+      (route.routeSource != null && route.routeSource !== "task_route") ||
+      !isAiTaskModelRouteTaskType(route.taskType) ||
+      typeof route.model !== "string" ||
+      typeof route.baseUrl !== "string"
+    ) {
+      return null;
+    }
+
+    return {
+      kind: "task_model_route",
+      routeSource: "task_route",
+      taskType: route.taskType,
+      model: route.model,
+      baseUrl: route.baseUrl,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isAiTaskModelRouteTaskType(
+  taskType?: unknown,
+): taskType is AiTaskModelRouteTaskType {
+  return (
+    taskType === "chapter_draft_generation" ||
+    taskType === "chapter_polish_generation"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }

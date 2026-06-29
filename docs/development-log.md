@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-06-29: 0.1.67 Task-Level Kimi Writing Routes
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.67`.
+- Added task-level AI model routes for `chapter_draft_generation` and `chapter_polish_generation`.
+- Added a local settings section for chapter writing routes so authors can configure Kimi K2.6 API Base URL, model id, and API Key separately for chapter drafts and prose polishing.
+- Kept outline generation, chapter beat generation, continuity checks, and other structural/editorial AI tasks on the default AI connection, preserving DeepSeek V4 Pro as the main planning/review model when configured globally.
+- Updated logged AI task creation/execution so task records store and run with the resolved route model; segmented chapter polish now also uses the task-level route environment.
+- Preserved safe fallback behavior: if a Kimi route has no saved API Key, the corresponding task continues using the default AI connection instead of silently failing.
+- Review follow-up: chapter detail AI panels now check default, draft-route, and polish-route API key availability separately, so a standalone Kimi route unlocks draft/polish generation without requiring the default key.
+- Review follow-up: routed AI tasks now store a non-secret execution-route snapshot with route source, model, and base URL, so later settings changes do not silently make a Kimi-recorded task execute against the default model route.
+
+Verification:
+
+- `npm run test -- lib/ai/local-config.test.ts lib/ai/task-logger.test.ts lib/ai/segmented-chapter-polish-runner.test.ts` passed.
+- `npm run test -- 'app/projects/[projectId]/chapters/actions.test.ts' lib/ai/openai-client.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-29: 0.1.66 Outline Copy and Storyline Board Hardening
 
 Status: completed.

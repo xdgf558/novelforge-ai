@@ -53,6 +53,7 @@ import {
 } from "@/lib/ai/task-timeouts";
 import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
+import { getAiRuntimeEnvForTaskType } from "@/lib/ai/local-config";
 import { formatDate, formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import {
@@ -164,7 +165,13 @@ export default async function ChapterPage({
     notFound();
   }
 
-  const hasApiKey = hasConfiguredOpenAIKey();
+  const hasDefaultApiKey = hasConfiguredOpenAIKey();
+  const hasDraftApiKey = hasConfiguredOpenAIKey(
+    getAiRuntimeEnvForTaskType("chapter_draft_generation"),
+  );
+  const hasPolishApiKey = hasConfiguredOpenAIKey(
+    getAiRuntimeEnvForTaskType("chapter_polish_generation"),
+  );
   const beatTasks = chapter.aiTasks.filter(
     (task) => task.taskType === "chapter_beat_generation",
   );
@@ -313,14 +320,14 @@ export default async function ChapterPage({
 
       <ChapterBeatAiPanel
         chapterId={chapter.id}
-        hasApiKey={hasApiKey}
+        hasApiKey={hasDefaultApiKey}
         projectId={chapter.project.id}
         tasks={beatTasks}
       />
 
       <ChapterDraftAiPanel
         chapterId={chapter.id}
-        hasApiKey={hasApiKey}
+        hasApiKey={hasDraftApiKey}
         hasConfirmedBeats={hasConfirmedBeats}
         projectId={chapter.project.id}
         tasks={draftTasks}
@@ -328,7 +335,7 @@ export default async function ChapterPage({
 
       <ChapterPolishAiPanel
         chapterId={chapter.id}
-        hasApiKey={hasApiKey}
+        hasApiKey={hasPolishApiKey}
         hasPolishableText={hasPolishableText}
         polishError={polishError}
         projectId={chapter.project.id}
@@ -337,7 +344,7 @@ export default async function ChapterPage({
 
       <ChapterSummaryAiPanel
         chapterId={chapter.id}
-        hasApiKey={hasApiKey}
+        hasApiKey={hasDefaultApiKey}
         hasConfirmedText={hasConfirmedText}
         projectId={chapter.project.id}
         tasks={summaryTasks}
@@ -345,7 +352,7 @@ export default async function ChapterPage({
 
       <ChapterPendingUpdatePanel
         chapterId={chapter.id}
-        hasApiKey={hasApiKey}
+        hasApiKey={hasDefaultApiKey}
         hasConfirmedText={hasConfirmedText}
         pendingUpdateCount={chapter._count.pendingUpdates}
         projectId={chapter.project.id}
@@ -355,7 +362,7 @@ export default async function ChapterPage({
       <ChapterContinuityPanel
         chapterId={chapter.id}
         continuityReportCount={chapter._count.continuityReports}
-        hasApiKey={hasApiKey}
+        hasApiKey={hasDefaultApiKey}
         hasConfirmedText={hasConfirmedText}
         projectId={chapter.project.id}
         tasks={continuityTasks}

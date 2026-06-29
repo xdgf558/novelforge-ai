@@ -7,13 +7,18 @@ import {
   type ChapterPolishContextInput,
 } from "@/lib/ai/chapter-polishes";
 import { createOpenAITextResponse } from "@/lib/ai/openai-client";
-import { markAiTaskCompleted, markAiTaskFailed } from "@/lib/ai/task-logger";
+import {
+  markAiTaskCompleted,
+  markAiTaskFailed,
+  resolveAiTaskExecutionEnv,
+} from "@/lib/ai/task-logger";
 import { prisma } from "@/lib/prisma";
 
 type RunningSegmentedPolishTask = {
   id: string;
   projectId: string;
   chapterId: string | null;
+  taskType: string;
   model: string;
   inputJson: string | null;
   promptTemplate: {
@@ -40,6 +45,7 @@ export async function completeRunningSegmentedChapterPolishTask(taskId: string) 
       id: true,
       projectId: true,
       chapterId: true,
+      taskType: true,
       model: true,
       inputJson: true,
       promptTemplate: {
@@ -128,6 +134,8 @@ async function runSegmentedChapterPolishTask(
       systemPrompt: task.promptTemplate.systemPrompt,
       developerPrompt,
       input: segment.inputText,
+    }, {
+      env: resolveAiTaskExecutionEnv(task),
     });
     const outputText = cleanSegmentedPolishOutput(result.outputText);
 

@@ -20,6 +20,7 @@ import {
   openLocalBackupDirectoryAction,
   previewTtsVoiceAction,
   saveAiConnectionSettingsAction,
+  saveAiTaskModelRouteSettingsAction,
   saveImageGenerationSettingsAction,
   saveStationCatPublishSettingsAction,
   saveTtsGenerationSettingsAction,
@@ -27,6 +28,8 @@ import {
 import { FormActionButton } from "@/components/form-action-button";
 import {
   readAiConnectionSettings,
+  readAiTaskModelRouteSettings,
+  type AiTaskModelRouteSetting,
   type TtsGenerationSettings,
   readImageGenerationSettings,
   readNetworkProxySettings,
@@ -65,6 +68,7 @@ export default async function AiSettingsPage({
 }: AiSettingsPageProps) {
   const resolvedSearchParams = await searchParams;
   const settings = readAiConnectionSettings();
+  const writingModelRouteSettings = readAiTaskModelRouteSettings();
   const imageSettings = readImageGenerationSettings();
   const ttsSettings = readTtsGenerationSettings();
   const stationCatSettings = readStationCatPublishSettings();
@@ -203,6 +207,61 @@ export default async function AiSettingsPage({
           value={publishModeLabel(stationCatSettings.defaultMode)}
         />
         <InfoTile icon={PackageCheck} label="当前版本" value={`v${appVersion}`} />
+      </section>
+
+      <section
+        className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+        id="writing-model-routes"
+      >
+        <div className="mb-5 flex items-start gap-3">
+          <Bot aria-hidden="true" className="mt-0.5 h-5 w-5 text-signal-600" />
+          <div>
+            <h2 className="text-base font-semibold text-ink-950">
+              章节写作模型路由
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
+              章节草稿和正文精修可使用独立模型。未配置对应 API Key 时，仍使用上方默认接入；大纲、节拍和连续性检查保持默认模型。
+            </p>
+          </div>
+        </div>
+
+        <form action={saveAiTaskModelRouteSettingsAction} className="space-y-5">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <AiTaskRouteFields
+              apiKeyName="draftApiKey"
+              baseUrlName="draftBaseUrl"
+              clearKeyName="clearDraftApiKey"
+              modelName="draftModel"
+              route={writingModelRouteSettings.routes.chapterDraft}
+            />
+            <AiTaskRouteFields
+              apiKeyName="polishApiKey"
+              baseUrlName="polishBaseUrl"
+              clearKeyName="clearPolishApiKey"
+              modelName="polishModel"
+              route={writingModelRouteSettings.routes.chapterPolish}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-ink-950/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm leading-6 text-ink-700">
+              <span className="font-semibold text-ink-950">当前路由：</span>
+              <span>
+                草稿 {routeStatusText(writingModelRouteSettings.routes.chapterDraft)}
+                ；精修 {routeStatusText(writingModelRouteSettings.routes.chapterPolish)}
+              </span>
+            </div>
+            <FormActionButton
+              icon="save"
+              idleLabel="保存写作模型路由"
+              name="aiRouteSettingsAction"
+              pendingLabel="保存中..."
+              statusText="正在保存章节草稿和正文精修的模型路由。"
+              value="save"
+              variant="dark"
+            />
+          </div>
+        </form>
       </section>
 
       <section
@@ -971,6 +1030,97 @@ function InfoTile({
   );
 }
 
+function AiTaskRouteFields({
+  route,
+  apiKeyName,
+  baseUrlName,
+  clearKeyName,
+  modelName,
+}: {
+  route: AiTaskModelRouteSetting;
+  apiKeyName: string;
+  baseUrlName: string;
+  clearKeyName: string;
+  modelName: string;
+}) {
+  return (
+    <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-ink-950">{route.label}</p>
+          <p className="mt-1 text-xs leading-5 text-ink-700">
+            {route.isActive ? `已启用 ${route.model}` : "未配置 Key，暂用默认模型"}
+          </p>
+        </div>
+        <span className="rounded-md border border-ink-950/10 bg-white px-2 py-1 text-xs font-semibold text-ink-700">
+          {sourceLabel(route.source)}
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-4">
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold text-ink-800">
+            Kimi API Key
+          </span>
+          <input
+            autoComplete="off"
+            className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+            name={apiKeyName}
+            placeholder={
+              route.hasApiKey ? "留空则保留当前 Key" : "输入 Kimi API Key"
+            }
+            type="password"
+          />
+        </label>
+
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold text-ink-800">模型</span>
+          <input
+            className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+            defaultValue={route.model}
+            name={modelName}
+            placeholder="kimi-k2.6"
+            type="text"
+          />
+        </label>
+
+        <label className="block space-y-2">
+          <span className="text-sm font-semibold text-ink-800">
+            API Base URL
+          </span>
+          <input
+            className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
+            defaultValue={route.baseUrl}
+            name={baseUrlName}
+            placeholder="https://api.moonshot.cn/v1"
+            type="url"
+          />
+        </label>
+
+        <label className="flex items-start gap-3 rounded-md border border-ink-950/10 bg-white p-3 text-sm text-ink-700">
+          <input
+            className="mt-1 h-4 w-4 rounded border-ink-950/20 text-signal-600"
+            name={clearKeyName}
+            type="checkbox"
+          />
+          <span>
+            <span className="block font-semibold text-ink-950">
+              清除已保存的 Kimi API Key
+            </span>
+            <span className="mt-1 block leading-6">
+              勾选后会移除此任务路由的 Key，模型和接口地址仍会保存。
+            </span>
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function routeStatusText(route: AiTaskModelRouteSetting) {
+  return route.isActive ? route.model : "默认模型";
+}
+
 function sourceLabel(source: "file" | "environment" | "default") {
   if (source === "file") {
     return "本机配置文件";
@@ -1022,6 +1172,22 @@ function settingsSavedMessage(
       kind: "success",
       title: "AI 接入参数已保存",
       description: "新的模型、接口地址和 API Key 设置会用于后续模型调用。",
+    };
+  }
+
+  if (saved === "ai-route") {
+    return {
+      kind: "success",
+      title: "章节写作模型路由已保存",
+      description: "章节草稿生成和正文精修会按任务路由使用已配置的模型。",
+    };
+  }
+
+  if (saved === "ai-route-error") {
+    return {
+      kind: "error",
+      title: "章节写作模型路由保存失败",
+      description: "Kimi API Base URL 必须是有效的 http 或 https 地址，请检查后重新保存。",
     };
   }
 

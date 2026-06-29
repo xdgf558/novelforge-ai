@@ -2,6 +2,7 @@ import {
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_MODEL,
   getAiRuntimeEnv,
+  getAiRuntimeEnvForTaskType,
   normalizeAiBaseUrl,
 } from "./local-config";
 import { createServerFetch } from "@/lib/server-fetch";
@@ -50,6 +51,13 @@ const openAIRequestTimeoutMs = 120_000;
 
 export function getConfiguredOpenAIModel(env: EnvLike = getAiRuntimeEnv()) {
   return env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
+}
+
+export function getConfiguredOpenAIModelForTaskType(
+  taskType?: string | null,
+  env: EnvLike = getAiRuntimeEnvForTaskType(taskType),
+) {
+  return getConfiguredOpenAIModel(env);
 }
 
 export function getConfiguredOpenAIBaseUrl(env: EnvLike = getAiRuntimeEnv()) {
