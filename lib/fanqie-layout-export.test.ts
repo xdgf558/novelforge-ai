@@ -131,6 +131,37 @@ describe("fanqie layout export", () => {
     );
   });
 
+  it("does not remove a narrative opening that only mentions the chapter number", () => {
+    const body = normalizeFanqieChapterBody(
+      [
+        "第七章之后，罗文斌第一次把电话打到了培训班。",
+        "",
+        "陈远听见铃声时，林巧刚把登记本合上。",
+      ].join("\n"),
+      chapter,
+    );
+
+    expect(body).toContain("第七章之后，罗文斌第一次把电话打到了培训班。");
+    expect(body).toContain("陈远听见铃声时，林巧刚把登记本合上。");
+  });
+
+  it("keeps author-written section headings and contrast labels that may be prose", () => {
+    const body = normalizeFanqieChapterBody(
+      [
+        "一、清晨",
+        "",
+        "反转：他没有走。",
+        "",
+        "爽点：方老板终于把电话打给了老周。",
+      ].join("\n"),
+      chapter,
+    );
+
+    expect(body).toContain("一、清晨");
+    expect(body).toContain("反转：他没有走。");
+    expect(body).toContain("爽点：方老板终于把电话打给了老周。");
+  });
+
   it("builds a body paste export without a title by default", () => {
     const result = buildFanqieLayoutExport({
       chapter,
@@ -204,6 +235,9 @@ describe("fanqie layout export", () => {
     expect(parts.length).toBeGreaterThan(1);
     expect(parts[0].fileName).toMatch(/^第007章-.+\.txt$/);
     expect(parts[0].body).not.toContain("第7章");
+    expect(parts.map((part) => part.body).join("\n\n")).toContain("一、清晨");
+    expect(parts.map((part) => part.body).join("\n\n")).toContain("二、电话");
+    expect(parts.map((part) => part.body).join("\n\n")).toContain("三、决定");
     expect(parts.map((part) => part.body).join("\n\n")).toContain(
       "陈远把目录放在桌上。",
     );

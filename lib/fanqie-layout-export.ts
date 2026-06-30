@@ -200,7 +200,6 @@ export function splitFanqieChapterText(
   const targetWordCount = normalizeTargetWordCount(options.targetWordCount);
   const body = normalizeFanqieChapterBody(value, options.chapter, {
     includeTitle: false,
-    removeSectionHeadings: true,
   });
   const totalWordCount = countCjkAwareWords(body);
 
@@ -508,23 +507,34 @@ function isChapterTitleLine(
     return false;
   }
 
-  if (
-    compactTitle &&
-    compactText.includes(compactTitle) &&
-    /第[\d一二三四五六七八九十百千万]+章/.test(compactText)
-  ) {
-    return true;
-  }
-
-  if (chapterNumber == null) {
+  if (/[，。！？；：,.!?;:]/.test(text)) {
     return false;
   }
 
+  if (chapterNumber == null) {
+    return Boolean(
+      compactTitle &&
+        [
+          `第${compactTitle}章`,
+          `第${compactTitle}`,
+          compactTitle,
+        ].includes(stripTitleDecorations(compactText)),
+    );
+  }
+
   const chineseChapterNumber = numberToChineseNumber(chapterNumber);
+  const strippedText = stripTitleDecorations(compactText);
 
   return [String(chapterNumber), chineseChapterNumber]
     .filter(Boolean)
-    .some((numberText) => compactText.includes(`第${numberText}章`));
+    .some((numberText) => {
+      const marker = `第${numberText}章`;
+
+      return (
+        strippedText === marker ||
+        (compactTitle && strippedText === `${marker}${compactTitle}`)
+      );
+    });
 }
 
 function containsChapterTitle(
@@ -546,11 +556,16 @@ function isMarkdownDivider(line: string | undefined) {
 function containsMarkdownArtifacts(value: string) {
   return value
     .split("\n")
-    .some((line) => /^#{1,6}\s+/.test(line.trim()) || /^\*\*[^*]+\*\*$/.test(line.trim()) || isMarkdownDivider(line));
+    .some(
+      (line) =>
+        /^#{1,6}\s+/.test(line.trim()) ||
+        /^\*\*[^*]+\*\*$/.test(line.trim()) ||
+        isMarkdownDivider(line),
+    );
 }
 
 function isFanqieStructureHeading(line: string) {
-  return /^(?:(?:【?开场钩子】?|【?收束钩子】?|【?结尾钩子】?)(?:\s*节拍\s*[\d一二三四五六七八九十]+)?|节拍\s*[\d一二三四五六七八九十]+|本章目标|爽点|反转|剧情动作|核心事件|章节范围|写作要求|精修目标)[：:]/.test(
+  return /^(?:(?:【?开场钩子】?|【?收束钩子】?|【?结尾钩子】?)(?:\s*节拍\s*[\d一二三四五六七八九十]+)?|节拍\s*[\d一二三四五六七八九十]+|本章目标|剧情动作|核心事件|章节范围|写作要求|精修目标)[：:]/.test(
     line.trim(),
   );
 }
@@ -673,6 +688,10 @@ function padChapterNumber(value: number) {
 
 function clean(value?: string | null) {
   return value?.trim() ?? "";
+}
+
+function stripTitleDecorations(value: string) {
+  return value.replace(/[《》【】（）()「」『』"“”]/g, "");
 }
 
 function lastItem<T>(items: readonly T[]) {
