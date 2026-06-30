@@ -29,6 +29,15 @@ describe("resolveFanqieLayoutInitialChapterId", () => {
     );
   });
 
+  it("uses the first repeated query param value when multiple chapter ids are provided", () => {
+    expect(
+      resolveFanqieLayoutInitialChapterId(chapters, [
+        "chapter-2",
+        "chapter-1",
+      ]),
+    ).toBe("chapter-2");
+  });
+
   it("returns an empty id when no chapters are available", () => {
     expect(resolveFanqieLayoutInitialChapterId([], "chapter-2")).toBe("");
   });

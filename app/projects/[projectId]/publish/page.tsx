@@ -82,7 +82,7 @@ type PublishPageProps = {
   }>;
   searchParams?: Promise<{
     coverImageError?: string;
-    fanqieChapterId?: string;
+    fanqieChapterId?: string | string[];
     wechatChapterId?: string;
   }>;
 };

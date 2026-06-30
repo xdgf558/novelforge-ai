@@ -21,7 +21,7 @@ export type FanqieLayoutChapterOption = FanqieLayoutChapter;
 
 type FanqieLayoutExportPanelProps = {
   chapters: FanqieLayoutChapterOption[];
-  initialChapterId?: string | null;
+  initialChapterId?: string | string[] | null;
   projectTitle: string;
 };
 
