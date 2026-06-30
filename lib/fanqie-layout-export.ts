@@ -126,6 +126,7 @@ export function buildFanqieLayoutExport(
   const manifest =
     input.template === "split_txt" && splitParts.length > 0
       ? buildFanqieSplitManifest({
+          includeTitleInBody: Boolean(input.includeTitle),
           parts: splitParts,
           projectTitle: input.projectTitle,
         })
@@ -269,9 +270,11 @@ export function splitFanqieChapterText(
 }
 
 export function buildFanqieSplitManifest({
+  includeTitleInBody = false,
   parts,
   projectTitle,
 }: {
+  includeTitleInBody?: boolean;
   parts: readonly FanqieSplitPart[];
   projectTitle: string;
 }) {
@@ -284,7 +287,9 @@ export function buildFanqieSplitManifest({
   return [
     `# ${project} 番茄版拆分清单`,
     "",
-    "说明：正文文件默认不含标题。上传番茄时，把文件名里的标题填到章节标题栏，正文直接复制 TXT 内容。",
+    includeTitleInBody
+      ? "说明：正文文件已包含章节标题。上传番茄时，可按后台规则决定是否保留正文内标题。"
+      : "说明：正文文件默认不含标题。上传番茄时，把文件名里的标题填到章节标题栏，正文直接复制 TXT 内容。",
     "",
     ...items,
   ]

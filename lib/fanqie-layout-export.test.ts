@@ -262,6 +262,42 @@ describe("fanqie layout export", () => {
     expect(manifest).toContain("正文文件默认不含标题");
     expect(manifest).toContain(parts[0].fileName);
   });
+
+  it("builds a split export with part metadata and validation count", () => {
+    const result = buildFanqieLayoutExport({
+      chapter: {
+        ...chapter,
+        polishedText: [
+          repeatSentence("陈远把目录放在桌上。", 50),
+          repeatSentence("方老板点头。", 50),
+        ].join("\n\n"),
+      },
+      projectTitle: "离线未来",
+      targetWordCount: 120,
+      template: "split_txt",
+    });
+
+    expect(result.splitParts.length).toBeGreaterThan(1);
+    expect(result.validation.splitCount).toBe(result.splitParts.length);
+    expect(result.manifest).toContain("拆分清单");
+    expect(result.manifest).toContain(result.splitParts[0].fileName);
+  });
+
+  it("marks the split manifest differently when part bodies include titles", () => {
+    const parts = splitFanqieChapterText(repeatSentence("陈远把目录放在桌上。", 50), {
+      chapter,
+      includeTitleInBody: true,
+      targetWordCount: 120,
+    });
+    const manifest = buildFanqieSplitManifest({
+      includeTitleInBody: true,
+      parts,
+      projectTitle: "离线未来",
+    });
+
+    expect(parts[0].body).toContain("第7章");
+    expect(manifest).toContain("正文文件已包含章节标题");
+  });
 });
 
 function repeatSentence(sentence: string, count: number) {
