@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
     aiPromptTemplate: {
       findFirst: vi.fn(),
       upsert: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -33,9 +34,10 @@ describe("prompt template store", () => {
     ).resolves.toBe(activeTemplate);
 
     expect(mocks.prisma.aiPromptTemplate.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.aiPromptTemplate.updateMany).not.toHaveBeenCalled();
   });
 
-  it("upserts the newer default template when the active project template is stale", async () => {
+  it("upserts the newer default template and disables older active versions when the active project template is stale", async () => {
     const defaultTemplate = {
       id: "template_default_v2",
       key: "chapter_draft_generation",
@@ -72,5 +74,18 @@ describe("prompt template store", () => {
         }),
       }),
     );
+    expect(mocks.prisma.aiPromptTemplate.updateMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        key: "chapter_draft_generation",
+        version: {
+          lt: 2,
+        },
+        status: "active",
+      },
+      data: {
+        status: "inactive",
+      },
+    });
   });
 });

@@ -9,7 +9,7 @@ What was done:
 - Bumped the source app/package version to `0.1.71`.
 - Strengthened prose guardrails from soft “avoid frequent use” language to hard self-check requirements: “不是……而是……”, “不是因为……而是因为……”, “真正的……不是……而是……”, and “不是……是……” binary contrast phrasing should appear at most once per chapter or polish segment unless truly necessary.
 - Upgraded the default `chapter_draft_generation` and `chapter_polish_generation` prompt templates to version 2 so existing projects can move off older v1 prompt text.
-- Changed `ensureDefaultPromptTemplate` so when the code ships a newer default template version than the current active project template, generation automatically upserts and uses the newer default. User-created higher-version templates still remain preferred.
+- Changed `ensureDefaultPromptTemplate` so when the code ships a newer default template version than the current active project template, generation automatically upserts and uses the newer default, then marks older active versions for the same key inactive so the template management page does not show stale v1/v2 defaults as simultaneously active. User-created higher-version templates still remain preferred.
 - Added regression coverage for stale-template auto-upgrade and stronger anti-template prompt metadata.
 
 Why this was needed:
