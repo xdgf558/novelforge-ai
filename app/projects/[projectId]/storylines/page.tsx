@@ -962,6 +962,7 @@ function StorylineForm({
             meta: chapter.status,
           }))}
           selectedIds={selectedChapterIds}
+          helperText="设置起始章节和结束章节后，保存故事线或新增范围内章节时会自动补关联；这里仍可手动追加范围外章节。"
         />
         <RelationCheckboxGroup
           emptyText="还没有大纲。"
@@ -988,12 +989,14 @@ function StorylineForm({
 
 function RelationCheckboxGroup({
   emptyText,
+  helperText,
   label,
   name,
   options,
   selectedIds,
 }: {
   emptyText: string;
+  helperText?: string;
   label: string;
   name: string;
   options: readonly {
@@ -1006,6 +1009,9 @@ function RelationCheckboxGroup({
   return (
     <fieldset className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
       <legend className="px-1 text-sm font-semibold text-ink-950">{label}</legend>
+      {helperText ? (
+        <p className="mt-1 text-xs leading-5 text-ink-600">{helperText}</p>
+      ) : null}
       {options.length === 0 ? (
         <p className="mt-2 text-xs text-ink-700">{emptyText}</p>
       ) : (

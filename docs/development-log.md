@@ -1,5 +1,23 @@
 # Development Log
 
+## 2026-06-30: 0.1.70 Storyline Chapter Auto-Linking
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.70`.
+- Added automatic chapter-to-storyline linking when a new chapter is created: if a formal, non-archived storyline has both `startChapter` and `endChapter`, and the new chapter number falls inside that inclusive range, the chapter is linked to that storyline.
+- Added range-based backfill when creating, editing, or adopting a storyline: existing chapters inside the confirmed start/end chapter range are automatically merged into the storyline's “推进章节” relations.
+- Preserved author control by only adding range-derived relations from already-confirmed storyline metadata; the feature does not create storylines, alter storyline text/status, or remove manually selected chapter relations.
+- Added a form hint explaining that start/end chapter ranges auto-fill chapter relations while still allowing manual extra chapter links.
+
+Verification:
+
+- `npm run test -- 'app/projects/[projectId]/chapters/actions.test.ts' 'app/projects/[projectId]/storylines/actions.test.ts' lib/storyline-auto-relations.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-29: 0.1.69 Compact Sidebar Navigation
 
 Status: completed.

@@ -50,6 +50,7 @@ import {
 } from "@/lib/outline-progress";
 import { prisma } from "@/lib/prisma";
 import { fetchStationCatReaderFeedback } from "@/lib/reader-feedback";
+import { createMissingStorylineChapterRelationsForChapter } from "@/lib/storyline-auto-relations";
 
 const optionalChapterText = z
   .preprocess(
@@ -195,6 +196,12 @@ export async function createChapter(projectId: string, formData: FormData) {
       },
     });
 
+    await createMissingStorylineChapterRelationsForChapter(
+      tx,
+      projectId,
+      createdChapter,
+    );
+
     return createdChapter;
   });
 
@@ -203,6 +210,7 @@ export async function createChapter(projectId: string, formData: FormData) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
   revalidatePath(`/projects/${projectId}/outlines`);
+  revalidatePath(`/projects/${projectId}/storylines`);
   redirect(`/projects/${projectId}/chapters/${chapter.id}`);
 }
 
@@ -264,6 +272,11 @@ export async function updateChapter(
         sourceType: "manual",
       },
     });
+
+    await createMissingStorylineChapterRelationsForChapter(tx, projectId, {
+      id: chapterId,
+      chapterNumber: snapshot.chapterNumber,
+    });
   });
 
   await syncOutlineStatusesForChapterNumbers(projectId, [
@@ -274,6 +287,7 @@ export async function updateChapter(
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
   revalidatePath(`/projects/${projectId}/outlines`);
+  revalidatePath(`/projects/${projectId}/storylines`);
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}/history`);
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
@@ -306,6 +320,7 @@ export async function deleteChapter(projectId: string, chapterId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
   revalidatePath(`/projects/${projectId}/outlines`);
+  revalidatePath(`/projects/${projectId}/storylines`);
   redirect(`/projects/${projectId}/chapters`);
 }
 

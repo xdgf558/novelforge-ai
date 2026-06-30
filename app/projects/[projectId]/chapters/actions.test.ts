@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   adoptChapterPolish,
+  createChapter,
   generateChapterBeats,
   generateChapterDraft,
   updateChapter,
@@ -9,11 +10,19 @@ import {
 const mocks = vi.hoisted(() => {
   const tx = {
     chapter: {
+      create: vi.fn(),
       update: vi.fn(),
     },
     chapterVersion: {
       count: vi.fn(),
       create: vi.fn(),
+    },
+    storyline: {
+      findMany: vi.fn(),
+    },
+    storylineChapter: {
+      findMany: vi.fn(),
+      createMany: vi.fn(),
     },
     aiTask: {
       update: vi.fn(),
@@ -207,9 +216,20 @@ describe("chapter actions", () => {
     mocks.prisma.$transaction.mockImplementation(async (callback) =>
       callback(mocks.tx),
     );
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      id: "project_1",
+    });
+    mocks.tx.chapter.create.mockResolvedValue({
+      ...baseChapter,
+      id: "chapter_new",
+      chapterNumber: 7,
+    });
     mocks.tx.chapterVersion.count.mockResolvedValue(3);
     mocks.tx.chapterVersion.create.mockResolvedValue({});
     mocks.tx.chapter.update.mockResolvedValue({});
+    mocks.tx.storyline.findMany.mockResolvedValue([]);
+    mocks.tx.storylineChapter.findMany.mockResolvedValue([]);
+    mocks.tx.storylineChapter.createMany.mockResolvedValue({ count: 1 });
     mocks.tx.aiTask.updateMany.mockResolvedValue({
       count: 1,
     });
@@ -229,6 +249,106 @@ describe("chapter actions", () => {
     mocks.createOpenAITextResponse.mockReset();
     mocks.markAiTaskCompleted.mockReset();
     mocks.markAiTaskFailed.mockReset();
+  });
+
+  it("auto-links a newly created chapter to matching storyline ranges", async () => {
+    mocks.tx.chapter.create.mockResolvedValueOnce({
+      ...baseChapter,
+      id: "chapter_7",
+      chapterNumber: 7,
+    });
+    mocks.tx.storyline.findMany.mockResolvedValueOnce([
+      {
+        id: "storyline_main",
+      },
+      {
+        id: "storyline_subplot",
+      },
+    ]);
+
+    await expect(
+      createChapter(
+        "project_1",
+        buildChapterFormData({
+          chapterNumber: 7,
+          title: "断供",
+          status: "draft",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.tx.storyline.findMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        status: {
+          not: "archived",
+        },
+        startChapter: {
+          lte: 7,
+        },
+        endChapter: {
+          gte: 7,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(mocks.tx.storylineChapter.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: "project_1",
+          storylineId: "storyline_main",
+          chapterId: "chapter_7",
+        },
+        {
+          projectId: "project_1",
+          storylineId: "storyline_subplot",
+          chapterId: "chapter_7",
+        },
+      ],
+    });
+  });
+
+  it("does not duplicate existing storyline chapter relations", async () => {
+    mocks.prisma.chapter.findFirst.mockResolvedValue({
+      id: "chapter_1",
+      chapterNumber: 5,
+    });
+    mocks.tx.storyline.findMany.mockResolvedValueOnce([
+      {
+        id: "storyline_main",
+      },
+      {
+        id: "storyline_subplot",
+      },
+    ]);
+    mocks.tx.storylineChapter.findMany.mockResolvedValueOnce([
+      {
+        storylineId: "storyline_main",
+      },
+    ]);
+
+    await expect(
+      updateChapter(
+        "project_1",
+        "chapter_1",
+        buildChapterFormData({
+          chapterNumber: 7,
+          title: "断供",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.tx.storylineChapter.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: "project_1",
+          storylineId: "storyline_subplot",
+          chapterId: "chapter_1",
+        },
+      ],
+    });
   });
 
   it("adopts a polish task into polishedText without touching finalText", async () => {
