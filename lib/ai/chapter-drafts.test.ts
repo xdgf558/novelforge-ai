@@ -62,7 +62,8 @@ describe("chapter draft context builder", () => {
     expect(context.inputText).toContain("第三个名字对应死者");
     expect(context.inputText).toContain("短句推进，悬疑压迫感强");
     expect(context.inputText).toContain("不是……而是……");
-    expect(context.inputText).toContain("优先用动作、细节和人物反应表达含义");
+    expect(context.inputText).toContain("反模板腔硬性自检");
+    expect(context.inputText).toContain("最多保留 1 处");
     expect(context.inputJson.styleConstraints).toEqual(
       expect.arrayContaining([
         expect.stringContaining("反模板腔"),

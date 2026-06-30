@@ -334,7 +334,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "chapter_draft_generation",
     name: "章节草稿生成",
     taskType: "chapter_draft_generation",
-    version: 1,
+    version: 2,
     outputFormat: "text",
     systemPrompt:
       `你是长篇连载小说草稿助手。严格按已确认节拍写作，保持人物说话规则和世界观边界。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
@@ -347,7 +347,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "chapter_polish_generation",
     name: "正文精修",
     taskType: "chapter_polish_generation",
-    version: 1,
+    version: 2,
     outputFormat: "text",
     systemPrompt:
       `你是长篇连载小说正文精修助手。只优化表达、节奏、段落衔接和可读性，不改变作者已确认的剧情事实和正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
