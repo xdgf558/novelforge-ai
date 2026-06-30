@@ -252,11 +252,11 @@ export function WechatLayoutExportPanel({
 
   return (
     <section
-      className="space-y-4 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      className="min-w-0 space-y-3 rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
       id="wechat-layout-export"
     >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
             <FileText aria-hidden="true" className="h-4 w-4" />
             公众号排版导出
@@ -268,7 +268,7 @@ export function WechatLayoutExportPanel({
             自动读取精修正文、定稿正文或草稿正文，整理段落空行、分节标题和重复章标题。默认只排版、不改文；开头和结尾可在这里单独生成候选后手动套用。
           </p>
         </div>
-        <div className="rounded-md border border-signal-600/20 bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700">
+        <div className="w-full rounded-md border border-signal-600/20 bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700 xl:w-auto xl:max-w-56">
           当前来源：
           <span className="font-semibold text-ink-950">
             {layoutExport?.source?.label ?? "无正文"}
@@ -277,7 +277,7 @@ export function WechatLayoutExportPanel({
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(170px,220px)]">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
         <label className="space-y-1.5">
           <span className="text-xs font-semibold text-ink-700">章节</span>
           <select
@@ -326,8 +326,8 @@ export function WechatLayoutExportPanel({
         </label>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <label className="space-y-1.5 lg:col-span-2">
+      <div className="grid gap-3 xl:grid-cols-2">
+        <label className="space-y-1.5 xl:col-span-2">
           <span className="text-xs font-semibold text-ink-700">发布标题</span>
           <input
             className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
@@ -338,7 +338,7 @@ export function WechatLayoutExportPanel({
         <label className="space-y-1.5">
           <span className="text-xs font-semibold text-ink-700">开头引导语</span>
           <textarea
-            className="min-h-24 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950"
+            className="min-h-20 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950"
             onChange={(event) => setOpeningGuide(event.target.value)}
             value={openingGuide}
           />
@@ -346,7 +346,7 @@ export function WechatLayoutExportPanel({
         <label className="space-y-1.5">
           <span className="text-xs font-semibold text-ink-700">结尾追更钩子</span>
           <textarea
-            className="min-h-24 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950"
+            className="min-h-20 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950"
             onChange={(event) => setEndingFollowHook(event.target.value)}
             value={endingFollowHook}
           />
@@ -354,8 +354,8 @@ export function WechatLayoutExportPanel({
       </div>
 
       <div className="space-y-3 rounded-lg border border-ink-950/10 bg-paper-50 p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-ink-950">
               AI 生成开头 / 结尾候选
             </p>
@@ -418,7 +418,7 @@ export function WechatLayoutExportPanel({
         ) : null}
 
         {generatedCandidate ? (
-          <div className="grid gap-3 lg:grid-cols-3">
+          <div className="grid gap-3 xl:grid-cols-3">
             <CandidatePreview
               actionLabel="套用标题"
               label="标题候选"
@@ -440,7 +440,7 @@ export function WechatLayoutExportPanel({
               onApply={() => applyGeneratedCandidate("ending")}
               value={generatedCandidate.endingFollowHook}
             />
-            <div className="lg:col-span-3">
+            <div className="xl:col-span-3">
               <button
                 className="inline-flex min-h-9 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
                 onClick={() => applyGeneratedCandidate("all")}
@@ -459,8 +459,8 @@ export function WechatLayoutExportPanel({
       </div>
 
       <div className="rounded-lg border border-ink-950/10 bg-white p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-ink-950">排版预览</p>
             <p className="mt-1 text-xs leading-5 text-ink-700">
               {wechatLayoutTemplateOptions.find((item) => item.value === template)
@@ -540,7 +540,7 @@ export function WechatLayoutExportPanel({
           </p>
         ) : null}
         <textarea
-          className="mt-3 min-h-72 w-full resize-y rounded-md border border-ink-950/10 bg-paper-50 p-3 font-mono text-xs leading-6 text-ink-800 outline-none"
+          className="mt-3 min-h-56 w-full resize-y rounded-md border border-ink-950/10 bg-paper-50 p-3 font-mono text-xs leading-6 text-ink-800 outline-none"
           ref={previewRef}
           readOnly
           value={layoutExport?.plainText ?? ""}

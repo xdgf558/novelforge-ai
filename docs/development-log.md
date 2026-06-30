@@ -1,5 +1,23 @@
 # Development Log
 
+## 2026-06-30: Chapter AI Review Labels and Publish Page Compact Layout
+
+Status: completed.
+
+What was done:
+
+- Fixed chapter-detail AI task review badges so chapter summary tasks no longer show a misleading `未审阅` state when there is no separate summary adoption action.
+- Changed pending-update extraction task badges to reflect the actual linked `pending_updates` review state, such as remaining pending count, approved count, rejected count, or fully processed state.
+- Changed the chapter page pending-update link to count only truly pending review items instead of all historical pending-update records.
+- Tightened the publish/export page layout for the desktop shell: the WeChat and Fanqie export panels now use container-friendly auto-fit grids, reduced card padding, shorter default preview boxes, and later horizontal breakpoints to avoid right-side clipping in the app window.
+- Applied the same compact wrapping rules to publish summary tiles, Station Cat publish forms, project-specific target forms, and publish-result link grids.
+
+Verification:
+
+- `npm run test -- lib/ai/chapter-task-review.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-30: 0.1.76 Outline Generation Target and Copy Helper Fix
 
 Status: completed.

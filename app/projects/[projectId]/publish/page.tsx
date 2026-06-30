@@ -182,7 +182,7 @@ export default async function PublishPage({
     );
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-4">
       <AutoRefresh
         enabled={
           hasActiveCoverImageTask ||
@@ -198,23 +198,23 @@ export default async function PublishPage({
         返回项目
       </Link>
 
-      <header className="rounded-lg border border-ink-950/10 bg-white p-6 shadow-panel">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <header className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <p className="text-sm font-semibold text-signal-600">
               发布与格式导出
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink-950">
+            <h1 className="mt-2 text-2xl font-semibold tracking-normal text-ink-950">
               {project.title} 发布与导出
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
               整理公众号、番茄小说、项目备份和 Station Cat 网站同步材料。默认排版模式只整理格式，不改正文。
             </p>
           </div>
         </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
         <InfoTile
           icon={FileText}
           label="章节"
@@ -338,8 +338,8 @@ export default async function PublishPage({
             </form>
 
             <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
-              <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                <div>
+              <div className="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
+                <div className="min-w-0">
                   <h2 className="text-base font-semibold text-ink-950">
                     AI 生成封面候选图
                   </h2>
@@ -484,8 +484,8 @@ export default async function PublishPage({
         </div>
 
         <article className="rounded-lg border border-signal-600/20 bg-paper-50 p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
                 <span className="rounded-md bg-white px-2.5 py-1">
                   本机全局配置
@@ -519,7 +519,7 @@ export default async function PublishPage({
 
           <form
             action={prepareGlobalStationCatPublishRun.bind(null, project.id)}
-            className="mt-4 grid gap-3 rounded-lg border border-ink-950/10 bg-white p-4 lg:grid-cols-[minmax(150px,180px)_minmax(170px,220px)_minmax(220px,1fr)_auto] lg:items-end"
+            className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] items-end gap-3 rounded-lg border border-ink-950/10 bg-white p-4"
           >
             <PublishRunFormControls
               canSubmit={canUseGlobalStationCat}
@@ -549,7 +549,7 @@ export default async function PublishPage({
 
           <form
             action={savePublishTarget.bind(null, project.id)}
-            className="mt-4 grid gap-3 rounded-lg border border-ink-950/10 bg-white p-4 lg:grid-cols-[1fr_1fr_1fr_auto]"
+            className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] items-end gap-3 rounded-lg border border-ink-950/10 bg-white p-4"
           >
             <label className="space-y-1.5">
               <span className="text-xs font-semibold text-ink-700">目标名称</span>
@@ -594,7 +594,7 @@ export default async function PublishPage({
               <PackageCheck aria-hidden="true" className="h-4 w-4" />
               新增目标
             </button>
-            <label className="space-y-1.5 lg:col-span-2">
+            <label className="space-y-1.5 sm:col-span-2">
               <span className="text-xs font-semibold text-ink-700">
                 API Base URL
               </span>
@@ -605,7 +605,7 @@ export default async function PublishPage({
                 type="url"
               />
             </label>
-            <label className="space-y-1.5 lg:col-span-2">
+            <label className="space-y-1.5 sm:col-span-2">
               <span className="text-xs font-semibold text-ink-700">
                 发布 Token（Station Cat Publish Token）
               </span>
@@ -640,8 +640,8 @@ export default async function PublishPage({
                     className="rounded-lg border border-ink-950/10 bg-paper-50 p-4"
                     key={target.id}
                   >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
                         <span className="rounded-md bg-white px-2.5 py-1">
                           {platformLabel(target.platformKey)}
@@ -670,7 +670,7 @@ export default async function PublishPage({
 
                   <form
                     action={savePublishTarget.bind(null, project.id)}
-                    className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_1fr_auto]"
+                    className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] items-end gap-3"
                   >
                     <input name="targetId" type="hidden" value={target.id} />
                     <label className="space-y-1.5">
@@ -722,7 +722,7 @@ export default async function PublishPage({
                       <KeyRound aria-hidden="true" className="h-4 w-4" />
                       保存目标
                     </button>
-                    <label className="space-y-1.5 lg:col-span-2">
+                    <label className="space-y-1.5 sm:col-span-2">
                       <span className="text-xs font-semibold text-ink-700">
                         API Base URL
                       </span>
@@ -756,7 +756,7 @@ export default async function PublishPage({
 
                   <form
                     action={preparePublishRun.bind(null, project.id, target.id)}
-                    className="mt-4 grid gap-3 rounded-lg border border-ink-950/10 bg-white p-4 lg:grid-cols-[minmax(150px,180px)_minmax(170px,220px)_minmax(220px,1fr)_auto] lg:items-end"
+                    className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] items-end gap-3 rounded-lg border border-ink-950/10 bg-white p-4"
                   >
                     <PublishRunFormControls
                       canSubmit={canSubmitPublish}
@@ -794,7 +794,7 @@ export default async function PublishPage({
           </p>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
           <CopyExportPanel
             compact
             content={standardPublishPackage}
@@ -844,8 +844,8 @@ function PublishRunResultCard({
 
   return (
     <div className="mt-4 rounded-lg border border-ink-950/10 bg-white p-4">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-ink-950">
             最近结果：{publishModeLabel(latestRun.mode)} /{" "}
             {publishRunStatusLabel(latestRun.status)}
@@ -863,7 +863,7 @@ function PublishRunResultCard({
           {formatDate(latestRun.createdAt)}
         </div>
       </div>
-      <div className="mt-3 grid gap-2 text-sm text-ink-700 lg:grid-cols-2">
+      <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2 text-sm text-ink-700">
         <ResultLink label="预览链接" value={latestRun.previewUrl} />
         <ResultLink label="发布链接" value={latestRun.publishUrl} />
       </div>
@@ -1002,12 +1002,12 @@ function PublishRunFormControls({
         <PublishSubmitButton disabled={!canSubmit} idleLabel={submitLabel} />
       </div>
 
-      <p className="text-xs leading-5 text-ink-700 lg:col-span-4">
+      <p className="col-span-full text-xs leading-5 text-ink-700">
         默认上传所有变更；选择“指定章节”后，只会把所选章节作为本次变更条目发送，不会连带封面或其他章节。取消“仅上传变更”可强制重传所选范围。
       </p>
 
       {!canSubmit ? (
-        <p className="text-sm leading-6 text-ink-700 lg:col-span-4">
+        <p className="col-span-full text-sm leading-6 text-ink-700">
           {disabledMessage}
         </p>
       ) : null}
@@ -1033,8 +1033,8 @@ function CoverImageTaskCard({
 
   return (
     <article className="rounded-lg border border-ink-950/10 bg-white p-3">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
             <span className="rounded-md bg-paper-100 px-2 py-0.5">
               {aiTaskStatusLabel(task.status)}

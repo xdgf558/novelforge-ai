@@ -218,11 +218,11 @@ export function FanqieLayoutExportPanel({
 
   return (
     <section
-      className="space-y-4 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      className="min-w-0 space-y-3 rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
       id="fanqie-layout-export"
     >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
             <FileText aria-hidden="true" className="h-4 w-4" />
             番茄小说导出
@@ -234,7 +234,7 @@ export function FanqieLayoutExportPanel({
             自动读取章节正文并做确定性格式整理，只生成可复制和下载的番茄正文，不改写章节、不写回正式正文，也不自动上传。
           </p>
         </div>
-        <div className="rounded-md border border-signal-600/20 bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700">
+        <div className="w-full rounded-md border border-signal-600/20 bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700 xl:w-auto xl:max-w-56">
           当前来源：
           <span className="font-semibold text-ink-950">
             {layoutExport?.source?.label ?? "无正文"}
@@ -243,7 +243,7 @@ export function FanqieLayoutExportPanel({
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(210px,1fr)_minmax(210px,1fr)_minmax(180px,220px)_minmax(170px,220px)_minmax(150px,190px)]">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-3">
         <label className="space-y-1.5">
           <span className="text-xs font-semibold text-ink-700">章节</span>
           <select
@@ -325,7 +325,7 @@ export function FanqieLayoutExportPanel({
           </div>
         </label>
 
-        <label className="flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-paper-50 px-3 py-2 text-sm text-ink-800 lg:mt-5">
+        <label className="flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-paper-50 px-3 py-2 text-sm text-ink-800">
           <input
             checked={includeTitle}
             className="h-4 w-4 rounded border-ink-950/20"
@@ -336,7 +336,7 @@ export function FanqieLayoutExportPanel({
         </label>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
         <InfoBlock label="导出模板" value={selectedTemplateOption.label} />
         <InfoBlock label="来源规则" value={selectedSourceOption.description} />
         <InfoBlock
@@ -393,8 +393,8 @@ export function FanqieLayoutExportPanel({
       </div>
 
       <div className="rounded-lg border border-ink-950/10 bg-white p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-ink-950">正文预览</p>
             <p className="mt-1 text-xs leading-5 text-ink-700">
               {previewDescription}
@@ -450,7 +450,7 @@ export function FanqieLayoutExportPanel({
         ) : null}
 
         <textarea
-          className="mt-3 min-h-72 w-full resize-y rounded-md border border-ink-950/10 bg-paper-50 p-3 font-mono text-xs leading-6 text-ink-800 outline-none"
+          className="mt-3 min-h-56 w-full resize-y rounded-md border border-ink-950/10 bg-paper-50 p-3 font-mono text-xs leading-6 text-ink-800 outline-none"
           readOnly
           ref={previewRef}
           value={layoutExport?.plainText ?? ""}

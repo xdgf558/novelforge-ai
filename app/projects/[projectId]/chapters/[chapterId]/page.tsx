@@ -40,6 +40,7 @@ import {
   isSegmentedChapterPolishInputJson,
 } from "@/lib/ai/chapter-polishes";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
+import { pendingUpdateTaskReviewLabel } from "@/lib/ai/chapter-task-review";
 import type { ReaderFeedbackSignal } from "@/lib/ai/reader-feedback-context";
 import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
 import {
@@ -100,7 +101,6 @@ export default async function ChapterPage({
       _count: {
         select: {
           versions: true,
-          pendingUpdates: true,
           continuityReports: true,
         },
       },
@@ -134,6 +134,11 @@ export default async function ChapterPage({
             select: {
               name: true,
               version: true,
+            },
+          },
+          pendingUpdates: {
+            select: {
+              status: true,
             },
           },
         },
@@ -197,7 +202,18 @@ export default async function ChapterPage({
   const hasActiveAiTasks = chapter.aiTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
-  const [stationCatSyncState, generationFeedbackSignals] = await Promise.all([
+  const [
+    pendingUpdateReviewCount,
+    stationCatSyncState,
+    generationFeedbackSignals,
+  ] = await Promise.all([
+    prisma.pendingUpdate.count({
+      where: {
+        projectId: chapter.project.id,
+        chapterId: chapter.id,
+        status: "pending",
+      },
+    }),
     prisma.publishSyncState.findFirst({
       where: {
         projectId: chapter.project.id,
@@ -355,7 +371,7 @@ export default async function ChapterPage({
         chapterId={chapter.id}
         hasApiKey={hasDefaultApiKey}
         hasConfirmedText={hasConfirmedText}
-        pendingUpdateCount={chapter._count.pendingUpdates}
+        pendingUpdateCount={pendingUpdateReviewCount}
         projectId={chapter.project.id}
         tasks={pendingUpdateTasks}
       />
@@ -493,6 +509,9 @@ type ChapterAiTask = {
     name: string;
     version: number;
   } | null;
+  pendingUpdates: {
+    status: string;
+  }[];
 };
 
 type ChapterReaderAnalytics = {
@@ -1488,7 +1507,7 @@ function ChapterSummaryAiPanel({
                     {aiTaskStatusLabel(task.status)}
                   </span>
                   <span className="rounded-md bg-white px-2.5 py-1">
-                    {aiTaskAdoptionLabel(task.adoptionState)}
+                    {chapterSummaryTaskReviewLabel(task)}
                   </span>
                   <span>{formatDate(task.createdAt)}</span>
                 </div>
@@ -1512,6 +1531,32 @@ function ChapterSummaryAiPanel({
       )}
     </section>
   );
+}
+
+function chapterSummaryTaskReviewLabel(task: ChapterAiTask) {
+  if (task.status === "completed") {
+    return "供后续任务参考";
+  }
+
+  if (task.status === "failed") {
+    return "未生成摘要";
+  }
+
+  return aiTaskAdoptionLabel(task.adoptionState);
+}
+
+function pendingUpdateExtractionReviewLabel(task: ChapterAiTask) {
+  if (task.status === "completed") {
+    return pendingUpdateTaskReviewLabel(
+      task.pendingUpdates.map((update) => update.status),
+    );
+  }
+
+  if (task.status === "failed") {
+    return "未生成更新";
+  }
+
+  return aiTaskAdoptionLabel(task.adoptionState);
 }
 
 function ChapterPendingUpdatePanel({
@@ -1552,7 +1597,9 @@ function ChapterPendingUpdatePanel({
             className="mt-3 inline-flex text-sm font-semibold text-signal-600 hover:underline"
             href={`/projects/${projectId}/pending-updates`}
           >
-            查看待审核更新（{pendingUpdateCount}）
+            {pendingUpdateCount > 0
+              ? `查看待审核更新（${pendingUpdateCount}）`
+              : "查看更新记录"}
           </Link>
         </div>
 
@@ -1615,7 +1662,7 @@ function ChapterPendingUpdatePanel({
                   {aiTaskStatusLabel(task.status)}
                 </span>
                 <span className="rounded-md bg-white px-2.5 py-1">
-                  {aiTaskAdoptionLabel(task.adoptionState)}
+                  {pendingUpdateExtractionReviewLabel(task)}
                 </span>
                 <span>{formatDate(task.createdAt)}</span>
               </div>
