@@ -21,6 +21,7 @@ import {
   shouldSegmentChapterPolish,
   type ChapterPolishChapterContext,
 } from "@/lib/ai/chapter-polishes";
+import { normalizeChapterPlatformTemplate } from "@/lib/ai/chapter-platform-templates";
 import {
   buildChapterSummaryContext,
   hasConfirmedChapterText,
@@ -600,7 +601,14 @@ export async function generateChapterBeats(projectId: string, chapterId: string)
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
-export async function generateChapterDraft(projectId: string, chapterId: string) {
+export async function generateChapterDraft(
+  projectId: string,
+  chapterId: string,
+  formData?: FormData,
+) {
+  const platformTemplate = normalizeChapterPlatformTemplate(
+    formData?.get("platformTemplate"),
+  );
   const activeTask = await findActiveChapterAiTask(
     projectId,
     chapterId,
@@ -623,7 +631,9 @@ export async function generateChapterDraft(projectId: string, chapterId: string)
     projectId,
     chapterDraftTemplateKey,
   );
-  const context = buildChapterDraftContext(contextInput);
+  const context = buildChapterDraftContext(contextInput, {
+    platformTemplate,
+  });
 
   await startLoggedOpenAITextTask(
     {
@@ -650,7 +660,14 @@ export async function generateChapterDraft(projectId: string, chapterId: string)
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
-export async function generateChapterPolish(projectId: string, chapterId: string) {
+export async function generateChapterPolish(
+  projectId: string,
+  chapterId: string,
+  formData?: FormData,
+) {
+  const platformTemplate = normalizeChapterPlatformTemplate(
+    formData?.get("platformTemplate"),
+  );
   const activeTask = await findActiveChapterAiTask(
     projectId,
     chapterId,
@@ -675,7 +692,9 @@ export async function generateChapterPolish(projectId: string, chapterId: string
   );
 
   if (shouldSegmentChapterPolish(contextInput)) {
-    const context = buildSegmentedChapterPolishContext(contextInput);
+    const context = buildSegmentedChapterPolishContext(contextInput, {
+      platformTemplate,
+    });
     const task = await createAiTask({
       projectId,
       chapterId,
@@ -699,7 +718,9 @@ export async function generateChapterPolish(projectId: string, chapterId: string
     redirect(`/projects/${projectId}/chapters/${chapterId}`);
   }
 
-  const context = buildChapterPolishContext(contextInput);
+  const context = buildChapterPolishContext(contextInput, {
+    platformTemplate,
+  });
 
   await startLoggedOpenAITextTask(
     {

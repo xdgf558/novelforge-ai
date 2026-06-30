@@ -4,6 +4,7 @@ import {
   createChapter,
   generateChapterBeats,
   generateChapterDraft,
+  generateChapterPolish,
   updateChapter,
 } from "./actions";
 
@@ -60,6 +61,7 @@ const mocks = vi.hoisted(() => {
       aiPromptTemplate: {
         findFirst: vi.fn(),
         upsert: vi.fn(),
+        updateMany: vi.fn(),
       },
       outline: {
         findMany: vi.fn(),
@@ -240,6 +242,9 @@ describe("chapter actions", () => {
     mocks.prisma.aiPromptTemplate.upsert.mockResolvedValue(
       buildPromptTemplate("chapter_beat_generation"),
     );
+    mocks.prisma.aiPromptTemplate.updateMany.mockResolvedValue({
+      count: 0,
+    });
     mocks.prisma.projectSetting.findUnique.mockResolvedValue({});
     mocks.prisma.character.findMany.mockResolvedValue([]);
     mocks.prisma.chapter.findMany.mockResolvedValue([]);
@@ -708,5 +713,71 @@ describe("chapter actions", () => {
     ]);
     expect(taskMeta.inputContextSummary).toContain("读者反馈 1 条");
     expect(request.input).toContain("不要直接在正文中提到数据、指标或读者反馈");
+  });
+
+  it("passes Fanqie platform template from draft form into task context", async () => {
+    mocks.prisma.chapter.findFirst
+      .mockResolvedValueOnce({
+        ...baseChapter,
+        chapterNumber: 5,
+        title: "第五章",
+        beats: "1. 开场反击。\n2. 章末钩子。",
+        project: projectContext,
+      })
+      .mockResolvedValueOnce({
+        ...baseChapter,
+        chapterNumber: 4,
+        title: "上一章",
+        finalText: "上一章结尾。",
+      });
+    mocks.prisma.aiPromptTemplate.findFirst.mockResolvedValue(
+      buildPromptTemplate("chapter_draft_generation"),
+    );
+    const formData = new FormData();
+    formData.set("platformTemplate", "fanqie");
+
+    await expect(
+      generateChapterDraft("project_1", "chapter_1", formData),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    const [taskMeta, request] =
+      mocks.taskLogger.startLoggedOpenAITextTask.mock.calls[0];
+    expect(taskMeta.inputJson.platformTemplate).toEqual(
+      expect.objectContaining({
+        value: "fanqie",
+        label: "番茄小说",
+      }),
+    );
+    expect(taskMeta.inputContextSummary).toContain("平台模板：番茄小说");
+    expect(request.input).toContain("目标平台：番茄小说长篇连载");
+    expect(request.input).toContain("开篇 300 字内必须出现明确人物动作");
+  });
+
+  it("passes Fanqie platform template from polish form into task context", async () => {
+    mocks.prisma.chapter.findFirst.mockResolvedValueOnce({
+      ...baseChapter,
+      project: projectContext,
+    });
+    mocks.prisma.aiPromptTemplate.findFirst.mockResolvedValue(
+      buildPromptTemplate("chapter_polish_generation"),
+    );
+    const formData = new FormData();
+    formData.set("platformTemplate", "fanqie");
+
+    await expect(
+      generateChapterPolish("project_1", "chapter_1", formData),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    const [taskMeta, request] =
+      mocks.taskLogger.startLoggedOpenAITextTask.mock.calls[0];
+    expect(taskMeta.inputJson.platformTemplate).toEqual(
+      expect.objectContaining({
+        value: "fanqie",
+        label: "番茄小说",
+      }),
+    );
+    expect(taskMeta.inputContextSummary).toContain("平台模板：番茄小说");
+    expect(request.input).toContain("目标平台：番茄小说长篇连载");
+    expect(request.input).toContain("清理 AI 腔、解释腔、总结腔");
   });
 });

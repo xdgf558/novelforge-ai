@@ -72,6 +72,28 @@ describe("chapter polish context builder", () => {
     });
   });
 
+  it("injects Fanqie platform instructions into normal polish context", () => {
+    const context = buildChapterPolishContext(baseInput, {
+      platformTemplate: "fanqie",
+    });
+
+    expect(context.inputText).toContain("目标平台：番茄小说长篇连载");
+    expect(context.inputText).toContain("清理 AI 腔、解释腔、总结腔");
+    expect(context.inputText).toContain("强化开篇钩子");
+    expect(context.inputText).toContain("章尾增加追读感");
+    expect(context.inputJson.platformTemplate).toEqual(
+      expect.objectContaining({
+        value: "fanqie",
+        label: "番茄小说",
+        instructions: expect.arrayContaining([
+          expect.stringContaining("目标平台：番茄小说"),
+          expect.stringContaining("清理 AI 腔"),
+        ]),
+      }),
+    );
+    expect(context.inputContextSummary).toContain("平台模板：番茄小说");
+  });
+
   it("summarizes source scope and detects polishable text", () => {
     expect(buildChapterPolishContextSummary(baseInput)).toBe(
       "第 4 章《死者发来的短信》正文精修；草稿正文 41 字；角色 1 个；包含项目设定",
@@ -145,6 +167,34 @@ describe("chapter polish context builder", () => {
     expect(isSegmentedChapterPolishInputJson(JSON.stringify(context.inputJson))).toBe(
       true,
     );
+  });
+
+  it("keeps Fanqie platform instructions in segmented polish tasks", () => {
+    const longDraft = "陈远推开门。\n\n".repeat(4000);
+    const context = buildSegmentedChapterPolishContext(
+      {
+        ...baseInput,
+        chapter: {
+          ...baseInput.chapter,
+          draftText: longDraft,
+        },
+      },
+      {
+        platformTemplate: "fanqie",
+      },
+    );
+
+    expect(context.inputJson.platformTemplate).toEqual(
+      expect.objectContaining({
+        value: "fanqie",
+        label: "番茄小说",
+      }),
+    );
+    expect(context.inputContextSummary).toContain("平台模板：番茄小说");
+    expect(context.segments[0].inputText).toContain(
+      "目标平台：番茄小说长篇连载",
+    );
+    expect(context.segments[0].inputText).toContain("清理 AI 腔、解释腔、总结腔");
   });
 
   it("keeps paragraph boundaries while splitting polish segments when possible", () => {

@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.74 番茄分章 TXT 包";
+export const appReleaseTitle = "0.1.75 番茄草稿精修模板";
 
 export const appReleaseNotes = [
-  "番茄小说导出面板新增“分章 TXT 包”模板，可按 3000/4000/5000/自定义目标字数拆分长章。",
-  "拆分导出会生成清单预览，并可下载包含拆分清单和多个 TXT 正文文件的 ZIP 包。",
-  "所有番茄导出仍只做本地格式整理和下载，不改写章节、不写入数据库，也不自动上传。",
+  "章节草稿生成新增目标平台选择，可在通用连载和番茄小说模板之间切换。",
+  "正文精修新增同样的目标平台选择；番茄模板会强化开篇钩子、爽点反转、短段落和章末追读感。",
+  "平台模板只影响新的 AI 任务上下文和任务记录，不会自动改写正式正文或上传到番茄。",
 ];

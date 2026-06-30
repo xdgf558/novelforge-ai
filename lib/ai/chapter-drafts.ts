@@ -8,6 +8,10 @@ import {
   type ReaderFeedbackSignal,
 } from "./reader-feedback-context";
 import { proseStyleGuardrails } from "./prose-style-guardrails";
+import {
+  buildChapterPlatformTemplateContext,
+  type ChapterPlatformTemplate,
+} from "./chapter-platform-templates";
 
 export type ChapterDraftProjectContext = {
   title: string;
@@ -65,6 +69,10 @@ export type BuiltChapterDraftContext = {
   inputContextSummary: string;
 };
 
+export type BuildChapterDraftContextOptions = {
+  platformTemplate?: ChapterPlatformTemplate;
+};
+
 type DraftSettingField = readonly [ProjectSettingFieldName, string];
 
 const draftStyleSettingFields = [
@@ -91,8 +99,13 @@ const draftForbiddenSettingFields = [
 
 export function buildChapterDraftContext(
   input: ChapterDraftContextInput,
+  options: BuildChapterDraftContextOptions = {},
 ): BuiltChapterDraftContext {
   const confirmedBeats = clean(input.chapter.beats);
+  const platformTemplate = buildChapterPlatformTemplateContext({
+    task: "draft",
+    template: options.platformTemplate,
+  });
   const outlineItems = (input.outlines ?? []).map(buildOutlineLine);
   const previousChapterEnding = input.previousChapter
     ? excerptChapterEnding(input.previousChapter)
@@ -143,6 +156,11 @@ export function buildChapterDraftContext(
     characterRules,
     worldConstraints,
     readerFeedback: readerFeedbackSignalsToJson(readerFeedback),
+    platformTemplate: {
+      value: platformTemplate.template,
+      label: platformTemplate.label,
+      instructions: platformTemplate.instructions,
+    },
     previousChapterEnding,
     forbiddenItems,
     outputRequirements: [
@@ -178,6 +196,14 @@ export function buildChapterDraftContext(
     "# 文风与发布约束",
     styleConstraints.length > 0 ? styleConstraints.join("\n") : "未设置。",
     "",
+    ...(platformTemplate.instructions.length > 0
+      ? [
+          "# 目标平台模板",
+          `平台模板：${platformTemplate.label}`,
+          platformTemplate.instructions.join("\n"),
+          "",
+        ]
+      : []),
     "# 角色说话与行为规则",
     characterRules.length > 0 ? characterRules.join("\n") : "暂无角色资料。",
     "",
@@ -205,13 +231,19 @@ export function buildChapterDraftContext(
   return {
     inputText,
     inputJson,
-    inputContextSummary: buildChapterDraftContextSummary(input),
+    inputContextSummary: buildChapterDraftContextSummary(input, options),
   };
 }
 
 export function buildChapterDraftContextSummary(
   input: ChapterDraftContextInput,
+  options: BuildChapterDraftContextOptions = {},
 ) {
+  const platformTemplate = buildChapterPlatformTemplateContext({
+    task: "draft",
+    template: options.platformTemplate,
+  });
+
   return [
     `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节草稿生成`,
     clean(input.chapter.beats) ? "包含已确认节拍" : "缺少已确认节拍",
@@ -219,7 +251,12 @@ export function buildChapterDraftContextSummary(
     `角色 ${input.characters.length} 个`,
     input.readerFeedback?.length ? `读者反馈 ${input.readerFeedback.length} 条` : "无读者反馈",
     input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
-  ].join("；");
+    platformTemplate.template === "fanqie"
+      ? `平台模板：${platformTemplate.label}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("；");
 }
 
 export function hasConfirmedChapterBeats(chapter: ChapterDraftChapterContext) {

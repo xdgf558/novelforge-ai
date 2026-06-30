@@ -6,6 +6,10 @@ import {
   type ChapterPolishChapterContext,
   type ChapterPolishContextInput,
 } from "@/lib/ai/chapter-polishes";
+import {
+  normalizeChapterPlatformTemplate,
+  type ChapterPlatformTemplate,
+} from "@/lib/ai/chapter-platform-templates";
 import { createOpenAITextResponse } from "@/lib/ai/openai-client";
 import {
   markAiTaskCompleted,
@@ -33,6 +37,7 @@ type SegmentedPolishTaskSnapshot = {
   sourceTextLength: number | null;
   sourceTextHash: string | null;
   segmentCount: number | null;
+  platformTemplate: ChapterPlatformTemplate;
 };
 
 export async function completeRunningSegmentedChapterPolishTask(taskId: string) {
@@ -93,7 +98,9 @@ async function runSegmentedChapterPolishTask(
     throw new Error("分段精修任务缺少可精修正文。");
   }
 
-  const context = buildSegmentedChapterPolishContext(contextInput);
+  const context = buildSegmentedChapterPolishContext(contextInput, {
+    platformTemplate: snapshot.platformTemplate,
+  });
 
   if (
     snapshot.sourceTextLength !== null &&
@@ -200,6 +207,9 @@ function parseSegmentedPolishTaskSnapshot(
       sourceTextHash?: unknown;
       segmentCount?: unknown;
     };
+    platformTemplate?: {
+      value?: unknown;
+    };
   };
   const sourceTextLength = Number(parsed.chapter?.sourceTextLength);
   const sourceTextHash =
@@ -216,6 +226,9 @@ function parseSegmentedPolishTaskSnapshot(
     sourceTextHash: sourceTextHash || null,
     segmentCount:
       Number.isInteger(segmentCount) && segmentCount > 0 ? segmentCount : null,
+    platformTemplate: normalizeChapterPlatformTemplate(
+      parsed.platformTemplate?.value,
+    ),
   };
 }
 
