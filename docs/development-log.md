@@ -1,5 +1,23 @@
 # Development Log
 
+## 2026-06-30: 0.1.74 Fanqie Split TXT Package Phase 3
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.74`.
+- Extended the publish-page 番茄小说 export panel with a template selector for `番茄正文粘贴版` and `番茄分章 TXT 包`.
+- Added target word-count controls for 3000 / 4000 / 5000 / custom, plus split count and per-part preview.
+- Added browser-side ZIP generation for split TXT packages, including `拆分清单.md` and each generated TXT file with UTF-8 filenames.
+- Kept Phase 3 local and author-safe: split packages are generated for manual download only; the feature does not rewrite chapters, create database export history, or upload to Fanqie.
+
+Verification:
+
+- `npm run test -- lib/fanqie-layout-export.test.ts lib/stored-zip.test.ts components/publish/fanqie-layout-selection.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-30: 0.1.73 Fanqie Export Panel Phase 2
 
 Status: completed.

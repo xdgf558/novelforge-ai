@@ -14,8 +14,10 @@ import {
   fanqieLayoutTemplateOptions,
   selectFanqieLayoutSource,
   type FanqieLayoutChapter,
+  type FanqieLayoutTemplate,
   type FanqieSourceKind,
 } from "@/lib/fanqie-layout-export";
+import { createStoredTextZip } from "@/lib/stored-zip";
 
 export type FanqieLayoutChapterOption = FanqieLayoutChapter;
 
@@ -52,6 +54,13 @@ const sourceOptions: {
   },
 ];
 
+const targetWordCountOptions = [
+  { label: "3000 字", value: "3000" },
+  { label: "4000 字", value: "4000" },
+  { label: "5000 字", value: "5000" },
+  { label: "自定义", value: "custom" },
+] as const;
+
 export function FanqieLayoutExportPanel({
   chapters,
   initialChapterId,
@@ -63,11 +72,18 @@ export function FanqieLayoutExportPanel({
   );
   const [selectedChapterId, setSelectedChapterId] = useState(defaultChapterId);
   const [sourceKind, setSourceKind] = useState<FanqieSourceKind>("auto");
+  const [template, setTemplate] = useState<FanqieLayoutTemplate>("body");
+  const [targetWordPreset, setTargetWordPreset] = useState("4000");
+  const [customTargetWordCount, setCustomTargetWordCount] = useState("4000");
   const [includeTitle, setIncludeTitle] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
     "idle",
   );
   const previewRef = useRef<HTMLTextAreaElement>(null);
+  const targetWordCount =
+    targetWordPreset === "custom"
+      ? Number(customTargetWordCount)
+      : Number(targetWordPreset);
   const selectedChapter =
     chapters.find((chapter) => chapter.id === selectedChapterId) ?? chapters[0];
   const layoutExport = useMemo(() => {
@@ -80,16 +96,31 @@ export function FanqieLayoutExportPanel({
       includeTitle,
       projectTitle,
       sourceKind,
-      template: "body",
+      targetWordCount,
+      template,
     });
-  }, [includeTitle, projectTitle, selectedChapter, sourceKind]);
+  }, [
+    includeTitle,
+    projectTitle,
+    selectedChapter,
+    sourceKind,
+    targetWordCount,
+    template,
+  ]);
+  const selectedTemplateOption =
+    fanqieLayoutTemplateOptions.find((option) => option.value === template) ??
+    fanqieLayoutTemplateOptions[0];
   const selectedSourceOption =
     sourceOptions.find((option) => option.value === sourceKind) ??
     sourceOptions[0];
   const previewDescription = includeTitle
     ? "包含章节标题，适合需要标题与正文一起复制的手动粘贴场景。"
-    : fanqieLayoutTemplateOptions[0].description;
+    : selectedTemplateOption.description;
+  const isSplitTemplate = template === "split_txt";
   const canExport = Boolean(layoutExport?.plainText.trim());
+  const canDownloadSplitZip = Boolean(
+    isSplitTemplate && layoutExport?.splitParts.length,
+  );
 
   useEffect(() => {
     setSelectedChapterId(defaultChapterId);
@@ -142,6 +173,29 @@ export function FanqieLayoutExportPanel({
     );
   }
 
+  function downloadSplitZip() {
+    if (!layoutExport?.splitParts.length) {
+      return;
+    }
+
+    const zip = createStoredTextZip([
+      {
+        content: layoutExport.manifest,
+        path: "拆分清单.md",
+      },
+      ...layoutExport.splitParts.map((part) => ({
+        content: part.body,
+        path: part.fileName,
+      })),
+    ]);
+
+    download(
+      `${layoutExport.filenameBase}-split.zip`,
+      zip,
+      "application/zip",
+    );
+  }
+
   if (chapters.length === 0) {
     return (
       <section
@@ -174,7 +228,7 @@ export function FanqieLayoutExportPanel({
             番茄小说导出
           </div>
           <h2 className="mt-2 text-base font-semibold text-ink-950">
-            正文粘贴版
+            {selectedTemplateOption.label}
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
             自动读取章节正文并做确定性格式整理，只生成可复制和下载的番茄正文，不改写章节、不写回正式正文，也不自动上传。
@@ -189,7 +243,7 @@ export function FanqieLayoutExportPanel({
         </div>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(170px,220px)]">
+      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(210px,1fr)_minmax(210px,1fr)_minmax(180px,220px)_minmax(170px,220px)_minmax(150px,190px)]">
         <label className="space-y-1.5">
           <span className="text-xs font-semibold text-ink-700">章节</span>
           <select
@@ -227,6 +281,50 @@ export function FanqieLayoutExportPanel({
           </select>
         </label>
 
+        <label className="space-y-1.5">
+          <span className="text-xs font-semibold text-ink-700">导出模板</span>
+          <select
+            className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+            onChange={(event) =>
+              setTemplate(event.target.value as FanqieLayoutTemplate)
+            }
+            value={template}
+          >
+            {fanqieLayoutTemplateOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="space-y-1.5">
+          <span className="text-xs font-semibold text-ink-700">目标字数</span>
+          <div className="flex gap-2">
+            <select
+              className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+              onChange={(event) => setTargetWordPreset(event.target.value)}
+              value={targetWordPreset}
+            >
+              {targetWordCountOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {targetWordPreset === "custom" ? (
+              <input
+                className="min-h-10 w-24 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
+                inputMode="numeric"
+                min={500}
+                onChange={(event) => setCustomTargetWordCount(event.target.value)}
+                type="number"
+                value={customTargetWordCount}
+              />
+            ) : null}
+          </div>
+        </label>
+
         <label className="flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-paper-50 px-3 py-2 text-sm text-ink-800 lg:mt-5">
           <input
             checked={includeTitle}
@@ -238,9 +336,13 @@ export function FanqieLayoutExportPanel({
         </label>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-3">
-        <InfoBlock label="导出模板" value={fanqieLayoutTemplateOptions[0].label} />
+      <div className="grid gap-3 lg:grid-cols-4">
+        <InfoBlock label="导出模板" value={selectedTemplateOption.label} />
         <InfoBlock label="来源规则" value={selectedSourceOption.description} />
+        <InfoBlock
+          label="目标字数"
+          value={`${displayTargetWordCount(targetWordCount)} 字 / 允许约 20% 浮动`}
+        />
         <InfoBlock
           label="标题策略"
           value={includeTitle ? "正文开头包含章节标题" : "正文默认不含章节标题"}
@@ -258,6 +360,9 @@ export function FanqieLayoutExportPanel({
           <p className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-ink-700">
             {layoutExport?.validation.sourceLabel ?? "无正文"} /{" "}
             {layoutExport?.validation.wordCount.toLocaleString() ?? 0} 字
+            {isSplitTemplate && layoutExport?.validation.splitCount
+              ? ` / ${layoutExport.validation.splitCount} 个 TXT`
+              : ""}
           </p>
         </div>
 
@@ -316,8 +421,19 @@ export function FanqieLayoutExportPanel({
               type="button"
             >
               <Download aria-hidden="true" className="h-4 w-4" />
-              下载 TXT
+              {isSplitTemplate ? "下载单章 TXT" : "下载 TXT"}
             </button>
+            {isSplitTemplate ? (
+              <button
+                className="inline-flex min-h-9 items-center gap-2 rounded-md bg-signal-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-signal-700 disabled:cursor-not-allowed disabled:bg-signal-600/50"
+                disabled={!canDownloadSplitZip}
+                onClick={downloadSplitZip}
+                type="button"
+              >
+                <Download aria-hidden="true" className="h-4 w-4" />
+                下载拆分 ZIP
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -340,6 +456,51 @@ export function FanqieLayoutExportPanel({
           value={layoutExport?.plainText ?? ""}
         />
       </div>
+
+      {isSplitTemplate && layoutExport ? (
+        <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-ink-950">拆分清单</p>
+              <p className="mt-1 text-xs leading-5 text-ink-700">
+                ZIP 会包含拆分清单和每个 TXT 文件。正文文件默认不含标题，除非勾选“正文内包含标题”。
+              </p>
+            </div>
+            <p className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-ink-700">
+              {layoutExport.splitParts.length} 个文件
+            </p>
+          </div>
+
+          {layoutExport.splitParts.length ? (
+            <div className="mt-3 grid gap-2">
+              {layoutExport.splitParts.map((part) => (
+                <div
+                  className="grid gap-2 rounded-md bg-white px-3 py-2 text-sm text-ink-800 sm:grid-cols-[minmax(160px,1fr)_auto_auto]"
+                  key={part.fileName}
+                >
+                  <span className="font-semibold text-ink-950">
+                    第 {part.chapterNumber} 章《{part.title}》
+                  </span>
+                  <span>{part.wordCount.toLocaleString()} 字</span>
+                  <span className="font-mono text-xs text-ink-600">
+                    {part.fileName}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 rounded-md border border-dashed border-ink-950/20 bg-white px-3 py-3 text-sm leading-6 text-ink-700">
+              当前来源没有可拆分正文。请选择其他来源，或先保存章节正文。
+            </p>
+          )}
+
+          {layoutExport.manifest ? (
+            <pre className="mt-3 max-h-56 overflow-auto rounded-md border border-ink-950/10 bg-white p-3 text-xs leading-6 text-ink-800">
+              {layoutExport.manifest}
+            </pre>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -355,7 +516,7 @@ function InfoBlock({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function download(filename: string, content: string, mimeType: string) {
+function download(filename: string, content: BlobPart, mimeType: string) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -364,4 +525,12 @@ function download(filename: string, content: string, mimeType: string) {
   link.download = filename;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function displayTargetWordCount(value: number) {
+  if (!Number.isFinite(value)) {
+    return 4000;
+  }
+
+  return Math.min(20000, Math.max(500, Math.round(value)));
 }
