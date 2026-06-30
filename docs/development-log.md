@@ -1,5 +1,23 @@
 # Development Log
 
+## 2026-06-30: 0.1.73 Fanqie Export Panel Phase 2
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.73`.
+- Added a publish-page 番茄小说 export panel using the deterministic Phase 1 core library.
+- Added chapter selection, source selection (`auto`, `draft`, `final`, `polished`), optional title inclusion, validation display, word count/source display, one-click copy, and TXT download.
+- Added a small chapter-selection helper and regression tests for requested/stale/default chapter selection.
+- Kept Phase 2 author-safe: the panel only reads existing chapter text and generates local export content; it does not rewrite chapters, write database rows, create ZIP packages, or upload to Fanqie.
+
+Verification:
+
+- `npm run test -- components/publish/fanqie-layout-selection.test.ts lib/fanqie-layout-export.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-30: 0.1.72 Fanqie Export Core Phase 1
 
 Status: completed.

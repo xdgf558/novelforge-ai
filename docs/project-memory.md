@@ -35,7 +35,7 @@ MVP includes:
 - Pending update approval/rejection flow
 - Basic continuity check
 - AI task records
-- WeChat layout export for manual public-account publishing
+- WeChat and Fanqie layout export for manual platform publishing
 - Markdown/JSON project export
 - Local persistence
 
@@ -84,7 +84,7 @@ The intended author workflow is:
 16. AI extracts pending setting updates.
 17. User approves, rejects, or edits updates.
 18. AI runs continuity check.
-19. User exports WeChat-ready layout/copy from confirmed chapter text.
+19. User exports WeChat-ready or Fanqie-ready layout/copy from confirmed chapter text.
 20. User publishes manually and moves to next chapter.
 
 ## Database Memory Baseline
@@ -255,8 +255,9 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - Desktop startup must not run Prisma CLI commands from inside the packaged app bundle. DMG volumes are read-only, and Prisma CLI can try to mutate `node_modules/@prisma/engines` under `app.asar.unpacked`, causing `EROFS`. Use `runDesktopMigrations` in `desktop/runtime.cjs`, which reads bundled `prisma/migrations/*/migration.sql`, applies SQL through Prisma Client to the user data SQLite database, and records `_prisma_migrations`.
 - `npm run desktop:dist:mac` produces the signed local app payload plus DMG/ZIP artifacts and skips notarization; use the app payload to build the formal `/Applications` PKG handoff.
 - `npm run desktop:dist:mac:notarized` exists only for an explicit future public-distribution request; do not use it for normal personal-use rebuilds.
-- Current source app version is `0.1.72`; the latest formal personal-use macOS installer is `release/desktop/NovelForge-AI-0.1.71-mac-arm64.pkg`. Future handoff should leave only the final `release/desktop/NovelForge-AI-<version>-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
-- Phase 1 of the Fanqie template/export work is implemented as a deterministic core library only: `lib/fanqie-layout-export.ts` selects正文 from `polishedText -> finalText -> draftText`, cleans duplicate chapter titles, Markdown, completion markers, web tails, and AI outline traces, counts CJK-aware words, and returns validation/split-manifest helpers. It does not add UI, database tables, automatic Fanqie upload, or hidden chapter rewrites.
+- Current source app version is `0.1.73`; the latest formal personal-use macOS installer is `release/desktop/NovelForge-AI-0.1.71-mac-arm64.pkg`. Future handoff should leave only the final `release/desktop/NovelForge-AI-<version>-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
+- Phase 1 of the Fanqie template/export work is implemented as a deterministic core library: `lib/fanqie-layout-export.ts` selects正文 from `polishedText -> finalText -> draftText`, cleans duplicate chapter titles, Markdown, completion markers, web tails, and AI outline traces, counts CJK-aware words, and returns validation/split-manifest helpers.
+- Phase 2 of the Fanqie template/export work adds a publish-page 番茄小说正文粘贴版 panel. It supports chapter selection, source selection, optional title inclusion, validation display, copy, and TXT download. It is still local/manual only: no database writes, no automatic Fanqie upload, no ZIP package generation, and no hidden chapter rewrites.
 - Phase 27 added local backup creation under `/ai-settings`; backups are ZIP files containing a `VACUUM INTO` SQLite snapshot and generated assets, and deliberately exclude local `.env` API keys, TTS keys, image keys, proxy settings, and Station Cat tokens. Keep this invariant if backup/restore is extended later, and keep asset ZIP writing streaming rather than all-in-memory.
 - Project deletion should remain archive-first. The default project list shows active projects; archived projects are available through the project-status filter and can be restored from the edit page. Hard delete must keep a visible backup acknowledgement and typed confirmation.
 - Prompt template management is basic by design: authors can view/copy, duplicate a version, enable/disable, and reset to defaults. Do not add arbitrary browser-side API key access or hidden prompt mutation. AI calls should use the highest-version active template for a key, but if the code ships a newer default template version than the currently active project template, `ensureDefaultPromptTemplate` may auto-upsert and use that newer default, then mark older active versions for the same key inactive. User-created higher-version templates still remain preferred.
