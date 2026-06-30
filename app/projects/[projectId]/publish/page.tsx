@@ -165,7 +165,7 @@ export default async function PublishPage({
     (target) => target.id !== globalStationCatTarget?.id,
   );
   const latestGlobalStationCatRun = globalStationCatTarget?.runs[0] ?? null;
-  const wechatLayoutChapters = project.chapters
+  const layoutExportChapters = project.chapters
     .map((chapter) => ({
       id: chapter.id,
       chapterNumber: chapter.chapterNumber,
@@ -223,7 +223,7 @@ export default async function PublishPage({
         <InfoTile
           icon={FileText}
           label="可导出章节"
-          value={`${formatNumber(wechatLayoutChapters.length)} 个`}
+          value={`${formatNumber(layoutExportChapters.length)} 个`}
         />
         <InfoTile
           icon={FileJson}
@@ -234,7 +234,7 @@ export default async function PublishPage({
 
       <WechatLayoutExportPanel
         candidateTasks={wechatLayoutCandidateTasks}
-        chapters={wechatLayoutChapters}
+        chapters={layoutExportChapters}
         generateAction={generateWechatLayoutCandidates.bind(null, project.id)}
         hasApiKey={hasApiKey}
         initialChapterId={resolvedSearchParams?.wechatChapterId}
@@ -242,7 +242,7 @@ export default async function PublishPage({
       />
 
       <FanqieLayoutExportPanel
-        chapters={wechatLayoutChapters}
+        chapters={layoutExportChapters}
         initialChapterId={resolvedSearchParams?.fanqieChapterId}
         projectTitle={project.title}
       />
