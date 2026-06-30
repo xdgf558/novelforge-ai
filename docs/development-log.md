@@ -1,5 +1,48 @@
 # Development Log
 
+## 2026-06-30: 0.1.72 Fanqie Export Core Phase 1
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.72`.
+- Added `lib/fanqie-layout-export.ts` as the deterministic core for future 番茄小说 export workflows.
+- Implemented source selection for 番茄正文 using `polishedText -> finalText -> draftText`, while allowing explicit source selection.
+- Implemented正文清理 for duplicate chapter titles, Markdown heading markers, dividers, chapter completion markers, web reading tails, and AI outline traces such as `节拍一：` and `本章目标：`.
+- Added CJK-aware word counting, default body-paste export construction, validation hints, safe filename generation, and pure split-manifest helpers for later UI/ZIP work.
+- Preserved author control: this phase does not add UI, does not upload to Fanqie, does not change chapter text, and does not add database tables.
+
+Verification:
+
+- `npm run test -- lib/fanqie-layout-export.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
+## 2026-06-30: 0.1.71 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Rebuilt the personal-use macOS installer from `main` at version `0.1.71`.
+- Ran the desktop packaging smoke check before packaging.
+- Cleared old `release/desktop` artifacts before rebuilding.
+- Ran `npm run desktop:dist:mac` with notarization skipped, then built the formal PKG installer from the generated app payload.
+- Cleaned `release/desktop` after packaging so only the final formal PKG handoff remains:
+  - `release/desktop/NovelForge-AI-0.1.71-mac-arm64.pkg`
+
+Verification:
+
+- `npm run desktop:smoke` passed.
+- `npm run desktop:dist:mac` completed.
+- `pkgutil --expand-full` confirmed the PKG payload contains `NovelForge AI.app`.
+- Expanded PKG metadata reports `install-location="/Applications"` and version `0.1.71`.
+- Expanded app `CFBundleShortVersionString` and `CFBundleVersion` are `0.1.71`.
+- Expanded app `codesign --verify --deep --strict --verbose=2` passed.
+- Packaged runtime check confirmed `desktop/main.cjs` uses `runDesktopMigrations`, does not contain `migrate deploy` or `prisma/build/index.js`, and `desktop/runtime.cjs` reads bundled `migration.sql`.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate for personal-use PKG handoffs.
+
 ## 2026-06-30: 0.1.71 Stronger Prose Anti-Template Guardrails
 
 Status: completed.

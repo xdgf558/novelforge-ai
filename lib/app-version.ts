@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.71 强化正文反模板腔";
+export const appReleaseTitle = "0.1.72 番茄导出核心库";
 
 export const appReleaseNotes = [
-  "章节草稿和正文精修默认模板升级到 v2，旧项目生成时会自动使用新版默认模板。",
-  "把“不是……而是……”等二元对照句式从软性少用改为硬性自检：全文最多保留 1 处。",
-  "Kimi 等长文模型生成前会收到更明确的反模板腔改写要求，降低 AI 味重复句式。",
+  "新增番茄小说导出的核心纯函数，支持正文来源选择、清理、字数统计和校验提示。",
+  "番茄正文默认从精修正文、定稿正文、草稿正文中按顺序取可用内容，不直接改写章节正文。",
+  "为后续发布页番茄导出面板和分章 TXT 下载打好基础。",
 ];
