@@ -1,5 +1,29 @@
 # Development Log
 
+## 2026-06-30: 0.1.77 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.77`.
+- Rebuilt the personal-use macOS installer from `main`.
+- Cleared old `release/desktop` artifacts before rebuilding.
+- Built the signed macOS app payload with `npm run desktop:pack:mac`, then created the final PKG from a staging root so the app signature remained intact.
+- Cleaned `release/desktop` after packaging so only the final handoff package remains:
+  - `release/desktop/NovelForge-AI-0.1.77-mac-arm64.pkg`
+
+Verification:
+
+- `npm run desktop:smoke` passed.
+- `npm run desktop:pack:mac` completed with notarization skipped for the personal-use build.
+- Generated app payload reported `CFBundleShortVersionString=0.1.77`.
+- Generated app payload passed `codesign --verify --deep --strict --verbose=2`.
+- Expanded PKG payload reported `CFBundleShortVersionString=0.1.77`.
+- Expanded PKG payload passed `codesign --verify --deep --strict --verbose=2`.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate for personal-use PKG handoffs.
+- Final SHA-256: `96d00a9fb0c5d03d557fa383b7f279fa301300fa55e6309103f7e47acf5382db`.
+
 ## 2026-06-30: Chapter AI Review Labels and Publish Page Compact Layout
 
 Status: completed.
