@@ -328,19 +328,19 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
   await assertProject(projectId);
   await expireStaleOutlineAiTasks(projectId);
 
-  const activeTask = await findActiveOutlineGenerationTask(projectId);
-
-  if (activeTask) {
-    revalidateOutlinePaths(projectId);
-    redirect(`/projects/${projectId}/outlines`);
-  }
-
   const rawRequest = {
     targetLevel: formData.get("targetLevel"),
     chapterCount: formData.get("chapterCount"),
     targetChapterNumber: formData.get("targetChapterNumber"),
   };
   const request = generationRequestSchema.parse(rawRequest);
+  const activeTask = await findActiveOutlineGenerationTask(projectId);
+
+  if (activeTask) {
+    revalidateOutlinePaths(projectId);
+    redirect(`/projects/${projectId}/outlines?outlineTarget=${request.targetLevel}`);
+  }
+
   const [project, outlines, characters, recentChapters] = await Promise.all([
     prisma.project.findUnique({
       where: {
@@ -455,7 +455,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
 
   revalidateOutlinePaths(projectId);
   revalidatePath(`/projects/${projectId}/ai`);
-  redirect(`/projects/${projectId}/outlines`);
+  redirect(`/projects/${projectId}/outlines?outlineTarget=${resolvedRequest.targetLevel}`);
 }
 
 function buildPreviousChapterEndingContext(

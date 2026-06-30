@@ -13,6 +13,7 @@ type OutlineAiGenerateFormProps = {
   canGenerate: boolean;
   defaultTargetChapterNumber: number;
   hasActiveTask: boolean;
+  initialTargetLevel: OutlineLevel;
 };
 
 export function OutlineAiGenerateForm({
@@ -20,8 +21,9 @@ export function OutlineAiGenerateForm({
   canGenerate,
   defaultTargetChapterNumber,
   hasActiveTask,
+  initialTargetLevel,
 }: OutlineAiGenerateFormProps) {
-  const [targetLevel, setTargetLevel] = useState<OutlineLevel>("chapter");
+  const [targetLevel, setTargetLevel] = useState<OutlineLevel>(initialTargetLevel);
 
   return (
     <PreserveScrollForm

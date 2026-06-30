@@ -1,5 +1,23 @@
 # Development Log
 
+## 2026-06-30: 0.1.76 Outline Generation Target and Copy Helper Fix
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.76`.
+- Fixed the outline AI generation form so the selected target level no longer resets to `章节大纲` after a server action refresh. The page now preserves the submitted `outlineTarget` query value and falls back to the latest outline task's level when available.
+- Hardened the outline draft copy helper to parse Markdown table outputs such as `| **卷标题** | 无头照夜 |` and `| **章范围** | 第 1–8 章 |`.
+- Added range merging for volume drafts that list multiple story-unit chapter ranges, while avoiding treating word-target hints like `30–48 章` as a direct chapter range.
+- Tightened the outline generation prompt context so future model outputs prefer independent labelled fields over Markdown tables for copy-to-form compatibility.
+
+Verification:
+
+- `npm run test -- lib/outline-draft-copy.test.ts lib/ai/outlines.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-30: 0.1.75 Fanqie Draft and Polish Platform Template Phase 4
 
 Status: completed.

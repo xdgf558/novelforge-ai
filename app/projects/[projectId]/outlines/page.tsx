@@ -68,6 +68,7 @@ type OutlinesPageProps = {
   searchParams?: Promise<{
     outlineError?: string;
     outlineSaved?: string;
+    outlineTarget?: string;
   }>;
 };
 
@@ -188,6 +189,10 @@ export default async function OutlinesPage({
   const outlineTasks = project.aiTasks.filter(
     (task) => task.taskType === "outline_generation",
   );
+  const defaultOutlineTargetLevel =
+    outlineTargetLevelFromQuery(query.outlineTarget) ??
+    outlineLevelFromTaskSummary(outlineTasks[0]?.inputContextSummary) ??
+    "chapter";
   const endingPlanTasks = project.aiTasks.filter(
     (task) => task.taskType === endingPlanningTaskType,
   );
@@ -266,6 +271,7 @@ export default async function OutlinesPage({
         generateAction={generateOutlineDraft.bind(null, project.id)}
         hasActiveTask={hasActiveOutlineTask}
         hasApiKey={aiSettings.hasApiKey}
+        initialTargetLevel={defaultOutlineTargetLevel}
         tasks={outlineTasks}
       />
 
@@ -337,12 +343,14 @@ function OutlineAiPanel({
   generateAction,
   hasActiveTask,
   hasApiKey,
+  initialTargetLevel,
   tasks,
 }: {
   defaultTargetChapterNumber: number;
   generateAction: (formData: FormData) => Promise<void>;
   hasActiveTask: boolean;
   hasApiKey: boolean;
+  initialTargetLevel: OutlineLevel;
   tasks: readonly {
     id: string;
     status: string;
@@ -381,6 +389,7 @@ function OutlineAiPanel({
           canGenerate={canGenerate}
           defaultTargetChapterNumber={defaultTargetChapterNumber}
           hasActiveTask={hasActiveTask}
+          initialTargetLevel={initialTargetLevel}
         />
       </div>
 
@@ -445,6 +454,32 @@ function OutlineAiPanel({
       )}
     </section>
   );
+}
+
+function outlineTargetLevelFromQuery(value?: string | null) {
+  return outlineLevels.includes(value as OutlineLevel)
+    ? (value as OutlineLevel)
+    : null;
+}
+
+function outlineLevelFromTaskSummary(summary?: string | null) {
+  if (!summary) {
+    return null;
+  }
+
+  if (summary.includes("章节大纲生成")) {
+    return "chapter";
+  }
+
+  if (summary.includes("剧情单元大纲生成")) {
+    return "unit";
+  }
+
+  if (summary.includes("卷大纲生成")) {
+    return "volume";
+  }
+
+  return null;
 }
 
 function EndingPlanningPanel({

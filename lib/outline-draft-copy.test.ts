@@ -26,6 +26,47 @@ describe("outline draft copy helpers", () => {
     });
   });
 
+  it("parses markdown table volume drafts from model output", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary: "《照夜寒舟录》卷大纲生成；已有大纲 0 条",
+      outputText: `
+# 照夜寒舟录 · 卷一大纲草案
+
+## 卷信息
+
+| 字段 | 内容 |
+|------|------|
+| **卷序号** | 第一卷 |
+| **卷标题** | 无头照夜 |
+| **卷主题** | 旧案遗孤与边军少将的被迫联手 |
+| **卷字数目标** | 约 120,000 字（30–48 章） |
+| **主线推进** | 两案线索交汇，揭露军饷被吞与沈家旧案同根；沈裴从对立到初步联手 |
+
+### 第一单元：雨夜与尸
+
+| 字段 | 内容 |
+|------|------|
+| **单元标题** | 雨夜与尸 |
+| **章范围** | 第 1–8 章 |
+
+### 第五单元：照夜寒舟
+
+| 字段 | 内容 |
+|------|------|
+| **单元标题** | 照夜寒舟 |
+| **章范围** | 第 39–46 章（卷终章） |
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "volume",
+      title: "无头照夜",
+      goal: "两案线索交汇，揭露军饷被吞与沈家旧案同根；沈裴从对立到初步联手",
+      startChapter: 1,
+      endChapter: 46,
+    });
+  });
+
   it("parses a story-unit outline draft", () => {
     const suggestion = parseOutlineDraftCopySuggestion({
       inputContextSummary: "《离线未来》剧情单元大纲生成",
@@ -44,6 +85,31 @@ describe("outline draft copy helpers", () => {
       title: "培训班破局",
       goal: "让陈远通过培训班打开第一批客户入口。",
       startChapter: 3,
+      endChapter: 8,
+      volumeNumber: 1,
+    });
+  });
+
+  it("parses markdown table story-unit drafts", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary: "《照夜寒舟录》剧情单元大纲生成",
+      outputText: `
+### 第一单元：雨夜与尸
+
+| 字段 | 内容 |
+|------|------|
+| **单元标题** | 雨夜与尸 |
+| **所属卷号** | 1 |
+| **章范围** | 第 1–8 章 |
+| **核心事件** | 大理寺旧牢雨夜发现无头尸，沈照夜与裴寒舟两条线在长安交汇。 |
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "unit",
+      title: "雨夜与尸",
+      goal: "大理寺旧牢雨夜发现无头尸，沈照夜与裴寒舟两条线在长安交汇。",
+      startChapter: 1,
       endChapter: 8,
       volumeNumber: 1,
     });

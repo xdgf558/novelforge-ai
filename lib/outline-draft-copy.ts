@@ -11,6 +11,11 @@ export type OutlineDraftCopySuggestion = {
   volumeNumber?: number;
 };
 
+type OutlineDraftCopyRange = Pick<
+  OutlineDraftCopySuggestion,
+  "startChapter" | "endChapter"
+>;
+
 const labelStopPattern =
   /^(\s*[-*]?\s*)?(卷标题|单元标题|剧情单元标题|章节标题|标题|卷目标|单元目标|剧情单元目标|章节目标|目标|章节范围|范围|核心事件|核心冲突|主线推进|爽点设计|悬念设计|角色变化|章末钩子|章节号|预计字数|预计章节数|所属卷号)\s*[：:]/;
 
@@ -79,17 +84,49 @@ function parseRangeSuggestion(
   text: string,
   level: "volume" | "unit",
 ): OutlineDraftCopySuggestion | null {
+  const titleLabels =
+    level === "volume"
+      ? ["卷标题", "标题"]
+      : ["剧情单元标题", "单元标题", "标题"];
+  const goalLabels =
+    level === "volume"
+      ? ["卷目标", "目标"]
+      : ["剧情单元目标", "单元目标", "目标"];
   const title =
-    firstBlockLabel(text, level === "volume" ? ["卷标题", "标题"] : ["剧情单元标题", "单元标题", "标题"]) ||
+    firstBlockLabel(text, titleLabels) ||
+    firstTableLabel(text, titleLabels) ||
     headingTitle(text, level) ||
     "";
   const goal =
-    firstBlockLabel(text, level === "volume" ? ["卷目标", "目标"] : ["剧情单元目标", "单元目标", "目标"]) ||
+    firstBlockLabel(text, goalLabels) ||
+    firstTableLabel(text, goalLabels) ||
+    firstTableLabel(
+      text,
+      level === "volume" ? ["主线推进", "卷主题"] : ["核心事件"],
+    ) ||
     "";
-  const range = chapterRangeFromText(firstBlockLabel(text, ["章节范围", "范围"]) || text);
+  const rangeText =
+    firstBlockLabel(text, ["章节范围", "章范围", "范围"]) ||
+    firstTableLabel(
+      text,
+      level === "volume" ? ["章节范围", "范围"] : ["章节范围", "章范围", "范围"],
+    );
+  const range: OutlineDraftCopyRange =
+    chapterRangeFromText(rangeText) ||
+    chapterRangeFromText(
+      tableLabels(text, ["章节范围", "章范围", "范围"]).join("\n"),
+      {
+        useAllRanges: level === "volume",
+      },
+    ) ||
+    {};
   const volumeNumber =
     level === "unit"
-      ? firstPositiveInteger(firstBlockLabel(text, ["所属卷号"]) || "")
+      ? firstPositiveInteger(
+          firstBlockLabel(text, ["所属卷号"]) ||
+            firstTableLabel(text, ["所属卷号"]) ||
+            "",
+        )
       : undefined;
 
   if (!title && !goal && !range.startChapter && !range.endChapter) {
@@ -212,6 +249,68 @@ function firstBlockLabel(text: string, labels: readonly string[]) {
   return "";
 }
 
+function firstTableLabel(text: string, labels: readonly string[]) {
+  for (const label of labels) {
+    const value = tableLabels(text, [label])[0];
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function tableLabels(text: string, labels: readonly string[]) {
+  const normalizedLabels = labels.map(normalizeLabel);
+  const values: string[] = [];
+
+  for (const line of text.split(/\r?\n/)) {
+    const cells = markdownTableCells(line);
+
+    if (cells.length < 2) {
+      continue;
+    }
+
+    const label = normalizeLabel(cells[0] ?? "");
+
+    if (!normalizedLabels.includes(label)) {
+      continue;
+    }
+
+    const value = cells.slice(1).join(" | ").trim();
+
+    if (value) {
+      values.push(value);
+    }
+  }
+
+  return values;
+}
+
+function markdownTableCells(line: string) {
+  const trimmed = line.trim();
+
+  if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) {
+    return [];
+  }
+
+  const cells = trimmed
+    .slice(1, -1)
+    .split("|")
+    .map(cleanInlineText)
+    .filter(Boolean);
+
+  if (
+    cells.length === 0 ||
+    cells.every((cell) => /^:?-{2,}:?$/.test(cell.replace(/\s/g, "")))
+  ) {
+    return [];
+  }
+
+  return cells;
+}
+
 function firstHeadingSection(text: string, labels: readonly string[]) {
   const lines = text.split(/\r?\n/);
 
@@ -305,7 +404,36 @@ function targetChapterNumberFromSummary(inputContextSummary?: string | null) {
   );
 }
 
-function chapterRangeFromText(text: string) {
+function chapterRangeFromText(
+  text: string,
+  options: {
+    useAllRanges?: boolean;
+  } = {},
+) {
+  if (!text.trim()) {
+    return null;
+  }
+
+  const rangedChapterNumbers = [
+    ...text.matchAll(
+      /第\s*(\d+)\s*[-~—–至到]+\s*(\d+)\s*章/g,
+    ),
+  ].flatMap((match) => [Number(match[1]), Number(match[2])]);
+
+  if (options.useAllRanges && rangedChapterNumbers.length >= 2) {
+    return {
+      startChapter: Math.min(...rangedChapterNumbers),
+      endChapter: Math.max(...rangedChapterNumbers),
+    };
+  }
+
+  if (rangedChapterNumbers.length >= 2) {
+    return {
+      startChapter: rangedChapterNumbers[0],
+      endChapter: rangedChapterNumbers[1],
+    };
+  }
+
   const chapterNumbers = [...text.matchAll(/第\s*(\d+)\s*章/g)].map((match) =>
     Number(match[1]),
   );
@@ -317,7 +445,7 @@ function chapterRangeFromText(text: string) {
     };
   }
 
-  const numericRange = text.match(/(\d+)\s*[-~—至到]+\s*(\d+)\s*章?/);
+  const numericRange = text.match(/(\d+)\s*[-~—–至到]+\s*(\d+)\s*章?/);
 
   if (numericRange) {
     return {
@@ -326,10 +454,12 @@ function chapterRangeFromText(text: string) {
     };
   }
 
-  return {
-    startChapter: chapterNumbers[0],
-    endChapter: undefined,
-  };
+  return chapterNumbers[0]
+    ? {
+        startChapter: chapterNumbers[0],
+        endChapter: undefined,
+      }
+    : null;
 }
 
 function firstPositiveInteger(text: string) {
@@ -350,6 +480,10 @@ function cleanInlineText(value: string) {
     .replace(/^[-*]\s*/, "")
     .replace(/\s*\(.*?预估.*?\)\s*$/g, "")
     .trim();
+}
+
+function normalizeLabel(value: string) {
+  return cleanInlineText(value).replace(/\s/g, "");
 }
 
 function escapeRegExp(value: string) {
