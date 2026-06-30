@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.69 紧凑侧栏导航";
+export const appReleaseTitle = "0.1.70 故事线章节自动关联";
 
 export const appReleaseNotes = [
-  "左侧导航改为更紧凑的双列一级入口，减少长篇创作时的纵向占用。",
-  "桌面侧栏从 320px 收窄到 288px，品牌区、图标和导航按钮尺寸同步压缩。",
-  "隐藏底部“本地 SQLite 持久化”提示卡，保留本地持久化能力但不再占用导航空间。",
+  "新增章节时，会按章节号自动关联起止范围覆盖该章的正式故事线。",
+  "保存或采用故事线时，会把起始章节到结束章节内的已有章节自动补入推进章节。",
+  "故事线表单保留手动追加能力，范围外章节仍可由作者主动勾选。",
 ];

@@ -20,6 +20,10 @@ import {
   type StorylineValidationErrorCode,
 } from "@/lib/storyline-fields";
 import { prisma } from "@/lib/prisma";
+import {
+  chapterIdsInExplicitStorylineRange,
+  mergeChapterRelationIds,
+} from "@/lib/storyline-auto-relations";
 
 const storylineTypeValues = storylineTypeOptions.map((option) => option.value) as [
   string,
@@ -110,11 +114,17 @@ export async function createStoryline(projectId: string, formData: FormData) {
       },
     });
 
+    const autoChapterIds = await chapterIdsInExplicitStorylineRange(
+      tx,
+      projectId,
+      parsed.values,
+    );
+
     await replaceStorylineRelations(
       tx,
       projectId,
       storyline.id,
-      parsed.relationIds,
+      relationIdsWithAutoRange(parsed.relationIds, autoChapterIds),
     );
   });
 
@@ -395,11 +405,17 @@ export async function saveStorylineDraftCandidate(
       },
     });
 
+    const autoChapterIds = await chapterIdsInExplicitStorylineRange(
+      tx,
+      projectId,
+      parsed.values,
+    );
+
     await replaceStorylineRelations(
       tx,
       projectId,
       storyline.id,
-      parsed.relationIds,
+      relationIdsWithAutoRange(parsed.relationIds, autoChapterIds),
     );
   });
 
@@ -467,11 +483,17 @@ export async function updateStoryline(
       data: storylineData(parsed.values),
     });
 
+    const autoChapterIds = await chapterIdsInExplicitStorylineRange(
+      tx,
+      projectId,
+      parsed.values,
+    );
+
     await replaceStorylineRelations(
       tx,
       projectId,
       storylineId,
-      parsed.relationIds,
+      relationIdsWithAutoRange(parsed.relationIds, autoChapterIds),
     );
   });
 
@@ -578,6 +600,16 @@ function storylineData(values: StorylineFormValues) {
     coreGoal: values.coreGoal,
     currentProgress: values.currentProgress,
     notes: values.notes,
+  };
+}
+
+function relationIdsWithAutoRange(
+  relationIds: RelationIds,
+  autoChapterIds: string[],
+): RelationIds {
+  return {
+    ...relationIds,
+    chapterIds: mergeChapterRelationIds(relationIds.chapterIds, autoChapterIds),
   };
 }
 

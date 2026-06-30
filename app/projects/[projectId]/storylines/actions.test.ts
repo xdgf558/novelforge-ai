@@ -11,6 +11,9 @@ import {
 
 const mocks = vi.hoisted(() => {
   const tx = {
+    chapter: {
+      findMany: vi.fn(),
+    },
     storyline: {
       create: vi.fn(),
       update: vi.fn(),
@@ -232,6 +235,7 @@ describe("storyline actions", () => {
     mocks.tx.storylineForeshadow.createMany.mockResolvedValue({ count: 1 });
     mocks.tx.storylineChapter.createMany.mockResolvedValue({ count: 1 });
     mocks.tx.storylineOutline.createMany.mockResolvedValue({ count: 1 });
+    mocks.tx.chapter.findMany.mockResolvedValue([]);
   });
 
   it("creates a formal storyline and project-scoped relations", async () => {
@@ -300,6 +304,99 @@ describe("storyline actions", () => {
           projectId: "project_1",
           storylineId: "storyline_1",
           outlineId: "outline_1",
+        },
+      ],
+    });
+  });
+
+  it("auto-links existing chapters that fall inside the saved chapter range", async () => {
+    mocks.tx.chapter.findMany.mockResolvedValueOnce([
+      {
+        id: "chapter_3",
+      },
+      {
+        id: "chapter_4",
+      },
+    ]);
+
+    await expect(
+      createStoryline(
+        "project_1",
+        formData({
+          name: "县城团队线",
+          type: "subplot",
+          status: "active",
+          startChapter: 3,
+          endChapter: 6,
+          coreGoal: "陈远把早期帮手组织成稳定小团队。",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.tx.chapter.findMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        chapterNumber: {
+          gte: 3,
+          lte: 6,
+        },
+      },
+      orderBy: {
+        chapterNumber: "asc",
+      },
+      select: {
+        id: true,
+      },
+    });
+    expect(mocks.tx.storylineChapter.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: "project_1",
+          storylineId: "storyline_1",
+          chapterId: "chapter_3",
+        },
+        {
+          projectId: "project_1",
+          storylineId: "storyline_1",
+          chapterId: "chapter_4",
+        },
+      ],
+    });
+  });
+
+  it("keeps manually selected chapters when auto-linking range chapters", async () => {
+    mocks.tx.chapter.findMany.mockResolvedValueOnce([
+      {
+        id: "chapter_3",
+      },
+    ]);
+
+    await expect(
+      updateStoryline(
+        "project_1",
+        "storyline_1",
+        formData({
+          name: "谢勇信任线",
+          type: "character_arc",
+          status: "active",
+          startChapter: 3,
+          endChapter: 6,
+          chapterIds: ["chapter_extra"],
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.tx.storylineChapter.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          projectId: "project_1",
+          storylineId: "storyline_1",
+          chapterId: "chapter_extra",
+        },
+        {
+          projectId: "project_1",
+          storylineId: "storyline_1",
+          chapterId: "chapter_3",
         },
       ],
     });
