@@ -31,6 +31,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyExportPanel } from "@/components/copy-export-panel";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import { PublishSubmitButton } from "@/components/publish-submit-button";
+import { FanqieLayoutExportPanel } from "@/components/publish/fanqie-layout-export-panel";
 import { WechatLayoutExportPanel } from "@/components/publish/wechat-layout-export-panel";
 import { expireStaleCoverImageTasks } from "@/lib/ai/cover-image-task-maintenance";
 import {
@@ -81,6 +82,7 @@ type PublishPageProps = {
   }>;
   searchParams?: Promise<{
     coverImageError?: string;
+    fanqieChapterId?: string;
     wechatChapterId?: string;
   }>;
 };
@@ -200,13 +202,13 @@ export default async function PublishPage({
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-signal-600">
-              Phase 26 / 公众号排版导出增强
+              发布与格式导出
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink-950">
               {project.title} 发布与导出
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
-              整理公众号排版导出、项目备份和 Station Cat 网站同步材料。默认排版模式只整理格式，不改正文。
+              整理公众号、番茄小说、项目备份和 Station Cat 网站同步材料。默认排版模式只整理格式，不改正文。
             </p>
           </div>
         </div>
@@ -220,7 +222,7 @@ export default async function PublishPage({
         />
         <InfoTile
           icon={FileText}
-          label="可排版章节"
+          label="可导出章节"
           value={`${formatNumber(wechatLayoutChapters.length)} 个`}
         />
         <InfoTile
@@ -236,6 +238,12 @@ export default async function PublishPage({
         generateAction={generateWechatLayoutCandidates.bind(null, project.id)}
         hasApiKey={hasApiKey}
         initialChapterId={resolvedSearchParams?.wechatChapterId}
+        projectTitle={project.title}
+      />
+
+      <FanqieLayoutExportPanel
+        chapters={wechatLayoutChapters}
+        initialChapterId={resolvedSearchParams?.fanqieChapterId}
         projectTitle={project.title}
       />
 
