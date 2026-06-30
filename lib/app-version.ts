@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.70 故事线章节自动关联";
+export const appReleaseTitle = "0.1.71 强化正文反模板腔";
 
 export const appReleaseNotes = [
-  "新增章节时，会按章节号自动关联起止范围覆盖该章的正式故事线。",
-  "保存或采用故事线时，会把起始章节到结束章节内的已有章节自动补入推进章节。",
-  "故事线表单保留手动追加能力，范围外章节仍可由作者主动勾选。",
+  "章节草稿和正文精修默认模板升级到 v2，旧项目生成时会自动使用新版默认模板。",
+  "把“不是……而是……”等二元对照句式从软性少用改为硬性自检：全文最多保留 1 处。",
+  "Kimi 等长文模型生成前会收到更明确的反模板腔改写要求，降低 AI 味重复句式。",
 ];

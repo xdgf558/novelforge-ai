@@ -56,7 +56,8 @@ describe("chapter polish context builder", () => {
     expect(context.inputText).toContain("林野翻出旧合同");
     expect(context.inputText).toContain("删除“【开场钩子】");
     expect(context.inputText).toContain("不是……而是……");
-    expect(context.inputText).toContain("清理 AI 腔和模板腔");
+    expect(context.inputText).toContain("反模板腔硬性自检");
+    expect(context.inputText).toContain("最多保留 1 处");
     expect(context.inputJson.styleConstraints).toEqual(
       expect.arrayContaining([
         expect.stringContaining("反模板腔"),

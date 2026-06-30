@@ -1,6 +1,8 @@
 import { DEFAULT_AI_PROMPT_TEMPLATES } from "@/lib/ai/prompt-templates";
 import { prisma } from "@/lib/prisma";
 
+type DefaultPromptTemplate = (typeof DEFAULT_AI_PROMPT_TEMPLATES)[number];
+
 export async function syncDefaultPromptTemplatesForProject(projectId: string) {
   return prisma.$transaction(
     DEFAULT_AI_PROMPT_TEMPLATES.map((template) =>
@@ -61,10 +63,17 @@ export async function ensureDefaultPromptTemplate(
     },
   });
 
-  if (activeTemplate) {
+  if (activeTemplate && activeTemplate.version >= template.version) {
     return activeTemplate;
   }
 
+  return upsertDefaultPromptTemplateForProject(projectId, template);
+}
+
+function upsertDefaultPromptTemplateForProject(
+  projectId: string,
+  template: DefaultPromptTemplate,
+) {
   return prisma.aiPromptTemplate.upsert({
     where: {
       projectId_key_version: {
