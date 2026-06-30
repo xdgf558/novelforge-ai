@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
 import { clipText } from "./chapter-beats";
+import {
+  buildChapterPlatformTemplateContext,
+  type ChapterPlatformTemplate,
+} from "./chapter-platform-templates";
 import { proseStyleGuardrails } from "./prose-style-guardrails";
 import { formatWordRange } from "../format";
 import type { ProjectSettingFieldName } from "../project-setting-fields";
@@ -50,6 +54,10 @@ export type BuiltChapterPolishContext = {
   inputText: string;
   inputJson: Record<string, unknown>;
   inputContextSummary: string;
+};
+
+export type BuildChapterPolishContextOptions = {
+  platformTemplate?: ChapterPlatformTemplate;
 };
 
 export type ChapterPolishSegment = {
@@ -108,8 +116,9 @@ const polishForbiddenSettingFields = [
 
 export function buildChapterPolishContext(
   input: ChapterPolishContextInput,
+  options: BuildChapterPolishContextOptions = {},
 ): BuiltChapterPolishContext {
-  const shared = buildChapterPolishSharedContext(input);
+  const shared = buildChapterPolishSharedContext(input, options);
   const sourceText = shared.sourceText;
   const sourceKind = shared.sourceKind;
   const promptSourceText = buildPolishPromptSourceText(sourceText);
@@ -129,6 +138,11 @@ export function buildChapterPolishContext(
       sourceTextPreview: clipText(sourceText, 1200),
     },
     styleConstraints: shared.styleConstraints,
+    platformTemplate: {
+      value: shared.platformTemplate.template,
+      label: shared.platformTemplate.label,
+      instructions: shared.platformTemplate.instructions,
+    },
     storyConstraints: shared.storyConstraints,
     characterRules: shared.characterRules,
     forbiddenItems: shared.forbiddenItems,
@@ -165,6 +179,14 @@ export function buildChapterPolishContext(
       ? shared.styleConstraints.join("\n")
       : "未设置。",
     "",
+    ...(shared.platformTemplate.instructions.length > 0
+      ? [
+          "# 目标平台模板",
+          `平台模板：${shared.platformTemplate.label}`,
+          shared.platformTemplate.instructions.join("\n"),
+          "",
+        ]
+      : []),
     "# 角色说话与行为规则",
     shared.characterRules.length > 0
       ? shared.characterRules.join("\n")
@@ -195,7 +217,7 @@ export function buildChapterPolishContext(
   return {
     inputText,
     inputJson,
-    inputContextSummary: buildChapterPolishContextSummary(input),
+    inputContextSummary: buildChapterPolishContextSummary(input, options),
   };
 }
 
@@ -205,8 +227,9 @@ export function shouldSegmentChapterPolish(input: ChapterPolishContextInput) {
 
 export function buildSegmentedChapterPolishContext(
   input: ChapterPolishContextInput,
+  options: BuildChapterPolishContextOptions = {},
 ): BuiltSegmentedChapterPolishContext {
-  const shared = buildChapterPolishSharedContext(input);
+  const shared = buildChapterPolishSharedContext(input, options);
   const rawSegments = splitChapterPolishSourceText(shared.sourceText);
   const segments = rawSegments.map((segment) =>
     buildChapterPolishSegmentContext(input, shared, segment),
@@ -233,6 +256,11 @@ export function buildSegmentedChapterPolishContext(
         sourceTextPreview: clipText(shared.sourceText, 1200),
       },
       styleConstraints: shared.styleConstraints,
+      platformTemplate: {
+        value: shared.platformTemplate.template,
+        label: shared.platformTemplate.label,
+        instructions: shared.platformTemplate.instructions,
+      },
       storyConstraints: shared.storyConstraints,
       characterRules: shared.characterRules,
       forbiddenItems: shared.forbiddenItems,
@@ -246,16 +274,24 @@ export function buildSegmentedChapterPolishContext(
         "硬性压低模板腔：每个精修分段的“不是……而是……”/“不是……是……”二元对照表达最多保留 1 处，输出前必须自检并改写多余句式。",
       ],
     },
-    inputContextSummary: buildSegmentedChapterPolishContextSummary(input),
+    inputContextSummary: buildSegmentedChapterPolishContextSummary(
+      input,
+      options,
+    ),
   };
 }
 
 export function buildChapterPolishContextSummary(
   input: ChapterPolishContextInput,
+  options: BuildChapterPolishContextOptions = {},
 ) {
   const sourceText = polishableChapterText(input.chapter);
   const sourceKind = polishableChapterTextSource(input.chapter);
   const promptSourceText = buildPolishPromptSourceText(sourceText);
+  const platformTemplate = buildChapterPlatformTemplateContext({
+    task: "polish",
+    template: options.platformTemplate,
+  });
 
   return [
     `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
@@ -266,15 +302,25 @@ export function buildChapterPolishContextSummary(
       : "缺少可精修正文",
     `角色 ${input.characters.length} 个`,
     input.setting ? "包含项目设定" : "无项目设定",
-  ].join("；");
+    platformTemplate.template === "fanqie"
+      ? `平台模板：${platformTemplate.label}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("；");
 }
 
 export function buildSegmentedChapterPolishContextSummary(
   input: ChapterPolishContextInput,
+  options: BuildChapterPolishContextOptions = {},
 ) {
   const sourceText = polishableChapterText(input.chapter);
   const sourceKind = polishableChapterTextSource(input.chapter);
   const segmentCount = splitChapterPolishSourceText(sourceText).length;
+  const platformTemplate = buildChapterPlatformTemplateContext({
+    task: "polish",
+    template: options.platformTemplate,
+  });
 
   return [
     `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
@@ -283,7 +329,12 @@ export function buildSegmentedChapterPolishContextSummary(
       : "缺少可精修正文",
     `角色 ${input.characters.length} 个`,
     input.setting ? "包含项目设定" : "无项目设定",
-  ].join("；");
+    platformTemplate.template === "fanqie"
+      ? `平台模板：${platformTemplate.label}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("；");
 }
 
 export function hasPolishableChapterText(chapter: ChapterPolishChapterContext) {
@@ -505,6 +556,14 @@ function buildChapterPolishSegmentContext(
       ? shared.styleConstraints.join("\n")
       : "未设置。",
     "",
+    ...(shared.platformTemplate.instructions.length > 0
+      ? [
+          "# 目标平台模板",
+          `平台模板：${shared.platformTemplate.label}`,
+          shared.platformTemplate.instructions.join("\n"),
+          "",
+        ]
+      : []),
     "# 角色说话与行为规则",
     shared.characterRules.length > 0
       ? shared.characterRules.join("\n")
@@ -553,6 +612,7 @@ type ChapterPolishSharedContext = {
   wordRange: string;
   projectJson: Record<string, unknown>;
   styleConstraints: string[];
+  platformTemplate: ReturnType<typeof buildChapterPlatformTemplateContext>;
   storyConstraints: string[];
   characterRules: string[];
   forbiddenItems: string;
@@ -560,9 +620,14 @@ type ChapterPolishSharedContext = {
 
 function buildChapterPolishSharedContext(
   input: ChapterPolishContextInput,
+  options: BuildChapterPolishContextOptions = {},
 ): ChapterPolishSharedContext {
   const sourceText = polishableChapterText(input.chapter);
   const sourceKind = polishableChapterTextSource(input.chapter);
+  const platformTemplate = buildChapterPlatformTemplateContext({
+    task: "polish",
+    template: options.platformTemplate,
+  });
   const wordRange = formatWordRange(
     input.project.chapterWordMin,
     input.project.chapterWordMax,
@@ -599,6 +664,7 @@ function buildChapterPolishSharedContext(
       description: clipText(input.project.description),
     },
     styleConstraints,
+    platformTemplate,
     storyConstraints,
     characterRules,
     forbiddenItems,

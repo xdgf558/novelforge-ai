@@ -33,6 +33,7 @@ import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
+import { chapterPlatformTemplateOptions } from "@/lib/ai/chapter-platform-templates";
 import {
   hasPolishableChapterText,
   isExcerptedChapterPolishInputJson,
@@ -1059,9 +1060,33 @@ function ChapterDraftAiPanel({
 
         <PreserveScrollForm
           action={generateChapterDraft.bind(null, projectId, chapterId)}
+          className="flex flex-col gap-3 lg:min-w-56"
           preserveKey={`chapter-draft-${projectId}-${chapterId}`}
           statusText="已开始生成章节草稿，页面会留在当前位置并自动刷新结果。"
         >
+          <div className="grid gap-1">
+            <label
+              className="text-xs font-semibold text-ink-700"
+              htmlFor={`chapter-draft-platform-${chapterId}`}
+            >
+              目标平台
+            </label>
+            <select
+              className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-900 shadow-sm outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+              defaultValue="default"
+              id={`chapter-draft-platform-${chapterId}`}
+              name="platformTemplate"
+            >
+              {chapterPlatformTemplateOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs leading-5 text-ink-600">
+              番茄小说会强化开篇钩子、爽点反转、手机阅读段落和章末追读感。
+            </p>
+          </div>
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -1207,9 +1232,33 @@ function ChapterPolishAiPanel({
 
         <PreserveScrollForm
           action={generateChapterPolish.bind(null, projectId, chapterId)}
+          className="flex flex-col gap-3 lg:min-w-56"
           preserveKey={`chapter-polish-${projectId}-${chapterId}`}
           statusText="已开始生成正文精修稿，页面会留在当前位置并自动刷新结果。"
         >
+          <div className="grid gap-1">
+            <label
+              className="text-xs font-semibold text-ink-700"
+              htmlFor={`chapter-polish-platform-${chapterId}`}
+            >
+              目标平台
+            </label>
+            <select
+              className="min-h-10 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-900 shadow-sm outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+              defaultValue="default"
+              id={`chapter-polish-platform-${chapterId}`}
+              name="platformTemplate"
+            >
+              {chapterPlatformTemplateOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs leading-5 text-ink-600">
+              番茄小说会加强自然网文语感、冲突压力、爽点释放和短段落节奏。
+            </p>
+          </div>
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate

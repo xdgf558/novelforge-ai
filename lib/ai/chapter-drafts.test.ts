@@ -80,6 +80,28 @@ describe("chapter draft context builder", () => {
     });
   });
 
+  it("injects Fanqie platform instructions when requested", () => {
+    const context = buildChapterDraftContext(baseInput, {
+      platformTemplate: "fanqie",
+    });
+
+    expect(context.inputText).toContain("目标平台：番茄小说长篇连载");
+    expect(context.inputText).toContain("开篇 300 字内必须出现明确人物动作");
+    expect(context.inputText).toContain("每 800-1200 字推进一次有效信息");
+    expect(context.inputText).toContain("章尾保留追读钩子");
+    expect(context.inputJson.platformTemplate).toEqual(
+      expect.objectContaining({
+        value: "fanqie",
+        label: "番茄小说",
+        instructions: expect.arrayContaining([
+          expect.stringContaining("目标平台：番茄小说"),
+          expect.stringContaining("开篇 300 字"),
+        ]),
+      }),
+    );
+    expect(context.inputContextSummary).toContain("平台模板：番茄小说");
+  });
+
   it("uses the previous chapter ending without sending the full previous text", () => {
     const context = buildChapterDraftContext(baseInput);
 

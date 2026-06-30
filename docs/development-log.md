@@ -1,5 +1,24 @@
 # Development Log
 
+## 2026-06-30: 0.1.75 Fanqie Draft and Polish Platform Template Phase 4
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.75`.
+- Added a target-platform selector to AI chapter draft generation with `通用连载` and `番茄小说` options.
+- Added the same target-platform selector to AI prose polish generation, including automatic segmented polish tasks.
+- Added shared 番茄小说 prompt constraints for draft and polish contexts: stronger opening hook, conflict pressure, 800-1200 word information movement, mid-chapter爽点/反转, mobile-friendly short paragraphs, and chapter-ending追读钩子.
+- Recorded the selected platform template in `ai_tasks.inputJson` and `inputContextSummary` so future task review shows when a draft/polish task used the 番茄小说 template.
+- Kept Phase 4 author-safe: the platform template only affects new AI task prompts; outputs still remain reviewable task results until the author explicitly adopts them.
+
+Verification:
+
+- `npm run test -- lib/ai/chapter-drafts.test.ts lib/ai/chapter-polishes.test.ts 'app/projects/[projectId]/chapters/actions.test.ts'` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-06-30: 0.1.74 Fanqie Split TXT Package Phase 3
 
 Status: completed.
