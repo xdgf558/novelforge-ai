@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createAiTask,
+  longPlanningAiRequestTimeoutMs,
   longWritingAiRequestTimeoutMs,
   resolveAiTaskExecutionEnv,
   resolveAiTaskRequestTimeoutMs,
@@ -170,6 +171,7 @@ describe("AI task logger", () => {
           OPENAI_MODEL: "deepseek-v4-pro",
           OPENAI_BASE_URL: "https://api.deepseek.com",
         },
+        timeoutMs: longPlanningAiRequestTimeoutMs,
       },
     );
 
@@ -339,14 +341,23 @@ describe("AI task logger", () => {
     );
   });
 
-  it("uses longer model request timeouts only for long-form writing tasks", () => {
+  it("uses longer model request timeouts for long-form writing and planning tasks", () => {
     expect(resolveAiTaskRequestTimeoutMs("chapter_draft_generation")).toBe(
       longWritingAiRequestTimeoutMs,
     );
     expect(resolveAiTaskRequestTimeoutMs("chapter_polish_generation")).toBe(
       longWritingAiRequestTimeoutMs,
     );
-    expect(resolveAiTaskRequestTimeoutMs("chapter_beat_generation")).toBeUndefined();
+    expect(resolveAiTaskRequestTimeoutMs("chapter_beat_generation")).toBe(
+      longPlanningAiRequestTimeoutMs,
+    );
+    expect(resolveAiTaskRequestTimeoutMs("outline_generation")).toBe(
+      longPlanningAiRequestTimeoutMs,
+    );
+    expect(resolveAiTaskRequestTimeoutMs("ending_planning_generation")).toBe(
+      longPlanningAiRequestTimeoutMs,
+    );
+    expect(resolveAiTaskRequestTimeoutMs("chapter_summary_extraction")).toBeUndefined();
   });
 
   it("uses the task route snapshot instead of falling back to the current default env", () => {

@@ -53,6 +53,7 @@ type AiTaskExecutionRouteSnapshot = {
 };
 
 export const longWritingAiRequestTimeoutMs = 10 * 60 * 1000;
+export const longPlanningAiRequestTimeoutMs = 5 * 60 * 1000;
 
 export function stringifyAiTaskPayload(value: unknown) {
   if (value == null) {
@@ -241,6 +242,14 @@ export function resolveAiTaskRequestTimeoutMs(taskType: string) {
     taskType === "chapter_polish_generation"
   ) {
     return longWritingAiRequestTimeoutMs;
+  }
+
+  if (
+    taskType === "chapter_beat_generation" ||
+    taskType === "outline_generation" ||
+    taskType === "ending_planning_generation"
+  ) {
+    return longPlanningAiRequestTimeoutMs;
   }
 
   return undefined;

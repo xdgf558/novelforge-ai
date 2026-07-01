@@ -1,5 +1,21 @@
 # Development Log
 
+## 2026-07-01: Chapter Beat Generation Timeout Hardening
+
+Status: completed.
+
+What was done:
+
+- Investigated two consecutive failed `chapter_beat_generation` tasks for 第 2 章《碎布暗隙》 in the desktop SQLite database.
+- Confirmed both failures used `deepseek-v4-pro`, had compact inputs (`inputJson` length 9454, request body about 8.8 KB), and failed exactly at the default 120 second AI request timeout.
+- Added a dedicated 5 minute model request timeout for long planning tasks: `chapter_beat_generation`, `outline_generation`, and `ending_planning_generation`.
+- Kept long-form writing tasks at the existing 10 minute timeout, and kept shorter structural extraction/check tasks on the default 120 second timeout.
+
+Verification:
+
+- `npm run test -- lib/ai/task-logger.test.ts` passed.
+- `npm run typecheck` passed.
+
 ## 2026-06-30: 0.1.77 Personal macOS Installer Rebuild
 
 Status: completed.
