@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-07-01: 0.1.79 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.79`.
+- Rebuilt the personal-use macOS installer from `main` after the saved outline list compacting change.
+- Cleared old `release/desktop` artifacts before rebuilding.
+- Built the macOS app payload with `npm run desktop:pack:mac`.
+- Re-signed the generated app root bundle with the local Developer ID Application identity so both root bundle verification and deep verification pass before packaging.
+- Copied the app into a staging root, re-signed the staged payload, and built the final PKG with `--ownership preserve` so the expanded installer payload remains verifiable.
+- Cleaned `release/desktop` after packaging so only the final handoff package remains:
+  - `release/desktop/NovelForge-AI-0.1.79-mac-arm64.pkg`
+
+Verification:
+
+- `npm run desktop:smoke` passed.
+- `npm run desktop:pack:mac` completed with notarization skipped for the personal-use build.
+- Generated app payload reported `CFBundleShortVersionString=0.1.79`.
+- Generated app payload passed `codesign --verify --strict --verbose=2`.
+- Generated app payload passed `codesign --verify --deep --strict --verbose=2`.
+- Expanded PKG payload reported `CFBundleShortVersionString=0.1.79`.
+- Expanded PKG payload passed `codesign --verify --strict --verbose=2`.
+- Expanded PKG payload passed `codesign --verify --deep --strict --verbose=2`.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the current missing Developer ID Installer certificate for personal-use PKG handoffs.
+- Final SHA-256: `e389938f1ed52b602af74c4083e83ec44c78b0414433a92f7df9f9b844468c50`.
+
 ## 2026-07-01: Compact Saved Outline Lists
 
 Status: completed.
