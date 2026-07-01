@@ -316,6 +316,7 @@ export default async function OutlinesPage({
         progressByOutlineId={progressByOutlineId}
         projectId={project.id}
         title="卷大纲"
+        visibleLimit={1}
       />
       <OutlineGroup
         emptyText="还没有剧情单元大纲。可以把一段连续剧情拆成若干单元。"
@@ -324,6 +325,7 @@ export default async function OutlinesPage({
         progressByOutlineId={progressByOutlineId}
         projectId={project.id}
         title="剧情单元大纲"
+        visibleLimit={1}
       />
       <OutlineGroup
         emptyText="还没有章节大纲。章节节拍生成会优先读取匹配章节号的大纲。"
@@ -332,7 +334,7 @@ export default async function OutlinesPage({
         progressByOutlineId={progressByOutlineId}
         projectId={project.id}
         title="章节大纲"
-        visibleLimit={3}
+        visibleLimit={1}
       />
     </div>
   );
@@ -818,7 +820,7 @@ function OutlineGroup({
         </div>
         {hiddenCount > 0 ? (
           <p className="text-xs font-medium text-ink-600">
-            仅显示最近 {visibleOutlines.length} 条，已自动隐藏 {hiddenCount} 条历史大纲。
+            仅显示最新 {visibleOutlines.length} 条，已自动隐藏 {hiddenCount} 条历史大纲。
           </p>
         ) : null}
       </div>
@@ -842,7 +844,7 @@ function OutlineGroup({
           {hiddenCount > 0 ? (
             <details className="mt-3 rounded-lg border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm text-ink-800">
               <summary className="cursor-pointer font-semibold text-ink-900">
-                展开历史章节大纲（{hiddenCount} 条）
+                展开历史{title}（{hiddenCount} 条）
               </summary>
               <div className="mt-3 overflow-hidden rounded-lg border border-ink-950/10 bg-white">
                 {hiddenOutlines.map((outline) => (

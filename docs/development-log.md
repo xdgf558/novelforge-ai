@@ -1,5 +1,20 @@
 # Development Log
 
+## 2026-07-01: Compact Saved Outline Lists
+
+Status: completed.
+
+What was done:
+
+- Changed the outline management page so each saved-outline group shows only its latest item by default.
+- Applied the same default to volume outlines, story-unit outlines, and chapter outlines.
+- Kept older outline rows accessible through a per-group history expander instead of removing or hiding data permanently.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-07-01: 0.1.78 Personal macOS Installer Rebuild
 
 Status: completed.
