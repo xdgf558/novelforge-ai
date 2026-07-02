@@ -24,6 +24,7 @@ import {
   chapterIdsInExplicitStorylineRange,
   mergeChapterRelationIds,
 } from "@/lib/storyline-auto-relations";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const storylineTypeValues = storylineTypeOptions.map((option) => option.value) as [
   string,
@@ -611,21 +612,6 @@ function relationIdsWithAutoRange(
     ...relationIds,
     chapterIds: mergeChapterRelationIds(relationIds.chapterIds, autoChapterIds),
   };
-}
-
-async function assertProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
 }
 
 async function assertStoryline(projectId: string, storylineId: string) {

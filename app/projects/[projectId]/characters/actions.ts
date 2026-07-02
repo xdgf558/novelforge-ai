@@ -28,6 +28,7 @@ import {
   type CharacterValues,
 } from "@/lib/character-fields";
 import { prisma } from "@/lib/prisma";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const characterGenerationTemplateKey = characterGenerationTaskType;
 
@@ -110,21 +111,6 @@ function parseCharacterGenerationRequest(formData: FormData, projectId: string) 
   }
 
   return parsed.data;
-}
-
-async function assertProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
 }
 
 export async function createCharacter(projectId: string, formData: FormData) {

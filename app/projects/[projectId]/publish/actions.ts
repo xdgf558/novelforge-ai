@@ -27,6 +27,7 @@ import {
   readImageGenerationSecrets,
   readStationCatPublishSecrets,
 } from "@/lib/ai/local-config";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import {
   buildWechatLayoutCandidateContext,
@@ -973,21 +974,6 @@ async function loadProjectForCoverImage(projectId: string) {
       },
     },
   });
-}
-
-async function assertProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
 }
 
 async function findActiveCoverImageTask(projectId: string) {

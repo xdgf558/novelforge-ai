@@ -1,5 +1,23 @@
 # Development Log
 
+## 2026-07-02: Modular Refactor Phase 1 Foundation
+
+Status: completed.
+
+What was done:
+
+- Added `docs/module-refactor-architecture.md` to define the target modular-monolith boundaries for future refactor phases.
+- Established `lib/server-actions/` as the place for small Next.js server-action support utilities.
+- Added `lib/server-actions/project-guards.ts` with a shared `assertProjectExists` guard.
+- Replaced duplicated project-existence guard functions in AI, chapters, characters, character network, memory, outlines, publish, and storylines route actions.
+- Kept behavior unchanged: route actions still call the same project-existence check before running domain-specific logic.
+
+Verification:
+
+- `npm run test -- 'app/projects/[projectId]/chapters/actions.test.ts' 'app/projects/[projectId]/characters/actions.test.ts' 'app/projects/[projectId]/characters/network/actions.test.ts' 'app/projects/[projectId]/memory/actions.test.ts' 'app/projects/[projectId]/outlines/actions.test.ts' 'app/projects/[projectId]/publish/actions.test.ts' 'app/projects/[projectId]/storylines/actions.test.ts'` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-07-01: 0.1.79 Personal macOS Installer Rebuild
 
 Status: completed.

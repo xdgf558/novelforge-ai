@@ -20,6 +20,7 @@ import {
   normalizeRelationshipType,
 } from "@/lib/character-relationship-fields";
 import { prisma } from "@/lib/prisma";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const optionalText = z
   .preprocess(
@@ -552,21 +553,6 @@ async function validateRelationshipReferences(
     values.targetCharacterId,
   ]);
   await assertChapterIdsBelongToProject(projectId, [values.sourceChapterId]);
-}
-
-async function assertProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
 }
 
 async function assertCharacterIdsBelongToProject(
