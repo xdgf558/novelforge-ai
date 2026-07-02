@@ -89,3 +89,18 @@ Each phase should update `docs/development-log.md`, update
 `docs/project-memory.md` when architectural memory changes, and run relevant
 tests plus `npm run typecheck`.
 
+## Migration Checklist
+
+Use this checklist when moving code across boundaries:
+
+- Does each server action only parse input, run guards, call domain services,
+  and handle revalidation or redirects?
+- Did durable business rules move into a domain module under `lib/<domain>/`
+  instead of another route file or server-action helper?
+- Do client components avoid direct Prisma access, secrets, local settings, and
+  AI model calls?
+- Does every AI workflow still create a logged task and keep formal memory
+  updates author-approved?
+- Did the extracted service keep or gain focused tests for behavior that could
+  regress during the move?
+- Did the phase avoid broad feature changes while refactoring boundaries?
