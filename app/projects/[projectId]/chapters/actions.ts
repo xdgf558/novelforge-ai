@@ -50,6 +50,7 @@ import {
   chapterBelongsToOutline,
 } from "@/lib/outline-progress";
 import { prisma } from "@/lib/prisma";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 import { fetchStationCatReaderFeedback } from "@/lib/reader-feedback";
 import { createMissingStorylineChapterRelationsForChapter } from "@/lib/storyline-auto-relations";
 
@@ -155,21 +156,6 @@ function parseChapterForm(formData: FormData) {
     changeReason,
     finalizeError,
   };
-}
-
-async function assertProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
 }
 
 export async function createChapter(projectId: string, formData: FormData) {

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   normalizeForeshadowImportance,
@@ -12,6 +12,7 @@ import {
   normalizeWorldRuleStatus,
 } from "@/lib/story-memory-fields";
 import { prisma } from "@/lib/prisma";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const optionalText = z
   .preprocess(
@@ -106,21 +107,6 @@ const timelineEventSchema = z.object({
   chapterId: optionalRelationId,
   sourceChapterId: optionalRelationId,
 });
-
-async function assertProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
-}
 
 export async function createWorldRule(projectId: string, formData: FormData) {
   await assertProject(projectId);

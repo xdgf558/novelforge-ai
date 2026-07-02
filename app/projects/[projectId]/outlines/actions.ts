@@ -28,6 +28,7 @@ import {
   type OutlineValues,
 } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const outlineTemplateKey = outlineGenerationTaskType;
 const endingPlanningTemplateKey = endingPlanningGenerationTaskType;
@@ -93,10 +94,11 @@ const outlineSchema = z.object({
 });
 
 const generationRequestSchema = z.object({
-  targetLevel: z
-    .string()
-    .transform((value) => normalizeOutlineLevel(value))
-    .default("volume"),
+  targetLevel: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim() !== "" ? value : "volume",
+    z.string().transform((value) => normalizeOutlineLevel(value)),
+  ),
   chapterCount: z
     .preprocess((value) => {
       if (typeof value !== "string" || value.trim() === "") {
@@ -202,21 +204,6 @@ function outlineValuesFromParsed(
         ]),
     ),
   } as OutlineValues;
-}
-
-async function assertProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
 }
 
 export async function createOutline(projectId: string, formData: FormData) {

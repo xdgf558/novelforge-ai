@@ -14,6 +14,7 @@ import {
   hasConfiguredOpenAIKey,
 } from "@/lib/ai/openai-client";
 import { prisma } from "@/lib/prisma";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 type PromptTemplateCopySource = {
   contextNotes: string | null;
@@ -26,21 +27,6 @@ type PromptTemplateCopySource = {
   userPrompt: string;
   version: number;
 };
-
-async function assertProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!project) {
-    notFound();
-  }
-}
 
 export async function syncDefaultPromptTemplates(projectId: string) {
   await assertProject(projectId);
