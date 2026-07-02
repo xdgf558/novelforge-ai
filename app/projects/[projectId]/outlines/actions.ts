@@ -6,7 +6,6 @@ import { z } from "zod";
 import { buildEndingPlanningContext } from "@/lib/ai/ending-planning";
 import { buildOutlineGenerationContext } from "@/lib/ai/outlines";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
-import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
   endingPlanningGenerationTaskType,
@@ -19,7 +18,6 @@ import {
   normalizeOutlineStatus,
   outlineLevels,
   outlineNumberFieldNames,
-  outlineSnapshot,
   outlineStatusOptions,
   outlineTextFieldNames,
   type OutlineValidationErrorCode,
@@ -28,16 +26,23 @@ import {
   type OutlineValues,
 } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
+import {
+  createOutlineRecord,
+  deleteOutlineRecord,
+  findOutlineForProject,
+  updateOutlineRecord,
+} from "@/lib/outlines/records";
+import {
+  buildPreviousChapterEndingContext,
+  findActiveEndingPlanningTask,
+  findActiveOutlineGenerationTask,
+  inferNextTargetChapterNumber,
+} from "@/lib/outlines/ai-tasks";
+import { findEndingPlanningForeshadows } from "@/lib/outlines/ending-planning";
 import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const outlineTemplateKey = outlineGenerationTaskType;
 const endingPlanningTemplateKey = endingPlanningGenerationTaskType;
-const unresolvedForeshadowStatuses = [
-  "planted",
-  "advancing",
-  "needs_attention",
-] as const;
-
 const outlineStatusValues = outlineStatusOptions.map((option) => option.value) as [
   string,
   ...string[],
@@ -224,11 +229,9 @@ export async function createOutline(projectId: string, formData: FormData) {
     redirect(`/projects/${projectId}/outlines?outlineError=${validationError}`);
   }
 
-  await prisma.outline.create({
-    data: {
-      projectId,
-      ...outlineSnapshot(values),
-    },
+  await createOutlineRecord({
+    projectId,
+    values,
   });
 
   revalidateOutlinePaths(projectId);
@@ -242,14 +245,9 @@ export async function updateOutline(
 ) {
   await assertProject(projectId);
 
-  const outline = await prisma.outline.findFirst({
-    where: {
-      id: outlineId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const outline = await findOutlineForProject({
+    outlineId,
+    projectId,
   });
 
   if (!outline) {
@@ -275,11 +273,9 @@ export async function updateOutline(
     );
   }
 
-  await prisma.outline.update({
-    where: {
-      id: outlineId,
-    },
-    data: outlineSnapshot(values),
+  await updateOutlineRecord({
+    outlineId,
+    values,
   });
 
   revalidateOutlinePaths(projectId);
@@ -287,25 +283,16 @@ export async function updateOutline(
 }
 
 export async function deleteOutline(projectId: string, outlineId: string) {
-  const outline = await prisma.outline.findFirst({
-    where: {
-      id: outlineId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const outline = await findOutlineForProject({
+    outlineId,
+    projectId,
   });
 
   if (!outline) {
     notFound();
   }
 
-  await prisma.outline.delete({
-    where: {
-      id: outlineId,
-    },
-  });
+  await deleteOutlineRecord(outlineId);
 
   revalidateOutlinePaths(projectId);
   redirect(`/projects/${projectId}/outlines`);
@@ -443,40 +430,6 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
   revalidateOutlinePaths(projectId);
   revalidatePath(`/projects/${projectId}/ai`);
   redirect(`/projects/${projectId}/outlines?outlineTarget=${resolvedRequest.targetLevel}`);
-}
-
-function buildPreviousChapterEndingContext(
-  chapter: {
-    chapterNumber: number;
-    title: string;
-    draftText?: string | null;
-    polishedText?: string | null;
-    finalText?: string | null;
-  } | null,
-) {
-  if (!chapter) {
-    return null;
-  }
-
-  const sourceText =
-    chapter.finalText?.trim() ||
-    chapter.polishedText?.trim() ||
-    chapter.draftText?.trim() ||
-    "";
-
-  if (!sourceText) {
-    return null;
-  }
-
-  return {
-    chapterNumber: chapter.chapterNumber,
-    title: chapter.title,
-    endingText: tailText(sourceText, 1800),
-  };
-}
-
-function tailText(value: string, maxLength: number) {
-  return value.length <= maxLength ? value : value.slice(-maxLength);
 }
 
 export async function generateEndingPlanDraft(projectId: string) {
@@ -648,180 +601,7 @@ async function updateEndingPlanTaskAdoptionState(
   redirect(`/projects/${projectId}/outlines#ending-planning`);
 }
 
-async function findEndingPlanningForeshadows(projectId: string) {
-  const includeChapters = {
-    plantedChapter: {
-      select: {
-        chapterNumber: true,
-        title: true,
-      },
-    },
-    resolvedChapter: {
-      select: {
-        chapterNumber: true,
-        title: true,
-      },
-    },
-  } as const;
-
-  const [highUnresolved, otherUnresolved, recentResolved] = await Promise.all([
-    prisma.foreshadow.findMany({
-      where: {
-        projectId,
-        status: {
-          in: [...unresolvedForeshadowStatuses],
-        },
-        importance: "high",
-      },
-      include: includeChapters,
-      orderBy: {
-        updatedAt: "desc",
-      },
-      take: 30,
-    }),
-    prisma.foreshadow.findMany({
-      where: {
-        projectId,
-        status: {
-          in: [...unresolvedForeshadowStatuses],
-        },
-        importance: {
-          not: "high",
-        },
-      },
-      include: includeChapters,
-      orderBy: {
-        updatedAt: "desc",
-      },
-      take: 30,
-    }),
-    prisma.foreshadow.findMany({
-      where: {
-        projectId,
-        status: "resolved",
-      },
-      include: includeChapters,
-      orderBy: {
-        updatedAt: "desc",
-      },
-      take: 10,
-    }),
-  ]);
-
-  return dedupeForeshadows([
-    ...highUnresolved,
-    ...sortForeshadowsByPlanningPriority(otherUnresolved).slice(0, 20),
-    ...recentResolved,
-  ]);
-}
-
-function dedupeForeshadows<
-  T extends { id?: string; content: string; status: string; importance: string },
->(foreshadows: readonly T[]) {
-  const seen = new Set<string>();
-  const result: T[] = [];
-
-  for (const foreshadow of foreshadows) {
-    const key =
-      foreshadow.id ??
-      `${foreshadow.importance}:${foreshadow.status}:${foreshadow.content}`;
-
-    if (seen.has(key)) {
-      continue;
-    }
-
-    seen.add(key);
-    result.push(foreshadow);
-  }
-
-  return result;
-}
-
-function sortForeshadowsByPlanningPriority<
-  T extends { importance: string; updatedAt?: Date | string },
->(foreshadows: readonly T[]) {
-  return [...foreshadows].sort((left, right) => {
-    const importanceDiff =
-      foreshadowImportanceRank(left.importance) -
-      foreshadowImportanceRank(right.importance);
-
-    if (importanceDiff !== 0) {
-      return importanceDiff;
-    }
-
-    return timestampValue(right.updatedAt) - timestampValue(left.updatedAt);
-  });
-}
-
-function foreshadowImportanceRank(importance: string) {
-  switch (importance) {
-    case "high":
-      return 0;
-    case "medium":
-      return 1;
-    case "low":
-      return 2;
-    default:
-      return 99;
-  }
-}
-
-function timestampValue(value?: Date | string) {
-  if (!value) {
-    return 0;
-  }
-
-  const timestamp = value instanceof Date ? value.getTime() : Date.parse(value);
-
-  return Number.isFinite(timestamp) ? timestamp : 0;
-}
-
-async function findActiveOutlineGenerationTask(projectId: string) {
-  return prisma.aiTask.findFirst({
-    where: {
-      projectId,
-      taskType: outlineTemplateKey,
-      status: {
-        in: [...activeAiTaskStatuses],
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
-}
-
-async function findActiveEndingPlanningTask(projectId: string) {
-  return prisma.aiTask.findFirst({
-    where: {
-      projectId,
-      taskType: endingPlanningTemplateKey,
-      status: {
-        in: [...activeAiTaskStatuses],
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
-}
-
 function revalidateOutlinePaths(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/outlines`);
-}
-
-function inferNextTargetChapterNumber(
-  chapters: readonly { chapterNumber: number }[],
-  outlines: readonly { level?: string | null; chapterNumber?: number | null }[],
-) {
-  const maxKnownChapterNumber = Math.max(
-    0,
-    ...chapters.map((chapter) => chapter.chapterNumber),
-    ...outlines
-      .filter((outline) => outline.level === "chapter")
-      .map((outline) => outline.chapterNumber ?? 0),
-  );
-
-  return maxKnownChapterNumber + 1;
 }

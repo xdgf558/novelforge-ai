@@ -11,7 +11,21 @@ import {
   normalizeWorldRuleCategory,
   normalizeWorldRuleStatus,
 } from "@/lib/story-memory-fields";
-import { prisma } from "@/lib/prisma";
+import {
+  abandonForeshadowRecord,
+  archiveTimelineEventRecord,
+  archiveWorldRuleRecord,
+  chapterReferencesBelongToProject,
+  createForeshadowRecord,
+  createTimelineEventRecord,
+  createWorldRuleRecord,
+  findForeshadowForProject,
+  findTimelineEventForProject,
+  findWorldRuleForProject,
+  updateForeshadowRecord,
+  updateTimelineEventRecord,
+  updateWorldRuleRecord,
+} from "@/lib/memory/records";
 import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const optionalText = z
@@ -114,11 +128,9 @@ export async function createWorldRule(projectId: string, formData: FormData) {
   const values = parseWorldRuleForm(formData, projectId);
   await assertChapterIdsBelongToProject(projectId, [values.sourceChapterId]);
 
-  await prisma.worldRule.create({
-    data: {
-      projectId,
-      ...values,
-    },
+  await createWorldRuleRecord({
+    projectId,
+    values,
   });
 
   revalidateMemoryPaths(projectId);
@@ -134,25 +146,18 @@ export async function updateWorldRule(
 
   const values = parseWorldRuleForm(formData, projectId);
   await assertChapterIdsBelongToProject(projectId, [values.sourceChapterId]);
-  const rule = await prisma.worldRule.findFirst({
-    where: {
-      id: ruleId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const rule = await findWorldRuleForProject({
+    projectId,
+    ruleId,
   });
 
   if (!rule) {
     redirectMemoryError(projectId, "recordNotFound");
   }
 
-  await prisma.worldRule.update({
-    where: {
-      id: ruleId,
-    },
-    data: values,
+  await updateWorldRuleRecord({
+    ruleId,
+    values,
   });
 
   revalidateMemoryPaths(projectId);
@@ -163,14 +168,7 @@ export async function archiveWorldRule(projectId: string, ruleId: string) {
   await assertProject(projectId);
   await assertWorldRule(projectId, ruleId);
 
-  await prisma.worldRule.update({
-    where: {
-      id: ruleId,
-    },
-    data: {
-      status: "archived",
-    },
-  });
+  await archiveWorldRuleRecord(ruleId);
 
   revalidateMemoryPaths(projectId);
   redirect(`/projects/${projectId}/memory#world-rules`);
@@ -186,11 +184,9 @@ export async function createForeshadow(projectId: string, formData: FormData) {
     values.sourceChapterId,
   ]);
 
-  await prisma.foreshadow.create({
-    data: {
-      projectId,
-      ...values,
-    },
+  await createForeshadowRecord({
+    projectId,
+    values,
   });
 
   revalidateMemoryPaths(projectId);
@@ -210,25 +206,18 @@ export async function updateForeshadow(
     values.resolvedChapterId,
     values.sourceChapterId,
   ]);
-  const foreshadow = await prisma.foreshadow.findFirst({
-    where: {
-      id: foreshadowId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const foreshadow = await findForeshadowForProject({
+    foreshadowId,
+    projectId,
   });
 
   if (!foreshadow) {
     redirectMemoryError(projectId, "recordNotFound");
   }
 
-  await prisma.foreshadow.update({
-    where: {
-      id: foreshadowId,
-    },
-    data: values,
+  await updateForeshadowRecord({
+    foreshadowId,
+    values,
   });
 
   revalidateMemoryPaths(projectId);
@@ -239,14 +228,7 @@ export async function abandonForeshadow(projectId: string, foreshadowId: string)
   await assertProject(projectId);
   await assertForeshadow(projectId, foreshadowId);
 
-  await prisma.foreshadow.update({
-    where: {
-      id: foreshadowId,
-    },
-    data: {
-      status: "abandoned",
-    },
-  });
+  await abandonForeshadowRecord(foreshadowId);
 
   revalidateMemoryPaths(projectId);
   redirect(`/projects/${projectId}/memory#foreshadows`);
@@ -264,11 +246,9 @@ export async function createTimelineEvent(
     values.sourceChapterId,
   ]);
 
-  await prisma.timelineEvent.create({
-    data: {
-      projectId,
-      ...values,
-    },
+  await createTimelineEventRecord({
+    projectId,
+    values,
   });
 
   revalidateMemoryPaths(projectId);
@@ -287,25 +267,18 @@ export async function updateTimelineEvent(
     values.chapterId,
     values.sourceChapterId,
   ]);
-  const event = await prisma.timelineEvent.findFirst({
-    where: {
-      id: eventId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const event = await findTimelineEventForProject({
+    eventId,
+    projectId,
   });
 
   if (!event) {
     redirectMemoryError(projectId, "recordNotFound");
   }
 
-  await prisma.timelineEvent.update({
-    where: {
-      id: eventId,
-    },
-    data: values,
+  await updateTimelineEventRecord({
+    eventId,
+    values,
   });
 
   revalidateMemoryPaths(projectId);
@@ -316,14 +289,7 @@ export async function archiveTimelineEvent(projectId: string, eventId: string) {
   await assertProject(projectId);
   await assertTimelineEvent(projectId, eventId);
 
-  await prisma.timelineEvent.update({
-    where: {
-      id: eventId,
-    },
-    data: {
-      status: "archived",
-    },
-  });
+  await archiveTimelineEventRecord(eventId);
 
   revalidateMemoryPaths(projectId);
   redirect(`/projects/${projectId}/memory#timeline`);
@@ -383,35 +349,20 @@ async function assertChapterIdsBelongToProject(
   projectId: string,
   ids: Array<string | null | undefined>,
 ) {
-  const cleanIds = [...new Set(ids.filter(Boolean))] as string[];
-
-  if (cleanIds.length === 0) {
-    return;
-  }
-
-  const count = await prisma.chapter.count({
-    where: {
-      projectId,
-      id: {
-        in: cleanIds,
-      },
-    },
+  const validReferences = await chapterReferencesBelongToProject({
+    ids,
+    projectId,
   });
 
-  if (count !== cleanIds.length) {
+  if (!validReferences) {
     redirectMemoryError(projectId, "invalidChapterReference");
   }
 }
 
 async function assertWorldRule(projectId: string, ruleId: string) {
-  const rule = await prisma.worldRule.findFirst({
-    where: {
-      id: ruleId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const rule = await findWorldRuleForProject({
+    projectId,
+    ruleId,
   });
 
   if (!rule) {
@@ -420,14 +371,9 @@ async function assertWorldRule(projectId: string, ruleId: string) {
 }
 
 async function assertForeshadow(projectId: string, foreshadowId: string) {
-  const foreshadow = await prisma.foreshadow.findFirst({
-    where: {
-      id: foreshadowId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const foreshadow = await findForeshadowForProject({
+    foreshadowId,
+    projectId,
   });
 
   if (!foreshadow) {
@@ -436,14 +382,9 @@ async function assertForeshadow(projectId: string, foreshadowId: string) {
 }
 
 async function assertTimelineEvent(projectId: string, eventId: string) {
-  const event = await prisma.timelineEvent.findFirst({
-    where: {
-      id: eventId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const event = await findTimelineEventForProject({
+    eventId,
+    projectId,
   });
 
   if (!event) {

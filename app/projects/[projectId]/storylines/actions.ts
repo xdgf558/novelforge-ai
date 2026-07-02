@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
-import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
   buildStorylineGenerationContext,
@@ -10,7 +9,6 @@ import {
 } from "@/lib/ai/storylines";
 import { expireStaleStorylineAiTasks } from "@/lib/ai/storyline-task-maintenance";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
-import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
   normalizeStorylineStatus,
@@ -21,9 +19,17 @@ import {
 } from "@/lib/storyline-fields";
 import { prisma } from "@/lib/prisma";
 import {
-  chapterIdsInExplicitStorylineRange,
-  mergeChapterRelationIds,
-} from "@/lib/storyline-auto-relations";
+  archiveStorylineRecord,
+  completeStorylineRecord,
+  createStorylineRecord,
+  findActiveStorylineGenerationTask,
+  findDuplicateStorylineCandidate,
+  findStorylineForProject,
+  updateStorylineRecord,
+  validateStorylineRelationIds,
+  type StorylineRecordValues,
+  type StorylineRelationIds,
+} from "@/lib/storylines/records";
 import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const storylineTypeValues = storylineTypeOptions.map((option) => option.value) as [
@@ -69,20 +75,11 @@ const storylineSchema = z.object({
   notes: optionalText,
 });
 
-type StorylineFormValues = z.infer<typeof storylineSchema>;
-
-type RelationIds = {
-  characterIds: string[];
-  foreshadowIds: string[];
-  chapterIds: string[];
-  outlineIds: string[];
-};
-
 type ParseStorylineResult =
   | {
       ok: true;
-      values: StorylineFormValues;
-      relationIds: RelationIds;
+      values: StorylineRecordValues;
+      relationIds: StorylineRelationIds;
     }
   | {
       ok: false;
@@ -98,35 +95,19 @@ export async function createStoryline(projectId: string, formData: FormData) {
     redirectStorylineError(projectId, parsed.error);
   }
 
-  const relationError = await validateRelationIds(projectId, parsed.relationIds);
+  const relationError = await validateStorylineRelationIds(
+    projectId,
+    parsed.relationIds,
+  );
 
   if (relationError) {
     redirectStorylineError(projectId, relationError);
   }
 
-  await prisma.$transaction(async (tx) => {
-    const storyline = await tx.storyline.create({
-      data: {
-        projectId,
-        ...storylineData(parsed.values),
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const autoChapterIds = await chapterIdsInExplicitStorylineRange(
-      tx,
-      projectId,
-      parsed.values,
-    );
-
-    await replaceStorylineRelations(
-      tx,
-      projectId,
-      storyline.id,
-      relationIdsWithAutoRange(parsed.relationIds, autoChapterIds),
-    );
+  await createStorylineRecord({
+    projectId,
+    relationIds: parsed.relationIds,
+    values: parsed.values,
   });
 
   revalidateStorylinePaths(projectId);
@@ -383,7 +364,10 @@ export async function saveStorylineDraftCandidate(
     redirectStorylineError(projectId, parsed.error);
   }
 
-  const relationError = await validateRelationIds(projectId, parsed.relationIds);
+  const relationError = await validateStorylineRelationIds(
+    projectId,
+    parsed.relationIds,
+  );
 
   if (relationError) {
     redirectStorylineError(projectId, relationError);
@@ -395,29 +379,10 @@ export async function saveStorylineDraftCandidate(
     redirectStorylineError(projectId, "duplicateStoryline");
   }
 
-  await prisma.$transaction(async (tx) => {
-    const storyline = await tx.storyline.create({
-      data: {
-        projectId,
-        ...storylineData(parsed.values),
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const autoChapterIds = await chapterIdsInExplicitStorylineRange(
-      tx,
-      projectId,
-      parsed.values,
-    );
-
-    await replaceStorylineRelations(
-      tx,
-      projectId,
-      storyline.id,
-      relationIdsWithAutoRange(parsed.relationIds, autoChapterIds),
-    );
+  await createStorylineRecord({
+    projectId,
+    relationIds: parsed.relationIds,
+    values: parsed.values,
   });
 
   revalidateStorylinePaths(projectId);
@@ -470,32 +435,20 @@ export async function updateStoryline(
     redirectStorylineError(projectId, parsed.error, storylineId);
   }
 
-  const relationError = await validateRelationIds(projectId, parsed.relationIds);
+  const relationError = await validateStorylineRelationIds(
+    projectId,
+    parsed.relationIds,
+  );
 
   if (relationError) {
     redirectStorylineError(projectId, relationError, storylineId);
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.storyline.update({
-      where: {
-        id: storylineId,
-      },
-      data: storylineData(parsed.values),
-    });
-
-    const autoChapterIds = await chapterIdsInExplicitStorylineRange(
-      tx,
-      projectId,
-      parsed.values,
-    );
-
-    await replaceStorylineRelations(
-      tx,
-      projectId,
-      storylineId,
-      relationIdsWithAutoRange(parsed.relationIds, autoChapterIds),
-    );
+  await updateStorylineRecord({
+    projectId,
+    relationIds: parsed.relationIds,
+    storylineId,
+    values: parsed.values,
   });
 
   revalidateStorylinePaths(projectId);
@@ -505,14 +458,7 @@ export async function updateStoryline(
 export async function archiveStoryline(projectId: string, storylineId: string) {
   await assertStoryline(projectId, storylineId);
 
-  await prisma.storyline.update({
-    where: {
-      id: storylineId,
-    },
-    data: {
-      status: "archived",
-    },
-  });
+  await archiveStorylineRecord(storylineId);
 
   revalidateStorylinePaths(projectId);
   redirect(`/projects/${projectId}/storylines?storylineSaved=archived`);
@@ -521,22 +467,14 @@ export async function archiveStoryline(projectId: string, storylineId: string) {
 export async function completeStoryline(projectId: string, storylineId: string) {
   await assertStoryline(projectId, storylineId);
 
-  const result = await prisma.storyline.updateMany({
-    where: {
-      id: storylineId,
-      projectId,
-      status: {
-        notIn: ["archived", "completed"],
-      },
-    },
-    data: {
-      status: "completed",
-    },
+  const result = await completeStorylineRecord({
+    projectId,
+    storylineId,
   });
 
   revalidateStorylinePaths(projectId);
 
-  if (result.count !== 1) {
+  if (result !== "completed") {
     redirect(
       `/projects/${projectId}/storylines?storylineSaved=already-updated#storylines`,
     );
@@ -591,189 +529,15 @@ function parseStorylineForm(formData: FormData): ParseStorylineResult {
   };
 }
 
-function storylineData(values: StorylineFormValues) {
-  return {
-    name: values.name,
-    type: normalizeStorylineType(values.type),
-    status: normalizeStorylineStatus(values.status),
-    startChapter: values.startChapter,
-    endChapter: values.endChapter,
-    coreGoal: values.coreGoal,
-    currentProgress: values.currentProgress,
-    notes: values.notes,
-  };
-}
-
-function relationIdsWithAutoRange(
-  relationIds: RelationIds,
-  autoChapterIds: string[],
-): RelationIds {
-  return {
-    ...relationIds,
-    chapterIds: mergeChapterRelationIds(relationIds.chapterIds, autoChapterIds),
-  };
-}
-
 async function assertStoryline(projectId: string, storylineId: string) {
-  const storyline = await prisma.storyline.findFirst({
-    where: {
-      id: storylineId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const storyline = await findStorylineForProject({
+    projectId,
+    storylineId,
   });
 
   if (!storyline) {
     notFound();
   }
-}
-
-async function findDuplicateStorylineCandidate(
-  projectId: string,
-  values: StorylineFormValues,
-) {
-  return prisma.storyline.findFirst({
-    where: {
-      projectId,
-      name: values.name,
-      type: normalizeStorylineType(values.type),
-      startChapter: values.startChapter,
-      endChapter: values.endChapter,
-      status: {
-        not: "archived",
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
-}
-
-async function validateRelationIds(
-  projectId: string,
-  relationIds: RelationIds,
-): Promise<StorylineValidationErrorCode | null> {
-  const [
-    characterCount,
-    foreshadowCount,
-    chapterCount,
-    outlineCount,
-  ] = await Promise.all([
-    countProjectRecords("character", projectId, relationIds.characterIds),
-    countProjectRecords("foreshadow", projectId, relationIds.foreshadowIds),
-    countProjectRecords("chapter", projectId, relationIds.chapterIds),
-    countProjectRecords("outline", projectId, relationIds.outlineIds),
-  ]);
-
-  if (
-    characterCount !== relationIds.characterIds.length ||
-    foreshadowCount !== relationIds.foreshadowIds.length ||
-    chapterCount !== relationIds.chapterIds.length ||
-    outlineCount !== relationIds.outlineIds.length
-  ) {
-    return "invalidRelation";
-  }
-
-  return null;
-}
-
-async function countProjectRecords(
-  kind: "character" | "foreshadow" | "chapter" | "outline",
-  projectId: string,
-  ids: string[],
-) {
-  if (ids.length === 0) {
-    return 0;
-  }
-
-  const where = {
-    projectId,
-    id: {
-      in: ids,
-    },
-  };
-
-  switch (kind) {
-    case "character":
-      return prisma.character.count({ where });
-    case "foreshadow":
-      return prisma.foreshadow.count({ where });
-    case "chapter":
-      return prisma.chapter.count({ where });
-    case "outline":
-      return prisma.outline.count({ where });
-  }
-}
-
-async function replaceStorylineRelations(
-  tx: Prisma.TransactionClient,
-  projectId: string,
-  storylineId: string,
-  relationIds: RelationIds,
-) {
-  await Promise.all([
-    tx.storylineCharacter.deleteMany({
-      where: {
-        storylineId,
-      },
-    }),
-    tx.storylineForeshadow.deleteMany({
-      where: {
-        storylineId,
-      },
-    }),
-    tx.storylineChapter.deleteMany({
-      where: {
-        storylineId,
-      },
-    }),
-    tx.storylineOutline.deleteMany({
-      where: {
-        storylineId,
-      },
-    }),
-  ]);
-
-  await Promise.all([
-    relationIds.characterIds.length > 0
-      ? tx.storylineCharacter.createMany({
-          data: relationIds.characterIds.map((characterId) => ({
-            projectId,
-            storylineId,
-            characterId,
-          })),
-        })
-      : null,
-    relationIds.foreshadowIds.length > 0
-      ? tx.storylineForeshadow.createMany({
-          data: relationIds.foreshadowIds.map((foreshadowId) => ({
-            projectId,
-            storylineId,
-            foreshadowId,
-          })),
-        })
-      : null,
-    relationIds.chapterIds.length > 0
-      ? tx.storylineChapter.createMany({
-          data: relationIds.chapterIds.map((chapterId) => ({
-            projectId,
-            storylineId,
-            chapterId,
-          })),
-        })
-      : null,
-    relationIds.outlineIds.length > 0
-      ? tx.storylineOutline.createMany({
-          data: relationIds.outlineIds.map((outlineId) => ({
-            projectId,
-            storylineId,
-            outlineId,
-          })),
-        })
-      : null,
-  ]);
 }
 
 function uniqueFormValues(values: FormDataEntryValue[]) {
@@ -809,19 +573,4 @@ function revalidateStorylinePaths(projectId: string) {
   revalidatePath(`/projects/${projectId}/storylines`);
   revalidatePath(`/projects/${projectId}/chapters`);
   revalidatePath(`/projects/${projectId}/outlines`);
-}
-
-async function findActiveStorylineGenerationTask(projectId: string) {
-  return prisma.aiTask.findFirst({
-    where: {
-      projectId,
-      taskType: storylineGenerationTaskType,
-      status: {
-        in: [...activeAiTaskStatuses],
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
 }
