@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-07-02: Modular Refactor Phase 3 Outline, Storyline, and Memory Actions Split
+
+Status: completed.
+
+What was done:
+
+- Added `lib/memory/records.ts` for structured-memory record writes, soft archive/abandon flows, project-scoped record lookup, and chapter-reference validation.
+- Added `lib/storylines/records.ts` for formal storyline writes, relation replacement, range-based chapter auto-linking, relation validation, completion/archive updates, duplicate checks, and active generation-task lookup.
+- Added `lib/outlines/records.ts` for formal outline CRUD writes and project-scoped lookup.
+- Added `lib/outlines/ai-tasks.ts` for outline active-task lookup, previous-chapter ending context, and next target chapter inference.
+- Added `lib/outlines/ending-planning.ts` for ending-planning foreshadow selection, dedupe, and planning-priority sorting.
+- Slimmed `app/projects/[projectId]/memory/actions.ts`, `outlines/actions.ts`, and `storylines/actions.ts` so route actions keep request parsing, Next.js not-found/redirect behavior, revalidation, and AI task orchestration while durable record rules live under `lib/<domain>/`.
+- Added focused service tests for memory records, outline records, outline AI helpers, ending-planning foreshadow selection, and storyline records.
+
+Verification:
+
+- `npm run test -- app/projects/[projectId]/memory/actions.test.ts app/projects/[projectId]/outlines/actions.test.ts app/projects/[projectId]/storylines/actions.test.ts lib/memory/records.test.ts lib/outlines/records.test.ts lib/outlines/ai-tasks.test.ts lib/outlines/ending-planning.test.ts lib/storylines/records.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npm run lint` was not run because this package has no `lint` script.
+
 ## 2026-07-02: Modular Refactor Phase 2 Chapter Actions Split
 
 Status: completed.
