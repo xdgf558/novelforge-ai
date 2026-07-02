@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-07-02: 0.1.80 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.80`.
+- Rebuilt the personal-use macOS installer from `main` after Modular Refactor Phase 4.
+- Removed old `release/desktop` artifacts and left only `release/desktop/NovelForge-AI-0.1.80-mac-arm64.pkg`.
+- Built the final package with a minimal `postinstall` step that removes `com.apple.provenance` from `/Applications/NovelForge AI.app` immediately, then keeps clearing it every 10 seconds for roughly 30 minutes; without this cleanup, macOS strict code-signing verification can fail after PKG installation even though the staged app is signed.
+
+Verification:
+
+- `npm run desktop:pack:mac` completed with notarization skipped by local packaging settings.
+- `npm run desktop:smoke` passed.
+- Staged app bundle versions are `0.1.80` in `Info.plist` and packaged `app.asar.unpacked/package.json`.
+- Final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.80`, and install location `/Applications`.
+- Final PKG is unsigned, as expected on this machine because no Developer ID Installer identity is available.
+- Real installer run completed successfully, and after a short delayed provenance cleanup verification window the installed `/Applications/NovelForge AI.app` passed `codesign --verify --deep --strict --verbose=2`.
+- Packaged startup code still calls `runDesktopMigrations`, does not call `prisma migrate deploy`, does not reference `prisma/build/index.js`, and still reads `migration.sql`.
+
 ## 2026-07-02: Modular Refactor Phase 4 Publish, Audiobook, and Continuity Actions Split
 
 Status: completed.
