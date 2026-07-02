@@ -3,8 +3,6 @@ import {
   hashText,
   isSegmentedChapterPolishInputJson,
   polishableChapterText,
-  type ChapterPolishChapterContext,
-  type ChapterPolishContextInput,
 } from "@/lib/ai/chapter-polishes";
 import {
   normalizeChapterPlatformTemplate,
@@ -17,6 +15,10 @@ import {
   resolveAiTaskExecutionEnv,
   resolveAiTaskRequestTimeoutMs,
 } from "@/lib/ai/task-logger";
+import {
+  ChapterContextNotFoundError,
+  loadChapterPolishContext,
+} from "@/lib/chapters/context";
 import { prisma } from "@/lib/prisma";
 
 type RunningSegmentedPolishTask = {
@@ -88,10 +90,7 @@ async function runSegmentedChapterPolishTask(
   }
 
   const snapshot = parseSegmentedPolishTaskSnapshot(task.inputJson);
-  const contextInput = await loadChapterPolishContext(
-    task.projectId,
-    task.chapterId,
-  );
+  const contextInput = await loadPolishContextForSegmentedTask(task);
   const sourceText = polishableChapterText(contextInput.chapter);
 
   if (!sourceText) {
@@ -194,6 +193,20 @@ async function runSegmentedChapterPolishTask(
   });
 }
 
+async function loadPolishContextForSegmentedTask(
+  task: RunningSegmentedPolishTask,
+) {
+  try {
+    return await loadChapterPolishContext(task.projectId, task.chapterId ?? "");
+  } catch (error) {
+    if (error instanceof ChapterContextNotFoundError) {
+      throw new Error("分段精修任务关联的章节不存在。");
+    }
+
+    throw error;
+  }
+}
+
 function parseSegmentedPolishTaskSnapshot(
   inputJson?: string | null,
 ): SegmentedPolishTaskSnapshot {
@@ -229,76 +242,6 @@ function parseSegmentedPolishTaskSnapshot(
     platformTemplate: normalizeChapterPlatformTemplate(
       parsed.platformTemplate?.value,
     ),
-  };
-}
-
-async function loadChapterPolishContext(
-  projectId: string,
-  chapterId: string,
-): Promise<ChapterPolishContextInput> {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    include: {
-      project: {
-        select: {
-          title: true,
-          genre: true,
-          targetAudience: true,
-          platform: true,
-          chapterWordMin: true,
-          chapterWordMax: true,
-          description: true,
-          wechatPositioning: true,
-        },
-      },
-    },
-  });
-
-  if (!chapter) {
-    throw new Error("分段精修任务关联的章节不存在。");
-  }
-
-  const [setting, characters] = await Promise.all([
-    prisma.projectSetting.findUnique({
-      where: {
-        projectId,
-      },
-    }),
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 12,
-    }),
-  ]);
-
-  return {
-    project: chapter.project,
-    setting,
-    chapter: pickChapterPolishContext(chapter),
-    characters,
-  };
-}
-
-function pickChapterPolishContext(
-  chapter: ChapterPolishChapterContext,
-): ChapterPolishChapterContext {
-  return {
-    chapterNumber: chapter.chapterNumber,
-    title: chapter.title,
-    goal: chapter.goal,
-    beats: chapter.beats,
-    draftText: chapter.draftText,
-    polishedText: chapter.polishedText,
-    finalText: chapter.finalText,
-    notes: chapter.notes,
   };
 }
 

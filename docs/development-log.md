@@ -1,5 +1,25 @@
 # Development Log
 
+## 2026-07-02: Modular Refactor Phase 2 Chapter Actions Split
+
+Status: completed.
+
+What was done:
+
+- Added `lib/chapters/` domain modules for chapter record writes, outline status sync, AI generation orchestration, AI task lookup, context assembly, and reader-feedback snapshot persistence.
+- Reduced `app/projects/[projectId]/chapters/actions.ts` from a mixed 1490-line server-action file to a thinner route action focused on parsing forms, translating domain not-found errors, revalidation, and redirects.
+- Moved chapter CRUD/version snapshot/storyline range sync into `lib/chapters/records.ts`.
+- Moved chapter beat/draft/polish/summary AI task startup into `lib/chapters/ai-generation.ts` while preserving logged task creation and author-reviewed adoption.
+- Shared chapter polish context loading between chapter actions and the segmented chapter polish runner via `lib/chapters/context.ts`.
+- Moved outline progress status synchronization into `lib/chapters/outline-status.ts`.
+- Moved Station Cat reader-feedback remote-id lookup and snapshot retention into `lib/chapters/reader-feedback-snapshots.ts`.
+- Added focused tests for the new chapter record service.
+
+Verification:
+
+- `npm run test -- lib/chapters/records.test.ts 'app/projects/[projectId]/chapters/actions.test.ts' lib/ai/segmented-chapter-polish-runner.test.ts` passed.
+- `npm run typecheck` passed.
+
 ## 2026-07-02: Modular Refactor Phase 1 Foundation
 
 Status: completed.

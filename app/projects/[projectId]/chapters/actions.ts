@@ -1,41 +1,18 @@
 "use server";
 
-import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import {
-  buildChapterBeatContext,
-  type ChapterBeatChapterContext,
-} from "@/lib/ai/chapter-beats";
-import {
-  buildChapterDraftContext,
-  hasConfirmedChapterBeats,
-  type ChapterDraftChapterContext,
-} from "@/lib/ai/chapter-drafts";
-import {
-  buildSegmentedChapterPolishContext,
-  buildChapterPolishContext,
-  hasPolishableChapterText,
   isExcerptedChapterPolishInputJson,
-  shouldSegmentChapterPolish,
-  type ChapterPolishChapterContext,
 } from "@/lib/ai/chapter-polishes";
-import { normalizeChapterPlatformTemplate } from "@/lib/ai/chapter-platform-templates";
 import {
-  buildChapterSummaryContext,
-  hasConfirmedChapterText,
-  type ChapterSummaryChapterContext,
-} from "@/lib/ai/chapter-summaries";
-import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
-import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
-import { completeRunningSegmentedChapterPolishTask } from "@/lib/ai/segmented-chapter-polish-runner";
-import { activeAiTaskStatuses } from "@/lib/ai/status";
-import {
-  createAiTask,
-  markAiTaskRunning,
-  startLoggedOpenAITextTask,
-} from "@/lib/ai/task-logger";
+  startChapterBeatGeneration,
+  startChapterDraftGeneration,
+  startChapterPolishGeneration,
+  startChapterSummaryGeneration,
+  type ChapterAiGenerationResult,
+} from "@/lib/chapters/ai-generation";
 import { readStationCatPublishSecrets } from "@/lib/ai/local-config";
 import {
   chapterFieldNames,
@@ -44,15 +21,24 @@ import {
   chapterStatusOptions,
   type ChapterValues,
 } from "@/lib/chapter-fields";
-import { selectRelevantOutlinesForChapter } from "@/lib/outline-fields";
 import {
-  calculateOutlineProgress,
-  chapterBelongsToOutline,
-} from "@/lib/outline-progress";
+  ChapterContextNotFoundError,
+} from "@/lib/chapters/context";
+import { syncOutlineStatusesForChapterNumbers } from "@/lib/chapters/outline-status";
+import {
+  latestStationCatChapterRemoteId,
+  saveChapterReaderFeedbackSnapshot,
+} from "@/lib/chapters/reader-feedback-snapshots";
+import {
+  createChapterRecord,
+  deleteChapterRecord,
+  findChapterForUpdate,
+  updateChapterReaderRemoteIdRecord,
+  updateChapterRecord,
+} from "@/lib/chapters/records";
 import { prisma } from "@/lib/prisma";
 import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 import { fetchStationCatReaderFeedback } from "@/lib/reader-feedback";
-import { createMissingStorylineChapterRelationsForChapter } from "@/lib/storyline-auto-relations";
 
 const optionalChapterText = z
   .preprocess(
@@ -101,12 +87,6 @@ const readerRemoteIdSchema = z
     z.string().trim().max(240).nullable(),
   )
   .default(null);
-
-const chapterBeatTemplateKey = "chapter_beat_generation";
-const chapterDraftTemplateKey = "chapter_draft_generation";
-const chapterPolishTemplateKey = "chapter_polish_generation";
-const chapterSummaryTemplateKey = "chapter_summary_extraction";
-const readerFeedbackSnapshotRetentionLimit = 30;
 
 function parseChapterForm(formData: FormData) {
   const parsedValues = chapterSchema.parse(
@@ -158,41 +138,47 @@ function parseChapterForm(formData: FormData) {
   };
 }
 
+async function loadChapterContextForAction<T>(loader: () => Promise<T>) {
+  try {
+    return await loader();
+  } catch (error) {
+    if (error instanceof ChapterContextNotFoundError) {
+      notFound();
+    }
+
+    throw error;
+  }
+}
+
+function finishChapterAiGenerationAction({
+  chapterId,
+  projectId,
+  result,
+}: {
+  chapterId: string;
+  projectId: string;
+  result: ChapterAiGenerationResult;
+}) {
+  if (result.status === "started") {
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/ai`);
+  }
+
+  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
+  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+}
+
 export async function createChapter(projectId: string, formData: FormData) {
   await assertProject(projectId);
 
   const { values, changeReason } = parseChapterForm(formData);
-  const snapshot = chapterSnapshot(values);
-
-  const chapter = await prisma.$transaction(async (tx) => {
-    const createdChapter = await tx.chapter.create({
-      data: {
-        projectId,
-        ...snapshot,
-      },
-    });
-
-    await tx.chapterVersion.create({
-      data: {
-        projectId,
-        chapterId: createdChapter.id,
-        versionNumber: 1,
-        snapshotJson: JSON.stringify(snapshot),
-        changeReason,
-        sourceType: "manual",
-      },
-    });
-
-    await createMissingStorylineChapterRelationsForChapter(
-      tx,
-      projectId,
-      createdChapter,
-    );
-
-    return createdChapter;
+  const { chapter, chapterNumber } = await createChapterRecord({
+    projectId,
+    values,
+    changeReason,
   });
 
-  await syncOutlineStatusesForChapterNumbers(projectId, [snapshot.chapterNumber]);
+  await syncOutlineStatusesForChapterNumbers(projectId, [chapterNumber]);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
@@ -206,15 +192,9 @@ export async function updateChapter(
   chapterId: string,
   formData: FormData,
 ) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    select: {
-      id: true,
-      chapterNumber: true,
-    },
+  const chapter = await findChapterForUpdate({
+    projectId,
+    chapterId,
   });
 
   if (!chapter) {
@@ -233,42 +213,16 @@ export async function updateChapter(
     );
   }
 
-  const snapshot = chapterSnapshot(values);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.chapter.update({
-      where: {
-        id: chapterId,
-      },
-      data: snapshot,
-    });
-
-    const versionCount = await tx.chapterVersion.count({
-      where: {
-        chapterId,
-      },
-    });
-
-    await tx.chapterVersion.create({
-      data: {
-        projectId,
-        chapterId,
-        versionNumber: versionCount + 1,
-        snapshotJson: JSON.stringify(snapshot),
-        changeReason,
-        sourceType: "manual",
-      },
-    });
-
-    await createMissingStorylineChapterRelationsForChapter(tx, projectId, {
-      id: chapterId,
-      chapterNumber: snapshot.chapterNumber,
-    });
+  const updateResult = await updateChapterRecord({
+    projectId,
+    chapter,
+    values,
+    changeReason,
   });
 
   await syncOutlineStatusesForChapterNumbers(projectId, [
-    chapter.chapterNumber,
-    snapshot.chapterNumber,
+    updateResult.previousChapterNumber,
+    updateResult.chapterNumber,
   ]);
 
   revalidatePath(`/projects/${projectId}`);
@@ -281,28 +235,18 @@ export async function updateChapter(
 }
 
 export async function deleteChapter(projectId: string, chapterId: string) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    select: {
-      id: true,
-      chapterNumber: true,
-    },
+  const deleteResult = await deleteChapterRecord({
+    projectId,
+    chapterId,
   });
 
-  if (!chapter) {
+  if (!deleteResult) {
     notFound();
   }
 
-  await prisma.chapter.delete({
-    where: {
-      id: chapterId,
-    },
-  });
-
-  await syncOutlineStatusesForChapterNumbers(projectId, [chapter.chapterNumber]);
+  await syncOutlineStatusesForChapterNumbers(projectId, [
+    deleteResult.chapterNumber,
+  ]);
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
@@ -316,14 +260,9 @@ export async function updateChapterReaderRemoteId(
   chapterId: string,
   formData: FormData,
 ) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
+  const chapter = await findChapterForUpdate({
+    projectId,
+    chapterId,
   });
 
   if (!chapter) {
@@ -333,14 +272,10 @@ export async function updateChapterReaderRemoteId(
   const readerRemoteId = readerRemoteIdSchema.parse(
     formData.get("readerRemoteId"),
   );
-
-  await prisma.chapter.update({
-    where: {
-      id: chapterId,
-    },
-    data: {
-      readerRemoteId,
-    },
+  await updateChapterReaderRemoteIdRecord({
+    projectId,
+    chapter,
+    readerRemoteId,
   });
 
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
@@ -393,54 +328,11 @@ export async function fetchChapterReaderFeedback(
       remoteChapterId,
     });
 
-    await prisma.$transaction(async (tx) => {
-      const fetchedAt = new Date();
-
-      await tx.chapterAnalytics.create({
-        data: {
-          projectId,
-          chapterId,
-          remoteChapterId,
-          views: feedback.analytics.views,
-          likes: feedback.analytics.likes,
-          comments: feedback.analytics.comments,
-          favorites: feedback.analytics.favorites,
-          shares: feedback.analytics.shares,
-          completionRate: feedback.analytics.completionRate,
-          averageReadSeconds: feedback.analytics.averageReadSeconds,
-          dropOffPoint: feedback.analytics.dropOffPoint,
-          engagementScore: feedback.analytics.engagementScore,
-          rawJson: feedback.analytics.rawJson,
-          fetchedAt,
-        },
-      });
-
-      await tx.chapterInsight.create({
-        data: {
-          projectId,
-          chapterId,
-          remoteChapterId,
-          summary: feedback.insight.summary,
-          pacing: feedback.insight.pacing,
-          focus: feedback.insight.focus,
-          hookStrategy: feedback.insight.hookStrategy,
-          riskNotesJson: feedback.insight.riskNotesJson,
-          characterPriorityJson: feedback.insight.characterPriorityJson,
-          rawJson: feedback.insight.rawJson,
-          fetchedAt,
-        },
-      });
-
-      await tx.chapter.update({
-        where: {
-          id: chapterId,
-        },
-        data: {
-          readerFeedbackUpdatedAt: fetchedAt,
-        },
-      });
-
-      await pruneChapterReaderFeedbackSnapshots(tx, chapterId);
+    await saveChapterReaderFeedbackSnapshot({
+      projectId,
+      chapterId,
+      remoteChapterId,
+      feedback,
     });
   } catch (error) {
     const errorMessage = encodeURIComponent(
@@ -459,132 +351,16 @@ export async function fetchChapterReaderFeedback(
   );
 }
 
-async function pruneChapterReaderFeedbackSnapshots(
-  tx: Prisma.TransactionClient,
-  chapterId: string,
-) {
-  const staleAnalytics = await tx.chapterAnalytics.findMany({
-    where: {
-      chapterId,
-    },
-    orderBy: {
-      fetchedAt: "desc",
-    },
-    skip: readerFeedbackSnapshotRetentionLimit,
-    select: {
-      id: true,
-    },
-  });
-
-  if (staleAnalytics.length > 0) {
-    await tx.chapterAnalytics.deleteMany({
-      where: {
-        id: {
-          in: staleAnalytics.map((snapshot) => snapshot.id),
-        },
-      },
-    });
-  }
-
-  const staleInsights = await tx.chapterInsight.findMany({
-    where: {
-      chapterId,
-    },
-    orderBy: {
-      fetchedAt: "desc",
-    },
-    skip: readerFeedbackSnapshotRetentionLimit,
-    select: {
-      id: true,
-    },
-  });
-
-  if (staleInsights.length > 0) {
-    await tx.chapterInsight.deleteMany({
-      where: {
-        id: {
-          in: staleInsights.map((snapshot) => snapshot.id),
-        },
-      },
-    });
-  }
-}
-
-async function latestStationCatChapterRemoteId(
-  projectId: string,
-  chapterId: string,
-) {
-  const syncState = await prisma.publishSyncState.findFirst({
-    where: {
-      projectId,
-      localType: "chapter",
-      localId: chapterId,
-      remoteId: {
-        not: null,
-      },
-      target: {
-        platformKey: "station_cat",
-        status: "active",
-      },
-    },
-    orderBy: [
-      {
-        lastSyncedAt: "desc",
-      },
-      {
-        updatedAt: "desc",
-      },
-    ],
-    select: {
-      remoteId: true,
-    },
-  });
-
-  return syncState?.remoteId?.trim() || null;
-}
-
 export async function generateChapterBeats(projectId: string, chapterId: string) {
-  const activeTask = await findActiveChapterAiTask(
+  const result = await loadChapterContextForAction(() =>
+    startChapterBeatGeneration(projectId, chapterId),
+  );
+
+  finishChapterAiGenerationAction({
     projectId,
     chapterId,
-    "chapter_beat_generation",
-  );
-
-  if (activeTask) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(`/projects/${projectId}/chapters/${chapterId}`);
-  }
-
-  const contextInput = await loadChapterBeatContext(projectId, chapterId);
-  const template = await ensureDefaultPromptTemplate(
-    projectId,
-    chapterBeatTemplateKey,
-  );
-  const context = buildChapterBeatContext(contextInput);
-
-  await startLoggedOpenAITextTask(
-    {
-      projectId,
-      chapterId,
-      promptTemplateId: template.id,
-      taskType: template.taskType,
-      model: undefined,
-      inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
-    },
-    {
-      systemPrompt: template.systemPrompt,
-      developerPrompt: [template.userPrompt, template.contextNotes]
-        .filter(Boolean)
-        .join("\n\n"),
-      input: context.inputText,
-    },
-  );
-
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/ai`);
-  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+    result,
+  });
 }
 
 export async function generateChapterDraft(
@@ -592,58 +368,19 @@ export async function generateChapterDraft(
   chapterId: string,
   formData?: FormData,
 ) {
-  const platformTemplate = normalizeChapterPlatformTemplate(
-    formData?.get("platformTemplate"),
-  );
-  const activeTask = await findActiveChapterAiTask(
-    projectId,
-    chapterId,
-    "chapter_draft_generation",
-  );
-
-  if (activeTask) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(`/projects/${projectId}/chapters/${chapterId}`);
-  }
-
-  const contextInput = await loadChapterDraftContext(projectId, chapterId);
-
-  if (!hasConfirmedChapterBeats(contextInput.chapter)) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(`/projects/${projectId}/chapters/${chapterId}`);
-  }
-
-  const template = await ensureDefaultPromptTemplate(
-    projectId,
-    chapterDraftTemplateKey,
-  );
-  const context = buildChapterDraftContext(contextInput, {
-    platformTemplate,
-  });
-
-  await startLoggedOpenAITextTask(
-    {
+  const result = await loadChapterContextForAction(() =>
+    startChapterDraftGeneration(
       projectId,
       chapterId,
-      promptTemplateId: template.id,
-      taskType: template.taskType,
-      model: undefined,
-      inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
-    },
-    {
-      systemPrompt: template.systemPrompt,
-      developerPrompt: [template.userPrompt, template.contextNotes]
-        .filter(Boolean)
-        .join("\n\n"),
-      input: context.inputText,
-    },
+      formData?.get("platformTemplate"),
+    ),
   );
 
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/ai`);
-  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  finishChapterAiGenerationAction({
+    projectId,
+    chapterId,
+    result,
+  });
 }
 
 export async function generateChapterPolish(
@@ -651,142 +388,31 @@ export async function generateChapterPolish(
   chapterId: string,
   formData?: FormData,
 ) {
-  const platformTemplate = normalizeChapterPlatformTemplate(
-    formData?.get("platformTemplate"),
+  const result = await loadChapterContextForAction(() =>
+    startChapterPolishGeneration(
+      projectId,
+      chapterId,
+      formData?.get("platformTemplate"),
+    ),
   );
-  const activeTask = await findActiveChapterAiTask(
+
+  finishChapterAiGenerationAction({
     projectId,
     chapterId,
-    "chapter_polish_generation",
-  );
-
-  if (activeTask) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(`/projects/${projectId}/chapters/${chapterId}`);
-  }
-
-  const contextInput = await loadChapterPolishContext(projectId, chapterId);
-
-  if (!hasPolishableChapterText(contextInput.chapter)) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(`/projects/${projectId}/chapters/${chapterId}`);
-  }
-
-  const template = await ensureDefaultPromptTemplate(
-    projectId,
-    chapterPolishTemplateKey,
-  );
-
-  if (shouldSegmentChapterPolish(contextInput)) {
-    const context = buildSegmentedChapterPolishContext(contextInput, {
-      platformTemplate,
-    });
-    const task = await createAiTask({
-      projectId,
-      chapterId,
-      promptTemplateId: template.id,
-      taskType: template.taskType,
-      model: undefined,
-      inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
-    });
-    const runningTask = await markAiTaskRunning(task.id);
-
-    void completeRunningSegmentedChapterPolishTask(runningTask.id).catch(
-      (error) => {
-        console.error("Background segmented chapter polish failed:", error);
-      },
-    );
-
-    revalidatePath(`/projects/${projectId}`);
-    revalidatePath(`/projects/${projectId}/ai`);
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(`/projects/${projectId}/chapters/${chapterId}`);
-  }
-
-  const context = buildChapterPolishContext(contextInput, {
-    platformTemplate,
+    result,
   });
-
-  await startLoggedOpenAITextTask(
-    {
-      projectId,
-      chapterId,
-      promptTemplateId: template.id,
-      taskType: template.taskType,
-      model: undefined,
-      inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
-    },
-    {
-      systemPrompt: template.systemPrompt,
-      developerPrompt: [template.userPrompt, template.contextNotes]
-        .filter(Boolean)
-        .join("\n\n"),
-      input: context.inputText,
-    },
-  );
-
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/ai`);
-  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-  redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
 export async function generateChapterSummary(projectId: string, chapterId: string) {
-  const activeTask = await findActiveChapterAiTask(
+  const result = await loadChapterContextForAction(() =>
+    startChapterSummaryGeneration(projectId, chapterId),
+  );
+
+  finishChapterAiGenerationAction({
     projectId,
     chapterId,
-    "chapter_summary_extraction",
-  );
-
-  if (activeTask) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(`/projects/${projectId}/chapters/${chapterId}`);
-  }
-
-  const contextInput = await loadChapterSummaryContext(projectId, chapterId);
-
-  if (!hasConfirmedChapterText(contextInput.chapter)) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(`/projects/${projectId}/chapters/${chapterId}`);
-  }
-
-  const template = await ensureDefaultPromptTemplate(
-    projectId,
-    chapterSummaryTemplateKey,
-  );
-  const context = buildChapterSummaryContext(contextInput);
-
-  await startLoggedOpenAITextTask(
-    {
-      projectId,
-      chapterId,
-      promptTemplateId: template.id,
-      taskType: template.taskType,
-      model: undefined,
-      inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
-    },
-    {
-      systemPrompt: template.systemPrompt,
-      developerPrompt: [
-        template.userPrompt,
-        template.contextNotes,
-        template.responseSchema
-          ? `请严格输出符合以下 JSON Schema 的 JSON：\n${template.responseSchema}`
-          : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
-      input: context.inputText,
-    },
-  );
-
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/ai`);
-  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-  redirect(`/projects/${projectId}/chapters/${chapterId}`);
+    result,
+  });
 }
 
 export async function adoptChapterBeats(
@@ -1050,441 +676,4 @@ export async function adoptChapterPolish(
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}/history`);
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
-}
-
-async function findActiveChapterAiTask(
-  projectId: string,
-  chapterId: string,
-  taskType: string,
-) {
-  return prisma.aiTask.findFirst({
-    where: {
-      projectId,
-      chapterId,
-      taskType,
-      status: {
-        in: [...activeAiTaskStatuses],
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
-}
-
-async function syncOutlineStatusesForChapterNumbers(
-  projectId: string,
-  chapterNumbers: Iterable<number>,
-) {
-  const numbersToSync = [...new Set(chapterNumbers)];
-
-  if (numbersToSync.length === 0) {
-    return;
-  }
-
-  const [outlines, chapters] = await Promise.all([
-    prisma.outline.findMany({
-      where: {
-        projectId,
-        status: {
-          not: "archived",
-        },
-      },
-    }),
-    prisma.chapter.findMany({
-      where: {
-        projectId,
-      },
-      select: {
-        chapterNumber: true,
-        status: true,
-      },
-    }),
-  ]);
-  const matchingOutlines = outlines.filter((outline) =>
-    numbersToSync.some((chapterNumber) =>
-      chapterBelongsToOutline(chapterNumber, outline),
-    ),
-  );
-
-  await Promise.all(
-    matchingOutlines.map((outline) => {
-      const progress = calculateOutlineProgress(outline, chapters);
-
-      if (outline.status === progress.statusSuggestion) {
-        return null;
-      }
-
-      return prisma.outline.update({
-        where: {
-          id: outline.id,
-        },
-        data: {
-          status: progress.statusSuggestion,
-        },
-      });
-    }),
-  );
-}
-
-async function loadChapterBeatContext(projectId: string, chapterId: string) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    include: {
-      project: {
-        select: {
-          title: true,
-          genre: true,
-          targetAudience: true,
-          platform: true,
-          totalWordTarget: true,
-          chapterWordMin: true,
-          chapterWordMax: true,
-          description: true,
-          wechatPositioning: true,
-        },
-      },
-    },
-  });
-
-  if (!chapter) {
-    notFound();
-  }
-
-  const [
-    setting,
-    outlines,
-    characters,
-    recentChapters,
-    previousChapter,
-    readerFeedbackSignals,
-  ] = await Promise.all([
-    prisma.projectSetting.findUnique({
-      where: {
-        projectId,
-      },
-    }),
-    prisma.outline.findMany({
-      where: {
-        projectId,
-        status: {
-          not: "archived",
-        },
-      },
-      orderBy: [
-        {
-          level: "asc",
-        },
-        {
-          sortOrder: "asc",
-        },
-        {
-          createdAt: "asc",
-        },
-      ],
-    }),
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 8,
-    }),
-    prisma.chapter.findMany({
-      where: {
-        projectId,
-        chapterNumber: {
-          lt: chapter.chapterNumber,
-        },
-      },
-      orderBy: {
-        chapterNumber: "desc",
-      },
-      take: 3,
-    }),
-    prisma.chapter.findFirst({
-      where: {
-        projectId,
-        chapterNumber: {
-          lt: chapter.chapterNumber,
-        },
-      },
-      orderBy: {
-        chapterNumber: "desc",
-      },
-    }),
-    loadReaderFeedbackSignalsForChapterGeneration({
-      projectId,
-      beforeChapterNumber: chapter.chapterNumber,
-    }),
-  ]);
-
-  return {
-    project: chapter.project,
-    setting,
-    chapter: pickChapterContext(chapter),
-    outlines: selectRelevantOutlinesForChapter(outlines, chapter.chapterNumber),
-    characters,
-    recentChapters: recentChapters.map(pickChapterContext).reverse(),
-    previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
-    readerFeedback: readerFeedbackSignals,
-  };
-}
-
-async function loadChapterDraftContext(projectId: string, chapterId: string) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    include: {
-      project: {
-        select: {
-          title: true,
-          genre: true,
-          targetAudience: true,
-          platform: true,
-          totalWordTarget: true,
-          chapterWordMin: true,
-          chapterWordMax: true,
-          description: true,
-          wechatPositioning: true,
-        },
-      },
-    },
-  });
-
-  if (!chapter) {
-    notFound();
-  }
-
-  const [
-    setting,
-    outlines,
-    characters,
-    previousChapter,
-    readerFeedbackSignals,
-  ] = await Promise.all([
-    prisma.projectSetting.findUnique({
-      where: {
-        projectId,
-      },
-    }),
-    prisma.outline.findMany({
-      where: {
-        projectId,
-        status: {
-          not: "archived",
-        },
-      },
-      orderBy: [
-        {
-          level: "asc",
-        },
-        {
-          sortOrder: "asc",
-        },
-        {
-          createdAt: "asc",
-        },
-      ],
-    }),
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 8,
-    }),
-    prisma.chapter.findFirst({
-      where: {
-        projectId,
-        chapterNumber: {
-          lt: chapter.chapterNumber,
-        },
-      },
-      orderBy: {
-        chapterNumber: "desc",
-      },
-    }),
-    loadReaderFeedbackSignalsForChapterGeneration({
-      projectId,
-      beforeChapterNumber: chapter.chapterNumber,
-    }),
-  ]);
-
-  return {
-    project: chapter.project,
-    setting,
-    chapter: pickChapterDraftContext(chapter),
-    outlines: selectRelevantOutlinesForChapter(outlines, chapter.chapterNumber),
-    characters,
-    previousChapter: previousChapter
-      ? pickChapterDraftContext(previousChapter)
-      : null,
-    readerFeedback: readerFeedbackSignals,
-  };
-}
-
-async function loadChapterPolishContext(projectId: string, chapterId: string) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    include: {
-      project: {
-        select: {
-          title: true,
-          genre: true,
-          targetAudience: true,
-          platform: true,
-          chapterWordMin: true,
-          chapterWordMax: true,
-          description: true,
-          wechatPositioning: true,
-        },
-      },
-    },
-  });
-
-  if (!chapter) {
-    notFound();
-  }
-
-  const [setting, characters] = await Promise.all([
-    prisma.projectSetting.findUnique({
-      where: {
-        projectId,
-      },
-    }),
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 12,
-    }),
-  ]);
-
-  return {
-    project: chapter.project,
-    setting,
-    chapter: pickChapterPolishContext(chapter),
-    characters,
-  };
-}
-
-async function loadChapterSummaryContext(projectId: string, chapterId: string) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    include: {
-      project: {
-        select: {
-          title: true,
-          genre: true,
-          targetAudience: true,
-          platform: true,
-          description: true,
-          wechatPositioning: true,
-        },
-      },
-    },
-  });
-
-  if (!chapter) {
-    notFound();
-  }
-
-  const [setting, characters] = await Promise.all([
-    prisma.projectSetting.findUnique({
-      where: {
-        projectId,
-      },
-    }),
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 12,
-    }),
-  ]);
-
-  return {
-    project: chapter.project,
-    setting,
-    chapter: pickChapterSummaryContext(chapter),
-    characters,
-  };
-}
-
-function pickChapterSummaryContext(chapter: ChapterSummaryChapterContext) {
-  return {
-    chapterNumber: chapter.chapterNumber,
-    title: chapter.title,
-    goal: chapter.goal,
-    beats: chapter.beats,
-    draftText: chapter.draftText,
-    polishedText: chapter.polishedText,
-    finalText: chapter.finalText,
-    notes: chapter.notes,
-  };
-}
-
-function pickChapterPolishContext(chapter: ChapterPolishChapterContext) {
-  return {
-    chapterNumber: chapter.chapterNumber,
-    title: chapter.title,
-    goal: chapter.goal,
-    beats: chapter.beats,
-    draftText: chapter.draftText,
-    polishedText: chapter.polishedText,
-    finalText: chapter.finalText,
-    notes: chapter.notes,
-  };
-}
-
-function pickChapterDraftContext(chapter: ChapterDraftChapterContext) {
-  return {
-    chapterNumber: chapter.chapterNumber,
-    title: chapter.title,
-    goal: chapter.goal,
-    beats: chapter.beats,
-    draftText: chapter.draftText,
-    polishedText: chapter.polishedText,
-    finalText: chapter.finalText,
-    notes: chapter.notes,
-  };
-}
-
-function pickChapterContext(chapter: ChapterBeatChapterContext) {
-  return {
-    chapterNumber: chapter.chapterNumber,
-    title: chapter.title,
-    goal: chapter.goal,
-    beats: chapter.beats,
-    draftText: chapter.draftText,
-    polishedText: chapter.polishedText,
-    finalText: chapter.finalText,
-    notes: chapter.notes,
-  };
 }
