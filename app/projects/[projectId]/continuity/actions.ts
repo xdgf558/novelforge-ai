@@ -3,29 +3,27 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
-import {
-  buildContinuityContext,
-  parseContinuityIssues,
-  type ContinuityChapterContext,
-} from "@/lib/ai/continuity-reports";
+import { buildContinuityContext } from "@/lib/ai/continuity-reports";
 import {
   buildContinuityFixPatchContext,
-  continuityFixPatchTaskType,
   continuityFixPatchTemplateKey,
-  readContinuityFixPatchReportId,
 } from "@/lib/ai/continuity-fix-patches";
 import { expireStaleContinuityFixPatchTasks } from "@/lib/ai/continuity-fix-patch-task-maintenance";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
-import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
-import { chapterSnapshot, chapterValuesFromRecord } from "@/lib/chapter-fields";
 import {
-  applyContinuityReplacement,
-  describeContinuityReplacementFix,
-  parseContinuityReplacementFix,
-} from "@/lib/continuity-fixes";
-import { prisma } from "@/lib/prisma";
+  applyContinuityReportReplacementFix,
+  createContinuityReportsFromTask,
+  findActiveContinuityFixPatchTask,
+  findActiveContinuityTask,
+  findContinuityReportSummary,
+  loadContinuityContext,
+  loadContinuityFixPatchReport,
+  reopenContinuityReportRecord,
+  resolveContinuityReportRecord,
+  updateContinuityFixPatchTaskAdoptionState,
+} from "@/lib/continuity/records";
 
 const continuityTemplateKey = "continuity_check";
 
@@ -50,6 +48,10 @@ export async function generateContinuityReport(
   }
 
   const contextInput = await loadContinuityContext(projectId, chapterId);
+
+  if (!contextInput) {
+    notFound();
+  }
 
   if (!hasConfirmedChapterText(contextInput.chapter)) {
     revalidateContinuityPaths(projectId, chapterId);
@@ -87,26 +89,11 @@ export async function generateContinuityReport(
     },
     {
       onCompleted: async (task) => {
-        const issues = parseContinuityIssues(task.outputText);
-
-        if (issues.length === 0) {
-          return;
-        }
-
-        await prisma.continuityReport.createMany({
-          data: issues.map((issue) => ({
-            projectId,
-            chapterId,
-            aiTaskId: task.id,
-            severity: issue.severity,
-            category: issue.category,
-            title: issue.title,
-            description: issue.description,
-            evidence: issue.evidence,
-            conflictingMemory: issue.conflictingMemory,
-            suggestedFix: issue.suggestedFix,
-            status: "open",
-          })),
+        await createContinuityReportsFromTask({
+          chapterId,
+          outputText: task.outputText,
+          projectId,
+          taskId: task.id,
         });
       },
     },
@@ -125,30 +112,18 @@ export async function resolveContinuityReport(
     resolutionNote: formData.get("resolutionNote"),
   });
 
-  const report = await prisma.continuityReport.findFirst({
-    where: {
-      id: reportId,
-      projectId,
-    },
-    select: {
-      id: true,
-      chapterId: true,
-    },
+  const report = await findContinuityReportSummary({
+    projectId,
+    reportId,
   });
 
   if (!report) {
     notFound();
   }
 
-  await prisma.continuityReport.update({
-    where: {
-      id: report.id,
-    },
-    data: {
-      status: "resolved",
-      resolutionNote,
-      resolvedAt: new Date(),
-    },
+  await resolveContinuityReportRecord({
+    reportId: report.id,
+    resolutionNote,
   });
 
   revalidateContinuityPaths(projectId, report.chapterId);
@@ -156,31 +131,16 @@ export async function resolveContinuityReport(
 }
 
 export async function reopenContinuityReport(projectId: string, reportId: string) {
-  const report = await prisma.continuityReport.findFirst({
-    where: {
-      id: reportId,
-      projectId,
-    },
-    select: {
-      id: true,
-      chapterId: true,
-    },
+  const report = await findContinuityReportSummary({
+    projectId,
+    reportId,
   });
 
   if (!report) {
     notFound();
   }
 
-  await prisma.continuityReport.update({
-    where: {
-      id: report.id,
-    },
-    data: {
-      status: "open",
-      resolutionNote: null,
-      resolvedAt: null,
-    },
-  });
+  await reopenContinuityReportRecord(report.id);
 
   revalidateContinuityPaths(projectId, report.chapterId);
   redirect(`/projects/${projectId}/continuity`);
@@ -190,94 +150,33 @@ export async function applyContinuityReportFix(
   projectId: string,
   reportId: string,
 ) {
-  const report = await prisma.continuityReport.findFirst({
-    where: {
-      id: reportId,
-      projectId,
-    },
-    include: {
-      chapter: true,
-    },
+  const result = await applyContinuityReportReplacementFix({
+    projectId,
+    reportId,
   });
 
-  if (!report) {
+  if (result.status === "missing-report") {
     notFound();
   }
 
-  if (report.status !== "open") {
+  if (result.status === "already-resolved") {
     redirect(`/projects/${projectId}/continuity?fix=already-resolved`);
   }
 
-  if (!report.chapter) {
+  if (result.status === "missing-chapter") {
     redirect(`/projects/${projectId}/continuity?fix=missing-chapter`);
   }
 
-  const replacementFix = parseContinuityReplacementFix(report.suggestedFix, {
-    description: report.description,
-    evidence: report.evidence,
-    sourceText: report.chapter.finalText,
-  });
-
-  if (!replacementFix) {
+  if (result.status === "unsupported") {
     redirect(`/projects/${projectId}/continuity?fix=unsupported`);
   }
 
-  const replacementResult = applyContinuityReplacement(
-    report.chapter.finalText ?? "",
-    replacementFix,
-  );
-
-  if (replacementResult.count === 0) {
+  if (result.status === "not-found") {
     redirect(`/projects/${projectId}/continuity?fix=not-found`);
   }
 
-  const chapterId = report.chapter.id;
-  const snapshot = chapterSnapshot({
-    ...chapterValuesFromRecord(report.chapter),
-    finalText: replacementResult.text,
-  });
-
-  await prisma.$transaction(async (tx) => {
-    await tx.chapter.update({
-      where: {
-        id: chapterId,
-      },
-      data: snapshot,
-    });
-
-    const versionCount = await tx.chapterVersion.count({
-      where: {
-        chapterId,
-      },
-    });
-
-    await tx.chapterVersion.create({
-      data: {
-        projectId,
-        chapterId,
-        versionNumber: versionCount + 1,
-        snapshotJson: JSON.stringify(snapshot),
-        changeReason: `一键修复连续性报告：${report.title}`,
-        sourceType: "continuity_fix",
-      },
-    });
-
-    await tx.continuityReport.update({
-      where: {
-        id: report.id,
-      },
-      data: {
-        status: "resolved",
-        resolutionNote: `一键修复定稿正文：${describeContinuityReplacementFix(
-          replacementFix,
-        )}（${replacementResult.count} 处）。`,
-        resolvedAt: new Date(),
-      },
-    });
-  });
-
-  revalidateContinuityPaths(projectId, chapterId);
-  revalidatePath(`/projects/${projectId}/chapters/${chapterId}/history`);
+  revalidateContinuityPaths(projectId, result.chapterId);
+  revalidatePath(`/projects/${projectId}/chapters/${result.chapterId}/history`);
   redirect(`/projects/${projectId}/continuity?fix=applied`);
 }
 
@@ -287,35 +186,9 @@ export async function generateContinuityFixPatch(
 ) {
   await expireStaleContinuityFixPatchTasks(projectId);
 
-  const report = await prisma.continuityReport.findFirst({
-    where: {
-      id: reportId,
-      projectId,
-    },
-    include: {
-      project: {
-        select: {
-          title: true,
-          genre: true,
-          targetAudience: true,
-          platform: true,
-        },
-      },
-      chapter: {
-        select: {
-          id: true,
-          chapterNumber: true,
-          title: true,
-          status: true,
-          goal: true,
-          beats: true,
-          draftText: true,
-          polishedText: true,
-          finalText: true,
-          notes: true,
-        },
-      },
-    },
+  const report = await loadContinuityFixPatchReport({
+    projectId,
+    reportId,
   });
 
   if (!report) {
@@ -394,7 +267,7 @@ export async function markContinuityFixPatchOrganized(
   projectId: string,
   taskId: string,
 ) {
-  await updateContinuityFixPatchTaskAdoptionState(
+  await updateContinuityFixPatchTaskAdoptionStateAndRedirect(
     projectId,
     taskId,
     "adopted",
@@ -406,7 +279,7 @@ export async function ignoreContinuityFixPatch(
   projectId: string,
   taskId: string,
 ) {
-  await updateContinuityFixPatchTaskAdoptionState(
+  await updateContinuityFixPatchTaskAdoptionStateAndRedirect(
     projectId,
     taskId,
     "rejected",
@@ -414,230 +287,37 @@ export async function ignoreContinuityFixPatch(
   );
 }
 
-async function loadContinuityContext(projectId: string, chapterId: string) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    include: {
-      project: {
-        include: {
-          setting: true,
-        },
-      },
-    },
-  });
-
-  if (!chapter) {
-    notFound();
-  }
-
-  const [
-    characters,
-    worldRules,
-    foreshadows,
-    timelineEvents,
-    recentSummaryTasks,
-    pendingUpdates,
-  ] = await Promise.all([
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
-      take: 12,
-    }),
-    prisma.worldRule.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: [{ riskLevel: "desc" }, { updatedAt: "desc" }],
-      take: 20,
-    }),
-    prisma.foreshadow.findMany({
-      where: {
-        projectId,
-      },
-      orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
-      take: 24,
-    }),
-    prisma.timelineEvent.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 30,
-    }),
-    prisma.aiTask.findMany({
-      where: {
-        projectId,
-        taskType: "chapter_summary_extraction",
-        status: "completed",
-      },
-      orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
-      take: 3,
-      select: {
-        id: true,
-        inputContextSummary: true,
-        outputText: true,
-        completedAt: true,
-      },
-    }),
-    prisma.pendingUpdate.findMany({
-      where: {
-        projectId,
-        status: "pending",
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 12,
-      select: {
-        title: true,
-        status: true,
-        targetType: true,
-        riskLevel: true,
-        proposedContent: true,
-      },
-    }),
-  ]);
-
-  const setting = chapter.project.setting;
-  const contextChapter: ContinuityChapterContext = {
-    chapterNumber: chapter.chapterNumber,
-    title: chapter.title,
-    goal: chapter.goal,
-    beats: chapter.beats,
-    finalText: chapter.finalText,
-    notes: chapter.notes,
-  };
-
-  return {
-    project: {
-      title: chapter.project.title,
-      genre: chapter.project.genre,
-      targetAudience: chapter.project.targetAudience,
-      platform: chapter.project.platform,
-      description: chapter.project.description,
-      wechatPositioning: chapter.project.wechatPositioning,
-    },
-    setting,
-    chapter: contextChapter,
-    characters,
-    worldRules,
-    foreshadows,
-    timelineEvents,
-    recentSummaryTasks,
-    pendingUpdates,
-  };
-}
-
-async function findActiveContinuityTask(projectId: string, chapterId: string) {
-  return prisma.aiTask.findFirst({
-    where: {
-      projectId,
-      chapterId,
-      taskType: "continuity_check",
-      status: {
-        in: [...activeAiTaskStatuses],
-      },
-    },
-    select: {
-      id: true,
-    },
-  });
-}
-
-async function findActiveContinuityFixPatchTask(
-  projectId: string,
-  reportId: string,
-) {
-  const tasks = await prisma.aiTask.findMany({
-    where: {
-      projectId,
-      taskType: continuityFixPatchTaskType,
-      status: {
-        in: [...activeAiTaskStatuses],
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-    select: {
-      id: true,
-      inputJson: true,
-    },
-  });
-
-  return tasks.find(
-    (task) => readContinuityFixPatchReportId(task.inputJson) === reportId,
-  );
-}
-
-async function updateContinuityFixPatchTaskAdoptionState(
+async function updateContinuityFixPatchTaskAdoptionStateAndRedirect(
   projectId: string,
   taskId: string,
   adoptionState: "adopted" | "rejected",
   resultCode: "organized" | "ignored",
 ) {
-  const task = await prisma.aiTask.findFirst({
-    where: {
-      id: taskId,
-      projectId,
-      taskType: continuityFixPatchTaskType,
-      status: "completed",
-    },
-    select: {
-      id: true,
-      chapterId: true,
-      inputJson: true,
-    },
+  const result = await updateContinuityFixPatchTaskAdoptionState({
+    adoptionState,
+    projectId,
+    taskId,
   });
 
-  if (!task) {
+  if (result.status === "missing-task") {
     notFound();
   }
 
-  const updated = await prisma.aiTask.updateMany({
-    where: {
-      id: task.id,
-      projectId,
-      taskType: continuityFixPatchTaskType,
-      status: "completed",
-      adoptionState: "not_reviewed",
-    },
-    data: {
-      adoptionState,
-    },
-  });
-
-  if (updated.count !== 1) {
-    const reportId = readContinuityFixPatchReportId(task.inputJson);
-
-    revalidateContinuityPaths(projectId, task.chapterId);
+  if (result.status === "already-reviewed") {
+    revalidateContinuityPaths(projectId, result.chapterId);
     revalidatePath(`/projects/${projectId}/ai`);
     redirect(
       `/projects/${projectId}/continuity?patch=already-reviewed${
-        reportId ? `#report-${reportId}` : ""
+        result.reportId ? `#report-${result.reportId}` : ""
       }`,
     );
   }
 
-  const reportId = readContinuityFixPatchReportId(task.inputJson);
-
-  revalidateContinuityPaths(projectId, task.chapterId);
+  revalidateContinuityPaths(projectId, result.chapterId);
   revalidatePath(`/projects/${projectId}/ai`);
   redirect(
     `/projects/${projectId}/continuity?patch=${resultCode}${
-      reportId ? `#report-${reportId}` : ""
+      result.reportId ? `#report-${result.reportId}` : ""
     }`,
   );
 }

@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-07-02: Modular Refactor Phase 4 Publish, Audiobook, and Continuity Actions Split
+
+Status: completed.
+
+What was done:
+
+- Added `lib/audio/records.ts` for audiobook export record creation, active-export lookup, retry locking, provider/folder/deletion lookup, and export deletion.
+- Added `lib/continuity/records.ts` for continuity context loading, report creation, report resolve/reopen, one-click replacement fixes, active task lookup, fix-patch report loading, and fix-patch task adoption state updates.
+- Added `lib/publish/runs.ts` for standard publish package run creation, Station Cat target lookup/upsert, changed-item serialization, upload-scope descriptions, forced-upload diffing, Station Cat publish attempts, and sync-state advancement.
+- Added `lib/publish/ai-tasks.ts` for publish-page active task lookup and WeChat layout / cover-image context loading.
+- Added `lib/publish/cover-candidates.ts` for generated cover candidate persistence, base64/data-URL validation, URL-only candidate rejection, and cleanup of partially saved candidate assets.
+- Slimmed `app/projects/[projectId]/audiobook/actions.ts`, `continuity/actions.ts`, and `publish/actions.ts` so route actions focus on form parsing, Next.js not-found/redirect behavior, revalidation, and background task triggering.
+- Added focused service tests for audio records, continuity records, publish run helpers, and publish cover candidate persistence.
+
+Verification:
+
+- `npm run test -- 'app/projects/[projectId]/publish/actions.test.ts' 'app/projects/[projectId]/audiobook/actions.test.ts' 'app/projects/[projectId]/continuity/actions.test.ts' lib/audio/records.test.ts lib/continuity/records.test.ts lib/publish/cover-candidates.test.ts lib/publish/runs.test.ts` passed.
+- `npm run typecheck` passed.
+- `npm run test` passed, 85 files and 462 tests.
+- `npm run build` passed.
+- `git diff --check` passed.
+
 ## 2026-07-02: Modular Refactor Phase 3 Outline, Storyline, and Memory Actions Split
 
 Status: completed.
