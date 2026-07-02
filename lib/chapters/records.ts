@@ -5,6 +5,30 @@ import {
 import { prisma } from "@/lib/prisma";
 import { createMissingStorylineChapterRelationsForChapter } from "@/lib/storyline-auto-relations";
 
+type ExistingChapterForUpdate = {
+  id: string;
+  chapterNumber: number;
+};
+
+export async function findChapterForUpdate({
+  chapterId,
+  projectId,
+}: {
+  chapterId: string;
+  projectId: string;
+}): Promise<ExistingChapterForUpdate | null> {
+  return prisma.chapter.findFirst({
+    where: {
+      id: chapterId,
+      projectId,
+    },
+    select: {
+      id: true,
+      chapterNumber: true,
+    },
+  });
+}
+
 export async function createChapterRecord({
   changeReason,
   projectId,
@@ -52,50 +76,35 @@ export async function createChapterRecord({
 
 export async function updateChapterRecord({
   changeReason,
-  chapterId,
+  chapter,
   projectId,
   values,
 }: {
   changeReason?: string;
-  chapterId: string;
+  chapter: ExistingChapterForUpdate;
   projectId: string;
   values: ChapterValues;
 }) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    select: {
-      id: true,
-      chapterNumber: true,
-    },
-  });
-
-  if (!chapter) {
-    return null;
-  }
-
   const snapshot = chapterSnapshot(values);
 
   await prisma.$transaction(async (tx) => {
     await tx.chapter.update({
       where: {
-        id: chapterId,
+        id: chapter.id,
       },
       data: snapshot,
     });
 
     const versionCount = await tx.chapterVersion.count({
       where: {
-        chapterId,
+        chapterId: chapter.id,
       },
     });
 
     await tx.chapterVersion.create({
       data: {
         projectId,
-        chapterId,
+        chapterId: chapter.id,
         versionNumber: versionCount + 1,
         snapshotJson: JSON.stringify(snapshot),
         changeReason,
@@ -104,13 +113,13 @@ export async function updateChapterRecord({
     });
 
     await createMissingStorylineChapterRelationsForChapter(tx, projectId, {
-      id: chapterId,
+      id: chapter.id,
       chapterNumber: snapshot.chapterNumber,
     });
   });
 
   return {
-    chapterId,
+    chapterId: chapter.id,
     previousChapterNumber: chapter.chapterNumber,
     chapterNumber: snapshot.chapterNumber,
   };
@@ -150,36 +159,20 @@ export async function deleteChapterRecord({
 }
 
 export async function updateChapterReaderRemoteIdRecord({
-  chapterId,
+  chapter,
   projectId,
   readerRemoteId,
 }: {
-  chapterId: string;
+  chapter: Pick<ExistingChapterForUpdate, "id">;
   projectId: string;
   readerRemoteId: string | null;
 }) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!chapter) {
-    return false;
-  }
-
   await prisma.chapter.update({
     where: {
-      id: chapterId,
+      id: chapter.id,
     },
     data: {
       readerRemoteId,
     },
   });
-
-  return true;
 }

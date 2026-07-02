@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createChapterRecord,
   deleteChapterRecord,
+  findChapterForUpdate,
   updateChapterRecord,
 } from "./records";
 
@@ -105,14 +106,14 @@ describe("chapter record services", () => {
   });
 
   it("updates an existing chapter with the next version number", async () => {
-    mocks.prisma.chapter.findFirst.mockResolvedValue({
+    const chapter = {
       id: "chapter_7",
       chapterNumber: 6,
-    });
+    };
 
     const result = await updateChapterRecord({
       projectId: "project_1",
-      chapterId: "chapter_7",
+      chapter,
       values: baseValues,
       changeReason: "manual update",
     });
@@ -138,6 +139,34 @@ describe("chapter record services", () => {
         changeReason: "manual update",
         sourceType: "manual",
       }),
+    });
+  });
+
+  it("finds an existing chapter before parsing update form data", async () => {
+    mocks.prisma.chapter.findFirst.mockResolvedValue({
+      id: "chapter_7",
+      chapterNumber: 6,
+    });
+
+    await expect(
+      findChapterForUpdate({
+        projectId: "project_1",
+        chapterId: "chapter_7",
+      }),
+    ).resolves.toEqual({
+      id: "chapter_7",
+      chapterNumber: 6,
+    });
+
+    expect(mocks.prisma.chapter.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "chapter_7",
+        projectId: "project_1",
+      },
+      select: {
+        id: true,
+        chapterNumber: true,
+      },
     });
   });
 

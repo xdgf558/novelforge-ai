@@ -32,6 +32,7 @@ import {
 import {
   createChapterRecord,
   deleteChapterRecord,
+  findChapterForUpdate,
   updateChapterReaderRemoteIdRecord,
   updateChapterRecord,
 } from "@/lib/chapters/records";
@@ -191,6 +192,15 @@ export async function updateChapter(
   chapterId: string,
   formData: FormData,
 ) {
+  const chapter = await findChapterForUpdate({
+    projectId,
+    chapterId,
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
   const { values, changeReason, finalizeError } = parseChapterForm(formData);
 
   if (finalizeError) {
@@ -205,14 +215,10 @@ export async function updateChapter(
 
   const updateResult = await updateChapterRecord({
     projectId,
-    chapterId,
+    chapter,
     values,
     changeReason,
   });
-
-  if (!updateResult) {
-    notFound();
-  }
 
   await syncOutlineStatusesForChapterNumbers(projectId, [
     updateResult.previousChapterNumber,
@@ -254,18 +260,23 @@ export async function updateChapterReaderRemoteId(
   chapterId: string,
   formData: FormData,
 ) {
+  const chapter = await findChapterForUpdate({
+    projectId,
+    chapterId,
+  });
+
+  if (!chapter) {
+    notFound();
+  }
+
   const readerRemoteId = readerRemoteIdSchema.parse(
     formData.get("readerRemoteId"),
   );
-  const updated = await updateChapterReaderRemoteIdRecord({
+  await updateChapterReaderRemoteIdRecord({
     projectId,
-    chapterId,
+    chapter,
     readerRemoteId,
   });
-
-  if (!updated) {
-    notFound();
-  }
 
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
   redirect(`/projects/${projectId}/chapters/${chapterId}#reader-feedback`);
