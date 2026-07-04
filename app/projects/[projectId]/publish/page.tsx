@@ -68,6 +68,10 @@ import {
   stringifyStandardPublishPackage,
 } from "@/lib/publish-platforms";
 import {
+  latestStationCatChapterOptions,
+  type PublishChapterOption,
+} from "@/lib/publish/chapter-options";
+import {
   coverImageAcceptAttribute,
   formatCoverImageSize,
 } from "@/lib/project-cover-assets";
@@ -156,6 +160,8 @@ export default async function PublishPage({
       chapterNumber: chapter.chapterNumber,
       title: chapter.title,
     }));
+  const stationCatChapterOptions =
+    latestStationCatChapterOptions(publishableChapters);
   const globalStationCatTarget = project.publishTargets.find(
     (target) =>
       target.platformKey === "station_cat" &&
@@ -523,7 +529,7 @@ export default async function PublishPage({
           >
             <PublishRunFormControls
               canSubmit={canUseGlobalStationCat}
-              chapters={publishableChapters}
+              chapters={stationCatChapterOptions}
               defaultMode={stationCatSettings.defaultMode}
               disabledMessage="需要先在本机设置中保存 Station Cat Publish Token，才能调用网站导入接口。"
               submitLabel="发送到 Station Cat"
@@ -760,7 +766,7 @@ export default async function PublishPage({
                   >
                     <PublishRunFormControls
                       canSubmit={canSubmitPublish}
-                      chapters={publishableChapters}
+                      chapters={stationCatChapterOptions}
                       defaultMode={target.defaultMode}
                       disabledMessage="需要先保存 API Base URL 和 Station Cat Publish Token，才能调用网站导入接口。"
                       submitLabel={submitLabel}
@@ -907,12 +913,6 @@ function InfoTile({
   );
 }
 
-type PublishChapterOption = {
-  id: string;
-  chapterNumber: number | null;
-  title: string;
-};
-
 type CoverImageTaskRecord = {
   adoptionState?: string | null;
   createdAt: Date;
@@ -1003,7 +1003,8 @@ function PublishRunFormControls({
       </div>
 
       <p className="col-span-full text-xs leading-5 text-ink-700">
-        默认上传所有变更；选择“指定章节”后，只会把所选章节作为本次变更条目发送，不会连带封面或其他章节。取消“仅上传变更”可强制重传所选范围。
+        默认上传所有变更；选择“指定章节”后，只会把所选章节作为本次变更条目发送，不会连带封面或其他章节。指定章节列表仅显示最近
+        5 章，旧章节会自动隐藏。取消“仅上传变更”可强制重传所选范围。
       </p>
 
       {!canSubmit ? (

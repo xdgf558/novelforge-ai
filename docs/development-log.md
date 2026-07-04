@@ -1,5 +1,25 @@
 # Development Log
 
+## 2026-07-04: Station Cat Specified Chapter Selector Limit
+
+Status: completed.
+
+What was done:
+
+- Limited the Station Cat “指定章节” dropdown on the publish page to the latest
+  five publishable chapters.
+- Kept the latest chapter selected by default while hiding older chapters from
+  the compact send form.
+- Left WeChat/Fanqie export chapter selectors unchanged because those are manual
+  formatting/export tools rather than the Station Cat send control.
+- Added a focused helper and regression test for the latest-five chapter option
+  selection.
+
+Verification:
+
+- `npm run test -- lib/publish/chapter-options.test.ts` passed.
+- `npm run typecheck` passed.
+
 ## 2026-07-04: Pending Update Extraction Timeout and Context Hardening
 
 Status: completed.
@@ -20,6 +40,36 @@ Verification:
 - `npm run test -- lib/ai/pending-updates.test.ts lib/ai/task-logger.test.ts`
   passed.
 - `npm run typecheck` passed.
+
+## 2026-07-04: 0.1.82 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.82`.
+- Rebuilt the personal-use macOS installer from `main` after the pending-update
+  extraction timeout and context hardening fix.
+- Removed the previous `release/desktop` artifacts before rebuilding.
+- Created the new installer at
+  `release/desktop/NovelForge-AI-0.1.82-mac-arm64.pkg`.
+- Built the PKG directly from the signed Electron app payload with
+  `pkgbuild --component` and install location `/Applications`.
+- Left only the final `.pkg` in `release/desktop`.
+
+Verification:
+
+- `npm run desktop:pack:mac` completed with notarization skipped by local
+  packaging settings.
+- `npm run desktop:smoke` passed.
+- Source app bundle versions are `0.1.82` in `Info.plist`; bundled
+  `app.asar` `package.json` is also `0.1.82`.
+- Source app bundle passed
+  `codesign --verify --deep --strict --verbose=2`.
+- Final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.82`,
+  and install location `/Applications`.
+- Final PKG is unsigned, as expected on this machine because no Developer ID
+  Installer identity is available.
 
 ## 2026-07-04: Auto-Mark Chapters Published After Station Cat Upload
 
