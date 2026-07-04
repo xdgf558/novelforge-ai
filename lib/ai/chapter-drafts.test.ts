@@ -63,11 +63,14 @@ describe("chapter draft context builder", () => {
     expect(context.inputText).toContain("短句推进，悬疑压迫感强");
     expect(context.inputText).toContain("不是……而是……");
     expect(context.inputText).toContain("反模板腔硬性自检");
+    expect(context.inputText).toContain("反流水账硬性自检");
+    expect(context.inputText).toContain("无冲突过渡日");
     expect(context.inputText).toContain("最多保留 1 处");
     expect(context.inputJson.styleConstraints).toEqual(
       expect.arrayContaining([
         expect.stringContaining("反模板腔"),
         expect.stringContaining("不是……而是……"),
+        expect.stringContaining("反流水账"),
       ]),
     );
     expect(context.inputText).toContain("林野");
@@ -88,6 +91,7 @@ describe("chapter draft context builder", () => {
     expect(context.inputText).toContain("目标平台：番茄小说长篇连载");
     expect(context.inputText).toContain("开篇 300 字内必须出现明确人物动作");
     expect(context.inputText).toContain("每 800-1200 字推进一次有效信息");
+    expect(context.inputText).toContain("不要按一天一天或早中晚流水账推进");
     expect(context.inputText).toContain("章尾保留追读钩子");
     expect(context.inputJson.platformTemplate).toEqual(
       expect.objectContaining({

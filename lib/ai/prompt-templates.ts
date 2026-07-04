@@ -120,14 +120,14 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "chapter_beat_generation",
     name: "章节节拍生成",
     taskType: "chapter_beat_generation",
-    version: 1,
+    version: 2,
     outputFormat: "markdown",
     systemPrompt:
       `你是长篇连载小说的章节节拍助手。遵守既有设定、角色信息边界和禁写项，不得引入未经作者确认的正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
       "根据当前章节目标、项目设定、相关角色和最近章节摘要，生成本章关键事件、情绪转折和结尾钩子。",
     contextNotes:
-      "输入应限制为任务相关上下文：项目设定摘要、相关角色、最近 3 章摘要、上一章结尾、当前章节目标。",
+      "输入应限制为任务相关上下文：项目设定摘要、相关角色、最近 3 章摘要、上一章结尾、当前章节目标。节拍应按冲突链、线索链和人物选择推进，避免逐日流水账。",
   },
   {
     key: "outline_generation",
@@ -334,27 +334,27 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "chapter_draft_generation",
     name: "章节草稿生成",
     taskType: "chapter_draft_generation",
-    version: 2,
+    version: 3,
     outputFormat: "text",
     systemPrompt:
       `你是长篇连载小说草稿助手。严格按已确认节拍写作，保持人物说话规则和世界观边界。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
       "根据已确认章节节拍、文风样本、角色说话规则和目标字数，生成章节草稿。",
     contextNotes:
-      "输入应包含已确认节拍、文风样本、角色说话规则、上一章结尾、目标字数和禁写项。",
+      "输入应包含已确认节拍、文风样本、角色说话规则、上一章结尾、目标字数和禁写项。正文必须按有效冲突、线索、选择和代价推进，跳过无新信息的过渡日。",
   },
   {
     key: "chapter_polish_generation",
     name: "正文精修",
     taskType: "chapter_polish_generation",
-    version: 2,
+    version: 3,
     outputFormat: "text",
     systemPrompt:
       `你是长篇连载小说正文精修助手。只优化表达、节奏、段落衔接和可读性，不改变作者已确认的剧情事实和正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
       "根据章节草稿或已有精修稿、章节目标、文风样本、角色说话规则和禁写事项，输出完整精修正文。",
     contextNotes:
-      "输入应包含待精修正文、章节目标、章节节拍、文风样本、角色说话规则、世界观边界和禁写项。输出必须是读者可直接阅读的完整正文，不得保留节拍标题或创作过程说明。",
+      "输入应包含待精修正文、章节目标、章节节拍、文风样本、角色说话规则、世界观边界和禁写项。输出必须是读者可直接阅读的完整正文，不得保留节拍标题或创作过程说明；在不改变事实的前提下压缩逐日流水账式过渡。",
   },
   {
     key: "chapter_summary_extraction",

@@ -303,6 +303,11 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - AI chapter polish uses task type `chapter_polish_generation`. It reads the best available author text in this order: polished text, final text, draft text, so repeated polish starts from the author's current polished candidate instead of stale draft text. Generated output is saved in `ai_tasks` and only moves into `Chapter.polishedText` after explicit author adoption. Adoption must remain server-side idempotent (`not_reviewed` -> `adopted`) and must not directly overwrite `finalText`.
 - Chapter polish prompt input has a single-call budget. New overlong polish requests should automatically create one logged `chapter_polish_generation` task that runs segmented polish in the background: split the best available source text into bounded segments, call the model sequentially for each segment with adjacent-segment context, then stitch successful outputs back into a complete polish candidate. The task must be adoptable only after all segments succeed; old head/middle/tail excerpt tasks remain preview-only and must not be adoptable into `Chapter.polishedText`.
 - Adopting a polish candidate should move `draft` and `final` chapters to `revising` because `finalText` has not changed yet and the author still needs to explicitly finalize the new polished candidate. Keep `published` as `published` until a richer published-with-revision state exists.
+- Chapter beat/draft/polish generation must avoid default day-by-day diary
+  progression. Prompts and contexts should push the model toward conflict
+  chains, clue chains, character choices, costs, relationship shifts, risk
+  escalation, and foreshadow movement; routine days or transitions with no new
+  narrative function should be skipped or compressed.
 - `/ai-settings` redirects back with a saved-state message after AI or Station Cat settings are stored.
 - The top toolbar and `/ai-settings` should show the current app version and release notes so the user can confirm which packaged version is installed.
 - The Electron shell handles `Escape` at the window level to leave fullscreen or maximized state.

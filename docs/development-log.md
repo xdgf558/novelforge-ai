@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-07-04: Anti-Diary Chapter Progression Guardrails
+
+Status: completed.
+
+What was done:
+
+- Added explicit anti-diary / anti-day-by-day progression guardrails to prose
+  generation rules.
+- Upgraded the default chapter beat prompt to v2 and the chapter draft / polish
+  prompts to v3 so existing projects can auto-move off older active templates.
+- Updated chapter beat, draft, normal polish, segmented polish, and Fanqie
+  platform contexts to require conflict-chain, clue-chain, choice-chain, cost,
+  relationship, risk, or foreshadow-driven scene progression.
+- Added tests to ensure the new guardrails are present in default templates and
+  generated AI task contexts.
+
+Verification:
+
+- `npm run test -- lib/ai/prompt-templates.test.ts lib/ai/chapter-beats.test.ts lib/ai/chapter-drafts.test.ts lib/ai/chapter-polishes.test.ts` passed.
+- `npm run typecheck` passed.
+
 ## 2026-07-04: 0.1.83 Personal macOS Installer Rebuild
 
 Status: completed.

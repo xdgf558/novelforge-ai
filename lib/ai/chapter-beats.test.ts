@@ -133,8 +133,13 @@ describe("chapter beat context builder", () => {
     const context = buildChapterBeatContext(baseInput);
 
     expect(context.inputText).toContain("不是……而是……");
+    expect(context.inputText).toContain("反流水账硬性自检");
+    expect(context.inputText).toContain("无冲突过渡日");
     expect(context.inputJson.proseStyleGuardrails).toEqual(
       expect.arrayContaining([expect.stringContaining("反模板腔")]),
+    );
+    expect(context.inputJson.proseStyleGuardrails).toEqual(
+      expect.arrayContaining([expect.stringContaining("反流水账")]),
     );
   });
 });

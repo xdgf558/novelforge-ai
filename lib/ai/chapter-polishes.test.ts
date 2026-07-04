@@ -57,11 +57,13 @@ describe("chapter polish context builder", () => {
     expect(context.inputText).toContain("删除“【开场钩子】");
     expect(context.inputText).toContain("不是……而是……");
     expect(context.inputText).toContain("反模板腔硬性自检");
+    expect(context.inputText).toContain("反流水账精修");
     expect(context.inputText).toContain("最多保留 1 处");
     expect(context.inputJson.styleConstraints).toEqual(
       expect.arrayContaining([
         expect.stringContaining("反模板腔"),
         expect.stringContaining("不是……而是……"),
+        expect.stringContaining("反流水账"),
       ]),
     );
     expect(context.inputText).toContain("不能让 AI 直接改写正式设定");
@@ -79,6 +81,7 @@ describe("chapter polish context builder", () => {
 
     expect(context.inputText).toContain("目标平台：番茄小说长篇连载");
     expect(context.inputText).toContain("清理 AI 腔、解释腔、总结腔");
+    expect(context.inputText).toContain("压缩逐日流水账式过渡");
     expect(context.inputText).toContain("强化开篇钩子");
     expect(context.inputText).toContain("章尾增加追读感");
     expect(context.inputJson.platformTemplate).toEqual(
@@ -160,6 +163,7 @@ describe("chapter polish context builder", () => {
       "只输出本段精修正文",
     );
     expect(context.segments[0].inputText).toContain("不是……而是……");
+    expect(context.segments[0].inputText).toContain("反流水账精修");
     expect(context.inputContextSummary).toContain("自动分段精修");
     expect(isExcerptedChapterPolishInputJson(JSON.stringify(context.inputJson))).toBe(
       false,

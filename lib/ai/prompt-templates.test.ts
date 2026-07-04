@@ -61,9 +61,17 @@ describe("default AI prompt templates", () => {
         template.systemPrompt.includes("硬性限制"),
       ),
     ).toBe(true);
+    expect(
+      proseTemplates.every((template) =>
+        template.systemPrompt.includes("反流水账"),
+      ),
+    ).toBe(true);
   });
 
-  it("ships newer default versions for long-form draft and polish prompts", () => {
+  it("ships newer default versions for long-form prose prompts", () => {
+    const beatTemplate = DEFAULT_AI_PROMPT_TEMPLATES.find(
+      (template) => template.key === "chapter_beat_generation",
+    );
     const draftTemplate = DEFAULT_AI_PROMPT_TEMPLATES.find(
       (template) => template.key === "chapter_draft_generation",
     );
@@ -71,7 +79,8 @@ describe("default AI prompt templates", () => {
       (template) => template.key === "chapter_polish_generation",
     );
 
-    expect(draftTemplate?.version).toBeGreaterThanOrEqual(2);
-    expect(polishTemplate?.version).toBeGreaterThanOrEqual(2);
+    expect(beatTemplate?.version).toBeGreaterThanOrEqual(2);
+    expect(draftTemplate?.version).toBeGreaterThanOrEqual(3);
+    expect(polishTemplate?.version).toBeGreaterThanOrEqual(3);
   });
 });
