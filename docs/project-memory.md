@@ -38,6 +38,9 @@ MVP includes:
 - WeChat and Fanqie layout export for manual platform publishing
 - Markdown/JSON project export
 - Local persistence
+- Successful Station Cat personal-site chapter uploads automatically mark the
+  synced local chapters as `published` and create chapter version snapshots; AI
+  or failed publish attempts must not silently change chapter status.
 
 MVP excludes:
 

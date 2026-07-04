@@ -1,5 +1,28 @@
 # Development Log
 
+## 2026-07-04: Auto-Mark Chapters Published After Station Cat Upload
+
+Status: completed.
+
+What was done:
+
+- Updated the Station Cat publish-run service so successfully synced chapter
+  items automatically change their local chapter status to `published`.
+- Kept author-control boundaries intact: failed Station Cat items and failed
+  publish runs do not change chapter status.
+- Added a `station_cat_publish` chapter version snapshot when an upload changes
+  a chapter status, so the history page records why the status changed.
+- Stored the post-upload `published` chapter payload hash in publish sync state
+  to avoid a redundant follow-up upload caused only by the local status change.
+
+Verification:
+
+- `npm run test -- lib/publish/runs.test.ts` passed.
+- `npm run test -- 'app/projects/[projectId]/publish/actions.test.ts'` passed.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `git diff --check` passed.
+
 ## 2026-07-02: 0.1.80 Personal macOS Installer Rebuild
 
 Status: completed.

@@ -199,21 +199,21 @@ export function buildPublishSyncItems(
       localType: "project",
       localId: publishPackage.project.id || "project",
       label: `小说元信息：${publishPackage.project.title}`,
-      contentHash: hashPayload(projectPayload),
+      contentHash: hashPublishPayload(projectPayload),
       payload: projectPayload,
     },
     {
       localType: "cover",
       localId: `${publishPackage.project.id || "project"}:cover`,
       label: "封面图与封面提示词",
-      contentHash: hashPayload(publishPackage.cover),
+      contentHash: hashPublishPayload(publishPackage.cover),
       payload: publishPackage.cover,
     },
     ...publishPackage.chapters.map((chapter) => ({
       localType: "chapter" as const,
       localId: chapter.id,
       label: `第 ${chapter.chapterNumber ?? "?"} 章：${chapter.title}`,
-      contentHash: hashPayload(chapter),
+      contentHash: hashPublishPayload(chapter),
       payload: chapter,
     })),
   ];
@@ -412,7 +412,7 @@ function latestCoverPrompt(publishPackages?: readonly Record<string, unknown>[])
   return latest ? stringValue(latest.coverPrompt) : "";
 }
 
-function hashPayload(payload: unknown) {
+export function hashPublishPayload(payload: unknown) {
   return createHash("sha256").update(stableStringify(payload)).digest("hex");
 }
 

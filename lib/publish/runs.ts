@@ -1,9 +1,11 @@
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
+import { chapterSnapshot, chapterValuesFromRecord } from "@/lib/chapter-fields";
 import {
   buildPublishSyncItems,
   buildStandardPublishPackage,
   diffPublishSyncItems,
   filterPublishChangedItemsByUploadScope,
+  hashPublishPayload,
   normalizePublishMode,
   publishModeLabel,
   stringifyStandardPublishPackage,
@@ -100,6 +102,11 @@ export async function createPublishRun({
       hasApiBaseUrl: Boolean(target.apiBaseUrl),
     });
   const errorMessage = stationCatAttempt?.errorMessage ?? null;
+  const publishedChapterIds = publishedChapterIdsForSuccessfulStationCatItems(
+    changedItems,
+    stationCatResult,
+  );
+  const publishedChapterIdSet = new Set(publishedChapterIds);
 
   await prisma.$transaction(async (tx) => {
     await tx.publishRun.create({
@@ -132,6 +139,10 @@ export async function createPublishRun({
       const remoteId = stationCatResult
         ? remoteIdForStationCatItem(stationCatResult, item)
         : (item.remoteId ?? null);
+      const contentHash =
+        item.localType === "chapter" && publishedChapterIdSet.has(item.localId)
+          ? publishedChapterContentHash(item)
+          : item.contentHash;
 
       await tx.publishSyncState.upsert({
         where: {
@@ -147,17 +158,62 @@ export async function createPublishRun({
           localType: item.localType,
           localId: item.localId,
           remoteId,
-          contentHash: item.contentHash,
+          contentHash,
           lastMode: mode,
           lastSyncedAt: completedAt,
         },
         update: {
           remoteId,
-          contentHash: item.contentHash,
+          contentHash,
           lastMode: mode,
           lastSyncedAt: completedAt,
         },
       });
+    }
+
+    if (publishedChapterIds.length > 0) {
+      const chaptersToMark = await tx.chapter.findMany({
+        where: {
+          projectId,
+          id: {
+            in: publishedChapterIds,
+          },
+          status: {
+            not: "published",
+          },
+        },
+      });
+
+      for (const chapter of chaptersToMark) {
+        const snapshot = chapterSnapshot({
+          ...chapterValuesFromRecord(chapter),
+          status: "published",
+        });
+
+        await tx.chapter.update({
+          where: {
+            id: chapter.id,
+          },
+          data: snapshot,
+        });
+
+        const versionCount = await tx.chapterVersion.count({
+          where: {
+            chapterId: chapter.id,
+          },
+        });
+
+        await tx.chapterVersion.create({
+          data: {
+            projectId,
+            chapterId: chapter.id,
+            versionNumber: versionCount + 1,
+            snapshotJson: JSON.stringify(snapshot),
+            changeReason: "上传到 Station Cat 后自动标记为已发布。",
+            sourceType: "station_cat_publish",
+          },
+        });
+      }
     }
   });
 }
@@ -277,6 +333,41 @@ export function describePublishUploadSelection(
   }
 
   return `指定章节：第 ${chapter.chapterNumber ?? "?"} 章《${chapter.title}》`;
+}
+
+export function publishedChapterIdsForSuccessfulStationCatItems(
+  changedItems: readonly Pick<PublishChangedItem, "localType" | "localId">[],
+  stationCatResult?: StationCatPublishResult | null,
+) {
+  if (!stationCatResult?.ok) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      changedItems.flatMap((item) =>
+        item.localType === "chapter" &&
+        stationCatItemSucceeded(stationCatResult, item)
+          ? [item.localId]
+          : [],
+      ),
+    ),
+  ];
+}
+
+function publishedChapterContentHash(item: PublishChangedItem) {
+  if (!isObjectPayload(item.payload)) {
+    return item.contentHash;
+  }
+
+  return hashPublishPayload({
+    ...item.payload,
+    status: "published",
+  });
+}
+
+function isObjectPayload(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function runStationCatPublishAttempt({

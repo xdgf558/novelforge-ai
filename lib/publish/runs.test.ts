@@ -4,6 +4,7 @@ import { buildStandardPublishPackage } from "@/lib/publish-platforms";
 import {
   describePublishUploadSelection,
   markAllSyncItemsForUpload,
+  publishedChapterIdsForSuccessfulStationCatItems,
 } from "./runs";
 
 describe("publish run services", () => {
@@ -84,5 +85,54 @@ describe("publish run services", () => {
         standardPackage,
       ),
     ).toBe("指定章节：第 3 章《墙痕对质》");
+  });
+
+  it("returns only successfully synced chapter ids for automatic published status", () => {
+    expect(
+      publishedChapterIdsForSuccessfulStationCatItems(
+        [
+          {
+            localId: "project_1",
+            localType: "project",
+          },
+          {
+            localId: "chapter_1",
+            localType: "chapter",
+          },
+          {
+            localId: "chapter_2",
+            localType: "chapter",
+          },
+        ],
+        {
+          errors: [],
+          items: [
+            {
+              localId: "chapter_1",
+              localType: "chapter",
+              message: null,
+              remoteId: "remote_chapter_1",
+              status: "updated",
+            },
+            {
+              localId: "chapter_2",
+              localType: "chapter",
+              message: "validation failed",
+              remoteId: null,
+              status: "failed",
+            },
+          ],
+          ok: true,
+          previewUrl: null,
+          publishUrl: null,
+          rawJson: {},
+          remoteBookId: "remote_project_1",
+          remoteIds: {},
+          requestId: "request_1",
+          resultMessage: null,
+          statusCode: 200,
+        },
+      ),
+    ).toEqual(["chapter_1"]);
   });
 });
