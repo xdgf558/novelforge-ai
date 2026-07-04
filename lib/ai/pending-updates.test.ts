@@ -60,6 +60,36 @@ describe("pending update context builder", () => {
     });
   });
 
+  it("clips bulky auxiliary context while keeping the confirmed final text", () => {
+    const longBeatsTail = "节拍尾部不应出现在提示词";
+    const longSummaryTail = "摘要尾部不应出现在提示词";
+    const finalTextTail = "定稿尾部仍应作为提取依据";
+    const context = buildPendingUpdateContext({
+      ...baseInput,
+      chapter: {
+        ...baseInput.chapter,
+        beats: `${"节拍内容".repeat(500)}${longBeatsTail}`,
+        finalText: `${"正文内容".repeat(500)}${finalTextTail}`,
+      },
+      latestSummaryTask: {
+        ...baseInput.latestSummaryTask,
+        outputText: `${"摘要内容".repeat(800)}${longSummaryTail}`,
+      },
+    });
+    const inputJson = context.inputJson as {
+      chapter: { beats?: string };
+      latestSummaryTask?: { outputText?: string } | null;
+    };
+
+    expect(context.inputText).toContain(finalTextTail);
+    expect(context.inputText).not.toContain(longBeatsTail);
+    expect(context.inputText).not.toContain(longSummaryTail);
+    expect(String(inputJson.chapter.beats)).not.toContain(longBeatsTail);
+    expect(String(inputJson.latestSummaryTask?.outputText)).not.toContain(
+      longSummaryTail,
+    );
+  });
+
   it("summarizes extraction scope for AI task records", () => {
     expect(buildPendingUpdateContextSummary(baseInput)).toBe(
       `第 6 章《倒计时归零》待审核更新提取；定稿 ${baseInput.chapter.finalText.length} 字；角色 1 个；包含章节摘要任务`,

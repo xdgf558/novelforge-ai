@@ -247,7 +247,8 @@ export function resolveAiTaskRequestTimeoutMs(taskType: string) {
   if (
     taskType === "chapter_beat_generation" ||
     taskType === "outline_generation" ||
-    taskType === "ending_planning_generation"
+    taskType === "ending_planning_generation" ||
+    taskType === "pending_update_extraction"
   ) {
     return longPlanningAiRequestTimeoutMs;
   }

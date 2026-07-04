@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-07-04: Pending Update Extraction Timeout and Context Hardening
+
+Status: completed.
+
+What was done:
+
+- Added `pending_update_extraction` to the 5 minute AI request timeout group so
+  larger memory-audit JSON extraction tasks do not fall back to the default
+  120 second timeout.
+- Tightened pending-update prompt assembly so bulky auxiliary context is clipped
+  in the actual model prompt, not only in the stored `inputJson` audit payload.
+- Kept confirmed `finalText` as the full source of truth for extracting
+  author-reviewable memory updates.
+- Added regression tests for the timeout routing and prompt clipping behavior.
+
+Verification:
+
+- `npm run test -- lib/ai/pending-updates.test.ts lib/ai/task-logger.test.ts`
+  passed.
+- `npm run typecheck` passed.
+
 ## 2026-07-04: Auto-Mark Chapters Published After Station Cat Upload
 
 Status: completed.
@@ -22,6 +43,41 @@ Verification:
 - `npm run typecheck` passed.
 - `npm run build` passed.
 - `git diff --check` passed.
+
+## 2026-07-04: 0.1.81 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.81`.
+- Rebuilt the personal-use macOS installer from `main` after the Station Cat
+  publish status automation.
+- Removed the previous `release/desktop` artifacts before rebuilding.
+- Created the new installer at
+  `release/desktop/NovelForge-AI-0.1.81-mac-arm64.pkg`.
+- Built the PKG directly from the signed Electron app payload with
+  `pkgbuild --component` and install location `/Applications`.
+- Did not add a postinstall provenance-cleanup script in this rebuild. A real
+  overwrite install into `/Applications` was not run because that requires
+  explicit approval to replace the currently installed local app.
+
+Verification:
+
+- `npm run desktop:pack:mac` completed with notarization skipped by local
+  packaging settings.
+- `npm run desktop:smoke` passed.
+- Source app bundle versions are `0.1.81` in `Info.plist`; bundled
+  `app.asar` `package.json` is also `0.1.81`.
+- Source app bundle passed
+  `codesign --verify --deep --strict --verbose=2`.
+- Final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.81`,
+  and install location `/Applications`.
+- Final PKG is unsigned, as expected on this machine because no Developer ID
+  Installer identity is available.
+- Bundled desktop startup still calls `runDesktopMigrations`, does not call
+  `prisma migrate deploy`, does not reference `prisma/build/index.js`, and
+  still reads bundled `migration.sql`.
 
 ## 2026-07-02: 0.1.80 Personal macOS Installer Rebuild
 

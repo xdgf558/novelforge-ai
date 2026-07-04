@@ -84,14 +84,20 @@ export type PendingUpdateSuggestion = {
 };
 
 const finalTextPreviewMaxLength = 1200;
+const latestSummaryMaxLength = 2000;
 
 export function buildPendingUpdateContext(
   input: PendingUpdateContextInput,
 ): BuiltPendingUpdateContext {
   const sourceText = confirmedChapterText(input.chapter);
+  const projectDescription = clipText(input.project.description);
+  const projectWechatPositioning = clipText(input.project.wechatPositioning);
+  const chapterBeats = clipText(input.chapter.beats);
+  const chapterNotes = clipText(input.chapter.notes);
   const settingItems = buildSettingItems(input.setting);
   const characterItems = input.characters.map(buildCharacterLine).filter(Boolean);
   const summaryOutput = clean(input.latestSummaryTask?.outputText);
+  const latestSummaryOutput = clipText(summaryOutput, latestSummaryMaxLength);
 
   const inputJson = {
     project: {
@@ -99,15 +105,15 @@ export function buildPendingUpdateContext(
       genre: clean(input.project.genre),
       targetAudience: clean(input.project.targetAudience),
       platform: clean(input.project.platform),
-      description: clipText(input.project.description),
-      wechatPositioning: clipText(input.project.wechatPositioning),
+      description: projectDescription,
+      wechatPositioning: projectWechatPositioning,
     },
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
       goal: clean(input.chapter.goal),
-      beats: clipText(input.chapter.beats),
-      notes: clean(input.chapter.notes),
+      beats: chapterBeats,
+      notes: chapterNotes,
       finalTextLength: sourceText.length,
       finalTextPreview: clipText(sourceText, finalTextPreviewMaxLength),
     },
@@ -115,7 +121,7 @@ export function buildPendingUpdateContext(
       ? {
           id: input.latestSummaryTask.id,
           inputContextSummary: input.latestSummaryTask.inputContextSummary,
-          outputText: clipText(summaryOutput, 2000),
+          outputText: latestSummaryOutput,
         }
       : null,
     setting: Object.fromEntries(settingItems),
@@ -139,8 +145,8 @@ export function buildPendingUpdateContext(
       ["题材", input.project.genre],
       ["目标读者", input.project.targetAudience],
       ["平台", input.project.platform],
-      ["简介", input.project.description],
-      ["公众号定位", input.project.wechatPositioning],
+      ["简介", projectDescription],
+      ["公众号定位", projectWechatPositioning],
     ]),
     "",
     "# 当前正式总设定档",
@@ -154,13 +160,13 @@ export function buildPendingUpdateContext(
     characterItems.length > 0 ? characterItems.join("\n") : "暂无角色资料。",
     "",
     "# 最新章节摘要任务输出",
-    summaryOutput || "暂无已完成章节摘要任务输出。",
+    latestSummaryOutput || "暂无已完成章节摘要任务输出。",
     "",
     "# 当前章节元信息",
     lines([
       ["章节目标", input.chapter.goal],
-      ["章节节拍", input.chapter.beats],
-      ["作者备注", input.chapter.notes],
+      ["章节节拍", chapterBeats],
+      ["作者备注", chapterNotes],
     ]),
     "",
     "# 定稿正文",

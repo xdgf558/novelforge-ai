@@ -357,6 +357,9 @@ describe("AI task logger", () => {
     expect(resolveAiTaskRequestTimeoutMs("ending_planning_generation")).toBe(
       longPlanningAiRequestTimeoutMs,
     );
+    expect(resolveAiTaskRequestTimeoutMs("pending_update_extraction")).toBe(
+      longPlanningAiRequestTimeoutMs,
+    );
     expect(resolveAiTaskRequestTimeoutMs("chapter_summary_extraction")).toBeUndefined();
   });
 
