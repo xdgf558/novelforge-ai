@@ -18,7 +18,7 @@ What was done:
 
 Verification:
 
-- `npm run test -- lib/ai/prompt-templates.test.ts lib/ai/chapter-beats.test.ts lib/ai/chapter-drafts.test.ts lib/ai/chapter-polishes.test.ts` passed.
+- `npm run test -- lib/ai/prompt-templates.test.ts lib/ai/prompt-template-store.test.ts lib/ai/chapter-beats.test.ts lib/ai/chapter-drafts.test.ts lib/ai/chapter-polishes.test.ts` passed.
 - `npm run typecheck` passed.
 
 ## 2026-07-04: 0.1.83 Personal macOS Installer Rebuild
