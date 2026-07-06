@@ -205,15 +205,19 @@ export function parsePendingUpdateSuggestions(
 ): PendingUpdateSuggestion[] {
   const parsed = parseJsonPayload(outputText);
 
-  if (!isRecord(parsed)) {
-    return [];
+  if (isRecord(parsed)) {
+    const directUpdates = Array.isArray(parsed.updates)
+      ? parsed.updates
+      : groupedSchemaToUpdates(parsed);
+
+    return normalizeSuggestionList(directUpdates);
   }
 
-  const directUpdates = Array.isArray(parsed.updates)
-    ? parsed.updates
-    : groupedSchemaToUpdates(parsed);
+  return normalizeSuggestionList(parseLooseUpdateObjects(outputText));
+}
 
-  return directUpdates
+function normalizeSuggestionList(values: unknown[]) {
+  return values
     .map(normalizeSuggestion)
     .filter((suggestion): suggestion is PendingUpdateSuggestion =>
       Boolean(suggestion),
@@ -423,6 +427,124 @@ function parseJsonPayload(value?: string | null) {
     } catch {
       return null;
     }
+  }
+}
+
+function parseLooseUpdateObjects(value?: string | null) {
+  const cleaned = clean(value);
+  const updatesArray = extractLooseUpdatesArray(cleaned);
+
+  if (!updatesArray) {
+    return [];
+  }
+
+  return extractLooseObjectBlocks(updatesArray)
+    .map(parseLooseObjectBlock)
+    .filter((record) => Object.keys(record).length > 0);
+}
+
+function extractLooseUpdatesArray(value: string) {
+  const updatesMatch = /"updates"\s*:/.exec(value);
+
+  if (!updatesMatch) {
+    return "";
+  }
+
+  const arrayStart = value.indexOf("[", updatesMatch.index);
+
+  if (arrayStart < 0) {
+    return "";
+  }
+
+  let depth = 0;
+
+  for (let index = arrayStart; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (char === "[") {
+      depth += 1;
+    } else if (char === "]") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return value.slice(arrayStart + 1, index);
+      }
+    }
+  }
+
+  return value.slice(arrayStart + 1);
+}
+
+function extractLooseObjectBlocks(value: string) {
+  const blocks: string[] = [];
+  let depth = 0;
+  let startIndex = -1;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+
+    if (char === "{") {
+      if (depth === 0) {
+        startIndex = index;
+      }
+
+      depth += 1;
+    } else if (char === "}" && depth > 0) {
+      depth -= 1;
+
+      if (depth === 0 && startIndex >= 0) {
+        blocks.push(value.slice(startIndex, index + 1));
+        startIndex = -1;
+      }
+    }
+  }
+
+  return blocks;
+}
+
+function parseLooseObjectBlock(value: string) {
+  const record: Record<string, unknown> = {};
+
+  for (const line of value.split(/\r?\n/)) {
+    const trimmed = line.trim();
+
+    if (!trimmed || trimmed === "{" || trimmed === "}" || trimmed === "},") {
+      continue;
+    }
+
+    const match = /^"([^"]+)"\s*:\s*([\s\S]*?)(?:,\s*)?$/.exec(trimmed);
+
+    if (!match) {
+      continue;
+    }
+
+    record[match[1]] = parseLooseValue(match[2]);
+  }
+
+  return record;
+}
+
+function parseLooseValue(value: string) {
+  const trimmed = value.trim().replace(/,\s*$/, "");
+
+  if (trimmed.startsWith('"')) {
+    const withoutOpeningQuote = trimmed.slice(1);
+    const withoutClosingQuote = withoutOpeningQuote.endsWith('"')
+      ? withoutOpeningQuote.slice(0, -1)
+      : withoutOpeningQuote;
+
+    return withoutClosingQuote
+      .replace(/\\"/g, '"')
+      .replace(/\\n/g, "\n")
+      .replace(/\\r/g, "\r")
+      .replace(/\\t/g, "\t")
+      .replace(/\\\\/g, "\\");
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return trimmed;
   }
 }
 

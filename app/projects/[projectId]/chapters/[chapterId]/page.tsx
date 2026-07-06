@@ -40,7 +40,10 @@ import {
   isSegmentedChapterPolishInputJson,
 } from "@/lib/ai/chapter-polishes";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
-import { pendingUpdateTaskReviewLabel } from "@/lib/ai/chapter-task-review";
+import {
+  continuityCheckTaskReviewLabel,
+  pendingUpdateTaskReviewLabel,
+} from "@/lib/ai/chapter-task-review";
 import type { ReaderFeedbackSignal } from "@/lib/ai/reader-feedback-context";
 import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
 import {
@@ -137,6 +140,11 @@ export default async function ChapterPage({
             },
           },
           pendingUpdates: {
+            select: {
+              status: true,
+            },
+          },
+          continuityReports: {
             select: {
               status: true,
             },
@@ -510,6 +518,9 @@ type ChapterAiTask = {
     version: number;
   } | null;
   pendingUpdates: {
+    status: string;
+  }[];
+  continuityReports: {
     status: string;
   }[];
 };
@@ -1559,6 +1570,14 @@ function pendingUpdateExtractionReviewLabel(task: ChapterAiTask) {
   return aiTaskAdoptionLabel(task.adoptionState);
 }
 
+function continuityCheckReviewLabel(task: ChapterAiTask) {
+  return continuityCheckTaskReviewLabel(
+    task.status,
+    task.continuityReports.map((report) => report.status),
+    aiTaskAdoptionLabel(task.adoptionState),
+  );
+}
+
 function ChapterPendingUpdatePanel({
   chapterId,
   hasApiKey,
@@ -1787,7 +1806,7 @@ function ChapterContinuityPanel({
                   {aiTaskStatusLabel(task.status)}
                 </span>
                 <span className="rounded-md bg-white px-2.5 py-1">
-                  {aiTaskAdoptionLabel(task.adoptionState)}
+                  {continuityCheckReviewLabel(task)}
                 </span>
                 <span>{formatDate(task.createdAt)}</span>
               </div>

@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-07-06: Pending Update Parse Salvage and Continuity No-Issue Label
+
+Status: completed.
+
+What was done:
+
+- Added a fallback parser for pending-update extraction results so one malformed
+  optional evidence string from the model no longer discards the whole
+  `updates` array.
+- Kept the normal strict JSON path first; the salvage path only extracts
+  reviewable suggestion fields when strict parsing fails.
+- Updated the chapter continuity task label so completed checks with zero saved
+  report rows show `无连续性问题` instead of the generic `未审阅`.
+- Included task-linked continuity report statuses in the chapter detail task
+  query so continuity task cards can summarize open or processed reports.
+
+Verification:
+
+- `npm run test -- lib/ai/pending-updates.test.ts lib/ai/chapter-task-review.test.ts` passed.
+- `npm run typecheck` passed.
+
 ## 2026-07-05: 0.1.84 Personal macOS Installer Rebuild
 
 Status: completed.

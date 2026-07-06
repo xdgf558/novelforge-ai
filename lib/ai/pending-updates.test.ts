@@ -124,6 +124,33 @@ describe("pending update context builder", () => {
     });
   });
 
+  it("salvages updates when optional evidence contains unescaped quote fragments", () => {
+    const suggestions = parsePendingUpdateSuggestions(`{
+      "updates": [
+        {
+          "updateType": "update",
+          "targetType": "project_setting",
+          "targetName": "世界观规则",
+          "fieldName": "worldviewRules",
+          "title": "零号能力边界扩展：承认“信号”盲区",
+          "content": "在AI能力描述中补充：零号不掌握人类的非理性信号，在信息不充分时主动标记“数据不足”。",
+          "reason": "第9章中零号明确表示模型里没有“信号”这个变量。",
+          "riskLevel": "medium",
+          "sourceEvidence": "零号回复：“你开始计算‘信号’了。我的模型里没有‘信号’这个变量。”以及“你已经计算过了。反对不需要重复。","你已经有解了。赌。”"
+        }
+      ]
+    }`);
+
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0]).toMatchObject({
+      updateType: "update",
+      targetType: "project_setting",
+      fieldName: "worldviewRules",
+      title: "零号能力边界扩展：承认“信号”盲区",
+      riskLevel: "medium",
+    });
+  });
+
   it("converts grouped schema output into reviewable updates", () => {
     const suggestions = parsePendingUpdateSuggestions(
       JSON.stringify({
