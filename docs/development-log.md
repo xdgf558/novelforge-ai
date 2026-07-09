@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-07-09: Chapter Beat Foreshadow Recovery Reminders
+
+Status: completed.
+
+What was done:
+
+- Added a due-foreshadow selector for chapter beat generation. It surfaces
+  unresolved foreshadows whose expected recovery chapter is due or overdue, plus
+  items explicitly marked `needs_attention`.
+- Added a compact “本章建议处理伏笔” block to the chapter beat panel so authors
+  can see which foreshadows will be sent to the model before generating beats.
+- Injected the same reminder list into the chapter beat prompt and stored task
+  context so AI must arrange recovery, staged progress, or a clear deferral
+  reason during beat planning.
+- Preserved author control: reminders only influence the reviewable chapter beat
+  draft and never mark formal foreshadows as resolved.
+
+Verification:
+
+- `npm run test -- lib/foreshadows/recovery-reminders.test.ts lib/ai/chapter-beats.test.ts 'app/projects/[projectId]/chapters/actions.test.ts'` passed.
+- `npm run typecheck` passed.
+
 ## 2026-07-06: 0.1.85 Personal macOS Installer Rebuild
 
 Status: completed.

@@ -41,6 +41,10 @@ MVP includes:
 - Successful Station Cat personal-site chapter uploads automatically mark the
   synced local chapters as `published` and create chapter version snapshots; AI
   or failed publish attempts must not silently change chapter status.
+- Chapter beat generation surfaces due or attention-needed foreshadows as
+  “本章建议处理伏笔” so the AI can plan recovery, staged progress, or an
+  explicit deferral. This is only planning context; formal foreshadow status
+  still changes only after author action in story memory.
 
 MVP excludes:
 
@@ -77,18 +81,19 @@ The intended author workflow is:
 6. User confirms character profiles.
 7. AI/user prepares outline.
 8. User creates a chapter.
-9. AI generates chapter beats.
-10. User confirms beats.
-11. AI generates chapter draft.
-12. User edits draft.
-13. AI optionally polishes text.
-14. User confirms final text.
-15. AI generates chapter summary.
-16. AI extracts pending setting updates.
-17. User approves, rejects, or edits updates.
-18. AI runs continuity check.
-19. User exports WeChat-ready or Fanqie-ready layout/copy from confirmed chapter text.
-20. User publishes manually and moves to next chapter.
+9. System surfaces due or attention-needed foreshadows for this chapter.
+10. AI generates chapter beats with those foreshadows as planning context.
+11. User confirms beats.
+12. AI generates chapter draft.
+13. User edits draft.
+14. AI optionally polishes text.
+15. User confirms final text.
+16. AI generates chapter summary.
+17. AI extracts pending setting updates.
+18. User approves, rejects, or edits updates.
+19. AI runs continuity check.
+20. User exports WeChat-ready or Fanqie-ready layout/copy from confirmed chapter text.
+21. User publishes manually and moves to next chapter.
 
 ## Database Memory Baseline
 
