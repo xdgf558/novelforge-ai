@@ -1,4 +1,5 @@
 import { formatWordRange } from "../format";
+import { foreshadowRecoveryReason } from "../foreshadows/recovery-reason";
 import { outlineLevelLabel, outlineRangeLabel, type OutlineLike } from "../outline-fields";
 import { projectSettingFields } from "../project-setting-fields";
 import {
@@ -65,7 +66,6 @@ export type ChapterBeatForeshadowContext = {
   relatedCharacters?: string | null;
   relatedLocations?: string | null;
   relatedFactions?: string | null;
-  recoveryReason?: string | null;
   plantedChapter?: {
     chapterNumber: number;
     title: string;
@@ -401,32 +401,6 @@ function compactDueForeshadow(
         }
       : null,
   };
-}
-
-function foreshadowRecoveryReason(
-  foreshadow: ChapterBeatForeshadowContext,
-  currentChapterNumber: number,
-) {
-  if (clean(foreshadow.recoveryReason)) {
-    return clean(foreshadow.recoveryReason);
-  }
-
-  if (foreshadow.status === "needs_attention") {
-    return "已标记需要处理";
-  }
-
-  if (foreshadow.expectedResolveChapter === currentChapterNumber) {
-    return "预计本章回收";
-  }
-
-  if (
-    foreshadow.expectedResolveChapter != null &&
-    foreshadow.expectedResolveChapter < currentChapterNumber
-  ) {
-    return `已超过预计第 ${foreshadow.expectedResolveChapter} 章`;
-  }
-
-  return "建议本章处理";
 }
 
 function lines(items: readonly (readonly [string, string | number | null | undefined])[]) {

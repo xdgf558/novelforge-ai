@@ -20,6 +20,9 @@ What was done:
 - Localized foreshadow status and importance labels in the beat prompt and added
   an explicit recovery reason such as overdue, due this chapter, or needs
   attention.
+- Consolidated recovery-reason wording into one pure foreshadow-domain helper
+  shared by the chapter UI and AI beat prompt, removing the duplicate prompt
+  implementation and its unused passthrough field.
 - Preserved author control: reminders only influence the reviewable chapter beat
   draft and never mark formal foreshadows as resolved.
 

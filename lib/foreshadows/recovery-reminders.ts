@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
+export { foreshadowRecoveryReason } from "./recovery-reason";
+
 export const recoverableForeshadowStatuses = [
   "planted",
   "advancing",
@@ -99,28 +101,6 @@ export function selectForeshadowRecoveryReminders({
       compareForeshadowRecoveryPriority(left, right, currentChapterNumber),
     )
     .slice(0, limit);
-}
-
-export function foreshadowRecoveryReason(
-  foreshadow: ForeshadowRecoveryReminder,
-  currentChapterNumber: number,
-) {
-  if (foreshadow.status === "needs_attention") {
-    return "已标记需要处理";
-  }
-
-  if (foreshadow.expectedResolveChapter === currentChapterNumber) {
-    return "预计本章回收";
-  }
-
-  if (
-    foreshadow.expectedResolveChapter != null &&
-    foreshadow.expectedResolveChapter < currentChapterNumber
-  ) {
-    return `已超过预计第 ${foreshadow.expectedResolveChapter} 章`;
-  }
-
-  return "建议本章处理";
 }
 
 function shouldSuggestForeshadowRecovery(

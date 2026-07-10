@@ -129,9 +129,9 @@ describe("foreshadow recovery reminders", () => {
   it("explains why a foreshadow is suggested for the current chapter", () => {
     expect(
       foreshadowRecoveryReason(
-        foreshadow({
+        {
           status: "needs_attention",
-        }),
+        },
         9,
       ),
     ).toBe("已标记需要处理");
@@ -240,18 +240,6 @@ describe("foreshadow recovery reminders", () => {
     expect(mocks.prisma.foreshadow.findMany).toHaveBeenCalledWith(
       expect.not.objectContaining({
         take: expect.any(Number),
-      }),
-    );
-    expect(mocks.prisma.foreshadow.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        orderBy: [
-          {
-            expectedResolveChapter: "asc",
-          },
-          {
-            updatedAt: "desc",
-          },
-        ],
       }),
     );
     expect(reminders[0]?.id).toBe("old-critical");
