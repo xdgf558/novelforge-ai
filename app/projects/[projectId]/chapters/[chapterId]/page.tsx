@@ -5,6 +5,7 @@ import {
   BarChart3,
   Bot,
   CheckCircle2,
+  Flag,
   GitBranch,
   History,
   ListChecks,
@@ -59,8 +60,17 @@ import {
 import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { getAiRuntimeEnvForTaskType } from "@/lib/ai/local-config";
+import {
+  findForeshadowRecoveryReminders,
+  foreshadowRecoveryReason,
+  type ForeshadowRecoveryReminder,
+} from "@/lib/foreshadows/recovery-reminders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import {
+  foreshadowImportanceLabel,
+  foreshadowStatusLabel,
+} from "@/lib/story-memory-fields";
 import {
   storylineStatusLabel,
   storylineTypeLabel,
@@ -214,6 +224,7 @@ export default async function ChapterPage({
     pendingUpdateReviewCount,
     stationCatSyncState,
     generationFeedbackSignals,
+    foreshadowReminders,
   ] = await Promise.all([
     prisma.pendingUpdate.count({
       where: {
@@ -256,6 +267,10 @@ export default async function ChapterPage({
     loadReaderFeedbackSignalsForChapterGeneration({
       projectId: chapter.project.id,
       beforeChapterNumber: chapter.chapterNumber,
+    }),
+    findForeshadowRecoveryReminders({
+      projectId: chapter.project.id,
+      currentChapterNumber: chapter.chapterNumber,
     }),
   ]);
   const readerRemoteId =
@@ -345,6 +360,8 @@ export default async function ChapterPage({
 
       <ChapterBeatAiPanel
         chapterId={chapter.id}
+        currentChapterNumber={chapter.chapterNumber}
+        foreshadowReminders={foreshadowReminders}
         hasApiKey={hasDefaultApiKey}
         projectId={chapter.project.id}
         tasks={beatTasks}
@@ -918,11 +935,15 @@ function jsonTextItem(value: unknown) {
 
 function ChapterBeatAiPanel({
   chapterId,
+  currentChapterNumber,
+  foreshadowReminders,
   hasApiKey,
   projectId,
   tasks,
 }: {
   chapterId: string;
+  currentChapterNumber: number;
+  foreshadowReminders: readonly ForeshadowRecoveryReminder[];
   hasApiKey: boolean;
   projectId: string;
   tasks: readonly ChapterAiTask[];
@@ -979,6 +1000,12 @@ function ChapterBeatAiPanel({
           当前章节已有节拍生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
+
+      <ForeshadowRecoveryReminderPanel
+        currentChapterNumber={currentChapterNumber}
+        projectId={projectId}
+        reminders={foreshadowReminders}
+      />
 
       {tasks.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-5 text-sm text-ink-700">
@@ -1051,6 +1078,100 @@ function ChapterBeatAiPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function ForeshadowRecoveryReminderPanel({
+  currentChapterNumber,
+  projectId,
+  reminders,
+}: {
+  currentChapterNumber: number;
+  projectId: string;
+  reminders: readonly ForeshadowRecoveryReminder[];
+}) {
+  return (
+    <div className="mt-4 rounded-lg border border-signal-500/20 bg-signal-50/60 p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-700">
+            <Flag aria-hidden="true" className="h-4 w-4" />
+            本章建议处理伏笔
+          </div>
+          <p className="mt-1 text-xs leading-5 text-ink-700">
+            生成节拍时会把这些伏笔交给 AI 安排回收、推进或暂缓理由；不会自动改写伏笔池状态。
+          </p>
+        </div>
+        <Link
+          className="inline-flex min-h-9 items-center justify-center rounded-md border border-ink-950/15 bg-white px-3 py-2 text-xs font-semibold text-ink-800 transition hover:bg-paper-100"
+          href={`/projects/${projectId}/memory#foreshadows`}
+        >
+          查看伏笔池
+        </Link>
+      </div>
+
+      {reminders.length === 0 ? (
+        <p className="mt-3 rounded-md bg-white px-3 py-2 text-sm text-ink-700">
+          暂无到期或标记需要处理的伏笔。
+        </p>
+      ) : (
+        <div className="mt-3 grid gap-2 lg:grid-cols-2">
+          {reminders.map((foreshadow) => (
+            <ForeshadowRecoveryReminderItem
+              currentChapterNumber={currentChapterNumber}
+              foreshadow={foreshadow}
+              key={foreshadow.id}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ForeshadowRecoveryReminderItem({
+  currentChapterNumber,
+  foreshadow,
+}: {
+  currentChapterNumber: number;
+  foreshadow: ForeshadowRecoveryReminder;
+}) {
+  const relatedItems = [
+    foreshadow.relatedCharacters ? `人物：${foreshadow.relatedCharacters}` : "",
+    foreshadow.relatedLocations ? `地点：${foreshadow.relatedLocations}` : "",
+    foreshadow.relatedFactions ? `势力：${foreshadow.relatedFactions}` : "",
+  ].filter(Boolean);
+
+  return (
+    <article className="rounded-md border border-ink-950/10 bg-white px-3 py-2">
+      <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-ink-700">
+        <span className="rounded bg-paper-100 px-2 py-0.5">
+          {foreshadowRecoveryReason(foreshadow, currentChapterNumber)}
+        </span>
+        <span className="rounded bg-paper-100 px-2 py-0.5">
+          {foreshadowStatusLabel(foreshadow.status)}
+        </span>
+        <span className="rounded bg-paper-100 px-2 py-0.5">
+          {foreshadowImportanceLabel(foreshadow.importance)}
+        </span>
+        {foreshadow.expectedResolveChapter ? (
+          <span className="rounded bg-paper-100 px-2 py-0.5">
+            预计第 {formatNumber(foreshadow.expectedResolveChapter)} 章
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-2 line-clamp-3 text-sm leading-6 text-ink-900">
+        {foreshadow.content}
+      </p>
+      <p className="mt-1 text-xs leading-5 text-ink-700">
+        {foreshadow.plantedChapter
+          ? `埋设：第 ${formatNumber(
+              foreshadow.plantedChapter.chapterNumber,
+            )} 章《${foreshadow.plantedChapter.title}》`
+          : "埋设章节未指定"}
+        {relatedItems.length > 0 ? ` / ${relatedItems.join(" / ")}` : ""}
+      </p>
+    </article>
   );
 }
 

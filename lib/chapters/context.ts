@@ -15,6 +15,7 @@ import {
   type ChapterSummaryContextInput,
 } from "@/lib/ai/chapter-summaries";
 import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
+import { findForeshadowRecoveryReminders } from "@/lib/foreshadows/recovery-reminders";
 import { selectRelevantOutlinesForChapter } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
 
@@ -62,6 +63,7 @@ export async function loadChapterBeatContext(
     recentChapters,
     previousChapter,
     readerFeedbackSignals,
+    dueForeshadows,
   ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
@@ -124,6 +126,10 @@ export async function loadChapterBeatContext(
       projectId,
       beforeChapterNumber: chapter.chapterNumber,
     }),
+    findForeshadowRecoveryReminders({
+      projectId,
+      currentChapterNumber: chapter.chapterNumber,
+    }),
   ]);
 
   return {
@@ -135,6 +141,7 @@ export async function loadChapterBeatContext(
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
     readerFeedback: readerFeedbackSignals,
+    dueForeshadows,
   };
 }
 

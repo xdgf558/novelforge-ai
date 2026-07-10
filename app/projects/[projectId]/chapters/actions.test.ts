@@ -52,6 +52,9 @@ const mocks = vi.hoisted(() => {
       character: {
         findMany: vi.fn(),
       },
+      foreshadow: {
+        findMany: vi.fn(),
+      },
       chapterVersion: {
         create: vi.fn(),
       },
@@ -247,6 +250,7 @@ describe("chapter actions", () => {
     });
     mocks.prisma.projectSetting.findUnique.mockResolvedValue({});
     mocks.prisma.character.findMany.mockResolvedValue([]);
+    mocks.prisma.foreshadow.findMany.mockResolvedValue([]);
     mocks.prisma.chapter.findMany.mockResolvedValue([]);
     mocks.prisma.outline.findMany.mockResolvedValue([]);
     mocks.prisma.outline.update.mockResolvedValue({});

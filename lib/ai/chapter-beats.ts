@@ -1,6 +1,11 @@
 import { formatWordRange } from "../format";
+import { foreshadowRecoveryReason } from "../foreshadows/recovery-reason";
 import { outlineLevelLabel, outlineRangeLabel, type OutlineLike } from "../outline-fields";
 import { projectSettingFields } from "../project-setting-fields";
+import {
+  foreshadowImportanceLabel,
+  foreshadowStatusLabel,
+} from "../story-memory-fields";
 import {
   formatReaderFeedbackSignals,
   readerFeedbackSignalsToJson,
@@ -52,6 +57,21 @@ export type ChapterBeatChapterContext = {
   notes?: string | null;
 };
 
+export type ChapterBeatForeshadowContext = {
+  id?: string | null;
+  content: string;
+  status?: string | null;
+  importance?: string | null;
+  expectedResolveChapter?: number | null;
+  relatedCharacters?: string | null;
+  relatedLocations?: string | null;
+  relatedFactions?: string | null;
+  plantedChapter?: {
+    chapterNumber: number;
+    title: string;
+  } | null;
+};
+
 export type ChapterBeatContextInput = {
   project: ChapterBeatProjectContext;
   setting?: ChapterBeatSettingContext | null;
@@ -61,6 +81,7 @@ export type ChapterBeatContextInput = {
   recentChapters: readonly ChapterBeatChapterContext[];
   previousChapter?: ChapterBeatChapterContext | null;
   readerFeedback?: readonly ReaderFeedbackSignal[];
+  dueForeshadows?: readonly ChapterBeatForeshadowContext[];
 };
 
 export type BuiltChapterBeatContext = {
@@ -88,6 +109,9 @@ export function buildChapterBeatContext(
     .map((character) => buildCharacterLine(character))
     .filter(Boolean);
   const recentChapterItems = input.recentChapters.map(buildRecentChapterLine);
+  const dueForeshadowItems = (input.dueForeshadows ?? []).map((foreshadow) =>
+    buildDueForeshadowLine(foreshadow, input.chapter.chapterNumber),
+  );
   const readerFeedback = input.readerFeedback ?? [];
   const readerFeedbackText = formatReaderFeedbackSignals(readerFeedback);
   const forbiddenItems = compact([
@@ -112,6 +136,9 @@ export function buildChapterBeatContext(
     outlines: outlineItems,
     characters: characterItems,
     recentChapters: recentChapterItems,
+    dueForeshadows: (input.dueForeshadows ?? []).map((foreshadow) =>
+      compactDueForeshadow(foreshadow, input.chapter.chapterNumber),
+    ),
     readerFeedback: readerFeedbackSignalsToJson(readerFeedback),
     previousChapterEnding,
     forbiddenItems,
@@ -123,6 +150,7 @@ export function buildChapterBeatContext(
       "节拍草案也要避免模板腔，不要反复使用“不是……而是……”这类二元对照句式。",
       "不要按第一天、第二天、第三天或早中晚打卡式推进；只有时间压力本身是冲突时才保留明确日期。",
       "每个节拍都必须提供新线索、新阻碍、新选择、新代价、关系变化、风险升级或伏笔回收；无功能的过渡日要合并或跳过。",
+      "如果本章建议处理伏笔列表有条目，节拍中必须安排回收、推进或说明暂缓理由；不得直接标记正式伏笔状态。",
       "不要宣称已经修改正式设定或角色记忆。",
     ],
     proseStyleGuardrails,
@@ -171,6 +199,11 @@ export function buildChapterBeatContext(
       ? recentChapterItems.join("\n")
       : "暂无已保存的前序章节。",
     "",
+    "# 本章建议处理伏笔",
+    dueForeshadowItems.length > 0
+      ? dueForeshadowItems.join("\n")
+      : "暂无到期或需要处理的伏笔。",
+    "",
     "# 读者反馈信号",
     readerFeedbackText,
     "",
@@ -189,6 +222,7 @@ export function buildChapterBeatContext(
     "- 节拍草案也要避免模板腔，少用“不是……而是……”这类二元对照句式；能用具体行动、选择和后果表达，就不要用抽象总结。",
     "- 反流水账硬性自检：不要把本章规划成“第一天/第二天/第三天”或“早上/中午/晚上”的日程表；除非倒计时、证据矛盾或人物错位依赖明确时间，否则跳过无冲突过渡日。",
     "- 每个节拍必须至少承担一个叙事功能：新线索、新阻碍、新选择、新代价、关系变化、风险升级或伏笔回收；只有时间流逝但没有事件功能的节拍必须合并或删除。",
+    "- 如果“本章建议处理伏笔”列出条目，必须在节拍中安排合理回收、阶段性推进或明确暂缓理由；这只是节拍规划，不得宣称已修改伏笔池状态。",
   ].join("\n");
 
   return {
@@ -205,6 +239,9 @@ export function buildChapterBeatContextSummary(input: ChapterBeatContextInput) {
     `角色 ${input.characters.length} 个`,
     `最近章节 ${input.recentChapters.length} 个`,
     input.readerFeedback?.length ? `读者反馈 ${input.readerFeedback.length} 条` : "无读者反馈",
+    input.dueForeshadows?.length
+      ? `建议处理伏笔 ${input.dueForeshadows.length} 条`
+      : "无到期伏笔",
     input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
   ].join("；");
 }
@@ -309,6 +346,61 @@ function buildRecentChapterLine(chapter: ChapterBeatChapterContext) {
     chapter.beats ? `节拍：${clipText(chapter.beats, 600)}` : "",
     chapter.notes ? `备注：${clipText(chapter.notes, 400)}` : "",
   ]).join("；") || "暂无摘要信息"}`;
+}
+
+function buildDueForeshadowLine(
+  foreshadow: ChapterBeatForeshadowContext,
+  currentChapterNumber: number,
+) {
+  const details = compact([
+    `处理提示：${foreshadowRecoveryReason(foreshadow, currentChapterNumber)}`,
+    `重要度：${foreshadowImportanceLabel(foreshadow.importance)}`,
+    `状态：${foreshadowStatusLabel(foreshadow.status)}`,
+    foreshadow.expectedResolveChapter
+      ? `预计回收：第 ${foreshadow.expectedResolveChapter} 章`
+      : "",
+    foreshadow.plantedChapter
+      ? `埋设：第 ${foreshadow.plantedChapter.chapterNumber} 章《${foreshadow.plantedChapter.title}》`
+      : "",
+    foreshadow.relatedCharacters
+      ? `相关人物：${clipText(foreshadow.relatedCharacters, 180)}`
+      : "",
+    foreshadow.relatedLocations
+      ? `相关地点：${clipText(foreshadow.relatedLocations, 180)}`
+      : "",
+    foreshadow.relatedFactions
+      ? `相关势力：${clipText(foreshadow.relatedFactions, 180)}`
+      : "",
+  ]).join("；");
+
+  return `- ${clipText(foreshadow.content, 500)}${
+    details ? `（${details}）` : ""
+  }`;
+}
+
+function compactDueForeshadow(
+  foreshadow: ChapterBeatForeshadowContext,
+  currentChapterNumber: number,
+) {
+  return {
+    id: clean(foreshadow.id),
+    content: clipText(foreshadow.content, 500),
+    status: clean(foreshadow.status),
+    statusLabel: foreshadowStatusLabel(foreshadow.status),
+    importance: clean(foreshadow.importance),
+    importanceLabel: foreshadowImportanceLabel(foreshadow.importance),
+    recoveryReason: foreshadowRecoveryReason(foreshadow, currentChapterNumber),
+    expectedResolveChapter: foreshadow.expectedResolveChapter ?? null,
+    relatedCharacters: clipText(foreshadow.relatedCharacters, 240),
+    relatedLocations: clipText(foreshadow.relatedLocations, 240),
+    relatedFactions: clipText(foreshadow.relatedFactions, 240),
+    plantedChapter: foreshadow.plantedChapter
+      ? {
+          chapterNumber: foreshadow.plantedChapter.chapterNumber,
+          title: foreshadow.plantedChapter.title,
+        }
+      : null,
+  };
 }
 
 function lines(items: readonly (readonly [string, string | number | null | undefined])[]) {

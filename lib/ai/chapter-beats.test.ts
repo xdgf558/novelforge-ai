@@ -92,7 +92,7 @@ describe("chapter beat context builder", () => {
 
   it("summarizes context scope for ai task records", () => {
     expect(buildChapterBeatContextSummary(baseInput)).toBe(
-      "第 3 章《合同上的第三个名字》章节节拍生成；大纲 2 条；角色 1 个；最近章节 1 个；无读者反馈；包含上一章结尾",
+      "第 3 章《合同上的第三个名字》章节节拍生成；大纲 2 条；角色 1 个；最近章节 1 个；无读者反馈；无到期伏笔；包含上一章结尾",
     );
   });
 
@@ -127,6 +127,54 @@ describe("chapter beat context builder", () => {
       }),
     ]);
     expect(context.inputContextSummary).toContain("读者反馈 1 条");
+  });
+
+  it("includes due foreshadows as beat planning guidance without mutating memory", () => {
+    const context = buildChapterBeatContext({
+      ...baseInput,
+      dueForeshadows: [
+        {
+          id: "foreshadow_sms",
+          content: "短信来源指向旧医院，需要在本章给出阶段性解释。",
+          status: "needs_attention",
+          importance: "high",
+          expectedResolveChapter: 3,
+          relatedCharacters: "林野",
+          plantedChapter: {
+            chapterNumber: 2,
+            title: "第一通电话",
+          },
+        },
+      ],
+    });
+
+    expect(context.inputText).toContain("# 本章建议处理伏笔");
+    expect(context.inputText).toContain("短信来源指向旧医院");
+    expect(context.inputText).toContain("处理提示：已标记需要处理");
+    expect(context.inputText).toContain("状态：需要处理");
+    expect(context.inputText).toContain("重要度：高");
+    expect(context.inputText).not.toContain("状态：needs_attention");
+    expect(context.inputText).not.toContain("重要度：high");
+    expect(context.inputText).toContain("必须在节拍中安排合理回收");
+    expect(context.inputText).toContain("不得宣称已修改伏笔池状态");
+    expect(context.inputJson.dueForeshadows).toEqual([
+      expect.objectContaining({
+        id: "foreshadow_sms",
+        content: "短信来源指向旧医院，需要在本章给出阶段性解释。",
+        status: "needs_attention",
+        statusLabel: "需要处理",
+        importance: "high",
+        importanceLabel: "高",
+        recoveryReason: "已标记需要处理",
+        expectedResolveChapter: 3,
+        relatedCharacters: "林野",
+        plantedChapter: {
+          chapterNumber: 2,
+          title: "第一通电话",
+        },
+      }),
+    ]);
+    expect(context.inputContextSummary).toContain("建议处理伏笔 1 条");
   });
 
   it("includes prose anti-template guardrails for beat generation", () => {
