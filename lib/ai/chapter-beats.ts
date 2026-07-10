@@ -2,6 +2,10 @@ import { formatWordRange } from "../format";
 import { outlineLevelLabel, outlineRangeLabel, type OutlineLike } from "../outline-fields";
 import { projectSettingFields } from "../project-setting-fields";
 import {
+  foreshadowImportanceLabel,
+  foreshadowStatusLabel,
+} from "../story-memory-fields";
+import {
   formatReaderFeedbackSignals,
   readerFeedbackSignalsToJson,
   type ReaderFeedbackSignal,
@@ -61,6 +65,7 @@ export type ChapterBeatForeshadowContext = {
   relatedCharacters?: string | null;
   relatedLocations?: string | null;
   relatedFactions?: string | null;
+  recoveryReason?: string | null;
   plantedChapter?: {
     chapterNumber: number;
     title: string;
@@ -104,8 +109,8 @@ export function buildChapterBeatContext(
     .map((character) => buildCharacterLine(character))
     .filter(Boolean);
   const recentChapterItems = input.recentChapters.map(buildRecentChapterLine);
-  const dueForeshadowItems = (input.dueForeshadows ?? []).map(
-    buildDueForeshadowLine,
+  const dueForeshadowItems = (input.dueForeshadows ?? []).map((foreshadow) =>
+    buildDueForeshadowLine(foreshadow, input.chapter.chapterNumber),
   );
   const readerFeedback = input.readerFeedback ?? [];
   const readerFeedbackText = formatReaderFeedbackSignals(readerFeedback);
@@ -131,7 +136,9 @@ export function buildChapterBeatContext(
     outlines: outlineItems,
     characters: characterItems,
     recentChapters: recentChapterItems,
-    dueForeshadows: (input.dueForeshadows ?? []).map(compactDueForeshadow),
+    dueForeshadows: (input.dueForeshadows ?? []).map((foreshadow) =>
+      compactDueForeshadow(foreshadow, input.chapter.chapterNumber),
+    ),
     readerFeedback: readerFeedbackSignalsToJson(readerFeedback),
     previousChapterEnding,
     forbiddenItems,
@@ -341,10 +348,14 @@ function buildRecentChapterLine(chapter: ChapterBeatChapterContext) {
   ]).join("；") || "暂无摘要信息"}`;
 }
 
-function buildDueForeshadowLine(foreshadow: ChapterBeatForeshadowContext) {
+function buildDueForeshadowLine(
+  foreshadow: ChapterBeatForeshadowContext,
+  currentChapterNumber: number,
+) {
   const details = compact([
-    foreshadow.importance ? `重要度：${foreshadow.importance}` : "",
-    foreshadow.status ? `状态：${foreshadow.status}` : "",
+    `处理提示：${foreshadowRecoveryReason(foreshadow, currentChapterNumber)}`,
+    `重要度：${foreshadowImportanceLabel(foreshadow.importance)}`,
+    `状态：${foreshadowStatusLabel(foreshadow.status)}`,
     foreshadow.expectedResolveChapter
       ? `预计回收：第 ${foreshadow.expectedResolveChapter} 章`
       : "",
@@ -367,12 +378,18 @@ function buildDueForeshadowLine(foreshadow: ChapterBeatForeshadowContext) {
   }`;
 }
 
-function compactDueForeshadow(foreshadow: ChapterBeatForeshadowContext) {
+function compactDueForeshadow(
+  foreshadow: ChapterBeatForeshadowContext,
+  currentChapterNumber: number,
+) {
   return {
     id: clean(foreshadow.id),
     content: clipText(foreshadow.content, 500),
     status: clean(foreshadow.status),
+    statusLabel: foreshadowStatusLabel(foreshadow.status),
     importance: clean(foreshadow.importance),
+    importanceLabel: foreshadowImportanceLabel(foreshadow.importance),
+    recoveryReason: foreshadowRecoveryReason(foreshadow, currentChapterNumber),
     expectedResolveChapter: foreshadow.expectedResolveChapter ?? null,
     relatedCharacters: clipText(foreshadow.relatedCharacters, 240),
     relatedLocations: clipText(foreshadow.relatedLocations, 240),
@@ -384,6 +401,32 @@ function compactDueForeshadow(foreshadow: ChapterBeatForeshadowContext) {
         }
       : null,
   };
+}
+
+function foreshadowRecoveryReason(
+  foreshadow: ChapterBeatForeshadowContext,
+  currentChapterNumber: number,
+) {
+  if (clean(foreshadow.recoveryReason)) {
+    return clean(foreshadow.recoveryReason);
+  }
+
+  if (foreshadow.status === "needs_attention") {
+    return "已标记需要处理";
+  }
+
+  if (foreshadow.expectedResolveChapter === currentChapterNumber) {
+    return "预计本章回收";
+  }
+
+  if (
+    foreshadow.expectedResolveChapter != null &&
+    foreshadow.expectedResolveChapter < currentChapterNumber
+  ) {
+    return `已超过预计第 ${foreshadow.expectedResolveChapter} 章`;
+  }
+
+  return "建议本章处理";
 }
 
 function lines(items: readonly (readonly [string, string | number | null | undefined])[]) {

@@ -65,10 +65,14 @@ export async function findForeshadowRecoveryReminders({
         },
       },
     },
-    orderBy: {
-      updatedAt: "desc",
-    },
-    take: Math.max(limit * 4, limit),
+    orderBy: [
+      {
+        expectedResolveChapter: "asc",
+      },
+      {
+        updatedAt: "desc",
+      },
+    ],
   });
 
   return selectForeshadowRecoveryReminders({

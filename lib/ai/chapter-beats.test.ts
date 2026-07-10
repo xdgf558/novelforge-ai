@@ -150,6 +150,11 @@ describe("chapter beat context builder", () => {
 
     expect(context.inputText).toContain("# 本章建议处理伏笔");
     expect(context.inputText).toContain("短信来源指向旧医院");
+    expect(context.inputText).toContain("处理提示：已标记需要处理");
+    expect(context.inputText).toContain("状态：需要处理");
+    expect(context.inputText).toContain("重要度：高");
+    expect(context.inputText).not.toContain("状态：needs_attention");
+    expect(context.inputText).not.toContain("重要度：high");
     expect(context.inputText).toContain("必须在节拍中安排合理回收");
     expect(context.inputText).toContain("不得宣称已修改伏笔池状态");
     expect(context.inputJson.dueForeshadows).toEqual([
@@ -157,7 +162,10 @@ describe("chapter beat context builder", () => {
         id: "foreshadow_sms",
         content: "短信来源指向旧医院，需要在本章给出阶段性解释。",
         status: "needs_attention",
+        statusLabel: "需要处理",
         importance: "high",
+        importanceLabel: "高",
+        recoveryReason: "已标记需要处理",
         expectedResolveChapter: 3,
         relatedCharacters: "林野",
         plantedChapter: {

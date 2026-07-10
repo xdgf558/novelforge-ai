@@ -14,6 +14,12 @@ What was done:
 - Injected the same reminder list into the chapter beat prompt and stored task
   context so AI must arrange recovery, staged progress, or a clear deferral
   reason during beat planning.
+- Refined reminder selection after review so database candidates are no longer
+  pre-truncated by recent edit time before priority sorting. The selector now
+  keeps all due/attention-needed candidates available to the priority comparator.
+- Localized foreshadow status and importance labels in the beat prompt and added
+  an explicit recovery reason such as overdue, due this chapter, or needs
+  attention.
 - Preserved author control: reminders only influence the reviewable chapter beat
   draft and never mark formal foreshadows as resolved.
 
