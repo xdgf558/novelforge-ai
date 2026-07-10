@@ -1,5 +1,46 @@
 # Development Log
 
+## 2026-07-10: 0.1.86 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.86`.
+- Prepared a new personal-use macOS installer from `main` after the chapter-beat
+  foreshadow recovery reminder feature was reviewed, merged, and pushed.
+- Kept the personal distribution policy: notarization is skipped, while the
+  formal PKG installs `NovelForge AI.app` into `/Applications`.
+- Expanded the macOS signing ignore rules for non-code Electron/Next.js data
+  files (`.asar`, `.wasm`, Webpack pack files, and `.nib`) so PKG packaging does
+  not depend on extended-attribute signatures that are lost during install.
+- Built the final package with `pkgbuild --root` and `--ownership preserve` at
+  `release/desktop/NovelForge-AI-0.1.86-mac-arm64.pkg`.
+- Removed the previous `0.1.85` installer, failed packaging candidates, expanded
+  verification payloads, and Electron build intermediates so the delivery
+  directory contains only the new `0.1.86` PKG.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 87 files and 478 tests.
+- `npm run desktop:smoke` passed.
+- `npm run desktop:pack:mac` completed with notarization skipped after clearing
+  stale local proxy variables.
+- The generated app reports `0.1.86` in `Info.plist` and its unpacked
+  `package.json`, and its whole-bundle deep signature verification passed.
+- Non-code packaged resources no longer carry `com.apple.cs.CodeSignature`
+  extended attributes.
+- Final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.86`, and
+  install location `/Applications`.
+- A runtime smoke test launched the app extracted from the final candidate PKG,
+  completed local startup, and returned HTTP 200 from `127.0.0.1:48312`.
+- The final PKG is unsigned, as expected because no Developer ID Installer
+  identity is available on this machine; the app payload uses the local
+  Developer ID Application identity.
+- Final SHA-256:
+  `1f943e1bec49a751632bcf29cb037363205b3929a11e97e6fe2732cca810bb64`.
+
 ## 2026-07-09: Chapter Beat Foreshadow Recovery Reminders
 
 Status: completed.

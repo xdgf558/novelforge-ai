@@ -1,6 +1,6 @@
 {
   "name": "novelforge-ai",
-  "version": "0.1.85",
+  "version": "0.1.86",
   "description": "Local-first AI writing workbench for long-form serialized novels.",
   "author": "NovelForge AI",
   "private": true,
@@ -94,7 +94,11 @@
       "entitlementsInherit": "build/entitlements.mac.plist",
       "identity": "HAO YE (Y35K7AQ974)",
       "signIgnore": [
-        "\\.(?:png|jpe?g|gif|webp|svg|ico|icns|woff2?|ttf|otf|eot|map|pak|bin|dat)$"
+        "\\.(?:png|jpe?g|gif|webp|svg|ico|icns|woff2?|ttf|otf|eot|map|pak|bin|dat)$",
+        "\\.asar$",
+        "\\.wasm$",
+        "\\.pack(?:\\.gz)?(?:\\.old)?$",
+        "\\.nib$"
       ],
       "target": [
         "dmg",

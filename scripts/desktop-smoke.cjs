@@ -57,6 +57,10 @@ async function main() {
   assert.equal(packageJson.build.mac.entitlements, "build/entitlements.mac.plist");
   assert.deepEqual(packageJson.build.mac.signIgnore, [
     "\\.(?:png|jpe?g|gif|webp|svg|ico|icns|woff2?|ttf|otf|eot|map|pak|bin|dat)$",
+    "\\.asar$",
+    "\\.wasm$",
+    "\\.pack(?:\\.gz)?(?:\\.old)?$",
+    "\\.nib$",
   ]);
   assert.equal(packageJson.build.dmg.sign, true);
   assert.equal(packageJson.build.afterPack, "scripts/after-pack.cjs");
