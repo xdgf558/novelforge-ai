@@ -132,7 +132,9 @@ export function shortStoryBlueprintSnapshot(
 }
 
 export function hasShortStoryBlueprintContent(
-  values?: Partial<ShortStoryBlueprintValues> | null,
+  values?: Partial<
+    Record<ShortStoryBlueprintFieldName, string | null | undefined>
+  > | null,
 ) {
   return shortStoryBlueprintFieldNames.some((fieldName) =>
     Boolean(values?.[fieldName]?.trim()),

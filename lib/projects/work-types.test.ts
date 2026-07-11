@@ -28,6 +28,7 @@ describe("project work types", () => {
       "settings",
       "characters",
       "chapters",
+      "story-review",
       "memory",
       "ai",
     ]);

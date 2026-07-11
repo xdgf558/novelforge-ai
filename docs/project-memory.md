@@ -26,6 +26,9 @@ MVP includes:
   projects default to long-form serials.
 - Short-story blueprint workspace with ten formal planning fields, review-only
   AI generation, explicit adoption, and blueprint version history.
+- Short-story whole-story review workspace with bounded confirmed-unit context,
+  seven closure dimensions, unit-bound suggestions, source-text staleness
+  checks, and manual-only author resolution.
 - Project dashboard
 - Project setting editor
 - AI project setting generation
@@ -247,6 +250,13 @@ Recommended implementation order:
   surfaces; and short-story beat, draft, and polish contexts that combine the
   formal blueprint with continuous-prose safeguards. Short-story unit writes
   must not auto-link serial storylines or synchronize serial outline status.
+- Short Story Phase 4: `short_story_whole_review` tasks assemble every confirmed
+  writing unit under a bounded whole-story prompt budget and check motivation,
+  chronology, repeated information, pacing gaps, opening promises, reversal
+  setup, and unresolved payoffs. Parsed suggestions reuse `continuity_reports`,
+  bind to stable unit ids and per-unit final-text hashes, and remain manual-only:
+  generic one-click replacement and continuity fix-patch generation must reject
+  this task source.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
@@ -319,6 +329,10 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
   `unitWordTarget`; their beat, draft, and polish contexts use the formal
   blueprint and continuous-prose safeguards instead of serial outlines,
   storylines, reader feedback, repeated openings, or artificial chapter hooks.
+  `/projects/[projectId]/story-review` is short-story-only and uses the shared
+  AI-task/continuity-report infrastructure. It requires a formal blueprint and
+  at least two confirmed units, preserves unit source hashes for stale-result
+  detection, and never writes confirmed prose automatically.
 - Phase 1 of the Fanqie template/export work is implemented as a deterministic core library: `lib/fanqie-layout-export.ts` selects正文 from `polishedText -> finalText -> draftText`, cleans duplicate chapter titles, Markdown, completion markers, web tails, and AI outline traces, counts CJK-aware words, and returns validation/split-manifest helpers.
 - Phase 2 of the Fanqie template/export work adds a publish-page 番茄小说正文粘贴版 panel. It supports chapter selection, source selection, optional title inclusion, validation display, copy, and TXT download. It is still local/manual only: no database writes, no automatic Fanqie upload, no ZIP package generation, and no hidden chapter rewrites.
 - Phase 3 of the Fanqie template/export work adds the publish-page 番茄分章 TXT 包 path. The panel now supports template switching, 3000/4000/5000/custom target word counts, split preview, `拆分清单.md`, and browser-side ZIP download containing the manifest plus generated TXT files. This remains deterministic local export only: no database export-history table, no automatic Fanqie login/upload, and no silent chapter rewrites.

@@ -12,6 +12,7 @@ import { expireStaleContinuityFixPatchTasks } from "@/lib/ai/continuity-fix-patc
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { shortStoryWholeReviewTaskType } from "@/lib/ai/short-story-whole-review";
 import {
   chapterFinalTextHash,
   chapterSourceMatches,
@@ -216,6 +217,12 @@ export async function generateContinuityFixPatch(
 
   if (report.status !== "open") {
     redirect(`/projects/${projectId}/continuity?patch=already-resolved`);
+  }
+
+  if (report.aiTask?.taskType === shortStoryWholeReviewTaskType) {
+    redirect(
+      `/projects/${projectId}/continuity?patch=manual-only#report-${report.id}`,
+    );
   }
 
   if (!report.chapter) {

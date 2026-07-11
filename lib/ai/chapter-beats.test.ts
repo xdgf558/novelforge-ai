@@ -136,6 +136,7 @@ describe("chapter beat context builder", () => {
     expect(context.inputText).toContain("死者不是受害者；短信来自未来的林野");
     expect(context.inputText).toContain("目标字数: 约 5,200 字");
     expect(context.inputText).toContain("给出 5-8 个顺序节拍");
+    expect(context.inputText).toContain("直接承接前序单元");
     expect(context.inputText).toContain("禁止为了切分而添加重复标题");
     expect(context.inputText).toContain("不得另开与单篇闭环无关的支线");
     expect(context.inputText).not.toContain("# 当前大纲");
@@ -159,6 +160,41 @@ describe("chapter beat context builder", () => {
     expect(context.inputContextSummary).toContain("写作单元 2");
     expect(context.inputContextSummary).toContain("蓝图 已建立");
     expect(context.inputContextSummary).toContain("最近单元 1 个");
+  });
+
+  it("lets the first short-story unit establish the opening", () => {
+    const context = buildChapterBeatContext({
+      ...baseInput,
+      project: {
+        ...baseInput.project,
+        workType: "short_story",
+        totalWordTarget: 30000,
+      },
+      blueprint: shortStoryBlueprint,
+      chapter: {
+        ...baseInput.chapter,
+        chapterNumber: 1,
+        title: "死人来信",
+        unitSceneMovement: "林野收到死者短信，并验证第一条预告。",
+        unitConflict: "警方不信短信，寿命倒计时已经启动。",
+        unitTurn: "短信准确预告下一名死者。",
+        unitPayoffMovement: "建立死者短信的开篇承诺。",
+        unitWordTarget: 4800,
+      },
+      outlines: [],
+      recentChapters: [],
+      previousChapter: undefined,
+    });
+
+    expect(context.inputText).toContain("建立故事开篇");
+    expect(context.inputText).toContain("正式蓝图的开篇钩子");
+    expect(context.inputText).not.toContain("直接承接前序单元");
+    expect(context.inputJson.outputRequirements).toContain(
+      "建立故事开篇，落实正式蓝图的开篇钩子，并启动核心冲突。",
+    );
+    expect(context.inputJson.outputRequirements).not.toContain(
+      "承接前序单元，包含场景推进、冲突升级、关键转折和兑现推进。",
+    );
   });
 
   it("summarizes context scope for ai task records", () => {

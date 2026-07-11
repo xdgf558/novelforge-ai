@@ -115,6 +115,8 @@ export function buildChapterBeatContext(
   input: ChapterBeatContextInput,
 ): BuiltChapterBeatContext {
   const shortStoryProject = input.project.workType === "short_story";
+  const openingShortStoryUnit =
+    shortStoryProject && input.chapter.chapterNumber === 1;
   const unitLabel = shortStoryProject ? "写作单元" : "章节";
   const blueprint = shortStoryBlueprintValuesFromRecord(input.blueprint);
   const blueprintText = formatShortStoryBlueprintForContext(input.blueprint);
@@ -181,7 +183,9 @@ export function buildChapterBeatContext(
         ? "按顺序给出 5-8 个写作单元节拍。"
         : "按顺序给出 8-12 个章节节拍。",
       shortStoryProject
-        ? "承接前序单元，包含场景推进、冲突升级、关键转折和兑现推进。"
+        ? openingShortStoryUnit
+          ? "建立故事开篇，落实正式蓝图的开篇钩子，并启动核心冲突。"
+          : "承接前序单元，包含场景推进、冲突升级、关键转折和兑现推进。"
         : "包含开场钩子、关键事件、情绪转折、章末钩子。",
       "读者反馈只作为节奏、钩子、角色权重和爽点补强参考，不得改写已确认事实。",
       "节拍草案也要避免模板腔，不要反复使用“不是……而是……”这类二元对照句式。",
@@ -191,8 +195,12 @@ export function buildChapterBeatContext(
       "不要宣称已经修改正式设定或角色记忆。",
       ...(shortStoryProject
         ? [
-            "除第一个单元外，不得重复故事开篇、背景介绍或角色首次登场说明。",
-            "不得回顾上一单元已清楚呈现的信息，直接从行动后果或新压力继续。",
+            openingShortStoryUnit
+              ? "第一个单元必须建立正式蓝图的开篇钩子、主角压力和核心冲突。"
+              : "不得重复故事开篇、背景介绍或角色首次登场说明。",
+            openingShortStoryUnit
+              ? "只交代启动当前冲突所必需的背景与角色信息，避免集中设定说明。"
+              : "不得回顾上一单元已清楚呈现的信息，直接从行动后果或新压力继续。",
             "单元结尾服从整篇节奏，不得为了内部切分强造独立章末追读钩子。",
             "必须推进正式蓝图的反转链、情绪曲线或必须兑现事项，不能另开无关支线。",
           ]
@@ -276,7 +284,9 @@ export function buildChapterBeatContext(
       ? "- 给出 5-8 个顺序节拍，每个节拍包含剧情动作、压力变化和蓝图兑现作用。"
       : "- 给出 8-12 个顺序节拍，每个节拍包含剧情动作和情绪作用。",
     shortStoryProject
-      ? "- 直接承接前序单元，不重复开篇、背景说明、角色介绍或已呈现的信息；结尾只保留整篇需要的自然转折。"
+      ? openingShortStoryUnit
+        ? "- 建立故事开篇，优先落实正式蓝图的开篇钩子、主角压力和核心冲突；必要背景随行动呈现。"
+        : "- 直接承接前序单元，不重复开篇、背景说明、角色介绍或已呈现的信息；结尾只保留整篇需要的自然转折。"
       : "- 明确标出开场钩子、关键转折、章末钩子。",
     `- 如有读者反馈，优先用它调整下一${shortStoryProject ? "单元" : "章"}开场推进、${shortStoryProject ? "整篇情绪承接" : "章末钩子"}、角色出场权重和信息解释密度；不得把读者反馈当作已经生效的正式设定。`,
     "- 保持既有设定与角色边界，不新增未经作者确认的正式设定。",
