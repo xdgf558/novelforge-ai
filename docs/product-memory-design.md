@@ -47,6 +47,17 @@ traces, and serial-only follow hooks, but it must never write the cleaned result
 back into unit prose or formal memory. Copy, TXT, and Markdown exports are local;
 the 6,000-80,000 range is advisory and Fanqie upload remains manual.
 
+Lifecycle operations preserve the same work-type boundary. Full local backups
+snapshot the entire SQLite database and generated assets, so short-story
+blueprints, unit plans, review reports, and task audit records travel together;
+integration tokens remain excluded. Project Markdown/JSON exports include the
+immutable work type and short-story planning fields. AI-task retention must
+protect tasks referenced by blueprint versions, continuity reports, pending
+updates, summaries, or other formal records. Hard deletion requires explicit
+backup acknowledgement and removes only the selected project's database rows
+and generated assets. Existing desktop databases migrate forward with legacy
+projects defaulting to `serial_novel` and existing chapter prose unchanged.
+
 ## Memory Layers
 
 ### 1. Project Setting Memory

@@ -2,7 +2,9 @@
 
 ## Product Identity
 
-NovelForge AI is a local single-user web app for long-form serialized novel authors, especially WeChat public account fiction authors, web novel writers, and content studios.
+NovelForge AI is a local single-user writing workbench for serialized-novel and
+complete-short-story authors, especially WeChat public account fiction authors,
+web novel writers, and content studios.
 
 The product is not just a text generator. Its core value is helping authors maintain million-word continuity through structured memory, versioned settings, character state tracking, foreshadow management, timeline tracking, AI generation records, pending update review, and continuity checks.
 
@@ -32,6 +34,11 @@ MVP includes:
 - Short-story complete-manuscript export with deterministic confirmed-unit
   assembly, three unit-boundary strategies, copy/TXT/Markdown output, and a
   visible 6,000-80,000 word-range check. Fanqie upload remains manual.
+- Cross-work-type lifecycle hardening: short stories expose complete project
+  Markdown/JSON backups; local desktop migration preserves existing projects as
+  `serial_novel`; backup snapshots retain short-story blueprints, units, formal
+  AI-task references, and review records; hard deletion remains explicit and
+  project-scoped.
 - Project dashboard
 - Project setting editor
 - AI project setting generation
@@ -268,6 +275,14 @@ Recommended implementation order:
   provides copy, TXT, and Markdown outputs with visible 6,000-80,000 word-range
   and omitted-unit warnings. There is no export-history write or automatic
   Fanqie upload in this phase.
+- Short Story Phase 6: the manuscript workspace also provides full project
+  Markdown/JSON exports, while project editing links directly to local backup
+  creation before hard deletion. `npm run work-types:acceptance` is the durable
+  regression for legacy desktop migration, serial/short-story coexistence,
+  SQLite snapshot preservation, formal task retention, cascade deletion, and
+  foreign-key/database health. `npm run responsive:smoke` covers the key export
+  and destructive-management layouts at desktop and mobile viewport sizes.
+  Final installer creation remains a post-review, post-merge release step.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.

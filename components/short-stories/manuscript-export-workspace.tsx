@@ -20,6 +20,8 @@ import {
 
 type ManuscriptExportWorkspaceProps = {
   projectId: string;
+  projectJsonExport: string;
+  projectMarkdownExport: string;
   projectTitle: string;
   targetWordCount?: number | null;
   units: ShortStoryManuscriptUnit[];
@@ -27,6 +29,8 @@ type ManuscriptExportWorkspaceProps = {
 
 export function ManuscriptExportWorkspace({
   projectId,
+  projectJsonExport,
+  projectMarkdownExport,
   projectTitle,
   targetWordCount,
   units,
@@ -47,6 +51,8 @@ export function ManuscriptExportWorkspace({
     [headingMode, projectTitle, units],
   );
   const canExport = Boolean(manuscript.plainText.trim());
+  const projectFilenameBase =
+    manuscript.filenameBase.replace(/-短故事成稿$/, "") || "short-story";
 
   async function copyManuscript() {
     if (!canExport) {
@@ -95,6 +101,21 @@ export function ManuscriptExportWorkspace({
         : "text/plain;charset=utf-8";
     downloadText(
       `${manuscript.filenameBase}.${extension}`,
+      content,
+      mimeType,
+    );
+  }
+
+  function downloadProjectExport(extension: "json" | "md") {
+    const content =
+      extension === "json" ? projectJsonExport : projectMarkdownExport;
+    const mimeType =
+      extension === "json"
+        ? "application/json;charset=utf-8"
+        : "text/markdown;charset=utf-8";
+
+    downloadText(
+      `${projectFilenameBase}-project-export.${extension}`,
       content,
       mimeType,
     );
@@ -292,6 +313,37 @@ export function ManuscriptExportWorkspace({
           ref={previewRef}
           value={manuscript.plainText}
         />
+      </section>
+
+      <section className="border-t border-ink-950/10 pt-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-ink-950">
+              项目资料备份
+            </h2>
+            <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
+              保存蓝图、设定、角色、写作单元、结构化记忆、审校建议和 AI 任务记录；正文成稿请使用上方导出。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+              onClick={() => downloadProjectExport("md")}
+              type="button"
+            >
+              <Download aria-hidden="true" className="h-4 w-4" />
+              下载项目 Markdown
+            </button>
+            <button
+              className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+              onClick={() => downloadProjectExport("json")}
+              type="button"
+            >
+              <Download aria-hidden="true" className="h-4 w-4" />
+              下载项目 JSON
+            </button>
+          </div>
+        </div>
       </section>
     </div>
   );

@@ -1,7 +1,7 @@
 {
   "name": "novelforge-ai",
   "version": "0.1.90",
-  "description": "Local-first AI writing workbench for long-form serialized novels.",
+  "description": "Local-first AI writing workbench for serialized novels and short stories.",
   "author": "NovelForge AI",
   "private": true,
   "main": "desktop/main.cjs",
@@ -14,11 +14,13 @@
     "desktop:dist:mac": "npm run desktop:icon && npm run build && SKIP_NOTARIZE=1 CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never",
     "desktop:dist:mac:notarized": "npm run desktop:icon && npm run build && APPLE_KEYCHAIN_PROFILE=${APPLE_KEYCHAIN_PROFILE:-simplecut-pro-notary} electron-builder --mac --publish never",
     "desktop:smoke": "node scripts/desktop-smoke.cjs",
+    "responsive:smoke": "electron scripts/responsive-layout-smoke.cjs",
     "test": "vitest run --exclude 'release/**'",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "mvp:acceptance": "node scripts/mvp-acceptance-smoke.cjs"
+    "mvp:acceptance": "node scripts/mvp-acceptance-smoke.cjs",
+    "work-types:acceptance": "node scripts/work-type-lifecycle-smoke.cjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

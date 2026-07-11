@@ -71,7 +71,7 @@ Status: completed and merged.
 
 ## Phase 5: Complete Manuscript and Fanqie Export
 
-Status: implemented for PR review.
+Status: completed and merged.
 
 - Deterministically merge confirmed units into one complete short story.
 - Support no headings, section separators, or retained short headings.
@@ -86,11 +86,26 @@ Status: implemented for PR review.
 
 ## Phase 6: Hardening and Desktop Delivery
 
+Status: implemented for PR review.
+
 - Run serial-novel and short-story regression coverage together.
 - Cover backup, project export, hard deletion, task retention, and migration from
   existing desktop databases.
 - Verify desktop and mobile layouts, production build, packaged migrations, and
   the personal-use macOS installer after review approval.
+- The short-story manuscript workspace now also exposes full project Markdown
+  and JSON exports. Project deletion links directly to the local backup surface
+  and uses work-type-aware labels.
+- `npm run work-types:acceptance` creates a pre-short-story desktop database,
+  migrates it through the current history, verifies the legacy project defaults
+  to `serial_novel`, creates and snapshots a complete short-story lifecycle,
+  checks formal AI-task references, then hard-deletes the short story while
+  proving the serial project remains intact.
+- `npm run responsive:smoke` verifies the manuscript/export and destructive
+  project-management surfaces at desktop and mobile viewport sizes in the same
+  Chromium runtime used by the desktop app.
+- The final version bump and personal-use macOS installer remain deferred until
+  this phase is reviewed and merged.
 
 ## PR Rule
 

@@ -61,14 +61,16 @@ describe("AI task retention", () => {
   });
 
   it("never prunes durable summaries or tasks referenced by formal records", () => {
-    const tasks = Array.from({ length: 14 }, (_, index) =>
+    const tasks = Array.from({ length: 15 }, (_, index) =>
       task(`task_${index}`, index),
     ).map((item, index) => ({
       ...item,
       taskType:
         index === 0
           ? "chapter_summary_extraction"
-          : "chapter_beat_generation",
+          : index === 3
+            ? "short_story_whole_review"
+            : "chapter_beat_generation",
       ...(index === 1
         ? {
             _count: {
@@ -81,10 +83,16 @@ describe("AI task retention", () => {
                 shortStoryBlueprintVersions: 1,
               },
             }
-          : {}),
+          : index === 3
+            ? {
+                _count: {
+                  continuityReports: 1,
+                },
+              }
+            : {}),
     }));
 
-    expect(aiTaskIdsToPrune(tasks)).toEqual(["task_3"]);
+    expect(aiTaskIdsToPrune(tasks)).toEqual(["task_4"]);
   });
 
   it("cleans cover candidate assets before pruning old cover image tasks", async () => {
