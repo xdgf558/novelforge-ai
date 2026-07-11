@@ -48,6 +48,19 @@ const baseInput = {
   ],
 };
 
+const shortStoryBlueprint = {
+  premise: "林野收到死者发来的借命短信。",
+  openingHook: "短信准确预告下一名死者。",
+  protagonistPressure: "每迟一天，林野就失去一年寿命。",
+  coreConflict: "林野必须在寿命耗尽前找出契约源头。",
+  reversalChain: "死者不是受害者；短信来自未来的林野。",
+  emotionalArc: "怀疑、恐惧、主动追查、承担代价。",
+  climax: "林野选择公开契约名单。",
+  ending: "契约网络被摧毁，林野失去最后十年寿命。",
+  requiredPayoffs: "解释死者短信与林野签名。",
+  forbiddenDeviations: "不得新增无法在本篇闭环的幕后组织。",
+};
+
 describe("chapter polish context builder", () => {
   it("builds a polish prompt from draft text and removes process markers", () => {
     const context = buildChapterPolishContext(baseInput);
@@ -105,6 +118,82 @@ describe("chapter polish context builder", () => {
     expect(hasPolishableChapterText({ ...baseInput.chapter, draftText: "   " })).toBe(
       false,
     );
+  });
+
+  it("polishes a short-story unit without creating internal chapter seams", () => {
+    const context = buildChapterPolishContext({
+      ...baseInput,
+      project: {
+        ...baseInput.project,
+        workType: "short_story",
+      },
+      blueprint: shortStoryBlueprint,
+      chapter: {
+        ...baseInput.chapter,
+        chapterNumber: 2,
+        title: "病历上的签名",
+        unitSceneMovement: "从短信追查推进到医院旧档案室。",
+        unitConflict: "保安封锁档案室，契约倒计时仍在减少。",
+        unitTurn: "病历上的签名来自林野本人。",
+        unitPayoffMovement: "兑现短信能预告受害者的能力。",
+        unitWordTarget: 5200,
+      },
+    });
+
+    expect(context.inputText).toContain("精修写作单元 2《病历上的签名》");
+    expect(context.inputText).toContain("# 正式短故事蓝图");
+    expect(context.inputText).toContain("约 5,200 字");
+    expect(context.inputText).toContain("删除重复开篇、前情回顾");
+    expect(context.inputText).toContain("不得为内部切分强造章末追读钩子");
+    expect(context.inputJson).toMatchObject({
+      blueprint: {
+        reversalChain: "死者不是受害者；短信来自未来的林野。",
+      },
+      chapter: {
+        unitPlan: {
+          sceneMovement: "从短信追查推进到医院旧档案室。",
+          conflict: "保安封锁档案室，契约倒计时仍在减少。",
+          turn: "病历上的签名来自林野本人。",
+          payoffMovement: "兑现短信能预告受害者的能力。",
+          wordTarget: 5200,
+        },
+      },
+    });
+    expect(context.inputContextSummary).toContain("写作单元 2");
+  });
+
+  it("keeps short-story continuity guardrails in segmented polish tasks", () => {
+    const context = buildSegmentedChapterPolishContext({
+      ...baseInput,
+      project: {
+        ...baseInput.project,
+        workType: "short_story",
+      },
+      blueprint: shortStoryBlueprint,
+      chapter: {
+        ...baseInput.chapter,
+        chapterNumber: 3,
+        unitWordTarget: 5000,
+        draftText: "林野沿着签名继续追查。\n\n".repeat(1800),
+      },
+    });
+
+    expect(context.segments.length).toBeGreaterThan(1);
+    expect(context.segments[0].inputText).toContain("# 正式短故事蓝图");
+    expect(context.segments[0].inputText).toContain("删除重复开篇、前情回顾");
+    expect(context.segments[0].inputText).toContain(
+      "不得为内部单元强造章末追读钩子",
+    );
+    expect(context.inputJson).toMatchObject({
+      blueprint: {
+        ending: "契约网络被摧毁，林野失去最后十年寿命。",
+      },
+      chapter: {
+        unitPlan: {
+          wordTarget: 5000,
+        },
+      },
+    });
   });
 
   it("prefers polished text over draft and final text", () => {

@@ -4,6 +4,11 @@ export const chapterFieldNames = [
   "status",
   "goal",
   "beats",
+  "unitSceneMovement",
+  "unitConflict",
+  "unitTurn",
+  "unitPayoffMovement",
+  "unitWordTarget",
   "draftText",
   "polishedText",
   "finalText",
@@ -15,14 +20,23 @@ export type ChapterFieldName = (typeof chapterFieldNames)[number];
 
 type ChapterNumberFieldName = Extract<
   ChapterFieldName,
-  "chapterNumber" | "wordCount"
+  "chapterNumber" | "unitWordTarget" | "wordCount"
 >;
 
 type ChapterStringFieldName = Exclude<ChapterFieldName, ChapterNumberFieldName>;
 
 export type ChapterTextFieldName = Extract<
   ChapterFieldName,
-  "goal" | "beats" | "draftText" | "polishedText" | "finalText" | "notes"
+  | "goal"
+  | "beats"
+  | "unitSceneMovement"
+  | "unitConflict"
+  | "unitTurn"
+  | "unitPayoffMovement"
+  | "draftText"
+  | "polishedText"
+  | "finalText"
+  | "notes"
 >;
 
 export type ChapterValues = Record<ChapterStringFieldName, string> &
@@ -35,6 +49,7 @@ export type ChapterRecord = Partial<
 
 const chapterNumberFieldNames = [
   "chapterNumber",
+  "unitWordTarget",
   "wordCount",
 ] as const satisfies readonly ChapterNumberFieldName[];
 
@@ -127,8 +142,37 @@ export const chapterFieldGroups: readonly ChapterFieldGroup[] = [
   },
 ] as const satisfies readonly ChapterFieldGroup[];
 
+export const shortStoryUnitPlanFields: readonly ChapterTextField[] = [
+  {
+    name: "unitSceneMovement",
+    label: "场景推进",
+    placeholder: "本单元从哪个有效场景进入，人物将移动到什么新局面。",
+    rows: 4,
+  },
+  {
+    name: "unitConflict",
+    label: "核心冲突",
+    placeholder: "本单元里谁要什么、谁在阻止、失败或选择的代价是什么。",
+    rows: 4,
+  },
+  {
+    name: "unitTurn",
+    label: "关键转折",
+    placeholder: "哪条信息、行动结果或人物选择会改变局势方向。",
+    rows: 4,
+  },
+  {
+    name: "unitPayoffMovement",
+    label: "兑现推进",
+    placeholder: "本单元推进或兑现蓝图中的哪项承诺、反转、关系或情绪债。",
+    rows: 4,
+  },
+] as const;
+
 export const chapterTextFields: readonly ChapterTextField[] =
-  chapterFieldGroups.flatMap((group) => group.fields);
+  chapterFieldGroups
+    .flatMap((group) => group.fields)
+    .concat(shortStoryUnitPlanFields);
 
 export function chapterStatusLabel(status?: string | null) {
   return (
@@ -166,6 +210,11 @@ export function emptyChapterValues(): ChapterValues {
     status: "draft",
     goal: "",
     beats: "",
+    unitSceneMovement: "",
+    unitConflict: "",
+    unitTurn: "",
+    unitPayoffMovement: "",
+    unitWordTarget: 0,
     draftText: "",
     polishedText: "",
     finalText: "",
@@ -210,6 +259,7 @@ export function chapterSnapshot(values: ChapterValues): ChapterValues {
   snapshot.chapterNumber = values.chapterNumber;
   snapshot.title = values.title.trim();
   snapshot.status = values.status.trim();
+  snapshot.unitWordTarget = Math.max(0, Math.round(values.unitWordTarget || 0));
 
   for (const field of chapterTextFields) {
     snapshot[field.name] = values[field.name]?.trim() ?? "";

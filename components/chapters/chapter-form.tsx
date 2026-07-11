@@ -7,8 +7,10 @@ import {
   formatChapterWordCount,
   chapterStatusOptions,
   chapterValuesFromRecord,
+  shortStoryUnitPlanFields,
   type ChapterValues,
 } from "@/lib/chapter-fields";
+import { isShortStoryProject } from "@/lib/projects/work-types";
 import { ChapterEditLocator } from "./chapter-edit-locator";
 
 type ChapterFormProps = {
@@ -46,10 +48,16 @@ export function ChapterForm({
 }: ChapterFormProps) {
   const values = chapterValuesFromRecord(chapter ?? initialValues);
   const isCreateForm = !chapter;
+  const shortStoryProject = isShortStoryProject(project.workType);
   const canFinalizeFromPolished = Boolean(values.polishedText.trim());
   const canFinalizeFromDraft = Boolean(values.draftText.trim());
+  const shortStoryUnitPlanFieldNames = new Set(
+    shortStoryUnitPlanFields.map((field) => field.name),
+  );
   const createHiddenTextFields = chapterTextFields.filter(
-    (field) => field.name !== "goal",
+    (field) =>
+      field.name !== "goal" &&
+      !(shortStoryProject && shortStoryUnitPlanFieldNames.has(field.name)),
   );
 
   return (
@@ -65,7 +73,7 @@ export function ChapterForm({
             }
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-            返回章节
+            返回{shortStoryProject ? "写作单元" : "章节"}
           </Link>
           <p className="text-sm font-semibold text-signal-600">
             {project.title}
@@ -113,7 +121,11 @@ export function ChapterForm({
               type="hidden"
               value={values.status || "draft"}
             />
-            <input name="changeReason" type="hidden" value="初始章节壳子" />
+            <input
+              name="changeReason"
+              type="hidden"
+              value={shortStoryProject ? "初始写作单元" : "初始章节壳子"}
+            />
             {createHiddenTextFields.map((field) => (
               <input
                 key={field.name}
@@ -122,6 +134,23 @@ export function ChapterForm({
                 value={values[field.name]}
               />
             ))}
+            {shortStoryProject ? null : (
+              <input name="unitWordTarget" type="hidden" value="0" />
+            )}
+          </>
+        ) : null}
+
+        {!isCreateForm && !shortStoryProject ? (
+          <>
+            {shortStoryUnitPlanFields.map((field) => (
+              <input
+                key={field.name}
+                name={field.name}
+                type="hidden"
+                value={values[field.name]}
+              />
+            ))}
+            <input name="unitWordTarget" type="hidden" value="0" />
           </>
         ) : null}
 
@@ -133,7 +162,9 @@ export function ChapterForm({
           }`}
         >
           <label className="flex flex-col gap-2">
-            <span className={labelClass}>章节号</span>
+            <span className={labelClass}>
+              {shortStoryProject ? "单元序号" : "章节号"}
+            </span>
             <input
               className={inputClass}
               defaultValue={values.chapterNumber}
@@ -145,13 +176,17 @@ export function ChapterForm({
           </label>
 
           <label className="flex flex-col gap-2">
-            <span className={labelClass}>章节标题</span>
+            <span className={labelClass}>
+              {shortStoryProject ? "单元标题" : "章节标题"}
+            </span>
             <input
               className={inputClass}
               defaultValue={values.title}
               maxLength={160}
               name="title"
-              placeholder="例如：第一份借命契约"
+              placeholder={
+                shortStoryProject ? "例如：病历上的签名" : "例如：第一份借命契约"
+              }
               required
             />
           </label>
@@ -159,7 +194,9 @@ export function ChapterForm({
           {isCreateForm ? null : (
             <>
               <label className="flex flex-col gap-2">
-                <span className={labelClass}>章节状态</span>
+                <span className={labelClass}>
+                  {shortStoryProject ? "单元状态" : "章节状态"}
+                </span>
                 <select
                   className={inputClass}
                   defaultValue={values.status || "draft"}
@@ -183,6 +220,48 @@ export function ChapterForm({
           )}
         </section>
 
+        {shortStoryProject ? (
+          <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+            <div>
+              <h2 className="text-base font-semibold text-ink-950">
+                单元规划
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-ink-700">
+                把这个内部单元的场景功能、冲突、转折和蓝图兑现写清楚。AI
+                节拍会优先遵守这些确认内容。
+              </p>
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <label className="flex flex-col gap-2 lg:col-span-2 lg:max-w-xs">
+                <span className={labelClass}>目标字数</span>
+                <input
+                  className={inputClass}
+                  defaultValue={values.unitWordTarget || ""}
+                  min={0}
+                  name="unitWordTarget"
+                  placeholder="例如：5000"
+                  step={100}
+                  type="number"
+                />
+              </label>
+
+              {shortStoryUnitPlanFields.map((field) => (
+                <label className="flex flex-col gap-2" key={field.name}>
+                  <span className={labelClass}>{field.label}</span>
+                  <textarea
+                    className={`${inputClass} min-h-28 py-3 leading-6`}
+                    defaultValue={values[field.name]}
+                    name={field.name}
+                    placeholder={field.placeholder}
+                    rows={field.rows}
+                  />
+                </label>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
         {(isCreateForm
           ? [
               {
@@ -200,10 +279,16 @@ export function ChapterForm({
           >
             <div>
               <h2 className="text-base font-semibold text-ink-950">
-                {group.title}
+                {shortStoryProject && group.title === "章节目标"
+                  ? "单元目标与节拍"
+                  : group.title}
               </h2>
               <p className="mt-1 text-sm leading-6 text-ink-700">
-                {group.description}
+                {shortStoryProject && group.title === "章节目标"
+                  ? "记录这个内部写作单元要完成的剧情功能；AI 会结合正式蓝图和单元规划生成细化节拍。"
+                  : shortStoryProject && group.title === "作者备注"
+                    ? "保存这个写作单元的临时提醒、修订计划和后续兑现注意事项。"
+                    : group.description}
               </p>
             </div>
 
@@ -212,7 +297,11 @@ export function ChapterForm({
                 <div className="flex flex-col gap-2" key={field.name}>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <label className={labelClass} htmlFor={field.name}>
-                      {field.label}
+                      {shortStoryProject && field.name === "goal"
+                        ? "单元目标"
+                        : shortStoryProject && field.name === "beats"
+                          ? "单元节拍"
+                          : field.label}
                     </label>
                     {!isCreateForm && field.name === "finalText" ? (
                       <div className="flex flex-wrap gap-2">
@@ -260,13 +349,20 @@ export function ChapterForm({
                     defaultValue={values[field.name]}
                     id={field.name}
                     name={field.name}
-                    placeholder={field.placeholder}
+                    placeholder={
+                      shortStoryProject
+                        ? shortStoryFieldPlaceholder(field.name, field.placeholder)
+                        : field.placeholder
+                    }
                     rows={field.rows}
                   />
                   {!isCreateForm && field.name === "finalText" ? (
                     <div className="space-y-1 text-xs leading-5 text-ink-700">
                       <p>
-                        点击后会把当前精修稿或草稿正文写入定稿正文、把章节状态设为“已定稿”，并保存新的章节快照。
+                        点击后会把当前精修稿或草稿正文写入定稿正文、把
+                        {shortStoryProject ? "单元" : "章节"}
+                        状态设为“已定稿”，并保存新的
+                        {shortStoryProject ? "单元" : "章节"}快照。
                       </p>
                       {!canFinalizeFromPolished ? (
                         <p>精修正文为空时，“用精修稿一键定稿”会保持禁用。</p>
@@ -289,7 +385,11 @@ export function ChapterForm({
               <textarea
                 className={`${inputClass} min-h-24 py-3 leading-6`}
                 name="changeReason"
-                placeholder="例如：初始章节草稿、补全节拍、整理定稿正文"
+                placeholder={
+                  shortStoryProject
+                    ? "例如：补全单元规划、调整转折、整理定稿正文"
+                    : "例如：初始章节草稿、补全节拍、整理定稿正文"
+                }
               />
             </label>
           </section>
@@ -317,4 +417,24 @@ export function ChapterForm({
       </form>
     </div>
   );
+}
+
+function shortStoryFieldPlaceholder(
+  fieldName: (typeof chapterTextFields)[number]["name"],
+  fallback: string,
+) {
+  const placeholders: Partial<Record<typeof fieldName, string>> = {
+    goal: "例如：迫使主角接受契约，并把调查推进到医院旧档案室。",
+    beats:
+      "按顺序列出本单元的场景动作、压力变化、关键转折和蓝图兑现作用。",
+    draftText:
+      "这里保存写作单元草稿；它是完整短故事正文的一段，不需要内部标题。",
+    polishedText: "这里保存精修后的连续正文候选，确认后可写入定稿正文。",
+    finalText:
+      "确认后的单元定稿。后续摘要、更新提取和连续性检查会以此为准。",
+    notes:
+      "例如：直接承接上一单元结尾，不重复人物介绍；结尾停在证据反转之后。",
+  };
+
+  return placeholders[fieldName] ?? fallback;
 }

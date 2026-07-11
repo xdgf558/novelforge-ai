@@ -13,6 +13,7 @@ import {
   ListChecks,
   MapPinned,
   Network,
+  NotebookTabs,
   Pencil,
   Send,
   ShieldAlert,
@@ -508,6 +509,12 @@ function ShortStoryProjectDashboard({
       detail: "作品定位、人物驱动、冲突与风格约束",
     },
     {
+      href: `/projects/${project.id}/chapters`,
+      icon: NotebookTabs,
+      title: "写作单元",
+      detail: `已建立 ${project._count.chapters} 个内部单元`,
+    },
+    {
       href: `/projects/${project.id}/characters`,
       icon: Users,
       title: "角色",
@@ -578,7 +585,7 @@ function ShortStoryProjectDashboard({
 
       <section>
         <h2 className="text-base font-semibold text-ink-950">创作资料</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {workspaceLinks.map((item) => {
             const Icon = item.icon;
 

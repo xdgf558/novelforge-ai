@@ -71,6 +71,7 @@ const shortStoryToolPaths: readonly ProjectToolPath[] = [
   "blueprint",
   "settings",
   "characters",
+  "chapters",
   "memory",
   "ai",
 ];

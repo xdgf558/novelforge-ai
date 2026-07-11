@@ -119,6 +119,11 @@ const baseChapter = {
   status: "draft",
   goal: "章节目标",
   beats: "章节节拍",
+  unitSceneMovement: "",
+  unitConflict: "",
+  unitTurn: "",
+  unitPayoffMovement: "",
+  unitWordTarget: 0,
   draftText: "旧草稿正文",
   polishedText: "作者手改精修稿",
   finalText: "旧定稿正文",
@@ -191,6 +196,11 @@ function buildChapterFormData(
     status: "draft",
     goal: "章节目标",
     beats: "章节节拍",
+    unitSceneMovement: "",
+    unitConflict: "",
+    unitTurn: "",
+    unitPayoffMovement: "",
+    unitWordTarget: 0,
     draftText: "草稿正文",
     polishedText: "精修正文",
     finalText: "",
@@ -317,6 +327,38 @@ describe("chapter actions", () => {
         },
       ],
     });
+  });
+
+  it("keeps short-story writing units out of serial outlines and storylines", async () => {
+    mocks.prisma.project.findUnique.mockResolvedValueOnce({
+      id: "project_1",
+      workType: "short_story",
+    });
+
+    await expect(
+      createChapter(
+        "project_1",
+        buildChapterFormData({
+          chapterNumber: 2,
+          title: "病历上的签名",
+          unitSceneMovement: "从短信追查推进到医院旧档案室。",
+          unitConflict: "保安封锁档案室。",
+          unitTurn: "病历上的签名来自主角本人。",
+          unitPayoffMovement: "兑现死者短信的预告能力。",
+          unitWordTarget: 5200,
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.tx.chapter.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        projectId: "project_1",
+        unitWordTarget: 5200,
+        unitTurn: "病历上的签名来自主角本人。",
+      }),
+    });
+    expect(mocks.tx.storyline.findMany).not.toHaveBeenCalled();
+    expect(mocks.prisma.outline.findMany).not.toHaveBeenCalled();
   });
 
   it("does not duplicate existing storyline chapter relations", async () => {

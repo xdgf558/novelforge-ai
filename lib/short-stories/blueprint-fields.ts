@@ -146,3 +146,38 @@ export function shortStoryBlueprintCompletedFieldCount(
     Boolean(values?.[fieldName]?.trim()),
   ).length;
 }
+
+export function shortStoryBlueprintFieldLabel(
+  fieldName: ShortStoryBlueprintFieldName,
+) {
+  return (
+    shortStoryBlueprintGroups
+      .flatMap((group) => group.fields)
+      .find((field) => field.name === fieldName)?.label ?? fieldName
+  );
+}
+
+export function formatShortStoryBlueprintForContext(
+  record?: Partial<
+    Record<ShortStoryBlueprintFieldName, string | null | undefined>
+  > | null,
+  maxFieldLength = 1600,
+) {
+  return shortStoryBlueprintFieldNames
+    .map((fieldName) => {
+      const value = record?.[fieldName]?.trim();
+
+      if (!value) {
+        return "";
+      }
+
+      const clipped =
+        value.length > maxFieldLength
+          ? `${value.slice(0, maxFieldLength)}...`
+          : value;
+
+      return `## ${shortStoryBlueprintFieldLabel(fieldName)}\n${clipped}`;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}

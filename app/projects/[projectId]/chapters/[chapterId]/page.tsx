@@ -68,6 +68,7 @@ import {
 } from "@/lib/foreshadows/recovery-reminders";
 import { formatDate, formatNumber } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { isShortStoryProject } from "@/lib/projects/work-types";
 import {
   foreshadowImportanceLabel,
   foreshadowStatusLabel,
@@ -190,6 +191,8 @@ export default async function ChapterPage({
     notFound();
   }
 
+  const shortStoryProject = isShortStoryProject(chapter.project.workType);
+
   const hasDefaultApiKey = hasConfiguredOpenAIKey();
   const hasDraftApiKey = hasConfiguredOpenAIKey(
     getAiRuntimeEnvForTaskType("chapter_draft_generation"),
@@ -234,7 +237,9 @@ export default async function ChapterPage({
         status: "pending",
       },
     }),
-    prisma.publishSyncState.findFirst({
+    shortStoryProject
+      ? Promise.resolve(null)
+      : prisma.publishSyncState.findFirst({
       where: {
         projectId: chapter.project.id,
         localType: "chapter",
@@ -265,10 +270,12 @@ export default async function ChapterPage({
         },
       },
     }),
-    loadReaderFeedbackSignalsForChapterGeneration({
-      projectId: chapter.project.id,
-      beforeChapterNumber: chapter.chapterNumber,
-    }),
+    shortStoryProject
+      ? Promise.resolve([] as ReaderFeedbackSignal[])
+      : loadReaderFeedbackSignalsForChapterGeneration({
+          projectId: chapter.project.id,
+          beforeChapterNumber: chapter.chapterNumber,
+        }),
     findForeshadowRecoveryReminders({
       projectId: chapter.project.id,
       currentChapterNumber: chapter.chapterNumber,
@@ -286,20 +293,23 @@ export default async function ChapterPage({
         href={`/projects/${chapter.project.id}/chapters`}
       >
         <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-        返回章节列表
+        返回{shortStoryProject ? "写作单元" : "章节"}列表
       </Link>
 
       <header className="rounded-lg border border-ink-950/10 bg-white p-6 shadow-panel">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-signal-600">
-              {chapter.project.title} / 第 {formatNumber(chapter.chapterNumber)} 章
+              {chapter.project.title} / {shortStoryProject ? "单元" : "第"}{" "}
+              {formatNumber(chapter.chapterNumber)}
+              {shortStoryProject ? "" : " 章"}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink-950">
               {chapter.title}
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
-              {chapter.goal || "暂未填写章节目标。"}
+              {chapter.goal ||
+                `暂未填写${shortStoryProject ? "单元" : "章节"}目标。`}
             </p>
             <p className="mt-2 text-xs text-ink-700">
               {chapterStatusLabel(chapter.status)} /{" "}
@@ -340,24 +350,28 @@ export default async function ChapterPage({
 
       <AiBudgetNotice projectId={chapter.project.id} />
 
-      <ChapterStorylinesPanel
-        projectId={chapter.project.id}
-        storylines={chapter.storylineChapters.map((item) => item.storyline)}
-      />
+      {shortStoryProject ? null : (
+        <>
+          <ChapterStorylinesPanel
+            projectId={chapter.project.id}
+            storylines={chapter.storylineChapters.map((item) => item.storyline)}
+          />
 
-      <ChapterReaderFeedbackPanel
-        chapterId={chapter.id}
-        error={readerFeedbackError}
-        errorMessage={readerFeedbackMessage}
-        latestAnalytics={chapter.readerAnalytics[0] ?? null}
-        latestInsight={chapter.readerInsights[0] ?? null}
-        generationFeedbackSignals={generationFeedbackSignals}
-        projectId={chapter.project.id}
-        readerRemoteId={readerRemoteId}
-        saved={readerFeedbackSaved === "1"}
-        stationCatSyncState={stationCatSyncState}
-        storedReaderRemoteId={chapter.readerRemoteId}
-      />
+          <ChapterReaderFeedbackPanel
+            chapterId={chapter.id}
+            error={readerFeedbackError}
+            errorMessage={readerFeedbackMessage}
+            latestAnalytics={chapter.readerAnalytics[0] ?? null}
+            latestInsight={chapter.readerInsights[0] ?? null}
+            generationFeedbackSignals={generationFeedbackSignals}
+            projectId={chapter.project.id}
+            readerRemoteId={readerRemoteId}
+            saved={readerFeedbackSaved === "1"}
+            stationCatSyncState={stationCatSyncState}
+            storedReaderRemoteId={chapter.readerRemoteId}
+          />
+        </>
+      )}
 
       <ChapterBeatAiPanel
         chapterId={chapter.id}
@@ -366,6 +380,7 @@ export default async function ChapterPage({
         hasApiKey={hasDefaultApiKey}
         projectId={chapter.project.id}
         tasks={beatTasks}
+        unitMode={shortStoryProject}
       />
 
       <ChapterDraftAiPanel
@@ -374,6 +389,7 @@ export default async function ChapterPage({
         hasConfirmedBeats={hasConfirmedBeats}
         projectId={chapter.project.id}
         tasks={draftTasks}
+        unitMode={shortStoryProject}
       />
 
       <ChapterPolishAiPanel
@@ -383,6 +399,7 @@ export default async function ChapterPage({
         polishError={polishError}
         projectId={chapter.project.id}
         tasks={polishTasks}
+        unitMode={shortStoryProject}
       />
 
       <ChapterSummaryAiPanel
@@ -392,6 +409,7 @@ export default async function ChapterPage({
         hasConfirmedText={hasConfirmedText}
         projectId={chapter.project.id}
         tasks={summaryTasks}
+        unitMode={shortStoryProject}
       />
 
       <ChapterPendingUpdatePanel
@@ -402,6 +420,7 @@ export default async function ChapterPage({
         pendingUpdateCount={pendingUpdateReviewCount}
         projectId={chapter.project.id}
         tasks={pendingUpdateTasks}
+        unitMode={shortStoryProject}
       />
 
       <ChapterContinuityPanel
@@ -412,9 +431,10 @@ export default async function ChapterPage({
         hasConfirmedText={hasConfirmedText}
         projectId={chapter.project.id}
         tasks={continuityTasks}
+        unitMode={shortStoryProject}
       />
 
-      <ChapterSnapshot values={chapter} />
+      <ChapterSnapshot values={chapter} workType={chapter.project.workType} />
     </div>
   );
 }
@@ -944,6 +964,7 @@ function ChapterBeatAiPanel({
   hasApiKey,
   projectId,
   tasks,
+  unitMode,
 }: {
   chapterId: string;
   currentChapterNumber: number;
@@ -951,6 +972,7 @@ function ChapterBeatAiPanel({
   hasApiKey: boolean;
   projectId: string;
   tasks: readonly ChapterAiTask[];
+  unitMode: boolean;
 }) {
   const hasActiveGeneration = tasks.some((task) =>
     isActiveAiTaskStatus(task.status),
@@ -963,20 +985,21 @@ function ChapterBeatAiPanel({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
             <Bot aria-hidden="true" className="h-4 w-4" />
-            AI 章节节拍
+            AI {unitMode ? "单元" : "章节"}节拍
           </div>
           <h2 className="mt-2 text-base font-semibold text-ink-950">
-            生成并审阅章节节拍草案
+            生成并审阅{unitMode ? "单元" : "章节"}节拍草案
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
-            AI 只生成可审阅草案。点击采用后，结果才会写入章节节拍并保存章节版本。
+            AI 只生成可审阅草案。点击采用后，结果才会写入
+            {unitMode ? "单元" : "章节"}节拍并保存版本。
           </p>
         </div>
 
         <PreserveScrollForm
           action={generateChapterBeats.bind(null, projectId, chapterId)}
           preserveKey={`chapter-beats-${projectId}-${chapterId}`}
-          statusText="已开始生成章节节拍，页面会留在当前位置并自动刷新结果。"
+          statusText={`已开始生成${unitMode ? "单元" : "章节"}节拍，页面会留在当前位置并自动刷新结果。`}
         >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
@@ -1001,7 +1024,7 @@ function ChapterBeatAiPanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有节拍生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
+          当前{unitMode ? "单元" : "章节"}已有节拍生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -1009,6 +1032,7 @@ function ChapterBeatAiPanel({
         currentChapterNumber={currentChapterNumber}
         projectId={projectId}
         reminders={foreshadowReminders}
+        unitMode={unitMode}
       />
 
       {tasks.length === 0 ? (
@@ -1089,10 +1113,12 @@ function ForeshadowRecoveryReminderPanel({
   currentChapterNumber,
   projectId,
   reminders,
+  unitMode,
 }: {
   currentChapterNumber: number;
   projectId: string;
   reminders: readonly ForeshadowRecoveryReminder[];
+  unitMode: boolean;
 }) {
   return (
     <div className="mt-4 rounded-lg border border-signal-500/20 bg-signal-50/60 p-4">
@@ -1100,7 +1126,7 @@ function ForeshadowRecoveryReminderPanel({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-700">
             <Flag aria-hidden="true" className="h-4 w-4" />
-            本章建议处理伏笔
+            本{unitMode ? "单元" : "章"}建议处理伏笔
           </div>
           <p className="mt-1 text-xs leading-5 text-ink-700">
             生成节拍时会把这些伏笔交给 AI 安排回收、推进或暂缓理由；不会自动改写伏笔池状态。
@@ -1185,12 +1211,14 @@ function ChapterDraftAiPanel({
   hasConfirmedBeats,
   projectId,
   tasks,
+  unitMode,
 }: {
   chapterId: string;
   hasApiKey: boolean;
   hasConfirmedBeats: boolean;
   projectId: string;
   tasks: readonly ChapterAiTask[];
+  unitMode: boolean;
 }) {
   const hasActiveGeneration = tasks.some((task) =>
     isActiveAiTaskStatus(task.status),
@@ -1203,13 +1231,15 @@ function ChapterDraftAiPanel({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
             <Bot aria-hidden="true" className="h-4 w-4" />
-            AI 章节草稿
+            AI {unitMode ? "单元" : "章节"}草稿
           </div>
           <h2 className="mt-2 text-base font-semibold text-ink-950">
-            根据已确认节拍生成章节草稿
+            根据已确认节拍生成{unitMode ? "单元" : "章节"}草稿
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
-            AI 会按当前章节节拍、文风样例、角色说话规则和上一章结尾生成可审阅草稿。点击采用后，结果才会写入草稿正文。
+            {unitMode
+              ? "AI 会按正式蓝图、单元规划、已确认节拍和前序单元结尾生成连续正文，不会重复开篇承诺或强造章末钩子。点击采用后才会写入草稿正文。"
+              : "AI 会按当前章节节拍、文风样例、角色说话规则和上一章结尾生成可审阅草稿。点击采用后，结果才会写入草稿正文。"}
           </p>
         </div>
 
@@ -1217,8 +1247,11 @@ function ChapterDraftAiPanel({
           action={generateChapterDraft.bind(null, projectId, chapterId)}
           className="flex flex-col gap-3 lg:min-w-56"
           preserveKey={`chapter-draft-${projectId}-${chapterId}`}
-          statusText="已开始生成章节草稿，页面会留在当前位置并自动刷新结果。"
+          statusText={`已开始生成${unitMode ? "单元" : "章节"}草稿，页面会留在当前位置并自动刷新结果。`}
         >
+          {unitMode ? (
+            <input name="platformTemplate" type="hidden" value="default" />
+          ) : (
           <div className="grid gap-1">
             <label
               className="text-xs font-semibold text-ink-700"
@@ -1242,6 +1275,7 @@ function ChapterDraftAiPanel({
               番茄小说会强化开篇钩子、爽点反转、手机阅读段落和章末追读感。
             </p>
           </div>
+          )}
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -1265,13 +1299,13 @@ function ChapterDraftAiPanel({
 
       {!hasConfirmedBeats ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          生成草稿前需要先在章节节拍中保存已确认节拍。
+          生成草稿前需要先在{unitMode ? "单元" : "章节"}节拍中保存已确认节拍。
         </p>
       ) : null}
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有草稿生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
+          当前{unitMode ? "单元" : "章节"}已有草稿生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -1356,6 +1390,7 @@ function ChapterPolishAiPanel({
   polishError,
   projectId,
   tasks,
+  unitMode,
 }: {
   chapterId: string;
   hasApiKey: boolean;
@@ -1363,6 +1398,7 @@ function ChapterPolishAiPanel({
   polishError?: string;
   projectId: string;
   tasks: readonly ChapterAiTask[];
+  unitMode: boolean;
 }) {
   const hasActiveGeneration = tasks.some((task) =>
     isActiveAiTaskStatus(task.status),
@@ -1381,7 +1417,9 @@ function ChapterPolishAiPanel({
             精修草稿并生成可定稿正文候选
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
-            AI 会优先读取当前精修正文，其次读取定稿正文，最后回退到草稿正文，并结合章节目标、节拍、文风和角色说话规则，输出可审阅的精修稿。点击采用后，结果只写入精修正文，仍需作者确认后再定稿。
+            AI 会优先读取当前精修正文，其次读取定稿正文，最后回退到草稿正文，并结合
+            {unitMode ? "正式蓝图、单元规划" : "章节目标、节拍"}
+            、文风和角色规则输出可审阅精修稿。点击采用后只写入精修正文，仍需作者确认后再定稿。
           </p>
         </div>
 
@@ -1391,6 +1429,9 @@ function ChapterPolishAiPanel({
           preserveKey={`chapter-polish-${projectId}-${chapterId}`}
           statusText="已开始生成正文精修稿，页面会留在当前位置并自动刷新结果。"
         >
+          {unitMode ? (
+            <input name="platformTemplate" type="hidden" value="default" />
+          ) : (
           <div className="grid gap-1">
             <label
               className="text-xs font-semibold text-ink-700"
@@ -1414,6 +1455,7 @@ function ChapterPolishAiPanel({
               番茄小说会加强自然网文语感、冲突压力、爽点释放和短段落节奏。
             </p>
           </div>
+          )}
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
               canGenerate
@@ -1458,7 +1500,7 @@ function ChapterPolishAiPanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有正文精修任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
+          当前{unitMode ? "单元" : "章节"}已有正文精修任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -1556,6 +1598,7 @@ function ChapterSummaryAiPanel({
   hasConfirmedText,
   projectId,
   tasks,
+  unitMode,
 }: {
   chapterId: string;
   finalText?: string | null;
@@ -1563,6 +1606,7 @@ function ChapterSummaryAiPanel({
   hasConfirmedText: boolean;
   projectId: string;
   tasks: readonly ChapterAiTask[];
+  unitMode: boolean;
 }) {
   const hasActiveGeneration = tasks.some((task) =>
     isActiveAiTaskStatus(task.status),
@@ -1575,20 +1619,26 @@ function ChapterSummaryAiPanel({
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
             <Bot aria-hidden="true" className="h-4 w-4" />
-            AI 章节摘要
+            AI {unitMode ? "单元" : "章节"}摘要
           </div>
           <h2 className="mt-2 text-base font-semibold text-ink-950">
             从定稿正文提取结构化摘要
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
-            摘要任务只读取作者确认的定稿正文，输出短摘要、主要事件、角色变化、伏笔和连续性风险。本章明确推进或兑现的旧伏笔会自动进入待确认列表，作者确认前不会修改正式故事记忆。
+            摘要任务只读取作者确认的定稿正文，输出短摘要、主要事件、角色变化、伏笔和连续性风险。本
+            {unitMode ? "单元" : "章"}
+            明确推进或兑现的旧伏笔会自动进入待确认列表，作者确认前不会修改正式故事记忆。
           </p>
         </div>
 
         <PreserveScrollForm
           action={generateChapterSummary.bind(null, projectId, chapterId)}
           preserveKey={`chapter-summary-${projectId}-${chapterId}`}
-          statusText="已开始提取章节摘要，页面会留在当前位置并自动刷新结果。"
+          statusText={
+            "已开始提取" +
+            (unitMode ? "单元" : "章节") +
+            "摘要，页面会留在当前位置并自动刷新结果。"
+          }
         >
           <button
             className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
@@ -1613,7 +1663,7 @@ function ChapterSummaryAiPanel({
 
       {!hasConfirmedText ? (
         <FinalTextRequiredNotice
-          actionLabel="生成章节摘要"
+          actionLabel={"生成" + (unitMode ? "单元" : "章节") + "摘要"}
           chapterId={chapterId}
           projectId={projectId}
         />
@@ -1621,7 +1671,8 @@ function ChapterSummaryAiPanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有摘要生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
+          当前{unitMode ? "单元" : "章节"}
+          已有摘要生成任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -1737,6 +1788,7 @@ function ChapterPendingUpdatePanel({
   pendingUpdateCount,
   projectId,
   tasks,
+  unitMode,
 }: {
   chapterId: string;
   finalText?: string | null;
@@ -1745,6 +1797,7 @@ function ChapterPendingUpdatePanel({
   pendingUpdateCount: number;
   projectId: string;
   tasks: readonly ChapterAiTask[];
+  unitMode: boolean;
 }) {
   const hasActiveGeneration = tasks.some((task) =>
     isActiveAiTaskStatus(task.status),
@@ -1763,7 +1816,9 @@ function ChapterPendingUpdatePanel({
             从定稿正文提取待审核记忆变化
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
-            AI 会比较定稿正文、当前设定、角色档案和章节摘要，只生成待审核更新。作者批准前，不会写入正式故事记忆。
+            AI 会比较定稿正文、当前设定、角色档案和
+            {unitMode ? "单元" : "章节"}
+            摘要，只生成待审核更新。作者批准前，不会写入正式故事记忆。
           </p>
           <Link
             className="mt-3 inline-flex text-sm font-semibold text-signal-600 hover:underline"
@@ -1811,7 +1866,8 @@ function ChapterPendingUpdatePanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有待更新提取任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
+          当前{unitMode ? "单元" : "章节"}
+          已有待更新提取任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 
@@ -1866,6 +1922,7 @@ function ChapterContinuityPanel({
   hasConfirmedText,
   projectId,
   tasks,
+  unitMode,
 }: {
   chapterId: string;
   continuityReportCount: number;
@@ -1874,6 +1931,7 @@ function ChapterContinuityPanel({
   hasConfirmedText: boolean;
   projectId: string;
   tasks: readonly ChapterAiTask[];
+  unitMode: boolean;
 }) {
   const hasActiveGeneration = tasks.some((task) =>
     isActiveAiTaskStatus(task.status),
@@ -1889,7 +1947,7 @@ function ChapterContinuityPanel({
             连续性检查
           </div>
           <h2 className="mt-2 text-base font-semibold text-ink-950">
-            检查章节与正式故事记忆的冲突
+            检查{unitMode ? "写作单元" : "章节"}与正式故事记忆的冲突
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
             AI 会读取定稿正文、总设定、角色档案、世界规则、时间线、伏笔池和最近摘要，只生成风险报告和修复建议，不会自动修改正式记忆。
@@ -1938,7 +1996,8 @@ function ChapterContinuityPanel({
 
       {hasActiveGeneration ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          当前章节已有连续性检查任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
+          当前{unitMode ? "单元" : "章节"}
+          已有连续性检查任务在后台运行，页面会自动刷新显示结果，完成前不会重复发起新的模型调用。
         </p>
       ) : null}
 

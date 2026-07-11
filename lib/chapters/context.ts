@@ -41,6 +41,7 @@ export async function loadChapterBeatContext(
       project: {
         select: {
           title: true,
+          workType: true,
           genre: true,
           targetAudience: true,
           platform: true,
@@ -49,6 +50,7 @@ export async function loadChapterBeatContext(
           chapterWordMax: true,
           description: true,
           wechatPositioning: true,
+          shortStoryBlueprint: true,
         },
       },
     },
@@ -57,6 +59,7 @@ export async function loadChapterBeatContext(
   if (!chapter) {
     throw new ChapterContextNotFoundError();
   }
+  const shortStoryProject = chapter.project.workType === "short_story";
 
   const [
     setting,
@@ -72,25 +75,27 @@ export async function loadChapterBeatContext(
         projectId,
       },
     }),
-    prisma.outline.findMany({
-      where: {
-        projectId,
-        status: {
-          not: "archived",
-        },
-      },
-      orderBy: [
-        {
-          level: "asc",
-        },
-        {
-          sortOrder: "asc",
-        },
-        {
-          createdAt: "asc",
-        },
-      ],
-    }),
+    shortStoryProject
+      ? Promise.resolve([])
+      : prisma.outline.findMany({
+          where: {
+            projectId,
+            status: {
+              not: "archived",
+            },
+          },
+          orderBy: [
+            {
+              level: "asc",
+            },
+            {
+              sortOrder: "asc",
+            },
+            {
+              createdAt: "asc",
+            },
+          ],
+        }),
     prisma.character.findMany({
       where: {
         projectId,
@@ -120,10 +125,12 @@ export async function loadChapterBeatContext(
         chapterNumber: "desc",
       },
     }),
-    loadReaderFeedbackSignalsForChapterGeneration({
-      projectId,
-      beforeChapterNumber: chapter.chapterNumber,
-    }),
+    shortStoryProject
+      ? Promise.resolve([])
+      : loadReaderFeedbackSignalsForChapterGeneration({
+          projectId,
+          beforeChapterNumber: chapter.chapterNumber,
+        }),
     findForeshadowRecoveryReminders({
       projectId,
       currentChapterNumber: chapter.chapterNumber,
@@ -132,6 +139,7 @@ export async function loadChapterBeatContext(
 
   return {
     project: chapter.project,
+    blueprint: chapter.project.shortStoryBlueprint,
     setting,
     chapter: pickChapterContext(chapter),
     outlines: selectRelevantOutlinesForChapter(outlines, chapter.chapterNumber),
@@ -160,6 +168,7 @@ export async function loadChapterDraftContext(
       project: {
         select: {
           title: true,
+          workType: true,
           genre: true,
           targetAudience: true,
           platform: true,
@@ -168,6 +177,7 @@ export async function loadChapterDraftContext(
           chapterWordMax: true,
           description: true,
           wechatPositioning: true,
+          shortStoryBlueprint: true,
         },
       },
     },
@@ -176,6 +186,7 @@ export async function loadChapterDraftContext(
   if (!chapter) {
     throw new ChapterContextNotFoundError();
   }
+  const shortStoryProject = chapter.project.workType === "short_story";
 
   const [
     setting,
@@ -189,25 +200,27 @@ export async function loadChapterDraftContext(
         projectId,
       },
     }),
-    prisma.outline.findMany({
-      where: {
-        projectId,
-        status: {
-          not: "archived",
-        },
-      },
-      orderBy: [
-        {
-          level: "asc",
-        },
-        {
-          sortOrder: "asc",
-        },
-        {
-          createdAt: "asc",
-        },
-      ],
-    }),
+    shortStoryProject
+      ? Promise.resolve([])
+      : prisma.outline.findMany({
+          where: {
+            projectId,
+            status: {
+              not: "archived",
+            },
+          },
+          orderBy: [
+            {
+              level: "asc",
+            },
+            {
+              sortOrder: "asc",
+            },
+            {
+              createdAt: "asc",
+            },
+          ],
+        }),
     prisma.character.findMany({
       where: {
         projectId,
@@ -225,14 +238,17 @@ export async function loadChapterDraftContext(
         chapterNumber: "desc",
       },
     }),
-    loadReaderFeedbackSignalsForChapterGeneration({
-      projectId,
-      beforeChapterNumber: chapter.chapterNumber,
-    }),
+    shortStoryProject
+      ? Promise.resolve([])
+      : loadReaderFeedbackSignalsForChapterGeneration({
+          projectId,
+          beforeChapterNumber: chapter.chapterNumber,
+        }),
   ]);
 
   return {
     project: chapter.project,
+    blueprint: chapter.project.shortStoryBlueprint,
     setting,
     chapter: pickChapterDraftContext(chapter),
     outlines: selectRelevantOutlinesForChapter(outlines, chapter.chapterNumber),
@@ -261,6 +277,7 @@ export async function loadChapterPolishContext(
       project: {
         select: {
           title: true,
+          workType: true,
           genre: true,
           targetAudience: true,
           platform: true,
@@ -268,6 +285,7 @@ export async function loadChapterPolishContext(
           chapterWordMax: true,
           description: true,
           wechatPositioning: true,
+          shortStoryBlueprint: true,
         },
       },
     },
@@ -293,6 +311,7 @@ export async function loadChapterPolishContext(
 
   return {
     project: chapter.project,
+    blueprint: chapter.project.shortStoryBlueprint,
     setting,
     chapter: pickChapterPolishContext(chapter),
     characters: selectRelevantCharacters(
@@ -412,6 +431,11 @@ function pickChapterPolishContext(chapter: ChapterPolishChapterContext) {
     title: chapter.title,
     goal: chapter.goal,
     beats: chapter.beats,
+    unitSceneMovement: chapter.unitSceneMovement,
+    unitConflict: chapter.unitConflict,
+    unitTurn: chapter.unitTurn,
+    unitPayoffMovement: chapter.unitPayoffMovement,
+    unitWordTarget: chapter.unitWordTarget,
     draftText: chapter.draftText,
     polishedText: chapter.polishedText,
     finalText: chapter.finalText,
@@ -425,6 +449,11 @@ function pickChapterDraftContext(chapter: ChapterDraftChapterContext) {
     title: chapter.title,
     goal: chapter.goal,
     beats: chapter.beats,
+    unitSceneMovement: chapter.unitSceneMovement,
+    unitConflict: chapter.unitConflict,
+    unitTurn: chapter.unitTurn,
+    unitPayoffMovement: chapter.unitPayoffMovement,
+    unitWordTarget: chapter.unitWordTarget,
     draftText: chapter.draftText,
     polishedText: chapter.polishedText,
     finalText: chapter.finalText,
@@ -438,6 +467,11 @@ function pickChapterContext(chapter: ChapterBeatChapterContext) {
     title: chapter.title,
     goal: chapter.goal,
     beats: chapter.beats,
+    unitSceneMovement: chapter.unitSceneMovement,
+    unitConflict: chapter.unitConflict,
+    unitTurn: chapter.unitTurn,
+    unitPayoffMovement: chapter.unitPayoffMovement,
+    unitWordTarget: chapter.unitWordTarget,
     draftText: chapter.draftText,
     polishedText: chapter.polishedText,
     finalText: chapter.finalText,
@@ -449,6 +483,10 @@ function chapterRelevanceText(chapter: {
   title?: string | null;
   goal?: string | null;
   beats?: string | null;
+  unitSceneMovement?: string | null;
+  unitConflict?: string | null;
+  unitTurn?: string | null;
+  unitPayoffMovement?: string | null;
   draftText?: string | null;
   polishedText?: string | null;
   finalText?: string | null;
@@ -458,6 +496,10 @@ function chapterRelevanceText(chapter: {
     chapter.title,
     chapter.goal,
     chapter.beats,
+    chapter.unitSceneMovement,
+    chapter.unitConflict,
+    chapter.unitTurn,
+    chapter.unitPayoffMovement,
     chapter.finalText,
     chapter.polishedText,
     chapter.draftText,

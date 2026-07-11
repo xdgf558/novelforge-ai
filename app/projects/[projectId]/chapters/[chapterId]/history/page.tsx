@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileClock, Pencil } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { isShortStoryProject } from "@/lib/projects/work-types";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function ChapterHistoryPage({
         select: {
           id: true,
           title: true,
+          workType: true,
         },
       },
       versions: {
@@ -41,6 +43,8 @@ export default async function ChapterHistoryPage({
     notFound();
   }
 
+  const shortStoryProject = isShortStoryProject(chapter.project.workType);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -50,7 +54,7 @@ export default async function ChapterHistoryPage({
             href={`/projects/${chapter.project.id}/chapters/${chapter.id}`}
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-            返回章节详情
+            返回{shortStoryProject ? "单元" : "章节"}详情
           </Link>
           <p className="text-sm font-semibold text-signal-600">
             {chapter.project.title}
@@ -59,7 +63,7 @@ export default async function ChapterHistoryPage({
             {chapter.title} 的历史版本
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-700">
-            每次保存章节都会留下快照，方便追踪目标、节拍、正文和定稿状态变化。
+            每次保存{shortStoryProject ? "写作单元" : "章节"}都会留下快照，方便追踪目标、节拍、正文和定稿状态变化。
           </p>
         </div>
 
@@ -68,7 +72,7 @@ export default async function ChapterHistoryPage({
           href={`/projects/${chapter.project.id}/chapters/${chapter.id}/edit`}
         >
           <Pencil aria-hidden="true" className="h-4 w-4" />
-          编辑章节
+          编辑{shortStoryProject ? "写作单元" : "章节"}
         </Link>
       </div>
 
@@ -82,7 +86,7 @@ export default async function ChapterHistoryPage({
             还没有历史版本
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-ink-700">
-            创建或保存章节后，这里会显示版本号、修改原因和创建时间。
+            创建或保存{shortStoryProject ? "写作单元" : "章节"}后，这里会显示版本号、修改原因和创建时间。
           </p>
         </section>
       ) : (

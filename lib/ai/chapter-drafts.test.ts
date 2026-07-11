@@ -54,6 +54,19 @@ const baseInput = {
   },
 };
 
+const shortStoryBlueprint = {
+  premise: "林野收到死者发来的借命短信。",
+  openingHook: "短信准确预告下一名死者。",
+  protagonistPressure: "每迟一天，林野就失去一年寿命。",
+  coreConflict: "林野必须在寿命耗尽前找出契约源头。",
+  reversalChain: "死者不是受害者；短信来自未来的林野。",
+  emotionalArc: "怀疑、恐惧、主动追查、承担代价。",
+  climax: "林野选择公开契约名单。",
+  ending: "契约网络被摧毁，林野失去最后十年寿命。",
+  requiredPayoffs: "解释死者短信与林野签名。",
+  forbiddenDeviations: "不得新增无法在本篇闭环的幕后组织。",
+};
+
 describe("chapter draft context builder", () => {
   it("builds a draft prompt around confirmed beats and style constraints", () => {
     const context = buildChapterDraftContext(baseInput);
@@ -113,6 +126,58 @@ describe("chapter draft context builder", () => {
       1300,
     );
     expect(context.inputText).toContain("别相信第三个名字");
+  });
+
+  it("writes a short-story unit as continuous prose under the formal blueprint", () => {
+    const context = buildChapterDraftContext({
+      ...baseInput,
+      project: {
+        ...baseInput.project,
+        workType: "short_story",
+        totalWordTarget: 30000,
+      },
+      blueprint: shortStoryBlueprint,
+      chapter: {
+        ...baseInput.chapter,
+        chapterNumber: 2,
+        title: "病历上的签名",
+        unitSceneMovement: "从短信追查推进到医院旧档案室。",
+        unitConflict: "保安封锁档案室，契约倒计时仍在减少。",
+        unitTurn: "病历上的签名来自林野本人。",
+        unitPayoffMovement: "兑现短信能预告受害者的能力。",
+        unitWordTarget: 5200,
+      },
+      outlines: [],
+      previousChapter: {
+        chapterNumber: 1,
+        title: "死人来信",
+        finalText: "林野推开医院后门，走廊尽头的档案室亮着灯。",
+      },
+    });
+
+    expect(context.inputText).toContain("写作单元 2《病历上的签名》");
+    expect(context.inputText).toContain("# 正式短故事蓝图");
+    expect(context.inputText).toContain("约 5,200 字");
+    expect(context.inputText).toContain("不重复开篇、不复述前文");
+    expect(context.inputText).toContain("禁止输出内部单元标题");
+    expect(context.inputText).toContain("不得新增无法在本篇收束的支线");
+    expect(context.inputText).not.toContain("# 当前大纲");
+    expect(context.inputJson).toMatchObject({
+      blueprint: {
+        requiredPayoffs: "解释死者短信与林野签名。",
+      },
+      chapter: {
+        unitPlan: {
+          sceneMovement: "从短信追查推进到医院旧档案室。",
+          conflict: "保安封锁档案室，契约倒计时仍在减少。",
+          turn: "病历上的签名来自林野本人。",
+          payoffMovement: "兑现短信能预告受害者的能力。",
+          wordTarget: 5200,
+        },
+      },
+    });
+    expect(context.inputContextSummary).toContain("写作单元 2");
+    expect(context.inputContextSummary).toContain("蓝图 已建立");
   });
 
   it("summarizes draft context scope and detects confirmed beats", () => {

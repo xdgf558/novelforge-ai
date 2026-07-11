@@ -139,6 +139,15 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["状态", chapter.status],
         ["字数", chapter.wordCount],
         ["目标", chapter.goal],
+        ...(shortStory
+          ? ([
+              ["目标字数", chapter.unitWordTarget],
+              ["场景推进", chapter.unitSceneMovement],
+              ["核心冲突", chapter.unitConflict],
+              ["关键转折", chapter.unitTurn],
+              ["兑现推进", chapter.unitPayoffMovement],
+            ] as const)
+          : []),
         ["节拍", chapter.beats],
         ["草稿", chapter.draftText],
         ["精修", chapter.polishedText],

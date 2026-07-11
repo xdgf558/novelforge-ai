@@ -7,9 +7,15 @@ import {
 import { proseStyleGuardrails } from "./prose-style-guardrails";
 import { formatWordRange } from "../format";
 import type { ProjectSettingFieldName } from "../project-setting-fields";
+import {
+  formatShortStoryBlueprintForContext,
+  shortStoryBlueprintValuesFromRecord,
+  type ShortStoryBlueprintFieldName,
+} from "../short-stories/blueprint-fields";
 
 export type ChapterPolishProjectContext = {
   title: string;
+  workType?: string | null;
   genre?: string | null;
   targetAudience?: string | null;
   platform?: string | null;
@@ -37,6 +43,11 @@ export type ChapterPolishChapterContext = {
   title: string;
   goal?: string | null;
   beats?: string | null;
+  unitSceneMovement?: string | null;
+  unitConflict?: string | null;
+  unitTurn?: string | null;
+  unitPayoffMovement?: string | null;
+  unitWordTarget?: number | null;
   draftText?: string | null;
   polishedText?: string | null;
   finalText?: string | null;
@@ -45,6 +56,9 @@ export type ChapterPolishChapterContext = {
 
 export type ChapterPolishContextInput = {
   project: ChapterPolishProjectContext;
+  blueprint?: Partial<
+    Record<ShortStoryBlueprintFieldName, string | null>
+  > | null;
   setting?: ChapterPolishSettingContext | null;
   chapter: ChapterPolishChapterContext;
   characters: readonly ChapterPolishCharacterContext[];
@@ -119,18 +133,21 @@ export function buildChapterPolishContext(
   options: BuildChapterPolishContextOptions = {},
 ): BuiltChapterPolishContext {
   const shared = buildChapterPolishSharedContext(input, options);
+  const unitLabel = shared.shortStoryProject ? "写作单元" : "章节";
   const sourceText = shared.sourceText;
   const sourceKind = shared.sourceKind;
   const promptSourceText = buildPolishPromptSourceText(sourceText);
 
   const inputJson = {
     project: shared.projectJson,
+    blueprint: shared.shortStoryProject ? shared.blueprintJson : null,
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
       goal: clean(input.chapter.goal),
       beats: clipText(input.chapter.beats),
       notes: clean(input.chapter.notes),
+      unitPlan: buildPolishUnitPlan(input),
       sourceKind,
       sourceTextLength: sourceText.length,
       sourceTextPromptLength: promptSourceText.promptLength,
@@ -150,31 +167,55 @@ export function buildChapterPolishContext(
       promptSourceText.wasExcerpted
         ? "正文超过精修输入预算，当前只对首/中/尾摘录提供精修；必须提示作者拆章或分段精修完整正文。"
         : "输出完整精修正文，不要输出分析过程。",
-      "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
+      shared.shortStoryProject
+        ? "保留原剧情事实、人物关系、关键台词含义和本单元在整篇中的自然衔接。"
+        : "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
       "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
       "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
       "硬性压低模板腔：全章“不是……而是……”/“不是……是……”二元对照表达最多保留 1 处，输出前必须自检并改写多余句式。",
       "硬性压缩逐日流水账：在不改变剧情事实和必要时间锚点的前提下，合并没有新信息的过渡日。",
       "保留或强化每个场景的叙事功能：冲突、线索、选择、代价、人物关系、风险升级或伏笔回收。",
       "不得宣称已经写入定稿或正式故事记忆。",
+      ...(shared.shortStoryProject
+        ? [
+            "删除内部单元标题、重复开篇、前情回顾、角色重复介绍、总结段和下回预告。",
+            "不得为了单元边界制造独立章末追读钩子，结尾应自然接入下一单元或整篇收束。",
+            "不得偏离正式蓝图的反转链、情绪曲线和必须兑现事项。",
+          ]
+        : []),
     ],
   };
 
   const inputText = [
     "# 任务",
-    `精修第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文。`,
+    shared.shortStoryProject
+      ? `精修写作单元 ${input.chapter.chapterNumber}《${input.chapter.title}》正文。`
+      : `精修第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文。`,
     "输出只作为作者审阅的精修稿，不得视为已写入定稿正文。",
     "",
-    "# 当前章节",
+    `# 当前${unitLabel}`,
     lines([
-      ["章节目标", input.chapter.goal],
+      [`${shared.shortStoryProject ? "单元" : "章节"}目标`, input.chapter.goal],
       ["目标字数", shared.wordRange],
+      ["场景推进", input.chapter.unitSceneMovement],
+      ["核心冲突", input.chapter.unitConflict],
+      ["关键转折", input.chapter.unitTurn],
+      ["兑现推进", input.chapter.unitPayoffMovement],
       ["作者备注", input.chapter.notes],
       ["正文来源", sourceKind],
     ]),
     "",
-    "# 已确认章节节拍",
-    clean(input.chapter.beats) || "未填写章节节拍。",
+    `# 已确认${shared.shortStoryProject ? "单元" : "章节"}节拍`,
+    clean(input.chapter.beats) ||
+      `未填写${shared.shortStoryProject ? "单元" : "章节"}节拍。`,
+    "",
+    ...(shared.shortStoryProject
+      ? [
+          "# 正式短故事蓝图",
+          shared.blueprintText || "尚未建立正式蓝图。",
+          "",
+        ]
+      : []),
     "",
     "# 文风与读者约束",
     shared.styleConstraints.length > 0
@@ -210,12 +251,20 @@ export function buildChapterPolishContext(
       ? "- 当前章节正文过长，只能看到首/中/尾摘录。请只精修提供的摘录，并在开头用一句话提示作者需要拆章或分段精修完整正文。"
       : "- 直接输出完整精修正文，不要输出解释、提纲、修改清单或 JSON。",
     "- 删除“【开场钩子】”“节拍1”“情绪作用”等写作过程标记，让正文变成读者可直接阅读的章节。",
-    "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
+    shared.shortStoryProject
+      ? "- 不改变主要剧情事实、人物关系、关键伏笔、单元目标和整篇衔接方向。"
+      : "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
     "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
     "- 反模板腔硬性自检：全章“不是……而是……”“不是因为……而是因为……”“真正的……不是……而是……”和“不是……是……”这类二元对照表达最多保留 1 处；如果原文有多处，必须先改成更自然的动作、细节、台词或因果推进，再输出正文。",
     "- 反流水账精修：如果原文按“第一天/第二天/第三天”或“早上/中午/晚上”逐日打卡推进，在不改变事实、必要时间锚点和因果的前提下，压缩无冲突过渡日，改成冲突链、线索链或人物选择链。",
     "- 每个保留下来的场景都应承担至少一个叙事功能：冲突、线索、选择、代价、关系变化、风险升级或伏笔回收；纯日常过渡可以合并成简短转场。",
+    ...(shared.shortStoryProject
+      ? [
+          "- 把所有写作单元视为一篇连续正文：删除重复开篇、前情回顾、人物重复介绍、单元标题、总结段和下回预告。",
+          "- 不得为内部切分强造章末追读钩子；结尾只能服务下一单元的自然承接或整篇结局。",
+        ]
+      : []),
   ].join("\n");
 
   return {
@@ -243,12 +292,14 @@ export function buildSegmentedChapterPolishContext(
     segments,
     inputJson: {
       project: shared.projectJson,
+      blueprint: shared.shortStoryProject ? shared.blueprintJson : null,
       chapter: {
         chapterNumber: input.chapter.chapterNumber,
         title: input.chapter.title,
         goal: clean(input.chapter.goal),
         beats: clipText(input.chapter.beats),
         notes: clean(input.chapter.notes),
+        unitPlan: buildPolishUnitPlan(input),
         sourceKind: shared.sourceKind,
         sourceTextLength: shared.sourceText.length,
         sourceTextHash: hashText(shared.sourceText),
@@ -272,11 +323,19 @@ export function buildSegmentedChapterPolishContext(
         "正文超过单次精修预算，系统已自动按段完整精修；只有全部分段成功后才允许采用。",
         "每段只输出本段精修正文，不输出分析过程、分段说明或 JSON。",
         "最终输出会按原顺序拼接为完整精修正文。",
-        "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
+      shared.shortStoryProject
+        ? "保留原剧情事实、人物关系、关键台词含义和写作单元在整篇中的自然衔接。"
+        : "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
         "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
         "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
         "硬性压低模板腔：每个精修分段的“不是……而是……”/“不是……是……”二元对照表达最多保留 1 处，输出前必须自检并改写多余句式。",
         "硬性压缩逐日流水账：在不改变事实和必要时间锚点的前提下，合并没有新信息的过渡日。",
+        ...(shared.shortStoryProject
+          ? [
+              "把分段视为同一篇短故事正文，不得补写重复开篇、前情回顾、人物介绍或独立章末钩子。",
+              "删除内部单元标题、总结和下回预告，不得偏离正式蓝图。",
+            ]
+          : []),
       ],
     },
     inputContextSummary: buildSegmentedChapterPolishContextSummary(
@@ -290,6 +349,7 @@ export function buildChapterPolishContextSummary(
   input: ChapterPolishContextInput,
   options: BuildChapterPolishContextOptions = {},
 ) {
+  const shortStoryProject = input.project.workType === "short_story";
   const sourceText = polishableChapterText(input.chapter);
   const sourceKind = polishableChapterTextSource(input.chapter);
   const promptSourceText = buildPolishPromptSourceText(sourceText);
@@ -299,7 +359,9 @@ export function buildChapterPolishContextSummary(
   });
 
   return [
-    `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
+    shortStoryProject
+      ? `写作单元 ${input.chapter.chapterNumber}《${input.chapter.title}》正文精修`
+      : `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
     sourceText
       ? promptSourceText.wasExcerpted
         ? `${sourceKind} ${sourceText.length} 字，模型输入首/中/尾摘录 ${promptSourceText.promptLength} 字`
@@ -319,6 +381,7 @@ export function buildSegmentedChapterPolishContextSummary(
   input: ChapterPolishContextInput,
   options: BuildChapterPolishContextOptions = {},
 ) {
+  const shortStoryProject = input.project.workType === "short_story";
   const sourceText = polishableChapterText(input.chapter);
   const sourceKind = polishableChapterTextSource(input.chapter);
   const segmentCount = splitChapterPolishSourceText(sourceText).length;
@@ -328,7 +391,9 @@ export function buildSegmentedChapterPolishContextSummary(
   });
 
   return [
-    `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
+    shortStoryProject
+      ? `写作单元 ${input.chapter.chapterNumber}《${input.chapter.title}》正文精修`
+      : `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文精修`,
     sourceText
       ? `${sourceKind} ${sourceText.length} 字，自动分段精修 ${segmentCount} 段`
       : "缺少可精修正文",
@@ -522,12 +587,14 @@ function buildChapterPolishSegmentContext(
 ): BuiltChapterPolishSegmentContext {
   const inputJson = {
     project: shared.projectJson,
+    blueprint: shared.shortStoryProject ? shared.blueprintJson : null,
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
       goal: clean(input.chapter.goal),
       beats: clipText(input.chapter.beats),
       notes: clean(input.chapter.notes),
+      unitPlan: buildPolishUnitPlan(input),
       sourceKind: shared.sourceKind,
       sourceTextLength: shared.sourceText.length,
       sourceTextPromptWasSegmented: true,
@@ -539,22 +606,37 @@ function buildChapterPolishSegmentContext(
   };
   const inputText = [
     "# 任务",
-    `精修第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文。`,
+    shared.shortStoryProject
+      ? `精修写作单元 ${input.chapter.chapterNumber}《${input.chapter.title}》正文。`
+      : `精修第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》正文。`,
     `这是自动分段精修的第 ${segment.index} / ${segment.count} 段。`,
     "只输出本段精修正文，不要输出分析、说明、分段标题或 JSON。",
     "",
-    "# 当前章节",
+    `# 当前${shared.shortStoryProject ? "写作单元" : "章节"}`,
     lines([
-      ["章节目标", input.chapter.goal],
+      [`${shared.shortStoryProject ? "单元" : "章节"}目标`, input.chapter.goal],
       ["目标字数", shared.wordRange],
+      ["场景推进", input.chapter.unitSceneMovement],
+      ["核心冲突", input.chapter.unitConflict],
+      ["关键转折", input.chapter.unitTurn],
+      ["兑现推进", input.chapter.unitPayoffMovement],
       ["作者备注", input.chapter.notes],
       ["正文来源", shared.sourceKind],
-      ["全章原文字数", shared.sourceText.length],
+      [shared.shortStoryProject ? "全单元原文字数" : "全章原文字数", shared.sourceText.length],
       ["本段原文字数", segment.sourceTextLength],
     ]),
     "",
-    "# 已确认章节节拍",
-    clean(input.chapter.beats) || "未填写章节节拍。",
+    `# 已确认${shared.shortStoryProject ? "单元" : "章节"}节拍`,
+    clean(input.chapter.beats) ||
+      `未填写${shared.shortStoryProject ? "单元" : "章节"}节拍。`,
+    "",
+    ...(shared.shortStoryProject
+      ? [
+          "# 正式短故事蓝图",
+          shared.blueprintText || "尚未建立正式蓝图。",
+          "",
+        ]
+      : []),
     "",
     "# 文风与读者约束",
     shared.styleConstraints.length > 0
@@ -596,13 +678,21 @@ function buildChapterPolishSegmentContext(
     "",
     "# 输出要求",
     "- 直接输出本段精修后的正文，可与其他分段按顺序拼接。",
-    "- 删除“【开场钩子】”“节拍1”“情绪作用”等写作过程标记，让正文变成读者可直接阅读的章节。",
-    "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
+    `- 删除“【开场钩子】”“节拍1”“情绪作用”等写作过程标记，让正文变成读者可直接阅读的${shared.shortStoryProject ? "连续文本" : "章节"}。`,
+    shared.shortStoryProject
+      ? "- 不改变主要剧情事实、人物关系、关键伏笔、单元目标和整篇衔接方向。"
+      : "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
     "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
     "- 反模板腔硬性自检：本段“不是……而是……”“不是因为……而是因为……”“真正的……不是……而是……”和“不是……是……”这类二元对照表达最多保留 1 处；如果本段有多处，必须先改成更自然的动作、细节、台词或因果推进，再输出正文。",
     "- 反流水账精修：如果本段按“第一天/第二天/第三天”或“早上/中午/晚上”逐日打卡推进，在不改变事实、必要时间锚点和因果的前提下，压缩无冲突过渡日，改成冲突链、线索链或人物选择链。",
     "- 不要输出“本段精修如下”“第 X 段”等说明文字。",
+    ...(shared.shortStoryProject
+      ? [
+          "- 删除重复开篇、前情回顾、人物重复介绍、内部单元标题、总结和下回预告。",
+          "- 不得为内部单元强造章末追读钩子，保持整篇正文自然连续。",
+        ]
+      : []),
   ].join("\n");
 
   return {
@@ -622,6 +712,9 @@ type ChapterPolishSharedContext = {
   storyConstraints: string[];
   characterRules: string[];
   forbiddenItems: string;
+  shortStoryProject: boolean;
+  blueprintJson: ReturnType<typeof shortStoryBlueprintValuesFromRecord>;
+  blueprintText: string;
 };
 
 function buildChapterPolishSharedContext(
@@ -630,14 +723,20 @@ function buildChapterPolishSharedContext(
 ): ChapterPolishSharedContext {
   const sourceText = polishableChapterText(input.chapter);
   const sourceKind = polishableChapterTextSource(input.chapter);
+  const shortStoryProject = input.project.workType === "short_story";
+  const blueprintJson = shortStoryBlueprintValuesFromRecord(input.blueprint);
+  const blueprintText = formatShortStoryBlueprintForContext(input.blueprint);
   const platformTemplate = buildChapterPlatformTemplateContext({
     task: "polish",
     template: options.platformTemplate,
   });
-  const wordRange = formatWordRange(
-    input.project.chapterWordMin,
-    input.project.chapterWordMax,
-  );
+  const wordRange =
+    shortStoryProject && (input.chapter.unitWordTarget ?? 0) > 0
+      ? `约 ${input.chapter.unitWordTarget?.toLocaleString("zh-CN")} 字`
+      : formatWordRange(
+          input.project.chapterWordMin,
+          input.project.chapterWordMax,
+        );
   const styleConstraints = [
     ...buildLabeledSettingLines(input.setting, polishStyleSettingFields),
     input.project.wechatPositioning
@@ -663,6 +762,7 @@ function buildChapterPolishSharedContext(
     wordRange,
     projectJson: {
       title: input.project.title,
+      workType: clean(input.project.workType),
       genre: clean(input.project.genre),
       targetAudience: clean(input.project.targetAudience),
       platform: clean(input.project.platform),
@@ -674,6 +774,23 @@ function buildChapterPolishSharedContext(
     storyConstraints,
     characterRules,
     forbiddenItems,
+    shortStoryProject,
+    blueprintJson,
+    blueprintText,
+  };
+}
+
+function buildPolishUnitPlan(input: ChapterPolishContextInput) {
+  if (input.project.workType !== "short_story") {
+    return null;
+  }
+
+  return {
+    sceneMovement: clean(input.chapter.unitSceneMovement),
+    conflict: clean(input.chapter.unitConflict),
+    turn: clean(input.chapter.unitTurn),
+    payoffMovement: clean(input.chapter.unitPayoffMovement),
+    wordTarget: input.chapter.unitWordTarget ?? 0,
   };
 }
 

@@ -1,5 +1,49 @@
 # Development Log
 
+## 2026-07-11: Short Story Phase 3 Writing Units
+
+Status: completed for PR review.
+
+What was done:
+
+- Activated shared `Chapter` records as short-story writing units with dedicated
+  list, create, edit, detail, history, and version-snapshot labels. Serial-only
+  outline, storyline, reader-feedback, audiobook, and publishing surfaces stay
+  outside the short-story unit workflow.
+- Added structured unit planning for scene movement, core conflict, key turn,
+  blueprint payoff movement, and an individual word target. All five fields are
+  stored in chapter snapshots and project JSON/Markdown exports.
+- Added a bounded 3-12 unit recommendation derived from the project total and
+  preferred unit range. The unit list shows recommended count/length, current
+  confirmed progress, and each unit's current-versus-target word count without
+  creating or deleting records automatically.
+- Reused the existing beat, draft, segmented polish, final-text, summary,
+  pending-update, continuity, and chapter-version infrastructure while keeping
+  author adoption and finalization explicit.
+- Added short-story-specific AI context with the formal blueprint, unit plan,
+  target length, previous unit ending, and continuous-prose safeguards. Beat,
+  draft, and polish prompts reject repeated openings, recaps, character
+  reintroductions, artificial unit-end hooks, and internal headings.
+- Kept long-form behavior isolated: short-story unit writes do not auto-link
+  storylines or synchronize serial outline status, while serial chapter forms,
+  navigation, context, and platform controls retain their existing behavior.
+
+Verification:
+
+- Full `npm run test` passed: 101 files and 550 tests.
+- `npx prisma validate`, `npx prisma generate`, `npm run typecheck`, and
+  `npm run build` passed.
+- `npm run desktop:smoke` and `npm run mvp:acceptance` passed.
+- A fresh isolated SQLite database applied all 23 migrations. A copy of the
+  current desktop database also applied the Phase 1-3 short-story migrations;
+  `PRAGMA quick_check` returned `ok` for both databases.
+- `prisma migrate diff` reported no difference between migration history and
+  `prisma/schema.prisma`.
+- Local browser verification covered manual unit creation/editing, structured
+  plan persistence, detail/history/version views, unit progress, short-story
+  navigation, and the unchanged serial chapter creation path. Desktop and
+  390-pixel mobile layouts had no horizontal overflow.
+
 ## 2026-07-11: Short Story Phase 2 Blueprint
 
 Status: completed for PR review.

@@ -27,9 +27,12 @@ describe("project work types", () => {
       "blueprint",
       "settings",
       "characters",
+      "chapters",
       "memory",
       "ai",
     ]);
+    expect(projectToolPathsForWorkType("short_story")).not.toContain("outlines");
+    expect(projectToolPathsForWorkType("short_story")).not.toContain("storylines");
     expect(projectToolPathsForWorkType("serial_novel")).toContain("outlines");
     expect(projectToolPathsForWorkType("serial_novel")).toContain("chapters");
   });

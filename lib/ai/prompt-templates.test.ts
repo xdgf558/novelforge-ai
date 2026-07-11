@@ -93,7 +93,7 @@ describe("default AI prompt templates", () => {
     ).toBe(true);
   });
 
-  it("ships newer default versions for long-form prose prompts", () => {
+  it("ships work-type-aware default versions for prose prompts", () => {
     const beatTemplate = DEFAULT_AI_PROMPT_TEMPLATES.find(
       (template) => template.key === "chapter_beat_generation",
     );
@@ -104,9 +104,12 @@ describe("default AI prompt templates", () => {
       (template) => template.key === "chapter_polish_generation",
     );
 
-    expect(beatTemplate?.version).toBeGreaterThanOrEqual(2);
-    expect(draftTemplate?.version).toBeGreaterThanOrEqual(3);
-    expect(polishTemplate?.version).toBeGreaterThanOrEqual(3);
+    expect(beatTemplate?.version).toBeGreaterThanOrEqual(3);
+    expect(draftTemplate?.version).toBeGreaterThanOrEqual(4);
+    expect(polishTemplate?.version).toBeGreaterThanOrEqual(4);
+    expect(beatTemplate?.systemPrompt).toContain("作品类型");
+    expect(draftTemplate?.contextNotes).toContain("短故事");
+    expect(polishTemplate?.contextNotes).toContain("跨单元连续");
   });
 
   it("keeps foreshadow recovery ids in summary and pending-update schemas", () => {

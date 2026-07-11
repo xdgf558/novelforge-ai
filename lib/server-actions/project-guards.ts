@@ -9,6 +9,7 @@ export async function assertProjectExists(projectId: string) {
     },
     select: {
       id: true,
+      workType: true,
     },
   });
 

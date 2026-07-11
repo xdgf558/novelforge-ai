@@ -5,6 +5,7 @@ import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
 import { formatDate } from "@/lib/format";
 import type { ChapterRecord } from "@/lib/chapter-fields";
 import { prisma } from "@/lib/prisma";
+import { isShortStoryProject } from "@/lib/projects/work-types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function ChapterVersionPage({
         select: {
           id: true,
           title: true,
+          workType: true,
         },
       },
     },
@@ -55,6 +57,8 @@ export default async function ChapterVersionPage({
     snapshot = {};
   }
 
+  const shortStoryProject = isShortStoryProject(version.project.workType);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -70,7 +74,9 @@ export default async function ChapterVersionPage({
             {version.project.title}
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-normal text-ink-950">
-            第 {version.chapter.chapterNumber} 章快照 v{version.versionNumber}
+            {shortStoryProject
+              ? `写作单元 ${version.chapter.chapterNumber} 快照 v${version.versionNumber}`
+              : `第 ${version.chapter.chapterNumber} 章快照 v${version.versionNumber}`}
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-700">
             {version.changeReason || "本次保存未填写修改原因。"}
@@ -85,11 +91,11 @@ export default async function ChapterVersionPage({
           href={`/projects/${version.project.id}/chapters/${version.chapter.id}/edit`}
         >
           <Pencil aria-hidden="true" className="h-4 w-4" />
-          编辑当前章节
+          编辑当前{shortStoryProject ? "写作单元" : "章节"}
         </Link>
       </div>
 
-      <ChapterSnapshot values={snapshot} />
+      <ChapterSnapshot values={snapshot} workType={version.project.workType} />
     </div>
   );
 }

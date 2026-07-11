@@ -25,6 +25,7 @@ describe("chapter fields", () => {
     expect(Object.keys(values).sort()).toEqual([...chapterFieldNames].sort());
     expect(values.chapterNumber).toBe(1);
     expect(values.status).toBe("draft");
+    expect(values.unitWordTarget).toBe(0);
     expect(values.wordCount).toBe(0);
   });
 
@@ -86,6 +87,8 @@ describe("chapter fields", () => {
     values.chapterNumber = 2;
     values.title = " 雨夜借命 ";
     values.status = " final ";
+    values.unitSceneMovement = " 进入废弃剧场 ";
+    values.unitWordTarget = 4567.4;
     values.draftText = " 草稿正文 ";
     values.polishedText = " 精修正文 ";
     values.finalText = " 定 稿\n正文 ";
@@ -98,6 +101,8 @@ describe("chapter fields", () => {
       chapterNumber: 2,
       title: "雨夜借命",
       status: "final",
+      unitSceneMovement: "进入废弃剧场",
+      unitWordTarget: 4567,
       draftText: "草稿正文",
       polishedText: "精修正文",
       finalText: "定 稿\n正文",

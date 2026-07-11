@@ -39,10 +39,12 @@ export async function findChapterForUpdate({
 
 export async function createChapterRecord({
   changeReason,
+  linkStorylines = true,
   projectId,
   values,
 }: {
   changeReason?: string;
+  linkStorylines?: boolean;
   projectId: string;
   values: ChapterValues;
 }) {
@@ -68,11 +70,13 @@ export async function createChapterRecord({
         },
       });
 
-      await createMissingStorylineChapterRelationsForChapter(
-        tx,
-        projectId,
-        createdChapter,
-      );
+      if (linkStorylines) {
+        await createMissingStorylineChapterRelationsForChapter(
+          tx,
+          projectId,
+          createdChapter,
+        );
+      }
 
       return createdChapter;
     });
@@ -89,11 +93,13 @@ export async function createChapterRecord({
 export async function updateChapterRecord({
   changeReason,
   chapter,
+  linkStorylines = true,
   projectId,
   values,
 }: {
   changeReason?: string;
   chapter: ExistingChapterForUpdate;
+  linkStorylines?: boolean;
   projectId: string;
   values: ChapterValues;
 }) {
@@ -125,10 +131,12 @@ export async function updateChapterRecord({
         },
       });
 
-      await createMissingStorylineChapterRelationsForChapter(tx, projectId, {
-        id: chapter.id,
-        chapterNumber: snapshot.chapterNumber,
-      });
+      if (linkStorylines) {
+        await createMissingStorylineChapterRelationsForChapter(tx, projectId, {
+          id: chapter.id,
+          chapterNumber: snapshot.chapterNumber,
+        });
+      }
     });
   } catch (error) {
     throwChapterNumberError(error);
