@@ -25,6 +25,7 @@ describe("default AI prompt templates", () => {
         "chapter_polish_generation",
         "chapter_summary_extraction",
         "pending_update_extraction",
+        "foreshadow_recovery_audit",
         "continuity_check",
         "continuity_fix_patch_generation",
         "storyline_generation",
@@ -82,5 +83,31 @@ describe("default AI prompt templates", () => {
     expect(beatTemplate?.version).toBeGreaterThanOrEqual(2);
     expect(draftTemplate?.version).toBeGreaterThanOrEqual(3);
     expect(polishTemplate?.version).toBeGreaterThanOrEqual(3);
+  });
+
+  it("keeps foreshadow recovery ids in summary and pending-update schemas", () => {
+    const summaryTemplate = DEFAULT_AI_PROMPT_TEMPLATES.find(
+      (template) => template.key === "chapter_summary_extraction",
+    );
+    const pendingTemplate = DEFAULT_AI_PROMPT_TEMPLATES.find(
+      (template) => template.key === "pending_update_extraction",
+    );
+    const auditTemplate = DEFAULT_AI_PROMPT_TEMPLATES.find(
+      (template) => template.key === "foreshadow_recovery_audit",
+    );
+    const summarySchema = JSON.parse(summaryTemplate?.responseSchema ?? "{}");
+    const pendingSchema = JSON.parse(pendingTemplate?.responseSchema ?? "{}");
+    const auditSchema = JSON.parse(auditTemplate?.responseSchema ?? "{}");
+
+    expect(summaryTemplate?.version).toBeGreaterThanOrEqual(2);
+    expect(summarySchema.required).toContain("foreshadowUpdates");
+    expect(
+      summarySchema.properties.foreshadowUpdates.items.required,
+    ).toContain("targetId");
+    expect(pendingTemplate?.version).toBeGreaterThanOrEqual(2);
+    expect(pendingSchema.properties.updates.items.required).toContain("targetId");
+    expect(auditSchema.properties.updates.items.required).toEqual(
+      expect.arrayContaining(["targetId", "resolvedChapterId", "evidence"]),
+    );
   });
 });

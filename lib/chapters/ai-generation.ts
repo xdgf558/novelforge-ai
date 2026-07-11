@@ -24,6 +24,7 @@ import {
 import { findActiveChapterAiTask } from "@/lib/chapters/ai-tasks";
 import { chapterFinalTextHash } from "@/lib/chapters/source-text";
 import { persistChapterSummaryFromTask } from "@/lib/chapters/summaries";
+import { persistAutomaticForeshadowRecoverySuggestions } from "@/lib/foreshadows/recovery-records";
 import {
   loadChapterBeatContext,
   loadChapterDraftContext,
@@ -309,6 +310,22 @@ export async function startChapterSummaryGeneration(
           chapterId,
           sourceTextHash,
           task,
+        });
+
+        await persistAutomaticForeshadowRecoverySuggestions({
+          projectId,
+          task,
+          fallbackChapterId: chapterId,
+          foreshadows: contextInput.foreshadows ?? [],
+          chapters: [
+            {
+              id: chapterId,
+              chapterNumber: contextInput.chapter.chapterNumber,
+              title: contextInput.chapter.title,
+              summary: `第 ${contextInput.chapter.chapterNumber} 章定稿正文`,
+              finalText: contextInput.chapter.finalText,
+            },
+          ],
         });
       },
     },

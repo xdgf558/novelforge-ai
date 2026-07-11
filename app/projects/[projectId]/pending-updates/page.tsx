@@ -9,10 +9,12 @@ import {
   XCircle,
 } from "lucide-react";
 import {
+  approveAutomaticForeshadowRecoveryBatch,
   approvePendingUpdate,
   rejectPendingUpdate,
 } from "@/app/projects/[projectId]/pending-updates/actions";
 import { PendingUpdateReviewSubmit } from "@/components/pending-update-review-submit";
+import { FormActionButton } from "@/components/form-action-button";
 import { formatDate } from "@/lib/format";
 import { chapterSourceMatches } from "@/lib/chapters/source-text";
 import {
@@ -22,6 +24,10 @@ import {
   pendingUpdateTypeLabel,
 } from "@/lib/pending-updates";
 import { prisma } from "@/lib/prisma";
+import {
+  countAutomaticForeshadowRecoveryCandidates,
+} from "@/lib/foreshadows/recovery-records";
+import { parseAutomaticForeshadowRecoveryPayload } from "@/lib/foreshadows/recovery-audit";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +36,9 @@ type PendingUpdatesPageProps = {
     projectId: string;
   }>;
   searchParams?: Promise<{
+    approved?: string;
     review?: string;
+    skipped?: string;
   }>;
 };
 
@@ -40,7 +48,7 @@ export default async function PendingUpdatesPage({
 }: PendingUpdatesPageProps) {
   const { projectId } = await params;
   const resolvedSearchParams = await searchParams;
-  const reviewMessage = pendingUpdateReviewMessage(resolvedSearchParams?.review);
+  const reviewMessage = pendingUpdateReviewMessage(resolvedSearchParams);
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -55,7 +63,13 @@ export default async function PendingUpdatesPage({
     notFound();
   }
 
-  const [updates, pendingCount, approvedCount, rejectedCount] = await Promise.all([
+  const [
+    updates,
+    pendingCount,
+    approvedCount,
+    rejectedCount,
+    automaticRecoveryCandidateCount,
+  ] = await Promise.all([
     prisma.pendingUpdate.findMany({
       where: {
         projectId,
@@ -99,6 +113,7 @@ export default async function PendingUpdatesPage({
         status: "rejected",
       },
     }),
+    countAutomaticForeshadowRecoveryCandidates(projectId),
   ]);
 
   const sortedUpdates = [...updates].sort((left, right) => {
@@ -162,6 +177,36 @@ export default async function PendingUpdatesPage({
         </section>
       ) : null}
 
+      {automaticRecoveryCandidateCount > 0 ? (
+        <section
+          className="rounded-lg border border-signal-500/25 bg-signal-500/5 p-4"
+          id="automatic-foreshadow-recovery"
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-signal-600">
+                自动回收识别
+              </p>
+              <h2 className="mt-1 text-base font-semibold text-ink-950">
+                {automaticRecoveryCandidateCount} 条高置信伏笔可确认回收
+              </h2>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+                这些候选已绑定正式伏笔、实际回收章节和当前定稿正文证据。批量确认后才会写入正式伏笔池；来源过期或目标已处理的候选会自动跳过。
+              </p>
+            </div>
+            <form action={approveAutomaticForeshadowRecoveryBatch.bind(null, project.id)}>
+              <FormActionButton
+                icon="save"
+                idleLabel="批量确认回收"
+                pendingLabel="正在回收伏笔..."
+                statusText="正在校验正文版本并写入实际回收章节。"
+                variant="dark"
+              />
+            </form>
+          </div>
+        </section>
+      ) : null}
+
       {sortedUpdates.length === 0 ? (
         <section className="rounded-lg border border-dashed border-ink-950/20 bg-white p-8 text-center shadow-panel">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-paper-100 text-ink-700">
@@ -186,6 +231,8 @@ export default async function PendingUpdatesPage({
                   update.chapter?.finalText,
                 ),
             );
+            const automaticRecovery =
+              parseAutomaticForeshadowRecoveryPayload(update.payloadJson);
 
             return (
               <article
@@ -221,6 +268,11 @@ export default async function PendingUpdatesPage({
                       {isStale ? (
                         <span className="rounded-md bg-red-50 px-2.5 py-1 text-red-700">
                           来源已过期
+                        </span>
+                      ) : null}
+                      {automaticRecovery ? (
+                        <span className="rounded-md bg-signal-500/10 px-2.5 py-1 text-signal-700">
+                          自动识别 · {automaticRecovery.confidence === "high" ? "高置信" : "需复核"}
                         </span>
                       ) : null}
                     </div>
@@ -345,7 +397,25 @@ export default async function PendingUpdatesPage({
   );
 }
 
-function pendingUpdateReviewMessage(review?: string | null) {
+function pendingUpdateReviewMessage(searchParams?: {
+  approved?: string;
+  review?: string;
+  skipped?: string;
+}) {
+  const review = searchParams?.review;
+
+  if (review === "auto-recovery-approved") {
+    const approvedCount = nonNegativeInt(searchParams?.approved);
+    const skippedCount = nonNegativeInt(searchParams?.skipped);
+
+    return {
+      Icon: CheckCircle2,
+      description: `已将 ${approvedCount} 条高置信候选写入正式伏笔池${skippedCount > 0 ? `，另有 ${skippedCount} 条因来源过期或目标已处理而跳过` : ""}。`,
+      title: "已批量确认伏笔回收",
+      tone: "success" as const,
+    };
+  }
+
   if (review === "approved") {
     return {
       Icon: CheckCircle2,
@@ -386,6 +456,12 @@ function pendingUpdateReviewMessage(review?: string | null) {
   }
 
   return null;
+}
+
+function nonNegativeInt(value?: string) {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
 }
 
 function InfoTile({ label, value }: { label: string; value: string }) {

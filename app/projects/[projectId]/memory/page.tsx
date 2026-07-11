@@ -7,6 +7,7 @@ import {
   Filter,
   ListChecks,
   Route,
+  ScanSearch,
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -17,11 +18,16 @@ import {
   createForeshadow,
   createTimelineEvent,
   createWorldRule,
+  scanHistoricalForeshadowRecoveries,
   updateForeshadow,
   updateTimelineEvent,
   updateWorldRule,
 } from "@/app/projects/[projectId]/memory/actions";
+import { FormActionButton } from "@/components/form-action-button";
+import { aiTaskStatusLabel } from "@/lib/ai/status";
 import { formatDate } from "@/lib/format";
+import { countAutomaticForeshadowRecoveryCandidates } from "@/lib/foreshadows/recovery-records";
+import { foreshadowRecoveryAuditTaskType } from "@/lib/foreshadows/recovery-service";
 import { prisma } from "@/lib/prisma";
 import {
   foreshadowImportanceLabel,
@@ -53,6 +59,9 @@ type MemoryPageProps = {
     foreshadowImportance?: string;
     foreshadowResolveChapter?: string;
     foreshadowStatus?: string;
+    recoveryAudit?: string;
+    recoveryBatches?: string;
+    recoveryForeshadows?: string;
     timelineChapterId?: string;
     timelineSort?: string;
     timelineStatus?: string;
@@ -151,6 +160,8 @@ export default async function MemoryPage({
     foreshadowFilteredCount,
     timelineEventTotalCount,
     timelineEventFilteredCount,
+    automaticRecoveryCandidateCount,
+    recentRecoveryAuditTasks,
   ] = await Promise.all([
     prisma.worldRule.count({
       where: {
@@ -199,6 +210,22 @@ export default async function MemoryPage({
         ...buildTimelineWhere(memoryFilters),
       },
     }),
+    countAutomaticForeshadowRecoveryCandidates(projectId),
+    prisma.aiTask.findMany({
+      where: {
+        projectId,
+        taskType: foreshadowRecoveryAuditTaskType,
+      },
+      select: {
+        id: true,
+        status: true,
+        errorMessage: true,
+        createdAt: true,
+        completedAt: true,
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 8,
+    }),
   ]);
 
   const chapters = project.chapters;
@@ -211,6 +238,11 @@ export default async function MemoryPage({
     ];
   const editType = query.editType;
   const editId = query.editId;
+  const activeRecoveryAuditCount = recentRecoveryAuditTasks.filter(
+    (task) => task.status === "pending" || task.status === "running",
+  ).length;
+  const latestRecoveryAuditTask = recentRecoveryAuditTasks[0] ?? null;
+  const recoveryAuditMessage = buildRecoveryAuditMessage(query);
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -370,6 +402,76 @@ export default async function MemoryPage({
         id="foreshadows"
         title="伏笔池"
       >
+        <section className="rounded-lg border border-signal-500/20 bg-signal-500/5 p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+                <ScanSearch aria-hidden="true" className="h-4 w-4" />
+                自动回收审计
+              </div>
+              <h3 className="mt-2 text-base font-semibold text-ink-950">
+                扫描旧伏笔与后续正式章节
+              </h3>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+                系统会分批检查尚未回收的伏笔，只把有明确章节证据的推进或回收结果放入待确认列表。高置信回收可一次确认，正式伏笔不会被 AI 静默修改。
+              </p>
+            </div>
+            <form>
+              <FormActionButton
+                disabled={activeRecoveryAuditCount > 0 || unresolvedForeshadowCount === 0}
+                formAction={scanHistoricalForeshadowRecoveries.bind(
+                  null,
+                  project.id,
+                )}
+                icon="refresh"
+                idleLabel={
+                  activeRecoveryAuditCount > 0
+                    ? `正在扫描 ${activeRecoveryAuditCount} 批`
+                    : "扫描历史伏笔"
+                }
+                pendingLabel="正在建立扫描任务..."
+                statusText="正在读取旧伏笔和后续章节摘要，任务建立后可离开本页。"
+                variant="dark"
+              />
+            </form>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <RecoveryMetric label="待跟进伏笔" value={`${unresolvedForeshadowCount} 条`} />
+            <RecoveryMetric
+              label="高置信回收候选"
+              value={`${automaticRecoveryCandidateCount} 条`}
+            />
+            <RecoveryMetric
+              label="最近扫描"
+              value={
+                latestRecoveryAuditTask
+                  ? `${aiTaskStatusLabel(latestRecoveryAuditTask.status)} · ${formatDate(latestRecoveryAuditTask.completedAt ?? latestRecoveryAuditTask.createdAt)}`
+                  : "尚未运行"
+              }
+            />
+          </div>
+
+          {recoveryAuditMessage ? (
+            <p className="mt-3 rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm leading-6 text-ink-800">
+              {recoveryAuditMessage}
+            </p>
+          ) : null}
+          {latestRecoveryAuditTask?.status === "failed" &&
+          latestRecoveryAuditTask.errorMessage ? (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-800">
+              最近一批扫描失败：{latestRecoveryAuditTask.errorMessage}
+            </p>
+          ) : null}
+          {automaticRecoveryCandidateCount > 0 ? (
+            <Link
+              className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-md border border-signal-500/30 bg-white px-4 py-2 text-sm font-semibold text-signal-700 transition hover:bg-paper-50"
+              href={`/projects/${project.id}/pending-updates#automatic-foreshadow-recovery`}
+            >
+              查看并批量确认回收候选
+            </Link>
+          ) : null}
+        </section>
         <CompactCreatePanel title="新增伏笔">
           <ForeshadowForm
             action={createForeshadow.bind(null, project.id)}
@@ -1270,6 +1372,35 @@ function InfoTile({
       <p className="mt-1.5 text-sm font-semibold text-ink-950">{value}</p>
     </div>
   );
+}
+
+function RecoveryMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-ink-950/10 bg-white px-3 py-2">
+      <p className="text-xs font-semibold text-ink-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-ink-950">{value}</p>
+    </div>
+  );
+}
+
+function buildRecoveryAuditMessage(query: {
+  recoveryAudit?: string;
+  recoveryBatches?: string;
+  recoveryForeshadows?: string;
+}) {
+  if (query.recoveryAudit === "started") {
+    return `已建立 ${positiveInt(query.recoveryBatches) ?? 0} 批扫描任务，覆盖 ${positiveInt(query.recoveryForeshadows) ?? 0} 条旧伏笔。任务会在后台完成，刷新本页即可查看候选数量。`;
+  }
+
+  if (query.recoveryAudit === "active") {
+    return "历史伏笔扫描仍在进行中，无需重复提交。";
+  }
+
+  if (query.recoveryAudit === "empty") {
+    return "当前没有可扫描的旧伏笔，或相关伏笔已经有待确认更新。";
+  }
+
+  return null;
 }
 
 function ListLimitNotice({

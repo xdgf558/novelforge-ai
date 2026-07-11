@@ -99,6 +99,17 @@ Tracks planted and resolved foreshadows:
 - Importance
 - Status
 
+Foreshadow lifecycle automation is review-first. Chapter summary extraction may
+compare confirmed final text with a bounded set of unresolved formal
+foreshadows and create pending `advance` or `resolve` suggestions with stable
+foreshadow/chapter IDs, direct evidence, confidence, and the source final-text
+hash. A historical audit may scan all legacy unresolved foreshadows in bounded,
+sequential batches. These workflows never write formal memory silently:
+high-confidence resolve candidates may be batch-approved by the author, while
+medium-confidence or partial-progress candidates remain individually
+reviewable. Changed final text makes the suggestion stale and prevents
+application.
+
 ### 6. Timeline Memory
 
 Tracks event order and story-time conflicts:

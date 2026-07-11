@@ -33,15 +33,17 @@ type CompleteAiTaskInput = {
 };
 
 type CompletedAiTask = Awaited<ReturnType<typeof markAiTaskCompleted>>;
+type FailedAiTask = Awaited<ReturnType<typeof markAiTaskFailed>>;
 
 type RunLoggedOpenAITextTaskOptions = {
   rethrow?: boolean;
   onCompleted?: (task: CompletedAiTask) => Promise<void> | void;
+  onFailed?: (task: FailedAiTask, error: unknown) => Promise<void> | void;
 };
 
 type StartLoggedOpenAITextTaskOptions = Pick<
   RunLoggedOpenAITextTaskOptions,
-  "onCompleted"
+  "onCompleted" | "onFailed"
 >;
 
 type AiTaskExecutionRouteSnapshot = {
@@ -170,6 +172,7 @@ export async function startLoggedOpenAITextTask(
 
   void completeRunningOpenAITextTask(runningTask, request, {
     onCompleted: options.onCompleted,
+    onFailed: options.onFailed,
     rethrow: false,
   }).catch((error) => {
     console.error("Background AI task failed after logging attempt:", error);
@@ -206,6 +209,12 @@ async function completeRunningOpenAITextTask(
     return completedTask;
   } catch (error) {
     const failedTask = await markAiTaskFailed(task.id, error);
+
+    try {
+      await options.onFailed?.(failedTask, error);
+    } catch (callbackError) {
+      console.error("AI task failure callback failed:", callbackError);
+    }
 
     if (options.rethrow === false) {
       return failedTask;
@@ -248,6 +257,7 @@ export function resolveAiTaskRequestTimeoutMs(taskType: string) {
     taskType === "chapter_beat_generation" ||
     taskType === "chapter_summary_extraction" ||
     taskType === "continuity_check" ||
+    taskType === "foreshadow_recovery_audit" ||
     taskType === "outline_generation" ||
     taskType === "ending_planning_generation" ||
     taskType === "pending_update_extraction"
