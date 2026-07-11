@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteProject, updateProject } from "./actions";
+import { createProject, deleteProject, updateProject } from "./actions";
 
 const mocks = vi.hoisted(() => ({
   redirect: vi.fn(),
@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   deleteProjectCoverAssets: vi.fn(),
   prisma: {
     project: {
+      create: vi.fn(),
       delete: vi.fn(),
       update: vi.fn(),
     },
@@ -39,6 +40,7 @@ function buildProjectFormData(
 ) {
   const values = {
     title: "离线未来",
+    workType: "serial_novel",
     genre: "",
     targetAudience: "",
     platform: "",
@@ -69,6 +71,7 @@ describe("project actions", () => {
       throw error;
     });
     mocks.prisma.project.update.mockResolvedValue({});
+    mocks.prisma.project.create.mockResolvedValue({ id: "project_1" });
     mocks.prisma.project.delete.mockResolvedValue({});
     mocks.deleteProjectAudioAssets.mockResolvedValue(undefined);
     mocks.deleteProjectCoverAssets.mockResolvedValue(undefined);
@@ -86,6 +89,56 @@ describe("project actions", () => {
         },
         data: expect.objectContaining({
           aiDailyTokenBudget: null,
+        }),
+      }),
+    );
+  });
+
+  it("creates a short-story project with an explicit work type", async () => {
+    await expect(
+      createProject(
+        buildProjectFormData({
+          workType: "short_story",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.project.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        title: "离线未来",
+        workType: "short_story",
+      }),
+    });
+    expect(mocks.redirect).toHaveBeenCalledWith("/projects/project_1");
+  });
+
+  it("defaults legacy create submissions to serial novels", async () => {
+    const formData = buildProjectFormData();
+    formData.delete("workType");
+
+    await expect(createProject(formData)).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.project.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workType: "serial_novel",
+      }),
+    });
+  });
+
+  it("does not convert the project work type from the general edit form", async () => {
+    await expect(
+      updateProject(
+        "project_1",
+        buildProjectFormData({
+          workType: "tampered_mode",
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.project.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({
+          workType: expect.anything(),
         }),
       }),
     );

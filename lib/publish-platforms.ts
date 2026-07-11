@@ -50,6 +50,7 @@ export type StandardPublishPackage = {
   project: {
     id: string;
     title: string;
+    workType: string;
     genre: string;
     targetAudience: string;
     platform: string;
@@ -169,6 +170,7 @@ export function buildStandardPublishPackage(
     project: {
       id: stringValue(data.project.id),
       title: stringValue(data.project.title) || "未命名项目",
+      workType: stringValue(data.project.workType) || "serial_novel",
       genre: stringValue(data.project.genre),
       targetAudience: stringValue(data.project.targetAudience),
       platform: stringValue(data.project.platform),

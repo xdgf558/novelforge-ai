@@ -20,7 +20,14 @@ import {
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
-import { loadProjectActivitySummary } from "@/lib/project-activity";
+import {
+  loadProjectActivitySummary,
+  type ProjectActivitySummary,
+} from "@/lib/project-activity";
+import {
+  isShortStoryProject,
+  projectWorkTypeLabel,
+} from "@/lib/projects/work-types";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +85,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   const pendingUpdateStats = summarizePendingUpdates(pendingUpdateGroups);
   const activitySummary = await loadProjectActivitySummary(project);
 
+  if (isShortStoryProject(project.workType)) {
+    return (
+      <ShortStoryProjectDashboard
+        activitySummary={activitySummary}
+        project={project}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Link
@@ -103,6 +119,9 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex min-h-10 items-center rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm font-semibold text-ink-800">
+              {projectWorkTypeLabel(project.workType)}
+            </span>
             <span className="inline-flex min-h-10 items-center rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm font-semibold text-signal-700">
               {project.status === "active" ? "进行中" : "已归档"}
             </span>
@@ -426,6 +445,159 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
           <p className="mt-4 text-xs leading-5 text-ink-700">
             最近活动会统计章节、AI 任务、待审更新、连续性报告和发布记录；项目资料更新只表示标题、简介等基础信息变更。
           </p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+type ShortStoryDashboardProject = {
+  id: string;
+  title: string;
+  workType: string;
+  genre: string | null;
+  targetAudience: string | null;
+  platform: string | null;
+  totalWordTarget: number | null;
+  chapterWordMin: number | null;
+  chapterWordMax: number | null;
+  description: string | null;
+  wechatPositioning: string | null;
+  status: string;
+  _count: {
+    characters: number;
+    chapters: number;
+    worldRules: number;
+    foreshadows: number;
+    timelineEvents: number;
+    aiTasks: number;
+  };
+};
+
+function ShortStoryProjectDashboard({
+  activitySummary,
+  project,
+}: {
+  activitySummary: ProjectActivitySummary;
+  project: ShortStoryDashboardProject;
+}) {
+  const workspaceLinks = [
+    {
+      href: `/projects/${project.id}/settings`,
+      icon: BookMarked,
+      title: "设定库",
+      detail: "作品定位、人物驱动、冲突与风格约束",
+    },
+    {
+      href: `/projects/${project.id}/characters`,
+      icon: Users,
+      title: "角色",
+      detail: `已保存 ${project._count.characters} 个角色`,
+    },
+    {
+      href: `/projects/${project.id}/memory`,
+      icon: ShieldCheck,
+      title: "结构化记忆",
+      detail: `规则 ${project._count.worldRules} · 伏笔 ${project._count.foreshadows} · 时间线 ${project._count.timelineEvents}`,
+    },
+    {
+      href: `/projects/${project.id}/ai`,
+      icon: Bot,
+      title: "AI 任务",
+      detail: `已记录 ${project._count.aiTasks} 条任务`,
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <Link
+        className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
+        href="/"
+      >
+        <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+        返回项目列表
+      </Link>
+
+      <header className="border-b border-ink-950/10 pb-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-signal-600">
+              短故事 · {project.genre || "未设置题材"}
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink-950">
+              {project.title}
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
+              {project.description || "暂无故事简介。"}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex min-h-10 items-center rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm font-semibold text-signal-700">
+              {project.status === "active" ? "进行中" : "已归档"}
+            </span>
+            <Link
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+              href={`/projects/${project.id}/edit`}
+            >
+              <Pencil aria-hidden="true" className="h-4 w-4" />
+              编辑
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <InfoTile label="目标读者" value={project.targetAudience || "未设置"} />
+        <InfoTile label="发布平台" value={project.platform || "未设置"} />
+        <InfoTile label="总字数目标" value={formatNumber(project.totalWordTarget)} />
+        <InfoTile
+          label="写作单元字数"
+          value={formatWordRange(project.chapterWordMin, project.chapterWordMax)}
+        />
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold text-ink-950">创作资料</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {workspaceLinks.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Link
+                className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel transition hover:border-signal-500/45 hover:bg-paper-50"
+                href={item.href}
+                key={item.href}
+              >
+                <Icon aria-hidden="true" className="h-5 w-5 text-signal-600" />
+                <h3 className="mt-3 text-sm font-semibold text-ink-950">
+                  {item.title}
+                </h3>
+                <p className="mt-1 text-xs leading-5 text-ink-700">
+                  {item.detail}
+                </p>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="border-t border-ink-950/10 pt-4">
+          <h2 className="text-base font-semibold text-ink-950">发布定位</h2>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink-700">
+            {project.wechatPositioning || "暂无发布定位。"}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+          <h2 className="text-sm font-semibold text-ink-950">项目状态</h2>
+          <dl className="mt-3 space-y-3 text-sm">
+            <Row label="作品类型" value={projectWorkTypeLabel(project.workType)} />
+            <Row label="写作单元" value={`${project._count.chapters} 个`} />
+            <Row label="项目创建" value={formatDate(activitySummary.projectCreatedAt)} />
+            <Row label="最近活动" value={formatDate(activitySummary.latestActivityAt)} />
+          </dl>
         </div>
       </section>
     </div>

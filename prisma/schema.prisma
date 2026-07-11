@@ -10,6 +10,7 @@ datasource db {
 model Project {
   id                  String    @id @default(cuid())
   title               String
+  workType            String    @default("serial_novel")
   genre               String?
   targetAudience      String?
   platform            String?
@@ -62,6 +63,7 @@ model Project {
   audioExportSegments    AudioExportSegment[]
 
   @@index([status])
+  @@index([workType, status])
   @@map("projects")
 }
 

@@ -4,6 +4,7 @@ import { buildProjectJsonExport, buildProjectMarkdownExport } from "./project-ex
 const exportData = {
   project: {
     title: "借命人",
+    workType: "short_story",
     genre: "都市悬疑",
     targetAudience: "公众号男性读者",
     platform: "微信公众号",
@@ -134,6 +135,7 @@ describe("project export builders", () => {
     const markdown = buildProjectMarkdownExport(exportData);
 
     expect(markdown).toContain("# 借命人");
+    expect(markdown).toContain("作品类型: 短故事");
     expect(markdown).toContain("## 项目设定");
     expect(markdown).toContain("寿命交易带来高压反转");
     expect(markdown).toContain("## 角色库");
@@ -145,7 +147,8 @@ describe("project export builders", () => {
     expect(markdown).toContain("## 多故事线");
     expect(markdown).toContain("地下契约线");
     expect(markdown).toContain("关联人物: 林野");
-    expect(markdown).toContain("## 章节");
+    expect(markdown).toContain("## 写作单元");
+    expect(markdown).toContain("### 单元 1 第一封短信");
     expect(markdown).toContain("短信来自一个死人");
     expect(markdown).toContain("## 历史发布包装");
     expect(markdown).toContain("死人给他发来短信");

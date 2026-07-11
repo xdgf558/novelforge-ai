@@ -12,6 +12,10 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
 import { loadProjectActivitySummaries } from "@/lib/project-activity";
 import {
+  isShortStoryProject,
+  projectWorkTypeLabel,
+} from "@/lib/projects/work-types";
+import {
   EmptyStationIllustration,
   StatCardBackdrop,
 } from "@/components/story-illustrations";
@@ -79,10 +83,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <div>
           <p className="text-sm font-semibold text-[#58d7c7]">本地工作台</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-normal text-[#f5dfbd] sm:text-4xl">
-            小说项目
+            创作项目
           </h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#b7a286]">
-            本地项目、总设定档、角色库、章节编辑器和 AI 任务记录已接入，后续生成能力会沿着这个记忆底座继续扩展。
+            在同一个本地工作台管理长篇连载和短故事，保留各自的创作结构。
           </p>
         </div>
         <Link className="nf-primary-button w-fit" href="/projects/new">
@@ -101,7 +105,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <p className="relative mt-3 text-3xl font-semibold text-[#f5dfbd]">
             {totalProjectCount}
           </p>
-          <p className="relative mt-1 text-xs text-[#8d7b63]">所有小说项目</p>
+          <p className="relative mt-1 text-xs text-[#8d7b63]">所有创作项目</p>
         </div>
 
         <div className="nf-glass-card min-h-24 p-4">
@@ -151,7 +155,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="relative mx-auto max-w-3xl">
             <EmptyStationIllustration className="mx-auto h-auto w-full max-w-sm opacity-95" />
             <h2 className="mt-2 text-2xl font-semibold text-[#f5dfbd]">
-              {activeFilter === "archived" ? "还没有归档项目" : "还没有小说项目"}
+              {activeFilter === "archived" ? "还没有归档项目" : "还没有创作项目"}
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#b7a286]">
               {activeFilter === "archived"
@@ -183,9 +187,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     {project.genre || "未设置题材"} / {project.platform || "未设置平台"}
                   </p>
                 </div>
-                <span className="w-fit rounded-full border border-[#58d7c7]/25 bg-[#58d7c7]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#8be7dd]">
-                  {project.status === "active" ? "进行中" : "已归档"}
-                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className="w-fit rounded-full border border-[#ce8f48]/25 bg-[#ce8f48]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#f0c98b]">
+                    {projectWorkTypeLabel(project.workType)}
+                  </span>
+                  <span className="w-fit rounded-full border border-[#58d7c7]/25 bg-[#58d7c7]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#8be7dd]">
+                    {project.status === "active" ? "进行中" : "已归档"}
+                  </span>
+                </div>
               </div>
 
               <dl className="mt-4 grid gap-2.5 text-xs sm:grid-cols-3">
@@ -196,15 +205,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[#8d7b63]">单章字数</dt>
+                  <dt className="text-[#8d7b63]">
+                    {isShortStoryProject(project.workType)
+                      ? "单元字数"
+                      : "单章字数"}
+                  </dt>
                   <dd className="mt-1 font-medium text-[#dac39f]">
                     {formatWordRange(project.chapterWordMin, project.chapterWordMax)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[#8d7b63]">更新</dt>
+                  <dt className="text-[#8d7b63]">
+                    {isShortStoryProject(project.workType) ? "目标字数" : "更新"}
+                  </dt>
                   <dd className="mt-1 font-medium text-[#dac39f]">
-                    {project.updateFrequency || "未设置"}
+                    {isShortStoryProject(project.workType)
+                      ? formatNumber(project.totalWordTarget)
+                      : project.updateFrequency || "未设置"}
                   </dd>
                 </div>
               </dl>
@@ -240,7 +257,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <div>
                   <p className="text-sm font-medium text-[#f5dfbd]">{project.title}</p>
                   <p className="mt-0.5 text-xs text-[#8d7b63]">
-                    {project.genre || "未设置题材"}
+                    {projectWorkTypeLabel(project.workType)} · {project.genre || "未设置题材"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-[#a99573]">

@@ -12,7 +12,8 @@ type AppShellProps = {
 };
 
 export async function AppShell({ children }: AppShellProps) {
-  const fallbackProjectId = await getFallbackProjectId();
+  const navigationProjects = await getNavigationProjects();
+  const fallbackProjectId = navigationProjects[0]?.id ?? null;
 
   return (
     <div className="nocturne-shell min-h-screen overflow-hidden lg:flex">
@@ -23,11 +24,14 @@ export async function AppShell({ children }: AppShellProps) {
             <NovelForgeMark className="h-12 w-12 shrink-0 rounded-xl shadow-[0_0_30px_rgba(241,168,76,0.12)]" />
             <div>
               <p className="text-base font-semibold text-[#ffc274]">NovelForge AI</p>
-              <p className="mt-0.5 text-xs text-[#a89577]">长篇连载创作工作台</p>
+              <p className="mt-0.5 text-xs text-[#a89577]">本地小说创作工作台</p>
             </div>
           </div>
 
-          <AppShellNavigation fallbackProjectId={fallbackProjectId} />
+          <AppShellNavigation
+            fallbackProjectId={fallbackProjectId}
+            projects={navigationProjects}
+          />
         </div>
       </aside>
 
@@ -61,11 +65,11 @@ export async function AppShell({ children }: AppShellProps) {
   );
 }
 
-async function getFallbackProjectId() {
+async function getNavigationProjects() {
   noStore();
 
   try {
-    const project = await prisma.project.findFirst({
+    return await prisma.project.findMany({
       orderBy: [
         {
           updatedAt: "desc",
@@ -76,11 +80,10 @@ async function getFallbackProjectId() {
       ],
       select: {
         id: true,
+        workType: true,
       },
     });
-
-    return project?.id ?? null;
   } catch {
-    return null;
+    return [];
   }
 }

@@ -22,6 +22,8 @@ Use this stack unless the user changes direction:
 MVP includes:
 
 - Project creation and project list
+- Immutable project work types for long-form serials and short stories; legacy
+  projects default to long-form serials.
 - Project dashboard
 - Project setting editor
 - AI project setting generation
@@ -228,6 +230,9 @@ Recommended implementation order:
 - Phase 12: MVP acceptance dashboard, local acceptance smoke script, prompt-template helper consolidation, and acceptance hardening checks.
 - Phase 13: macOS desktop packaging prototype with Electron, local app data, desktop SQLite startup migrations, and macOS packaging scripts.
 - Phase 14: macOS distribution hardening is completed. Branded icon generation, Developer ID signing, hardened runtime, `asar` packaging, Electron locale pruning, generated Prisma client copying, signed DMG/ZIP artifacts, packaged startup smoke, final DMG notarization, stapling, and `syspolicy_check distribution` are implemented.
+- Short Story Phase 1: backward-compatible project work types, immutable type
+  selection at creation, a focused short-story dashboard/navigation shell, and
+  work-type preservation in project and website publish exports.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
@@ -289,6 +294,13 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - `npm run desktop:dist:mac` produces the signed local app payload plus DMG/ZIP artifacts and skips notarization; use the app payload to build the formal `/Applications` PKG handoff.
 - `npm run desktop:dist:mac:notarized` exists only for an explicit future public-distribution request; do not use it for normal personal-use rebuilds.
 - Current source app version is `0.1.89`; the latest formal personal-use macOS installer is `release/desktop/NovelForge-AI-0.1.89-mac-arm64.pkg`. Future handoff should leave only the final `release/desktop/NovelForge-AI-<version>-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
+- Short-story development follows `docs/short-story-development-plan.md`.
+  `Project.workType` is `serial_novel` or `short_story`, is selected at project
+  creation, and must not be changed by the general edit form. Existing records
+  default to `serial_novel`. Shared setting, character, memory, AI-task, and
+  version infrastructure should be reused; long-form-only tools are hidden from
+  the short-story navigation. `Chapter` remains the planned internal writing-unit
+  foundation rather than introducing a duplicate short-story prose stack.
 - Phase 1 of the Fanqie template/export work is implemented as a deterministic core library: `lib/fanqie-layout-export.ts` selects正文 from `polishedText -> finalText -> draftText`, cleans duplicate chapter titles, Markdown, completion markers, web tails, and AI outline traces, counts CJK-aware words, and returns validation/split-manifest helpers.
 - Phase 2 of the Fanqie template/export work adds a publish-page 番茄小说正文粘贴版 panel. It supports chapter selection, source selection, optional title inclusion, validation display, copy, and TXT download. It is still local/manual only: no database writes, no automatic Fanqie upload, no ZIP package generation, and no hidden chapter rewrites.
 - Phase 3 of the Fanqie template/export work adds the publish-page 番茄分章 TXT 包 path. The panel now supports template switching, 3000/4000/5000/custom target word counts, split preview, `拆分清单.md`, and browser-side ZIP download containing the manifest plus generated TXT files. This remains deterministic local export only: no database export-history table, no automatic Fanqie login/upload, and no silent chapter rewrites.

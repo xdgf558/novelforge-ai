@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 
 export const metadata: Metadata = {
   title: "NovelForge AI",
-  description: "Local-first AI writing workbench for serialized novels.",
+  description: "Local-first AI writing workbench for serial novels and short stories.",
 };
 
 export default function RootLayout({
@@ -20,4 +20,3 @@ export default function RootLayout({
     </html>
   );
 }
-

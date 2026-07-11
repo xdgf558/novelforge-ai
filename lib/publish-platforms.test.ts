@@ -21,6 +21,7 @@ const exportData = {
   project: {
     id: "project_1",
     title: "借命人",
+    workType: "short_story",
     genre: "都市悬疑",
     targetAudience: "长篇连载读者",
     platform: "Station Cat",
@@ -62,6 +63,7 @@ describe("publish platform helpers", () => {
 
     expect(publishPackage.format).toBe("novelforge-standard-publish-package");
     expect(publishPackage.project.title).toBe("借命人");
+    expect(publishPackage.project.workType).toBe("short_story");
     expect(publishPackage.cover).toMatchObject({
       prompt: "雨夜旧楼，手机冷光。",
       imagePath: null,

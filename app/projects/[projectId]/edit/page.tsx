@@ -7,6 +7,7 @@ import {
 } from "@/app/projects/actions";
 import { ProjectForm } from "@/components/project-form";
 import { prisma } from "@/lib/prisma";
+import { isShortStoryProject } from "@/lib/projects/work-types";
 
 export const dynamic = "force-dynamic";
 
@@ -41,8 +42,8 @@ export default async function EditProjectPage({
         action={updateProject.bind(null, project.id)}
         project={project}
         submitLabel="保存修改"
-        subtitle="这些基础字段会作为后续总设定档、章节生成、公众号排版导出和网站同步材料的初始上下文。"
-        title="编辑小说项目"
+        subtitle="这些基础字段会作为后续设定、规划、正文和发布材料的初始上下文。"
+        title={isShortStoryProject(project.workType) ? "编辑短故事项目" : "编辑长篇连载项目"}
       />
 
       <section className="rounded-lg border border-amber-300/70 bg-amber-50 p-5 shadow-panel">

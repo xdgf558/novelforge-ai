@@ -1,3 +1,8 @@
+import {
+  isShortStoryProject,
+  projectWorkTypeLabel,
+} from "./projects/work-types";
+
 type Scalar = string | number | boolean | Date | null | undefined;
 type StructuredExportItem = Record<string, Scalar>;
 type ExportValue = Scalar | readonly StructuredExportItem[];
@@ -37,12 +42,15 @@ export function buildProjectJsonExport(data: ProjectExportData) {
 
 export function buildProjectMarkdownExport(data: ProjectExportData) {
   const projectTitle = formatScalar(data.project.title) || "未命名项目";
+  const workType = formatScalar(data.project.workType);
+  const shortStory = isShortStoryProject(workType);
   const sections = [
     `# ${projectTitle}`,
     buildKeyValueList([
+      ["作品类型", projectWorkTypeLabel(workType)],
       ["题材", data.project.genre],
       ["目标读者", data.project.targetAudience],
-      ["连载平台", data.project.platform],
+      ["发布平台", data.project.platform],
       ["状态", data.project.status],
       ["AI 每日 token 提醒", data.project.aiDailyTokenBudget],
       ["公众号定位", data.project.wechatPositioning],
@@ -117,10 +125,14 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["备注", storyline.notes],
       ]),
     ]),
-    buildRecordSection("章节", data.chapters, (chapter) => [
-      `### 第 ${formatScalar(chapter.chapterNumber) || "?"} 章 ${formatScalar(
-        chapter.title,
-      )}`,
+    buildRecordSection(shortStory ? "写作单元" : "章节", data.chapters, (chapter) => [
+      shortStory
+        ? `### 单元 ${formatScalar(chapter.chapterNumber) || "?"} ${formatScalar(
+            chapter.title,
+          )}`
+        : `### 第 ${formatScalar(chapter.chapterNumber) || "?"} 章 ${formatScalar(
+            chapter.title,
+          )}`,
       buildKeyValueList([
         ["状态", chapter.status],
         ["字数", chapter.wordCount],

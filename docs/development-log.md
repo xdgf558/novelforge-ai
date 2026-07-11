@@ -1,5 +1,53 @@
 # Development Log
 
+## 2026-07-11: Short Story Phase 1 Work Type Foundation
+
+Status: completed for PR review.
+
+What was done:
+
+- Added immutable `Project.workType` values for `serial_novel` and
+  `short_story`, including a backward-compatible SQLite migration that assigns
+  every existing project to the serial-novel path.
+- Centralized work-type values, Chinese labels, legacy normalization, and
+  project-tool availability in `lib/projects/work-types.ts`.
+- Added work-type selection to new-project creation. Existing project edit forms
+  display the fixed type and cannot convert a populated project between modes.
+- Added a dedicated short-story project dashboard with shared setting,
+  character, structured-memory, and AI-task entry points. Short-story navigation
+  omits volume outlines, storylines, serial chapters, and audiobook tools, while
+  the existing serial-novel dashboard and navigation remain unchanged.
+- Updated project-list cards and form labels for work-type-aware terminology.
+- Preserved `workType` in project JSON/Markdown exports and the standard website
+  publish package. Short-story Markdown labels existing chapter records as
+  internal writing units.
+- Added `docs/short-story-development-plan.md` to hold the six-phase boundary and
+  PR sequence for the remaining work, including an explicit Phase 3 manual
+  writing-unit list and editor entry.
+- Split project creation and editing validation so the general edit path does
+  not parse or accept `workType` at all.
+
+Verification:
+
+- Focused work-type, project-action, export, and publish-package tests passed.
+- Full `npm run test` passed, 97 files and 528 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed, including the production compile and built-in
+  lint/type validity phase.
+- `npm run desktop:smoke` and `npm run mvp:acceptance` passed.
+- A fresh isolated SQLite database applied all 21 migrations and created both a
+  legacy-default serial project and an explicit short-story project.
+- The new migration also passed on a copy of the current desktop database. All
+  existing projects received `serial_novel`, all 21 migrations were recorded,
+  and `PRAGMA quick_check` returned `ok`.
+- `prisma migrate diff` reported no difference between the migration history and
+  `prisma/schema.prisma`.
+- Local browser verification confirmed project-type badges, dynamic short-story
+  form labels, immutable edit display, the focused short-story dashboard, and
+  the reduced five-item short-story navigation. At 390 x 844, the short-story
+  workspace had no horizontal overflow; browser logs contained no warnings or
+  errors.
+
 ## 2026-07-11: 0.1.89 Personal macOS Installer Rebuild
 
 Status: completed.
