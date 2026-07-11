@@ -1,5 +1,44 @@
 # Development Log
 
+## 2026-07-11: 0.1.88 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.88` after the automatic
+  foreshadow recovery audit was reviewed and merged into `main`.
+- Built a fresh arm64 Electron app and formal PKG installer for `/Applications`.
+- Re-signed the final staged app payload ad hoc with hardened runtime plus the
+  required JIT, unsigned executable memory, and library-validation
+  entitlements before packaging.
+- Built the final unsigned personal-use PKG at
+  `release/desktop/NovelForge-AI-0.1.88-mac-arm64.pkg` and removed the previous
+  installer and Electron build intermediates from the delivery directory.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 96 files and 522 tests.
+- `npm run desktop:smoke` passed.
+- `npm run mvp:acceptance` passed.
+- `npm run desktop:pack:mac` completed with notarization skipped after clearing
+  stale local proxy variables.
+- The final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.88`,
+  and install location `/Applications`.
+- The app expanded from the final PKG reports `0.1.88`, passes whole-bundle
+  deep/strict signature verification, and retains the required hardened-runtime
+  entitlements. A second ordinary copy of the staged app also passes the same
+  signature verification.
+- The expanded payload ran all 20 desktop migrations against an isolated SQLite
+  database, including `20260711093000_repository_hardening`; `PRAGMA
+  quick_check` returned `ok`.
+- The PKG is unsigned because no Developer ID Installer identity is available;
+  its app payload is ad-hoc signed for personal local use, so macOS may require a
+  one-time right-click Open confirmation.
+- Final SHA-256:
+  `4b344eb0a75d27460d068d78e67e1d2483cff4c2ce1ecbf48c2e9b0fd65b498b`.
+
 ## 2026-07-11: Automatic Foreshadow Recovery Audit
 
 Status: completed.
