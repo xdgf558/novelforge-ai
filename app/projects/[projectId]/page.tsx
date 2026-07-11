@@ -482,6 +482,7 @@ type ShortStoryDashboardProject = {
     foreshadows: number;
     timelineEvents: number;
     aiTasks: number;
+    continuityReports: number;
     shortStoryBlueprintVersions: number;
   };
 };
@@ -519,6 +520,12 @@ function ShortStoryProjectDashboard({
       icon: Users,
       title: "角色",
       detail: `已保存 ${project._count.characters} 个角色`,
+    },
+    {
+      href: `/projects/${project.id}/story-review`,
+      icon: ShieldAlert,
+      title: "整篇审校",
+      detail: `${project._count.continuityReports} 条连续性建议`,
     },
     {
       href: `/projects/${project.id}/memory`,

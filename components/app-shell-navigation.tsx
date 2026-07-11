@@ -72,6 +72,11 @@ const projectToolItems = [
     icon: NotebookTabs,
   },
   {
+    path: "story-review" as const,
+    label: "整篇审校",
+    icon: ShieldCheck,
+  },
+  {
     path: "audiobook" as const,
     label: "有声",
     icon: Headphones,

@@ -143,4 +143,26 @@ describe("continuity record services", () => {
     });
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
   });
+
+  it("never applies automatic replacements to whole-story review suggestions", async () => {
+    mocks.prisma.continuityReport.findFirst.mockResolvedValue({
+      id: "report_1",
+      status: "open",
+      aiTask: {
+        taskType: "short_story_whole_review",
+      },
+      chapter: {
+        id: "unit_1",
+        finalText: "作者确认的定稿。",
+      },
+    });
+
+    await expect(
+      applyContinuityReportReplacementFix({
+        projectId: "project_1",
+        reportId: "report_1",
+      }),
+    ).resolves.toEqual({ status: "unsupported" });
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+  });
 });

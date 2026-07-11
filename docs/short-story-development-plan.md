@@ -43,7 +43,7 @@ Status: completed and merged.
 
 ## Phase 3: Writing Unit Planning and Drafting
 
-Status: implemented for PR review.
+Status: completed and merged.
 
 - Add a short-story writing-unit list plus manual new, edit, and review entry
   points, relabeling shared `Chapter` records without exposing serial-only tools.
@@ -58,11 +58,16 @@ Status: implemented for PR review.
 
 ## Phase 4: Whole-Story Continuity and Closure
 
+Status: implemented for PR review.
+
 - Assemble confirmed units into a whole-story review context.
 - Check motivation, chronology, repeated information, pacing gaps, opening
   promises, reversal setup, and unresolved payoffs.
 - Generate reviewable revision suggestions tied to specific units; never rewrite
   confirmed prose automatically.
+- Persist suggestions through the shared continuity-report workflow with target
+  unit ids and source-text hashes. Whole-story review reports are manual-only:
+  they cannot trigger one-click replacement or AI fix-patch generation.
 
 ## Phase 5: Complete Manuscript and Fanqie Export
 

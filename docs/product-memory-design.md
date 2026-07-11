@@ -28,6 +28,16 @@ snapshots. AI generation only creates a logged review draft; formal blueprint
 fields change only after explicit author adoption. Restoring an old snapshot
 creates a new rollback version so history remains append-only.
 
+After writing units have confirmed final text, short-story projects can run a
+whole-story closure review. The review assembles every confirmed unit under a
+bounded prompt budget, retaining full text where possible and otherwise using
+explicit head/middle/tail excerpts. It checks motivation, chronology, repeated
+information, pacing gaps, opening promises, reversal setup, and unresolved
+payoffs. Every suggestion must target an existing unit id and stores that
+unit's final-text hash in the shared continuity-report layer. A changed unit
+makes the suggestion stale. These reports are advisory and manual-only: they
+cannot invoke one-click prose replacement or AI-generated fix patches.
+
 ## Memory Layers
 
 ### 1. Project Setting Memory

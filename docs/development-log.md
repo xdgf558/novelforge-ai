@@ -1,5 +1,77 @@
 # Development Log
 
+## 2026-07-11: Short Story Phase 3 First-Unit Prompt Follow-up
+
+Status: completed for Phase 4 PR review.
+
+What was done:
+
+- Addressed the post-merge Phase 3 review finding that unit 1 still received an
+  unconditional instruction to continue from a previous unit.
+- Split short-story beat guidance by unit position. Unit 1 now establishes the
+  formal blueprint's opening hook, protagonist pressure, and core conflict with
+  only necessary background; later units continue directly from prior action
+  and avoid repeated openings or introductions.
+- Applied the distinction to both the human-readable prompt and structured task
+  audit requirements so they cannot drift into conflicting instructions.
+
+Verification:
+
+- Added first-unit and later-unit regression assertions in
+  `lib/ai/chapter-beats.test.ts`.
+- `npx vitest run lib/ai/chapter-beats.test.ts` and `npm run typecheck` passed.
+
+## 2026-07-11: Short Story Phase 4 Whole-Story Review
+
+Status: completed for PR review.
+
+What was done:
+
+- Added a dedicated short-story-only whole-story review workspace and sidebar /
+  dashboard entry. Serial projects cannot access the route.
+- Added logged `short_story_whole_review` tasks with a five-minute planning
+  timeout and a structured JSON schema. Review inputs include the formal
+  blueprint, selected project constraints, character motivation, unresolved
+  foreshadows, timeline events, unit plans, and every confirmed unit.
+- Bounded manuscript context to a 48,000-character prose budget. Units retain
+  full confirmed text when possible and otherwise use explicit head/middle/tail
+  excerpts; task audit data records unit ids, source lengths, excerpt strategy,
+  previews, and final-text hashes.
+- Added seven focused review categories: motivation, chronology, repeated
+  information, pacing gaps, opening promises, reversal setup, and unresolved
+  payoffs. Unknown unit ids are rejected and duplicate suggestions inside one
+  model result are removed before persistence.
+- Reused shared continuity reports for durable, unit-bound suggestions. Authors
+  can open the target unit, add a resolution note, resolve, or reopen a
+  suggestion. Changed unit final text marks old suggestions stale.
+- Enforced the Phase 4 author-control boundary in both UI and server services:
+  whole-story suggestions cannot execute one-click replacements or generate AI
+  continuity fix patches.
+- Kept the unresolved-foreshadow database query complete, then prioritized
+  attention-needed, high-importance, and earlier-due items before bounded prompt
+  selection so old important payoffs are not hidden by a database pre-limit.
+- Added cross-run deduplication for unchanged confirmed text: an open suggestion
+  with the same target unit, source hash, category, and normalized title is
+  reused instead of creating another report on repeated review.
+
+Verification:
+
+- Focused whole-story context, parsing, records, actions, prompt-template,
+  timeout, work-type, and continuity guard tests passed.
+- Full `npm run test` passed: 104 files and 569 tests.
+- `npx prisma validate`, `npx prisma generate`, `npm run typecheck`, and
+  `npm run build` passed.
+- `npm run desktop:smoke` and `npm run mvp:acceptance` passed.
+- A fresh isolated SQLite database applied all 23 migrations and `PRAGMA
+  quick_check` returned `ok`.
+- `prisma migrate diff` reported no difference between migration history and
+  `prisma/schema.prisma`; Phase 4 reuses existing task/report tables and does not
+  require a schema migration.
+- Local browser verification covered the short-story dashboard/sidebar entry,
+  review status and suggestion cards, manual resolution-note persistence, and
+  serial-project 404 isolation. The desktop viewport had no horizontal overflow
+  and browser logs contained no application warnings or errors.
+
 ## 2026-07-11: Short Story Phase 3 Writing Units
 
 Status: completed for PR review.

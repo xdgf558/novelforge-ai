@@ -19,6 +19,7 @@ describe("default AI prompt templates", () => {
         "project_setting_completion",
         "project_setting_optimization",
         "short_story_blueprint_generation",
+        "short_story_whole_review",
         "outline_generation",
         "character_relationship_generation",
         "chapter_beat_generation",
@@ -33,6 +34,25 @@ describe("default AI prompt templates", () => {
         "cover_image_generation",
       ]),
     );
+  });
+
+  it("requires unit-bound suggestions in the whole-story review schema", () => {
+    const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
+      (item) => item.key === "short_story_whole_review",
+    );
+    const schema = JSON.parse(template?.responseSchema ?? "{}");
+    const issueSchema = schema.properties.issues.items;
+
+    expect(template?.outputFormat).toBe("json");
+    expect(issueSchema.required).toEqual(
+      expect.arrayContaining([
+        "targetUnitId",
+        "relatedUnitIds",
+        "category",
+        "suggestedFix",
+      ]),
+    );
+    expect(template?.systemPrompt).toContain("不得重写");
   });
 
   it("stores schema metadata only for JSON output templates", () => {

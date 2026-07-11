@@ -29,6 +29,7 @@ import {
   aiTaskStatusLabel,
   isActiveAiTaskStatus,
 } from "@/lib/ai/status";
+import { shortStoryWholeReviewTaskType } from "@/lib/ai/short-story-whole-review";
 import {
   continuityCategoryLabel,
   continuitySeverityLabel,
@@ -86,6 +87,7 @@ export default async function ContinuityPage({
               id: true,
               model: true,
               inputContextSummary: true,
+              taskType: true,
               createdAt: true,
             },
           },
@@ -252,6 +254,8 @@ export default async function ContinuityPage({
       ) : (
         <section className="space-y-4">
           {project.continuityReports.map((report) => {
+            const isWholeStoryReview =
+              report.aiTask?.taskType === shortStoryWholeReviewTaskType;
             const isStale = Boolean(
               report.sourceTextHash &&
                 !chapterSourceMatches(
@@ -259,13 +263,12 @@ export default async function ContinuityPage({
                   report.chapter?.finalText,
                 ),
             );
-            const replacementFix = parseContinuityReplacementFix(
-              report.suggestedFix,
-              {
-                description: report.description,
-                evidence: report.evidence,
-              },
-            );
+            const replacementFix = isWholeStoryReview
+              ? null
+              : parseContinuityReplacementFix(report.suggestedFix, {
+                  description: report.description,
+                  evidence: report.evidence,
+                });
             const manualFixHref = report.chapter
               ? buildManualContinuityFixHref({
                   chapterId: report.chapter.id,
@@ -418,14 +421,20 @@ export default async function ContinuityPage({
                 <DetailBlock label="建议修复" value={report.suggestedFix} />
               </div>
 
-              <ContinuityFixPatchPanel
-                canGenerate={
-                  report.status === "open" && Boolean(report.chapter) && !isStale
-                }
-                projectId={project.id}
-                reportId={report.id}
-                tasks={patchTasksByReportId.get(report.id) ?? []}
-              />
+              {isWholeStoryReview ? (
+                <p className="mt-4 rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-xs leading-5 text-ink-800">
+                  这条建议来自短故事整篇审校，只允许作者进入目标单元手动修订；系统不会一键改写或继续生成自动补丁。
+                </p>
+              ) : (
+                <ContinuityFixPatchPanel
+                  canGenerate={
+                    report.status === "open" && Boolean(report.chapter) && !isStale
+                  }
+                  projectId={project.id}
+                  reportId={report.id}
+                  tasks={patchTasksByReportId.get(report.id) ?? []}
+                />
+              )}
 
               {report.aiTask ? (
                 <p className="mt-4 text-xs leading-5 text-ink-700">

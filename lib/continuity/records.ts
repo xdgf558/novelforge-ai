@@ -7,6 +7,7 @@ import {
   readContinuityFixPatchReportId,
 } from "@/lib/ai/continuity-fix-patches";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
+import { shortStoryWholeReviewTaskType } from "@/lib/ai/short-story-whole-review";
 import {
   selectRelevantCharacters,
   selectRelevantForeshadows,
@@ -264,6 +265,11 @@ export async function applyContinuityReportReplacementFix({
     },
     include: {
       chapter: true,
+      aiTask: {
+        select: {
+          taskType: true,
+        },
+      },
     },
   });
 
@@ -276,6 +282,12 @@ export async function applyContinuityReportReplacementFix({
   if (report.status !== "open") {
     return {
       status: "already-resolved",
+    };
+  }
+
+  if (report.aiTask?.taskType === shortStoryWholeReviewTaskType) {
+    return {
+      status: "unsupported",
     };
   }
 
@@ -402,6 +414,11 @@ export async function loadContinuityFixPatchReport({
           polishedText: true,
           finalText: true,
           notes: true,
+        },
+      },
+      aiTask: {
+        select: {
+          taskType: true,
         },
       },
     },

@@ -32,5 +32,11 @@ describe("continuity report helpers", () => {
     expect(normalizeContinuityCategory("公众号发布风险")).toBe(
       "publishing_risk",
     );
+    expect(normalizeContinuityCategory("opening_promise")).toBe(
+      "opening_promise",
+    );
+    expect(normalizeContinuityCategory("重复信息过多")).toBe(
+      "repeated_information",
+    );
   });
 });

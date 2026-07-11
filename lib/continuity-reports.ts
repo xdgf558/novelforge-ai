@@ -17,6 +17,12 @@ export const continuityCategoryOptions = [
   { value: "timeline", label: "时间线" },
   { value: "foreshadow", label: "伏笔" },
   { value: "plot_logic", label: "剧情逻辑" },
+  { value: "motivation", label: "人物动机" },
+  { value: "repeated_information", label: "信息重复" },
+  { value: "pacing_gap", label: "节奏缺口" },
+  { value: "opening_promise", label: "开篇承诺" },
+  { value: "reversal_setup", label: "反转铺垫" },
+  { value: "unresolved_payoff", label: "未兑现项" },
   { value: "forbidden_item", label: "禁写事项" },
   { value: "publishing_risk", label: "发布风险" },
   { value: "general", label: "综合问题" },
@@ -77,6 +83,30 @@ export function normalizeContinuityCategory(
   value?: string | null,
 ): ContinuityCategory {
   const cleaned = clean(value).toLowerCase();
+
+  if (/motivation|motive|动机|行动理由|选择理由/.test(cleaned)) {
+    return "motivation";
+  }
+
+  if (/repeated_information|repetition|重复信息|重复交代|反复说明/.test(cleaned)) {
+    return "repeated_information";
+  }
+
+  if (/pacing_gap|pacing|节奏|过场|跳跃|拖沓/.test(cleaned)) {
+    return "pacing_gap";
+  }
+
+  if (/opening_promise|opening|开篇承诺|开场承诺|开篇钩子/.test(cleaned)) {
+    return "opening_promise";
+  }
+
+  if (/reversal_setup|reversal|反转铺垫|反转|伏线不足/.test(cleaned)) {
+    return "reversal_setup";
+  }
+
+  if (/unresolved_payoff|payoff|未兑现|未闭环|悬而未决/.test(cleaned)) {
+    return "unresolved_payoff";
+  }
 
   if (/knowledge|认知|知道|信息边界/.test(cleaned)) {
     return "character_knowledge";
