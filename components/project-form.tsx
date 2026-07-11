@@ -1,6 +1,15 @@
+"use client";
+
 import type { Project } from "@prisma/client";
 import Link from "next/link";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, BookOpenText, FileText, Save } from "lucide-react";
+import { useState } from "react";
+import {
+  normalizeProjectWorkType,
+  projectWorkTypeLabel,
+  projectWorkTypeOptions,
+  type ProjectWorkType,
+} from "@/lib/projects/work-types";
 
 type ProjectFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -22,6 +31,11 @@ export function ProjectForm({
   title,
   subtitle,
 }: ProjectFormProps) {
+  const [workType, setWorkType] = useState<ProjectWorkType>(
+    normalizeProjectWorkType(project?.workType),
+  );
+  const isShortStory = workType === "short_story";
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -44,8 +58,70 @@ export function ProjectForm({
 
       <form action={action} className="space-y-5">
         <section className="grid gap-4 rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel md:grid-cols-2">
+          <fieldset className="md:col-span-2">
+            <legend className={labelClass}>作品类型</legend>
+            {project ? (
+              <div className="mt-2 flex min-h-11 items-center gap-2 rounded-md border border-ink-950/10 bg-paper-50 px-3 text-sm font-semibold text-ink-900">
+                {isShortStory ? (
+                  <FileText aria-hidden="true" className="h-4 w-4 text-signal-600" />
+                ) : (
+                  <BookOpenText
+                    aria-hidden="true"
+                    className="h-4 w-4 text-signal-600"
+                  />
+                )}
+                {projectWorkTypeLabel(workType)}
+                <span className="font-normal text-ink-700">
+                  · 创建后不可切换
+                </span>
+              </div>
+            ) : (
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {projectWorkTypeOptions.map((option) => {
+                  const selected = workType === option.value;
+                  const Icon =
+                    option.value === "short_story" ? FileText : BookOpenText;
+
+                  return (
+                    <label
+                      className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition ${
+                        selected
+                          ? "border-signal-500 bg-signal-500/10 ring-2 ring-signal-500/15"
+                          : "border-ink-950/10 bg-white hover:border-signal-500/40"
+                      }`}
+                      key={option.value}
+                    >
+                      <input
+                        checked={selected}
+                        className="sr-only"
+                        name="workType"
+                        onChange={() => setWorkType(option.value)}
+                        type="radio"
+                        value={option.value}
+                      />
+                      <Icon
+                        aria-hidden="true"
+                        className={`mt-0.5 h-5 w-5 shrink-0 ${
+                          selected ? "text-signal-600" : "text-ink-700"
+                        }`}
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-ink-950">
+                          {option.label}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-ink-700">
+                          {option.description}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </fieldset>
+
           <label className="flex flex-col gap-2 md:col-span-2">
-            <span className={labelClass}>小说标题</span>
+            <span className={labelClass}>作品标题</span>
             <input
               className={inputClass}
               defaultValue={project?.title ?? ""}
@@ -77,7 +153,7 @@ export function ProjectForm({
           </label>
 
           <label className="flex flex-col gap-2">
-            <span className={labelClass}>连载平台</span>
+            <span className={labelClass}>发布平台</span>
             <input
               className={inputClass}
               defaultValue={project?.platform ?? ""}
@@ -86,15 +162,17 @@ export function ProjectForm({
             />
           </label>
 
-          <label className="flex flex-col gap-2">
-            <span className={labelClass}>更新频率</span>
-            <input
-              className={inputClass}
-              defaultValue={project?.updateFrequency ?? ""}
-              name="updateFrequency"
-              placeholder="每日一更"
-            />
-          </label>
+          {isShortStory ? null : (
+            <label className="flex flex-col gap-2">
+              <span className={labelClass}>更新频率</span>
+              <input
+                className={inputClass}
+                defaultValue={project?.updateFrequency ?? ""}
+                name="updateFrequency"
+                placeholder="每日一更"
+              />
+            </label>
+          )}
 
           <label className="flex flex-col gap-2">
             <span className={labelClass}>总字数目标</span>
@@ -103,14 +181,16 @@ export function ProjectForm({
               defaultValue={project?.totalWordTarget ?? ""}
               min={1}
               name="totalWordTarget"
-              placeholder="1000000"
+              placeholder={isShortStory ? "30000" : "1000000"}
               type="number"
             />
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-2">
-              <span className={labelClass}>单章最小字数</span>
+              <span className={labelClass}>
+                {isShortStory ? "单元最小字数" : "单章最小字数"}
+              </span>
               <input
                 className={inputClass}
                 defaultValue={project?.chapterWordMin ?? ""}
@@ -122,7 +202,9 @@ export function ProjectForm({
             </label>
 
             <label className="flex flex-col gap-2">
-              <span className={labelClass}>单章最大字数</span>
+              <span className={labelClass}>
+                {isShortStory ? "单元最大字数" : "单章最大字数"}
+              </span>
               <input
                 className={inputClass}
                 defaultValue={project?.chapterWordMax ?? ""}
@@ -160,7 +242,7 @@ export function ProjectForm({
           </label>
 
           <label className="flex flex-col gap-2 md:col-span-2">
-            <span className={labelClass}>公众号定位</span>
+            <span className={labelClass}>发布定位</span>
             <textarea
               className={`${inputClass} min-h-24 py-3 leading-6`}
               defaultValue={project?.wechatPositioning ?? ""}

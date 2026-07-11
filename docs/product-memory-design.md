@@ -8,6 +8,18 @@ NovelForge AI must remember story facts across a long serialized novel without s
 
 Memory is not a single prompt. It is a structured database plus controlled AI extraction and review.
 
+## Work Type Boundary
+
+Every project has one durable work type: `serial_novel` or `short_story`.
+Existing projects default to `serial_novel`, and the type is immutable after
+creation so a populated long-form project cannot silently switch workflows.
+
+Both work types share formal settings, characters, structured memory, AI task
+records, version history, and author-approval rules. Long-form volume, storyline,
+chapter, and audiobook surfaces remain specific to serial novels. Short stories
+use a focused workspace and will reuse `Chapter` as an internal writing-unit
+foundation rather than duplicating the prose/version/task storage model.
+
 ## Memory Layers
 
 ### 1. Project Setting Memory

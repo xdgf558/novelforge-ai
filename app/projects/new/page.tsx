@@ -6,8 +6,8 @@ export default function NewProjectPage() {
     <ProjectForm
       action={createProject}
       submitLabel="创建项目"
-      subtitle="先保存项目基础信息；总设定档、角色库、章节编辑器和 AI 任务记录已接入。"
-      title="新建小说项目"
+      subtitle="选择长篇连载或短故事，再保存作品的基础信息。"
+      title="新建创作项目"
     />
   );
 }

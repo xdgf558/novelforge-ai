@@ -6,6 +6,10 @@ import { z } from "zod";
 import { deleteProjectAudioAssets } from "@/lib/audio/audio-assets";
 import { prisma } from "@/lib/prisma";
 import { deleteProjectCoverAssets } from "@/lib/project-cover-assets";
+import {
+  defaultProjectWorkType,
+  projectWorkTypeValues,
+} from "@/lib/projects/work-types";
 
 const optionalText = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
@@ -31,7 +35,14 @@ const nullableInteger = z.preprocess((value) => {
 }, z.number().int().positive().nullable());
 
 const projectSchema = z.object({
-  title: z.string().trim().min(1, "请输入小说标题").max(120),
+  title: z.string().trim().min(1, "请输入作品标题").max(120),
+  workType: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim()
+        ? value.trim()
+        : defaultProjectWorkType,
+    z.enum(projectWorkTypeValues),
+  ),
   genre: optionalText,
   targetAudience: optionalText,
   platform: optionalText,
@@ -47,6 +58,7 @@ const projectSchema = z.object({
 function parseProjectForm(formData: FormData) {
   return projectSchema.parse({
     title: formData.get("title"),
+    workType: formData.get("workType"),
     genre: formData.get("genre"),
     targetAudience: formData.get("targetAudience"),
     platform: formData.get("platform"),
@@ -72,7 +84,7 @@ export async function createProject(formData: FormData) {
 }
 
 export async function updateProject(projectId: string, formData: FormData) {
-  const data = parseProjectForm(formData);
+  const { workType: _workType, ...data } = parseProjectForm(formData);
 
   await prisma.project.update({
     where: {

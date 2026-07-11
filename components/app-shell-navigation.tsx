@@ -15,6 +15,11 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import {
+  isShortStoryProject,
+  normalizeProjectWorkType,
+  projectToolPathsForWorkType,
+} from "@/lib/projects/work-types";
 
 const mainNavItems = [
   {
@@ -31,42 +36,47 @@ const mainNavItems = [
 
 const projectToolItems = [
   {
-    path: "settings",
+    path: "" as const,
+    label: "创作台",
+    icon: LayoutDashboard,
+  },
+  {
+    path: "settings" as const,
     label: "设定库",
     icon: BookOpenText,
   },
   {
-    path: "characters",
+    path: "characters" as const,
     label: "角色",
     icon: Users,
   },
   {
-    path: "outlines",
+    path: "outlines" as const,
     label: "大纲",
     icon: Layers3,
   },
   {
-    path: "storylines",
+    path: "storylines" as const,
     label: "故事线",
     icon: GitBranch,
   },
   {
-    path: "chapters",
+    path: "chapters" as const,
     label: "章节",
     icon: NotebookTabs,
   },
   {
-    path: "audiobook",
+    path: "audiobook" as const,
     label: "有声",
     icon: Headphones,
   },
   {
-    path: "memory",
+    path: "memory" as const,
     label: "记忆",
     icon: ShieldCheck,
   },
   {
-    path: "ai",
+    path: "ai" as const,
     label: "任务记录",
     icon: ClipboardList,
   },
@@ -74,15 +84,27 @@ const projectToolItems = [
 
 type AppShellNavigationProps = {
   fallbackProjectId?: string | null;
+  projects?: ReadonlyArray<{
+    id: string;
+    workType: string;
+  }>;
 };
 
 export function AppShellNavigation({
   fallbackProjectId,
+  projects = [],
 }: AppShellNavigationProps) {
   const pathname = usePathname();
   const routeProjectId = currentProjectId(pathname);
   const projectId = routeProjectId ?? fallbackProjectId ?? null;
   const projectLandingPath = routeProjectId ? `/projects/${routeProjectId}` : null;
+  const projectWorkType = normalizeProjectWorkType(
+    projects.find((project) => project.id === projectId)?.workType,
+  );
+  const shortStoryProject = isShortStoryProject(projectWorkType);
+  const visibleToolPaths = new Set(
+    projectToolPathsForWorkType(projectWorkType),
+  );
 
   return (
     <>
@@ -91,7 +113,8 @@ export function AppShellNavigation({
           const Icon = item.icon;
           const isActive =
             item.href === "/"
-              ? pathname === "/" || pathname === projectLandingPath
+              ? pathname === "/" ||
+                (!shortStoryProject && pathname === projectLandingPath)
               : pathname === item.href;
 
           return (
@@ -111,40 +134,50 @@ export function AppShellNavigation({
         <div className="mb-3 h-px bg-gradient-to-r from-transparent via-[#a87943]/25 to-transparent" />
         <p className="mb-2 flex items-center gap-2 px-1 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-[#8b765b]">
           <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
-          创作工具
+          {shortStoryProject ? "短故事工具" : "创作工具"}
         </p>
         <div className="grid grid-cols-2 gap-1.5">
-          {projectToolItems.map((item) => {
-            const Icon = item.icon;
-            const href = projectId ? `/projects/${projectId}/${item.path}` : null;
-            const isActive = href ? pathname.startsWith(href) : false;
+          {projectToolItems
+            .filter((item) => visibleToolPaths.has(item.path))
+            .map((item) => {
+              const Icon = item.icon;
+              const href = projectId
+                ? item.path
+                  ? `/projects/${projectId}/${item.path}`
+                  : `/projects/${projectId}`
+                : null;
+              const isActive = href
+                ? item.path
+                  ? pathname.startsWith(href)
+                  : pathname === href
+                : false;
 
-            if (!href) {
+              if (!href) {
+                return (
+                  <div
+                    aria-disabled="true"
+                    className="nf-nav-item nf-nav-item-muted"
+                    key={item.path}
+                  >
+                    <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+                    {item.label}
+                  </div>
+                );
+              }
+
               return (
-                <div
-                  aria-disabled="true"
-                  className="nf-nav-item nf-nav-item-muted"
+                <Link
+                  className={
+                    isActive ? "nf-nav-item nf-nav-item-active" : "nf-nav-item"
+                  }
+                  href={href}
                   key={item.path}
                 >
                   <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
                   {item.label}
-                </div>
+                </Link>
               );
-            }
-
-            return (
-              <Link
-                className={
-                  isActive ? "nf-nav-item nf-nav-item-active" : "nf-nav-item"
-                }
-                href={href}
-                key={item.path}
-              >
-                <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
+            })}
         </div>
       </div>
     </>

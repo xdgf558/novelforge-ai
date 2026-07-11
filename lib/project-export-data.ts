@@ -218,6 +218,7 @@ export function buildExportData(project: PublishProject) {
     project: pickScalarRecord(project, [
       "id",
       "title",
+      "workType",
       "genre",
       "targetAudience",
       "platform",
