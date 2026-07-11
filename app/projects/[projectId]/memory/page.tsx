@@ -23,6 +23,7 @@ import {
   updateTimelineEvent,
   updateWorldRule,
 } from "@/app/projects/[projectId]/memory/actions";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { FormActionButton } from "@/components/form-action-button";
 import { aiTaskStatusLabel } from "@/lib/ai/status";
 import { formatDate } from "@/lib/format";
@@ -245,6 +246,7 @@ export default async function MemoryPage({
   const recoveryAuditMessage = buildRecoveryAuditMessage(query);
   return (
     <div className="space-y-6">
+      <AutoRefresh enabled={activeRecoveryAuditCount > 0} />
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <Link
