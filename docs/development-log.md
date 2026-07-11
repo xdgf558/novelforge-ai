@@ -1,5 +1,50 @@
 # Development Log
 
+## 2026-07-11: Short Story Phase 5 Complete Manuscript Export
+
+Status: completed for PR review.
+
+What was done:
+
+- Added a short-story-only `成稿导出` workspace and navigation/dashboard
+  entry. Serial projects cannot access the route.
+- Added a deterministic manuscript assembler that reads only `final` and
+  `published` units with non-empty `finalText`, sorts them by unit number, and
+  never falls back to draft or polished candidates.
+- Added three unit-boundary modes: continuous prose without headings, neutral
+  section separators, and retained short unit headings. Markdown exports keep
+  the project title as the document heading while copy/TXT provide body-only
+  text for manual platform entry.
+- Added source-preserving cleanup for leading duplicate unit titles, internal
+  work labels, and known AI structure traces, plus completion markers, web
+  tails, and trailing serial-only next-chapter hooks. Work-label cleanup stops
+  at the first substantive prose line so matching in-story text such as
+  `状态：失控` remains intact. All cleanup is in-memory and never writes back to
+  chapter records or formal memory.
+- Added visible confirmed/omitted unit counts, project target comparison, and
+  advisory 6,000-80,000 Fanqie signing-range checks. Copy, TXT, and Markdown are
+  local browser outputs; Fanqie upload remains manual.
+
+Verification:
+
+- Focused manuscript assembly, shared Fanqie cleanup, and work-type isolation
+  tests passed.
+- Full `npm run test` passed: 105 files and 574 tests.
+- `npx prisma validate`, `npx prisma generate`, `npm run typecheck`, and
+  `npm run build` passed.
+- `npm run desktop:smoke` and `npm run mvp:acceptance` passed.
+- A fresh isolated SQLite database applied all 23 migrations and `PRAGMA
+  quick_check` returned `ok`.
+- `prisma migrate diff` reported no difference between migration history and
+  `prisma/schema.prisma`; Phase 5 is an in-memory read-only assembly surface and
+  does not require a schema migration.
+- Local browser verification covered the short-story dashboard/sidebar entry,
+  all three unit-boundary previews, confirmed-unit counts and signing-range
+  warning, export controls, and serial-project 404 isolation. The desktop
+  viewport had no horizontal overflow. The automated browser did not expose
+  clipboard permission, so copy-button clipboard contents were not inspected;
+  deterministic copy/TXT/Markdown payloads are covered by assembler tests.
+
 ## 2026-07-11: Short Story Phase 3 First-Unit Prompt Follow-up
 
 Status: completed for Phase 4 PR review.

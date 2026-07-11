@@ -38,6 +38,15 @@ unit's final-text hash in the shared continuity-report layer. A changed unit
 makes the suggestion stale. These reports are advisory and manual-only: they
 cannot invoke one-click prose replacement or AI-generated fix patches.
 
+Once confirmed units are ready, the complete-manuscript export reads only
+`final` / `published` units with non-empty `finalText`, sorts them by unit
+number, and assembles output deterministically in memory. Authors may remove
+unit headings, keep neutral separators, or retain short unit titles. Export
+cleanup may remove duplicate titles, internal work labels, known AI structure
+traces, and serial-only follow hooks, but it must never write the cleaned result
+back into unit prose or formal memory. Copy, TXT, and Markdown exports are local;
+the 6,000-80,000 range is advisory and Fanqie upload remains manual.
+
 ## Memory Layers
 
 ### 1. Project Setting Memory

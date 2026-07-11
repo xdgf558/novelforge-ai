@@ -5,6 +5,7 @@ import {
   BookMarked,
   Bot,
   ClipboardCheck,
+  FileDown,
   FileText,
   GitBranch,
   Headphones,
@@ -528,6 +529,12 @@ function ShortStoryProjectDashboard({
       detail: `${project._count.continuityReports} 条连续性建议`,
     },
     {
+      href: `/projects/${project.id}/manuscript`,
+      icon: FileDown,
+      title: "成稿导出",
+      detail: "组装完整正文并导出 TXT / Markdown",
+    },
+    {
       href: `/projects/${project.id}/memory`,
       icon: ShieldCheck,
       title: "结构化记忆",
@@ -592,7 +599,7 @@ function ShortStoryProjectDashboard({
 
       <section>
         <h2 className="text-base font-semibold text-ink-950">创作资料</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {workspaceLinks.map((item) => {
             const Icon = item.icon;
 
