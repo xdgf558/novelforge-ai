@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import {
   chapterSnapshot,
   type ChapterValues,
@@ -9,6 +10,13 @@ type ExistingChapterForUpdate = {
   id: string;
   chapterNumber: number;
 };
+
+export class DuplicateChapterNumberError extends Error {
+  constructor() {
+    super("同一项目中不能存在两个相同章节号。");
+    this.name = "DuplicateChapterNumberError";
+  }
+}
 
 export async function findChapterForUpdate({
   chapterId,
@@ -40,38 +48,42 @@ export async function createChapterRecord({
 }) {
   const snapshot = chapterSnapshot(values);
 
-  const chapter = await prisma.$transaction(async (tx) => {
-    const createdChapter = await tx.chapter.create({
-      data: {
+  try {
+    const chapter = await prisma.$transaction(async (tx) => {
+      const createdChapter = await tx.chapter.create({
+        data: {
+          projectId,
+          ...snapshot,
+        },
+      });
+
+      await tx.chapterVersion.create({
+        data: {
+          projectId,
+          chapterId: createdChapter.id,
+          versionNumber: 1,
+          snapshotJson: JSON.stringify(snapshot),
+          changeReason,
+          sourceType: "manual",
+        },
+      });
+
+      await createMissingStorylineChapterRelationsForChapter(
+        tx,
         projectId,
-        ...snapshot,
-      },
+        createdChapter,
+      );
+
+      return createdChapter;
     });
 
-    await tx.chapterVersion.create({
-      data: {
-        projectId,
-        chapterId: createdChapter.id,
-        versionNumber: 1,
-        snapshotJson: JSON.stringify(snapshot),
-        changeReason,
-        sourceType: "manual",
-      },
-    });
-
-    await createMissingStorylineChapterRelationsForChapter(
-      tx,
-      projectId,
-      createdChapter,
-    );
-
-    return createdChapter;
-  });
-
-  return {
-    chapter,
-    chapterNumber: snapshot.chapterNumber,
-  };
+    return {
+      chapter,
+      chapterNumber: snapshot.chapterNumber,
+    };
+  } catch (error) {
+    throwChapterNumberError(error);
+  }
 }
 
 export async function updateChapterRecord({
@@ -87,42 +99,70 @@ export async function updateChapterRecord({
 }) {
   const snapshot = chapterSnapshot(values);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.chapter.update({
-      where: {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.chapter.update({
+        where: {
+          id: chapter.id,
+        },
+        data: snapshot,
+      });
+
+      const versionCount = await tx.chapterVersion.count({
+        where: {
+          chapterId: chapter.id,
+        },
+      });
+
+      await tx.chapterVersion.create({
+        data: {
+          projectId,
+          chapterId: chapter.id,
+          versionNumber: versionCount + 1,
+          snapshotJson: JSON.stringify(snapshot),
+          changeReason,
+          sourceType: "manual",
+        },
+      });
+
+      await createMissingStorylineChapterRelationsForChapter(tx, projectId, {
         id: chapter.id,
-      },
-      data: snapshot,
+        chapterNumber: snapshot.chapterNumber,
+      });
     });
-
-    const versionCount = await tx.chapterVersion.count({
-      where: {
-        chapterId: chapter.id,
-      },
-    });
-
-    await tx.chapterVersion.create({
-      data: {
-        projectId,
-        chapterId: chapter.id,
-        versionNumber: versionCount + 1,
-        snapshotJson: JSON.stringify(snapshot),
-        changeReason,
-        sourceType: "manual",
-      },
-    });
-
-    await createMissingStorylineChapterRelationsForChapter(tx, projectId, {
-      id: chapter.id,
-      chapterNumber: snapshot.chapterNumber,
-    });
-  });
+  } catch (error) {
+    throwChapterNumberError(error);
+  }
 
   return {
     chapterId: chapter.id,
     previousChapterNumber: chapter.chapterNumber,
     chapterNumber: snapshot.chapterNumber,
   };
+}
+
+function throwChapterNumberError(error: unknown): never {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002" &&
+    chapterNumberIsUniqueTarget(error.meta?.target)
+  ) {
+    throw new DuplicateChapterNumberError();
+  }
+
+  throw error;
+}
+
+function chapterNumberIsUniqueTarget(target: unknown) {
+  const targetText = Array.isArray(target)
+    ? target.map(String).join(",")
+    : typeof target === "string"
+      ? target
+      : "";
+
+  return (
+    targetText.includes("projectId") && targetText.includes("chapterNumber")
+  );
 }
 
 export async function deleteChapterRecord({

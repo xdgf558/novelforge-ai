@@ -22,6 +22,27 @@ const prismaMock = vi.hoisted(() => ({
     await fsPromises.copyFile(databasePath, snapshotPath);
   }),
 }));
+const snapshotPrismaMock = vi.hoisted(() => ({
+  disconnect: vi.fn(async () => undefined),
+  updateMany: vi.fn(async () => ({ count: 1 })),
+}));
+
+vi.mock("@prisma/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@prisma/client")>();
+
+  class MockPrismaClient {
+    publishTarget = {
+      updateMany: snapshotPrismaMock.updateMany,
+    };
+
+    $disconnect = snapshotPrismaMock.disconnect;
+  }
+
+  return {
+    ...actual,
+    PrismaClient: MockPrismaClient,
+  };
+});
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -38,6 +59,8 @@ let tempRoot: string | null = null;
 
 beforeEach(() => {
   prismaMock.executeRawUnsafe.mockClear();
+  snapshotPrismaMock.disconnect.mockClear();
+  snapshotPrismaMock.updateMany.mockClear();
 });
 
 afterEach(async () => {
@@ -78,17 +101,33 @@ describe("local backups", () => {
 
     const backup = await createLocalBackup();
     const archive = await fs.readFile(backup.absolutePath);
+    const archiveStats = await fs.stat(backup.absolutePath);
+    const backupRootStats = await fs.stat(path.dirname(backup.absolutePath));
     const backups = await listLocalBackups();
     const zipEntries = readStoredZipEntries(archive);
 
     expect(prismaMock.executeRawUnsafe).toHaveBeenCalledWith(
       expect.stringContaining("VACUUM INTO"),
     );
+    expect(snapshotPrismaMock.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          tokenSecret: null,
+          tokenUpdatedAt: null,
+        },
+      }),
+    );
+    expect(snapshotPrismaMock.disconnect).toHaveBeenCalledTimes(1);
     expect(backup.fileName).toMatch(/^NovelForge-Backup-.*\.zip$/);
+    expect(archiveStats.mode & 0o777).toBe(0o600);
+    expect(backupRootStats.mode & 0o777).toBe(0o700);
     expect(backup.includedFiles).toBeGreaterThanOrEqual(3);
     expect(archive.subarray(0, 4).toString("hex")).toBe("504b0304");
     expect(zipEntries.get("manifest.json")?.toString("utf8")).toContain(
       '"databaseSnapshot": "database/novelforge.sqlite"',
+    );
+    expect(zipEntries.get("manifest.json")?.toString("utf8")).toContain(
+      "integration tokens are intentionally excluded",
     );
     expect(zipEntries.get("database/novelforge.sqlite")?.toString("utf8")).toBe(
       "sqlite test database",

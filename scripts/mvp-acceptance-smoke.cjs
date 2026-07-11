@@ -1,4 +1,11 @@
-const { PrismaClient } = require("@prisma/client");
+const fs = require("node:fs");
+const { createHash } = require("node:crypto");
+const os = require("node:os");
+const path = require("node:path");
+const {
+  runDesktopMigrations,
+  toPrismaSqliteUrl,
+} = require("../desktop/runtime.cjs");
 
 const projectTitlePrefix = "Phase 12 MVP 验收脚本";
 const taskTypes = [
@@ -12,10 +19,20 @@ const taskTypes = [
 ];
 
 async function main() {
-  let prisma = new PrismaClient();
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), "novelforge-mvp-acceptance-"),
+  );
+  const databaseUrl = toPrismaSqliteUrl(path.join(tempDir, "acceptance.db"));
+  let prisma;
   let projectId;
 
   try {
+    await runDesktopMigrations(path.resolve(__dirname, ".."), databaseUrl);
+    process.env.DATABASE_URL = databaseUrl;
+
+    const { PrismaClient } = require("@prisma/client");
+    prisma = new PrismaClient();
+
     await prisma.project.deleteMany({
       where: {
         title: {
@@ -92,6 +109,27 @@ async function main() {
       })),
     });
 
+    const summaryTask = await prisma.aiTask.findFirstOrThrow({
+      where: {
+        projectId,
+        chapterId: chapter.id,
+        taskType: "chapter_summary_extraction",
+      },
+    });
+    await prisma.chapterSummary.create({
+      data: {
+        projectId,
+        chapterId: chapter.id,
+        aiTaskId: summaryTask.id,
+        model: summaryTask.model,
+        inputContextSummary: summaryTask.inputContextSummary,
+        outputText: summaryTask.outputText,
+        sourceTextHash: createHash("sha256")
+          .update(chapter.finalText.trim(), "utf8")
+          .digest("hex"),
+      },
+    });
+
     await prisma.pendingUpdate.createMany({
       data: [
         {
@@ -164,6 +202,7 @@ async function main() {
         setting: true,
         characters: true,
         chapters: true,
+        chapterSummaries: true,
         aiTasks: true,
         pendingUpdates: true,
         continuityReports: true,
@@ -175,6 +214,10 @@ async function main() {
     assert(persistedProject.setting, "setting exists");
     assert(persistedProject.characters.length >= 5, "five characters exist");
     assert(persistedProject.chapters.some((item) => item.chapterNumber === 1), "chapter 1 exists");
+    assert(
+      persistedProject.chapterSummaries.length === 1,
+      "durable chapter summary exists",
+    );
     assert(
       taskTypes.every((taskType) =>
         persistedProject.aiTasks.some((task) => task.taskType === taskType),
@@ -194,7 +237,7 @@ async function main() {
 
     console.log("MVP acceptance smoke passed.");
   } finally {
-    if (projectId) {
+    if (projectId && prisma) {
       await prisma.project.deleteMany({
         where: {
           id: projectId,
@@ -202,7 +245,11 @@ async function main() {
       });
     }
 
-    await prisma.$disconnect();
+    if (prisma) {
+      await prisma.$disconnect();
+    }
+
+    fs.rmSync(tempDir, { force: true, recursive: true });
   }
 }
 

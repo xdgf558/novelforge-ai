@@ -104,10 +104,9 @@ export function buildStationCatImportRequest({
       requestId ??
       buildStationCatRequestId({
         projectId: publishPackage.project.id,
-        generatedAt: publishPackage.generatedAt,
         mode,
         onlyChanged,
-        changedItems: mappedChangedItems,
+        changedItems,
       }),
     mode,
     onlyChanged,
@@ -309,22 +308,19 @@ export function stationCatItemSucceeded(
 
 function buildStationCatRequestId({
   projectId,
-  generatedAt,
   mode,
   onlyChanged,
   changedItems,
 }: {
   projectId: string;
-  generatedAt: string;
   mode: PublishMode;
   onlyChanged: boolean;
-  changedItems: readonly StationCatChangedItem[];
+  changedItems: readonly PublishChangedItem[];
 }) {
   const signature = createHash("sha256")
     .update(
       JSON.stringify({
         projectId,
-        generatedAt,
         mode,
         onlyChanged,
         changedItems: changedItems.map((item) => ({
@@ -332,6 +328,7 @@ function buildStationCatRequestId({
           localId: item.localId,
           contentHash: item.contentHash,
           changeType: item.changeType,
+          previousSyncAt: item.previousSyncAt ?? null,
         })),
       }),
     )

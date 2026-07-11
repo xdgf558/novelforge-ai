@@ -1198,7 +1198,8 @@ function writeLocalConfigFile(
   nextEnv: Partial<Record<LocalConfigKey, string>>,
   keysToEnsure: readonly LocalConfigKey[],
 ) {
-  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.mkdirSync(path.dirname(configPath), { recursive: true, mode: 0o700 });
+  fs.chmodSync(path.dirname(configPath), 0o700);
 
   const currentLines = fs.existsSync(configPath)
     ? fs.readFileSync(configPath, "utf8").split(/\r?\n/)
@@ -1229,7 +1230,10 @@ function writeLocalConfigFile(
     }
   }
 
-  fs.writeFileSync(configPath, `${nextLines.join("\n")}\n`);
+  fs.writeFileSync(configPath, `${nextLines.join("\n")}\n`, {
+    mode: 0o600,
+  });
+  fs.chmodSync(configPath, 0o600);
 }
 
 function compactAiEnv(env: Partial<Record<LocalConfigKey, string>>) {

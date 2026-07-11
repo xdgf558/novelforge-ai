@@ -42,6 +42,33 @@ const baseInput = {
       '{"shortSummary":"周医生现身，说明真正代价七天后生效。","newSettings":["契约代价七天后生效"]}',
     completedAt: new Date("2026-06-17T12:00:00Z"),
   },
+  worldRules: [
+    {
+      id: "rule-1",
+      title: "契约代价",
+      content: "借命契约需要支付寿命代价。",
+      riskLevel: "high",
+      isCore: true,
+    },
+  ],
+  foreshadows: [
+    {
+      id: "foreshadow-1",
+      content: "周医生是否真正死亡",
+      status: "advancing",
+      importance: "high",
+      expectedResolveChapter: 6,
+    },
+  ],
+  timelineEvents: [
+    {
+      id: "timeline-1",
+      title: "倒计时开始",
+      description: "第一份契约启动。",
+      storyTime: "第 1 天",
+      status: "active",
+    },
+  ],
 };
 
 describe("pending update context builder", () => {
@@ -52,6 +79,8 @@ describe("pending update context builder", () => {
     expect(context.inputText).toContain("真正的代价会在七天后生效");
     expect(context.inputText).toContain("周医生");
     expect(context.inputText).toContain("借命契约需要支付寿命代价");
+    expect(context.inputText).toContain("[foreshadow-1]");
+    expect(context.inputText).toContain("[timeline-1]");
     expect(context.inputText).toContain("updates");
     expect(context.inputJson.chapter).toMatchObject({
       chapterNumber: 6,
@@ -102,7 +131,8 @@ describe("pending update context builder", () => {
         updates: [
           {
             updateType: "update",
-            targetType: "project_setting",
+            targetType: "world_rule",
+            targetId: "rule-1",
             fieldName: "worldviewRules",
             title: "契约代价规则更新",
             content: "真正代价会在七天后生效。",
@@ -117,7 +147,8 @@ describe("pending update context builder", () => {
     expect(suggestions).toHaveLength(1);
     expect(suggestions[0]).toMatchObject({
       updateType: "update",
-      targetType: "project_setting",
+      targetType: "world_rule",
+      targetId: "rule-1",
       fieldName: "worldviewRules",
       title: "契约代价规则更新",
       riskLevel: "high",

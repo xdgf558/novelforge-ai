@@ -257,6 +257,23 @@ export async function deleteAudioExportAssets({
   });
 }
 
+export async function deleteProjectAudioAssets(projectId: string) {
+  const root = path.resolve(getAudioAssetRoot());
+  const projectDirectory = path.resolve(root, safePathSegment(projectId));
+
+  if (
+    projectDirectory === root ||
+    !projectDirectory.startsWith(`${root}${path.sep}`)
+  ) {
+    throw new Error("Invalid project audio directory.");
+  }
+
+  await fs.promises.rm(projectDirectory, {
+    force: true,
+    recursive: true,
+  });
+}
+
 export async function openAudioAsset(relativePath: string) {
   const absolutePath = resolveAudioAssetPath(relativePath);
   const stat = await fs.promises.stat(absolutePath);

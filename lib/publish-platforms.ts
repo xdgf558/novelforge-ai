@@ -80,11 +80,13 @@ export type PreviousPublishSyncState = {
   localId: string;
   contentHash: string;
   remoteId?: string | null;
+  lastSyncedAt?: Date | string | null;
 };
 
 export type PublishChangedItem = PublishSyncItem & {
   remoteId?: string | null;
   changeType: "create" | "update";
+  previousSyncAt?: string;
 };
 
 export function platformLabel(value?: string | null) {
@@ -232,6 +234,9 @@ export function diffPublishSyncItems(
 
   return items.flatMap((item) => {
     const previousState = stateByKey.get(syncKey(item.localType, item.localId));
+    const previousSyncAt = normalizePublishSyncTimestamp(
+      previousState?.lastSyncedAt,
+    );
 
     if (previousState?.contentHash === item.contentHash) {
       return [];
@@ -242,9 +247,20 @@ export function diffPublishSyncItems(
         ...item,
         remoteId: previousState?.remoteId ?? null,
         changeType: previousState ? "update" : "create",
+        ...(previousSyncAt ? { previousSyncAt } : {}),
       },
     ];
   });
+}
+
+export function normalizePublishSyncTimestamp(value?: Date | string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = value instanceof Date ? value : new Date(value);
+
+  return Number.isNaN(timestamp.getTime()) ? null : timestamp.toISOString();
 }
 
 export function filterPublishChangedItemsByUploadScope(

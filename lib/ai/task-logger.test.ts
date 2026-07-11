@@ -360,7 +360,12 @@ describe("AI task logger", () => {
     expect(resolveAiTaskRequestTimeoutMs("pending_update_extraction")).toBe(
       longPlanningAiRequestTimeoutMs,
     );
-    expect(resolveAiTaskRequestTimeoutMs("chapter_summary_extraction")).toBeUndefined();
+    expect(resolveAiTaskRequestTimeoutMs("chapter_summary_extraction")).toBe(
+      longPlanningAiRequestTimeoutMs,
+    );
+    expect(resolveAiTaskRequestTimeoutMs("continuity_check")).toBe(
+      longPlanningAiRequestTimeoutMs,
+    );
   });
 
   it("uses the task route snapshot instead of falling back to the current default env", () => {

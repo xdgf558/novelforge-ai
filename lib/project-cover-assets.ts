@@ -257,6 +257,27 @@ export async function deleteProjectCoverCandidateAssetsForTask({
   });
 }
 
+export async function deleteProjectCoverAssets(projectId: string) {
+  const projectSegment = safePathSegment(projectId);
+
+  await Promise.all([
+    fs.promises.rm(
+      resolveCoverAssetPath(path.join("covers", projectSegment)),
+      {
+        force: true,
+        recursive: true,
+      },
+    ),
+    fs.promises.rm(
+      resolveCoverAssetPath(path.join("cover-candidates", projectSegment)),
+      {
+        force: true,
+        recursive: true,
+      },
+    ),
+  ]);
+}
+
 export async function readProjectCoverAssetBuffer(relativePath: string) {
   return fs.promises.readFile(resolveCoverAssetPath(relativePath));
 }

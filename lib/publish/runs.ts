@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import { chapterSnapshot, chapterValuesFromRecord } from "@/lib/chapter-fields";
 import {
@@ -6,6 +7,7 @@ import {
   diffPublishSyncItems,
   filterPublishChangedItemsByUploadScope,
   hashPublishPayload,
+  normalizePublishSyncTimestamp,
   normalizePublishMode,
   publishModeLabel,
   stringifyStandardPublishPackage,
@@ -21,6 +23,7 @@ import {
   remoteIdForStationCatItem,
   serializeStationCatImportRequest,
   stationCatItemSucceeded,
+  type StationCatImportRequest,
   type StationCatPublishResult,
 } from "@/lib/station-cat-publisher";
 
@@ -58,8 +61,7 @@ export async function createPublishRun({
     uploadSelection,
     standardPackage,
   );
-  const completedAt = new Date();
-  const stationCatRequest =
+  let stationCatRequest =
     target.platformKey === "station_cat"
       ? buildStationCatImportRequest({
           publishPackage: standardPackage,
@@ -72,6 +74,60 @@ export async function createPublishRun({
     target.platformKey === "station_cat" && target.apiBaseUrl
       ? buildStationCatImportEndpoint(target.apiBaseUrl)
       : null;
+  const previousRun = stationCatRequest
+    ? await prisma.publishRun.findUnique({
+        where: {
+          targetId_requestId: {
+            targetId: target.id,
+            requestId: stationCatRequest.requestId,
+          },
+        },
+      })
+    : null;
+
+  if (previousRun?.status === "completed") {
+    return;
+  }
+
+  if (previousRun && stationCatRequest) {
+    stationCatRequest = parseStoredStationCatRequest(
+      previousRun.packageJson,
+      stationCatRequest,
+    );
+  }
+
+  const initialPackageJson = stationCatRequest
+    ? serializeStationCatImportRequest(stationCatRequest)
+    : stringifyStandardPublishPackage(standardPackage);
+  const initialChangedItemsJson = JSON.stringify(
+    changedItems.map((item) => serializeChangedItem(item, null)),
+    null,
+    2,
+  );
+  const run = previousRun
+    ? await prisma.publishRun.update({
+        where: {
+          id: previousRun.id,
+        },
+        data: {
+          status: "running",
+          packageJson: initialPackageJson,
+          changedItemsJson: initialChangedItemsJson,
+          previewUrl: null,
+          publishUrl: null,
+          resultMessage: "发布请求已在本地记录，正在等待远端结果。",
+          errorMessage: null,
+          completedAt: null,
+        },
+      })
+    : await createPublishOutboxRecord({
+        projectId,
+        targetId: target.id,
+        mode,
+        packageJson: initialPackageJson,
+        changedItemsJson: initialChangedItemsJson,
+        requestId: stationCatRequest?.requestId ?? null,
+      });
   const stationCatAttempt = stationCatRequest
     ? await runStationCatPublishAttempt({
         apiBaseUrl: target.apiBaseUrl,
@@ -84,6 +140,7 @@ export async function createPublishRun({
         endpoint: stationCatEndpoint,
       })
     : null;
+  const completedAt = new Date();
   const runStatus = stationCatAttempt?.status ?? "completed";
   const stationCatResult = stationCatAttempt?.result ?? null;
   const changedItemsJson = JSON.stringify(
@@ -109,15 +166,12 @@ export async function createPublishRun({
   const publishedChapterIdSet = new Set(publishedChapterIds);
 
   await prisma.$transaction(async (tx) => {
-    await tx.publishRun.create({
+    await tx.publishRun.update({
+      where: {
+        id: run.id,
+      },
       data: {
-        projectId,
-        targetId: target.id,
-        mode,
         status: runStatus,
-        packageJson: stationCatRequest
-          ? serializeStationCatImportRequest(stationCatRequest)
-          : stringifyStandardPublishPackage(standardPackage),
         changedItemsJson,
         previewUrl: stationCatResult?.previewUrl ?? null,
         publishUrl: stationCatResult?.publishUrl ?? null,
@@ -301,17 +355,22 @@ export function markAllSyncItemsForUpload(
     localType: string;
     localId: string;
     remoteId?: string | null;
+    lastSyncedAt?: Date | string | null;
   }[],
 ): PublishChangedItem[] {
   return syncItems.map((item) => {
     const previousState = previousStates.find(
       (state) => state.localType === item.localType && state.localId === item.localId,
     );
+    const previousSyncAt = normalizePublishSyncTimestamp(
+      previousState?.lastSyncedAt,
+    );
 
     return {
       ...item,
       remoteId: previousState?.remoteId ?? null,
       changeType: previousState ? "update" : "create",
+      ...(previousSyncAt ? { previousSyncAt } : {}),
     };
   });
 }
@@ -368,6 +427,95 @@ function publishedChapterContentHash(item: PublishChangedItem) {
 
 function isObjectPayload(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function createPublishOutboxRecord({
+  projectId,
+  targetId,
+  mode,
+  packageJson,
+  changedItemsJson,
+  requestId,
+}: {
+  projectId: string;
+  targetId: string;
+  mode: PublishMode;
+  packageJson: string;
+  changedItemsJson: string;
+  requestId: string | null;
+}) {
+  try {
+    return await prisma.publishRun.create({
+      data: {
+        projectId,
+        targetId,
+        mode,
+        status: "running",
+        packageJson,
+        changedItemsJson,
+        requestId,
+        resultMessage: "发布请求已在本地记录，正在等待远端结果。",
+      },
+    });
+  } catch (error) {
+    if (!requestId || !isPublishRequestUniqueError(error)) {
+      throw error;
+    }
+
+    const concurrentRun = await prisma.publishRun.findUnique({
+      where: {
+        targetId_requestId: {
+          targetId,
+          requestId,
+        },
+      },
+    });
+
+    if (!concurrentRun) {
+      throw error;
+    }
+
+    return concurrentRun;
+  }
+}
+
+function isPublishRequestUniqueError(error: unknown) {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== "P2002"
+  ) {
+    return false;
+  }
+
+  const target = error.meta?.target;
+  const targetText = Array.isArray(target)
+    ? target.map(String).join(",")
+    : typeof target === "string"
+      ? target
+      : "";
+
+  return targetText.includes("targetId") && targetText.includes("requestId");
+}
+
+function parseStoredStationCatRequest(
+  packageJson: string,
+  fallback: StationCatImportRequest,
+) {
+  try {
+    const parsed = JSON.parse(packageJson) as unknown;
+
+    if (
+      isObjectPayload(parsed) &&
+      parsed.requestId === fallback.requestId &&
+      Array.isArray(parsed.changedItems)
+    ) {
+      return parsed as StationCatImportRequest;
+    }
+  } catch {
+    // A damaged local run record should not block a safe idempotent retry.
+  }
+
+  return fallback;
 }
 
 async function runStationCatPublishAttempt({

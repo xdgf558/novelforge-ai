@@ -40,6 +40,7 @@ import {
   parseContinuityReplacementFix,
 } from "@/lib/continuity-fixes";
 import { formatDate, formatNumber } from "@/lib/format";
+import { chapterSourceMatches } from "@/lib/chapters/source-text";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,7 @@ export default async function ContinuityPage({
               id: true,
               chapterNumber: true,
               title: true,
+              finalText: true,
             },
           },
           aiTask: {
@@ -250,6 +252,13 @@ export default async function ContinuityPage({
       ) : (
         <section className="space-y-4">
           {project.continuityReports.map((report) => {
+            const isStale = Boolean(
+              report.sourceTextHash &&
+                !chapterSourceMatches(
+                  report.sourceTextHash,
+                  report.chapter?.finalText,
+                ),
+            );
             const replacementFix = parseContinuityReplacementFix(
               report.suggestedFix,
               {
@@ -294,6 +303,11 @@ export default async function ContinuityPage({
                     <span className="rounded-md bg-paper-100 px-2.5 py-1">
                       {continuityCategoryLabel(report.category)}
                     </span>
+                    {isStale ? (
+                      <span className="rounded-md bg-red-50 px-2.5 py-1 text-red-700">
+                        来源已过期
+                      </span>
+                    ) : null}
                     <span>{formatDate(report.createdAt)}</span>
                   </div>
                   <h2 className="mt-3 text-lg font-semibold text-ink-950">
@@ -315,7 +329,11 @@ export default async function ContinuityPage({
 
                 {report.status === "open" ? (
                   <div className="min-w-72 space-y-3">
-                    {replacementFix && report.chapter ? (
+                    {isStale ? (
+                      <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
+                        章节定稿已在本报告生成后修改。请重新运行连续性检查；旧报告不能再用于一键修复或生成补丁。
+                      </p>
+                    ) : replacementFix && report.chapter ? (
                       <form
                         action={applyContinuityReportFix.bind(
                           null,
@@ -401,7 +419,9 @@ export default async function ContinuityPage({
               </div>
 
               <ContinuityFixPatchPanel
-                canGenerate={report.status === "open" && Boolean(report.chapter)}
+                canGenerate={
+                  report.status === "open" && Boolean(report.chapter) && !isStale
+                }
                 projectId={project.id}
                 reportId={report.id}
                 tasks={patchTasksByReportId.get(report.id) ?? []}
@@ -644,10 +664,30 @@ function continuityFixMessage(fix?: string | null) {
     };
   }
 
+  if (fix === "stale-report") {
+    return {
+      Icon: ShieldAlert,
+      description:
+        "生成这条报告后，章节定稿正文已经修改。为避免把旧建议套到新正文上，请重新运行连续性检查。",
+      title: "连续性报告已过期",
+      tone: "warning" as const,
+    };
+  }
+
   return null;
 }
 
 function continuityPatchMessage(patch?: string | null) {
+  if (patch === "stale-report") {
+    return {
+      Icon: ShieldAlert,
+      description:
+        "生成这条报告后，章节定稿正文已经修改。请先重新运行连续性检查，再生成修复候选。",
+      title: "连续性报告已过期",
+      tone: "warning" as const,
+    };
+  }
+
   if (patch === "started") {
     return {
       Icon: Bot,

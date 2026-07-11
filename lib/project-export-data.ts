@@ -98,6 +98,11 @@ export const projectPublishInclude = {
       chapterNumber: "asc",
     },
   },
+  chapterSummaries: {
+    orderBy: {
+      createdAt: "desc",
+    },
+  },
   worldRules: {
     orderBy: {
       updatedAt: "desc",
@@ -319,6 +324,19 @@ export function buildExportData(project: PublishProject) {
         "updatedAt",
       ]),
     ),
+    chapterSummaries: project.chapterSummaries.map((summary) =>
+      pickScalarRecord(summary, [
+        "id",
+        "chapterId",
+        "aiTaskId",
+        "model",
+        "inputContextSummary",
+        "outputText",
+        "sourceTextHash",
+        "createdAt",
+        "updatedAt",
+      ]),
+    ),
     outlines: project.outlines.map((outline) =>
       pickScalarRecord(outline, [
         "id",
@@ -471,6 +489,7 @@ export function buildExportData(project: PublishProject) {
         "reason",
         "riskLevel",
         "evidence",
+        "sourceTextHash",
         "status",
         "resolutionNote",
         "appliedAt",
@@ -490,6 +509,7 @@ export function buildExportData(project: PublishProject) {
         "evidence",
         "conflictingMemory",
         "suggestedFix",
+        "sourceTextHash",
         "status",
         "resolutionNote",
         "resolvedAt",

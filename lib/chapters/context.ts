@@ -15,6 +15,7 @@ import {
   type ChapterSummaryContextInput,
 } from "@/lib/ai/chapter-summaries";
 import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
+import { selectRelevantCharacters } from "@/lib/ai/context-priority";
 import { findForeshadowRecoveryReminders } from "@/lib/foreshadows/recovery-reminders";
 import { selectRelevantOutlinesForChapter } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
@@ -94,10 +95,6 @@ export async function loadChapterBeatContext(
         projectId,
         status: "active",
       },
-      orderBy: {
-        name: "asc",
-      },
-      take: 8,
     }),
     prisma.chapter.findMany({
       where: {
@@ -137,7 +134,11 @@ export async function loadChapterBeatContext(
     setting,
     chapter: pickChapterContext(chapter),
     outlines: selectRelevantOutlinesForChapter(outlines, chapter.chapterNumber),
-    characters,
+    characters: selectRelevantCharacters(
+      characters,
+      chapterRelevanceText(chapter),
+      8,
+    ),
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
     readerFeedback: readerFeedbackSignals,
@@ -211,10 +212,6 @@ export async function loadChapterDraftContext(
         projectId,
         status: "active",
       },
-      orderBy: {
-        name: "asc",
-      },
-      take: 8,
     }),
     prisma.chapter.findFirst({
       where: {
@@ -238,7 +235,11 @@ export async function loadChapterDraftContext(
     setting,
     chapter: pickChapterDraftContext(chapter),
     outlines: selectRelevantOutlinesForChapter(outlines, chapter.chapterNumber),
-    characters,
+    characters: selectRelevantCharacters(
+      characters,
+      chapterRelevanceText(chapter),
+      8,
+    ),
     previousChapter: previousChapter
       ? pickChapterDraftContext(previousChapter)
       : null,
@@ -286,10 +287,6 @@ export async function loadChapterPolishContext(
         projectId,
         status: "active",
       },
-      orderBy: {
-        name: "asc",
-      },
-      take: 12,
     }),
   ]);
 
@@ -297,7 +294,11 @@ export async function loadChapterPolishContext(
     project: chapter.project,
     setting,
     chapter: pickChapterPolishContext(chapter),
-    characters,
+    characters: selectRelevantCharacters(
+      characters,
+      chapterRelevanceText(chapter),
+      12,
+    ),
   };
 }
 
@@ -339,10 +340,6 @@ export async function loadChapterSummaryContext(
         projectId,
         status: "active",
       },
-      orderBy: {
-        name: "asc",
-      },
-      take: 12,
     }),
   ]);
 
@@ -350,7 +347,11 @@ export async function loadChapterSummaryContext(
     project: chapter.project,
     setting,
     chapter: pickChapterSummaryContext(chapter),
-    characters,
+    characters: selectRelevantCharacters(
+      characters,
+      chapterRelevanceText(chapter),
+      12,
+    ),
   };
 }
 
@@ -404,4 +405,26 @@ function pickChapterContext(chapter: ChapterBeatChapterContext) {
     finalText: chapter.finalText,
     notes: chapter.notes,
   };
+}
+
+function chapterRelevanceText(chapter: {
+  title?: string | null;
+  goal?: string | null;
+  beats?: string | null;
+  draftText?: string | null;
+  polishedText?: string | null;
+  finalText?: string | null;
+  notes?: string | null;
+}) {
+  return [
+    chapter.title,
+    chapter.goal,
+    chapter.beats,
+    chapter.finalText,
+    chapter.polishedText,
+    chapter.draftText,
+    chapter.notes,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

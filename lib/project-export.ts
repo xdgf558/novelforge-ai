@@ -11,6 +11,7 @@ export type ProjectExportData = {
   outlines?: readonly ProjectExportRecord[];
   storylines?: readonly ProjectExportRecord[];
   chapters?: readonly ProjectExportRecord[];
+  chapterSummaries?: readonly ProjectExportRecord[];
   worldRules?: readonly ProjectExportRecord[];
   foreshadows?: readonly ProjectExportRecord[];
   timelineEvents?: readonly ProjectExportRecord[];
@@ -129,6 +130,15 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
         ["精修", chapter.polishedText],
         ["定稿", chapter.finalText],
         ["备注", chapter.notes],
+      ]),
+    ]),
+    buildRecordSection("章节摘要", data.chapterSummaries, (summary) => [
+      `### ${formatScalar(summary.inputContextSummary) || "章节摘要"}`,
+      buildKeyValueList([
+        ["章节", summary.chapterId],
+        ["模型", summary.model],
+        ["来源正文指纹", summary.sourceTextHash],
+        ["摘要", summary.outputText],
       ]),
     ]),
     buildRecordSection("世界规则", data.worldRules, (rule) => [

@@ -14,6 +14,7 @@ import {
 } from "@/app/projects/[projectId]/pending-updates/actions";
 import { PendingUpdateReviewSubmit } from "@/components/pending-update-review-submit";
 import { formatDate } from "@/lib/format";
+import { chapterSourceMatches } from "@/lib/chapters/source-text";
 import {
   pendingUpdateRiskLabel,
   pendingUpdateStatusLabel,
@@ -65,6 +66,7 @@ export default async function PendingUpdatesPage({
             id: true,
             chapterNumber: true,
             title: true,
+            finalText: true,
           },
         },
         aiTask: {
@@ -177,6 +179,13 @@ export default async function PendingUpdatesPage({
           {sortedUpdates.map((update) => {
             const isPending = update.status === "pending";
             const isHighRisk = update.riskLevel === "high";
+            const isStale = Boolean(
+              update.sourceTextHash &&
+                !chapterSourceMatches(
+                  update.sourceTextHash,
+                  update.chapter?.finalText,
+                ),
+            );
 
             return (
               <article
@@ -209,6 +218,11 @@ export default async function PendingUpdatesPage({
                         )}
                         {pendingUpdateRiskLabel(update.riskLevel)}
                       </span>
+                      {isStale ? (
+                        <span className="rounded-md bg-red-50 px-2.5 py-1 text-red-700">
+                          来源已过期
+                        </span>
+                      ) : null}
                     </div>
 
                     <h2 className="mt-3 text-lg font-semibold text-ink-950">
@@ -267,6 +281,14 @@ export default async function PendingUpdatesPage({
                 ) : null}
 
                 {isPending ? (
+                  isStale ? (
+                    <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-800">
+                      关联章节的定稿正文已在提取后修改。请重新提取更新；这条旧建议仍可拒绝，但不能再批准写入正式记忆。
+                    </p>
+                  ) : null
+                ) : null}
+
+                {isPending ? (
                   <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_260px]">
                     <form
                       action={approvePendingUpdate.bind(null, project.id, update.id)}
@@ -289,6 +311,7 @@ export default async function PendingUpdatesPage({
                         />
                       </label>
                       <PendingUpdateReviewSubmit
+                        disabled={isStale}
                         testId={`approve-pending-update-${update.id}`}
                         variant="approve"
                       />
@@ -338,6 +361,26 @@ function pendingUpdateReviewMessage(review?: string | null) {
       Icon: XCircle,
       description: "该建议已标记为拒绝，不会影响正式故事记忆。",
       title: "已拒绝该建议",
+      tone: "danger" as const,
+    };
+  }
+
+  if (review === "stale-source") {
+    return {
+      Icon: ShieldAlert,
+      description:
+        "生成这条建议后，关联章节的定稿正文已经修改。请重新提取待审核更新，再审核新结果。",
+      title: "建议来源已过期",
+      tone: "danger" as const,
+    };
+  }
+
+  if (review === "target-not-found") {
+    return {
+      Icon: ShieldAlert,
+      description:
+        "该建议要更新或回收现有记忆，但没有唯一匹配的正式记录。请重新提取，或先在记忆页手动处理目标。",
+      title: "没有找到唯一目标",
       tone: "danger" as const,
     };
   }

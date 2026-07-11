@@ -32,6 +32,7 @@ import {
 import {
   createChapterRecord,
   deleteChapterRecord,
+  DuplicateChapterNumberError,
   findChapterForUpdate,
   updateChapterReaderRemoteIdRecord,
   updateChapterRecord,
@@ -172,11 +173,25 @@ export async function createChapter(projectId: string, formData: FormData) {
   await assertProject(projectId);
 
   const { values, changeReason } = parseChapterForm(formData);
-  const { chapter, chapterNumber } = await createChapterRecord({
-    projectId,
-    values,
-    changeReason,
-  });
+  let createResult: Awaited<ReturnType<typeof createChapterRecord>>;
+
+  try {
+    createResult = await createChapterRecord({
+      projectId,
+      values,
+      changeReason,
+    });
+  } catch (error) {
+    if (error instanceof DuplicateChapterNumberError) {
+      redirect(
+        `/projects/${projectId}/chapters/new?chapterError=duplicate-number`,
+      );
+    }
+
+    throw error;
+  }
+
+  const { chapter, chapterNumber } = createResult;
 
   await syncOutlineStatusesForChapterNumbers(projectId, [chapterNumber]);
 
@@ -213,12 +228,24 @@ export async function updateChapter(
     );
   }
 
-  const updateResult = await updateChapterRecord({
-    projectId,
-    chapter,
-    values,
-    changeReason,
-  });
+  let updateResult: Awaited<ReturnType<typeof updateChapterRecord>>;
+
+  try {
+    updateResult = await updateChapterRecord({
+      projectId,
+      chapter,
+      values,
+      changeReason,
+    });
+  } catch (error) {
+    if (error instanceof DuplicateChapterNumberError) {
+      redirect(
+        `/projects/${projectId}/chapters/${chapterId}/edit?chapterError=duplicate-number`,
+      );
+    }
+
+    throw error;
+  }
 
   await syncOutlineStatusesForChapterNumbers(projectId, [
     updateResult.previousChapterNumber,

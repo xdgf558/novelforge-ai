@@ -3,6 +3,7 @@ import fs from "node:fs";
 import type { WriteStream } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { PrismaClient } from "@prisma/client";
 import { appVersion } from "@/lib/app-version";
 import { getAudioAssetRoot } from "@/lib/audio/audio-assets";
 import { getProjectCoverAssetRoot } from "@/lib/project-cover-assets";
@@ -80,7 +81,8 @@ export async function createLocalBackup(): Promise<LocalBackupResult> {
   const fileName = `NovelForge-Backup-${formatBackupTimestamp(createdAt)}-${randomUUID().slice(0, 8)}.zip`;
   const absolutePath = path.join(backupRoot, fileName);
 
-  await fs.promises.mkdir(backupRoot, { recursive: true });
+  await fs.promises.mkdir(backupRoot, { recursive: true, mode: 0o700 });
+  await fs.promises.chmod(backupRoot, 0o700);
 
   const databaseSnapshot = await createDatabaseSnapshot();
 
@@ -88,6 +90,7 @@ export async function createLocalBackup(): Promise<LocalBackupResult> {
     const entries = await collectBackupEntries(createdAt, databaseSnapshot);
 
     await createStreamingZipArchive(entries, absolutePath);
+    await fs.promises.chmod(absolutePath, 0o600);
 
     const stats = await fs.promises.stat(absolutePath);
 
@@ -199,6 +202,8 @@ async function createDatabaseSnapshot(): Promise<DatabaseSnapshot> {
     await prisma.$executeRawUnsafe(
       `VACUUM INTO '${escapeSqliteString(snapshotPath)}'`,
     );
+    await sanitizeDatabaseSnapshot(snapshotPath);
+    await fs.promises.chmod(snapshotPath, 0o600);
   } catch (error) {
     await fs.promises.rm(tempDir, { force: true, recursive: true });
     throw new Error(`创建 SQLite 备份快照失败：${errorMessage(error)}`);
@@ -209,6 +214,37 @@ async function createDatabaseSnapshot(): Promise<DatabaseSnapshot> {
     snapshotPath,
     tempDir,
   };
+}
+
+async function sanitizeDatabaseSnapshot(snapshotPath: string) {
+  const snapshotPrisma = new PrismaClient({
+    datasourceUrl: `file:${snapshotPath}`,
+  });
+
+  try {
+    await snapshotPrisma.publishTarget.updateMany({
+      where: {
+        OR: [
+          {
+            tokenSecret: {
+              not: null,
+            },
+          },
+          {
+            tokenUpdatedAt: {
+              not: null,
+            },
+          },
+        ],
+      },
+      data: {
+        tokenSecret: null,
+        tokenUpdatedAt: null,
+      },
+    });
+  } finally {
+    await snapshotPrisma.$disconnect();
+  }
 }
 
 async function collectAssetRoots() {
@@ -309,7 +345,7 @@ async function createStreamingZipArchive(
     );
   }
 
-  const stream = fs.createWriteStream(absolutePath);
+  const stream = fs.createWriteStream(absolutePath, { mode: 0o600 });
   const writtenEntries: WrittenZipEntry[] = [];
   let offset = 0;
 
