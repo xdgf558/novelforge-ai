@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     redirect: vi.fn(),
     revalidatePath: vi.fn(),
     approveAutomaticForeshadowRecoveries: vi.fn(),
+    assertProject: vi.fn(),
     prisma: {
       pendingUpdate: {
         findFirst: vi.fn(),
@@ -47,6 +48,10 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/foreshadows/recovery-records", () => ({
   approveAutomaticForeshadowRecoveries:
     mocks.approveAutomaticForeshadowRecoveries,
+}));
+
+vi.mock("@/lib/server-actions/project-guards", () => ({
+  assertProjectExists: mocks.assertProject,
 }));
 
 import {
@@ -163,6 +168,7 @@ describe("pending update approval", () => {
     expect(mocks.approveAutomaticForeshadowRecoveries).toHaveBeenCalledWith(
       "project_1",
     );
+    expect(mocks.assertProject).toHaveBeenCalledWith("project_1");
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1/pending-updates?review=auto-recovery-approved&approved=3&skipped=1",
     );

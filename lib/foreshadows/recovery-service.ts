@@ -332,6 +332,30 @@ function selectChapterEvidenceForBatch(
     (chapter) => chapter.chapterNumber >= minimumPlantedChapter,
   );
   const selectedById = new Map<string, ForeshadowRecoveryChapterEvidence>();
+  const overlapScoreByPair = new Map<string, number>();
+  const overlapScore = (
+    foreshadow: ForeshadowRecoveryAuditForeshadow,
+    chapter: ForeshadowRecoveryChapterEvidence,
+  ) => {
+    const key = `${foreshadow.id}:${chapter.id}`;
+    const cached = overlapScoreByPair.get(key);
+
+    if (cached != null) {
+      return cached;
+    }
+
+    const score = foreshadowTextOverlapScore(
+      foreshadow.content,
+      chapter.summary,
+    );
+    overlapScoreByPair.set(key, score);
+    return score;
+  };
+  const batchOverlapScore = (chapter: ForeshadowRecoveryChapterEvidence) =>
+    Math.max(
+      0,
+      ...foreshadows.map((foreshadow) => overlapScore(foreshadow, chapter)),
+    );
 
   for (const foreshadow of foreshadows) {
     const scopedChapters = eligibleChapters.filter(
@@ -340,14 +364,13 @@ function selectChapterEvidenceForBatch(
     );
     const bestMention = [...scopedChapters].sort((left, right) => {
       return (
-        foreshadowTextOverlapScore(foreshadow.content, right.summary) -
-          foreshadowTextOverlapScore(foreshadow.content, left.summary) ||
+        overlapScore(foreshadow, right) - overlapScore(foreshadow, left) ||
         right.chapterNumber - left.chapterNumber
       );
     })[0];
     const anchor =
       bestMention &&
-      foreshadowTextOverlapScore(foreshadow.content, bestMention.summary) >= 2
+      overlapScore(foreshadow, bestMention) >= 2
         ? bestMention
         : nearestExpectedChapter(scopedChapters, foreshadow.expectedResolveChapter) ??
           scopedChapters[scopedChapters.length - 1];
@@ -361,8 +384,7 @@ function selectChapterEvidenceForBatch(
     .filter((chapter) => !selectedById.has(chapter.id))
     .sort((left, right) => {
       return (
-        batchOverlapScore(foreshadows, right) -
-          batchOverlapScore(foreshadows, left) ||
+        batchOverlapScore(right) - batchOverlapScore(left) ||
         right.chapterNumber - left.chapterNumber
       );
     });
@@ -387,18 +409,6 @@ function nearestExpectedChapter(
       right.chapterNumber - left.chapterNumber
     );
   })[0];
-}
-
-function batchOverlapScore(
-  foreshadows: readonly ForeshadowRecoveryAuditForeshadow[],
-  chapter: ForeshadowRecoveryChapterEvidence,
-) {
-  return Math.max(
-    0,
-    ...foreshadows.map((foreshadow) =>
-      foreshadowTextOverlapScore(foreshadow.content, chapter.summary),
-    ),
-  );
 }
 
 function finalTextRecoveryExcerpt(finalText?: string | null) {

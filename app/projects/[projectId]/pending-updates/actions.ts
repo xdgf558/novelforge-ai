@@ -28,6 +28,7 @@ import {
 } from "@/lib/pending-updates/approval";
 import { approveAutomaticForeshadowRecoveries } from "@/lib/foreshadows/recovery-records";
 import { prisma } from "@/lib/prisma";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const pendingUpdateTemplateKey = "pending_update_extraction";
 
@@ -262,6 +263,8 @@ export async function rejectPendingUpdate(
 export async function approveAutomaticForeshadowRecoveryBatch(
   projectId: string,
 ) {
+  await assertProject(projectId);
+
   const result = await approveAutomaticForeshadowRecoveries(projectId);
 
   revalidatePendingUpdatePaths(projectId);

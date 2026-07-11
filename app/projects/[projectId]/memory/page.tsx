@@ -413,7 +413,7 @@ export default async function MemoryPage({
                 扫描旧伏笔与后续正式章节
               </h3>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
-                系统会分批检查尚未回收的伏笔，只把有明确章节证据的推进或回收结果放入待确认列表。高置信回收可一次确认，正式伏笔不会被 AI 静默修改。
+                系统会分批检查尚未回收的伏笔，只把有明确章节证据的结果放入待确认列表。扫描期间请保持 NovelForge AI 运行；若中途关闭，重新扫描即可继续补齐。高置信回收可批量确认，正式伏笔不会被 AI 静默修改。
               </p>
             </div>
             <form>
@@ -1389,7 +1389,7 @@ function buildRecoveryAuditMessage(query: {
   recoveryForeshadows?: string;
 }) {
   if (query.recoveryAudit === "started") {
-    return `已建立 ${positiveInt(query.recoveryBatches) ?? 0} 批扫描任务，覆盖 ${positiveInt(query.recoveryForeshadows) ?? 0} 条旧伏笔。任务会在后台完成，刷新本页即可查看候选数量。`;
+    return `已建立 ${positiveInt(query.recoveryBatches) ?? 0} 批扫描任务，覆盖 ${positiveInt(query.recoveryForeshadows) ?? 0} 条旧伏笔。请保持软件运行至扫描完成；若中途关闭，重新扫描即可继续。`;
   }
 
   if (query.recoveryAudit === "active") {

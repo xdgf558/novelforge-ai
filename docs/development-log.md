@@ -33,6 +33,13 @@ What was done:
   `foreshadow_recovery_audit` v1 template with the five-minute planning timeout.
 - Added a background-task failure callback so a failed historical batch still
   starts the next batch instead of abandoning the rest of the old pool.
+- Review follow-up: memoized foreshadow/chapter overlap scores inside each
+  historical batch and precomputed chapter-summary mention ranks before sorting,
+  preserving selection behavior while reducing repeated trigram scans on large
+  projects.
+- Review follow-up: the batch-approval server action now uses the shared project
+  existence guard, and the memory UI explicitly warns that closing the desktop
+  app interrupts the in-process batch chain and requires another scan.
 
 Verification:
 

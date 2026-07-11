@@ -53,19 +53,34 @@ export function selectForeshadowsForChapterRecoveryAudit({
   foreshadows: readonly ForeshadowRecoveryAuditForeshadow[];
   limit?: number;
 }) {
-  return [...foreshadows]
+  return foreshadows
     .filter((foreshadow) => isRecoverableStatus(foreshadow.status))
+    .map((foreshadow) => ({
+      foreshadow,
+      mentionRank: mentionRank(foreshadow.content, finalText),
+    }))
     .sort((left, right) => {
       return (
-        mentionRank(left.content, finalText) - mentionRank(right.content, finalText) ||
-        statusRank(left.status) - statusRank(right.status) ||
-        expectedChapterRank(left.expectedResolveChapter, chapterNumber) -
-          expectedChapterRank(right.expectedResolveChapter, chapterNumber) ||
-        importanceRank(left.importance) - importanceRank(right.importance) ||
-        left.content.localeCompare(right.content, "zh-Hans-CN")
+        left.mentionRank - right.mentionRank ||
+        statusRank(left.foreshadow.status) - statusRank(right.foreshadow.status) ||
+        expectedChapterRank(
+          left.foreshadow.expectedResolveChapter,
+          chapterNumber,
+        ) -
+          expectedChapterRank(
+            right.foreshadow.expectedResolveChapter,
+            chapterNumber,
+          ) ||
+        importanceRank(left.foreshadow.importance) -
+          importanceRank(right.foreshadow.importance) ||
+        left.foreshadow.content.localeCompare(
+          right.foreshadow.content,
+          "zh-Hans-CN",
+        )
       );
     })
-    .slice(0, Math.max(0, limit));
+    .slice(0, Math.max(0, limit))
+    .map(({ foreshadow }) => foreshadow);
 }
 
 export function buildForeshadowRecoveryAuditContext({
