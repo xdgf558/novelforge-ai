@@ -50,12 +50,15 @@ What was done:
 - Kept the unresolved-foreshadow database query complete, then prioritized
   attention-needed, high-importance, and earlier-due items before bounded prompt
   selection so old important payoffs are not hidden by a database pre-limit.
+- Added cross-run deduplication for unchanged confirmed text: an open suggestion
+  with the same target unit, source hash, category, and normalized title is
+  reused instead of creating another report on repeated review.
 
 Verification:
 
 - Focused whole-story context, parsing, records, actions, prompt-template,
   timeout, work-type, and continuity guard tests passed.
-- Full `npm run test` passed: 104 files and 567 tests.
+- Full `npm run test` passed: 104 files and 569 tests.
 - `npx prisma validate`, `npx prisma generate`, `npm run typecheck`, and
   `npm run build` passed.
 - `npm run desktop:smoke` and `npm run mvp:acceptance` passed.

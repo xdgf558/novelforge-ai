@@ -193,9 +193,58 @@ export async function createShortStoryWholeReviewReportsFromTask({
     return { count: 0 };
   }
 
-  return prisma.continuityReport.createMany({
-    data: reports,
+  const sourceTextHashes = reports
+    .map((report) => report.sourceTextHash)
+    .filter((hash): hash is string => Boolean(hash));
+  const existingReports = await prisma.continuityReport.findMany({
+    where: {
+      projectId,
+      status: "open",
+      chapterId: {
+        in: [...new Set(reports.map((report) => report.chapterId))],
+      },
+      sourceTextHash: {
+        in: [...new Set(sourceTextHashes)],
+      },
+      aiTask: {
+        is: {
+          taskType: shortStoryWholeReviewTaskType,
+        },
+      },
+    },
+    select: {
+      chapterId: true,
+      sourceTextHash: true,
+      category: true,
+      title: true,
+    },
   });
+  const existingKeys = new Set(existingReports.map(wholeReviewReportKey));
+  const newReports = reports.filter(
+    (report) => !existingKeys.has(wholeReviewReportKey(report)),
+  );
+
+  if (newReports.length === 0) {
+    return { count: 0 };
+  }
+
+  return prisma.continuityReport.createMany({
+    data: newReports,
+  });
+}
+
+function wholeReviewReportKey(report: {
+  chapterId: string | null;
+  sourceTextHash: string | null;
+  category: string;
+  title: string;
+}) {
+  return [
+    report.chapterId ?? "",
+    report.sourceTextHash ?? "",
+    report.category,
+    report.title.trim().toLocaleLowerCase("zh-CN").replace(/\s+/g, ""),
+  ].join("\n");
 }
 
 export async function findActiveShortStoryWholeReviewTask(projectId: string) {
