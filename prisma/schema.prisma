@@ -35,6 +35,7 @@ model Project {
   characters             Character[]
   characterVersions      CharacterVersion[]
   chapters               Chapter[]
+  chapterSummaries       ChapterSummary[]
   chapterVersions        ChapterVersion[]
   outlines               Outline[]
   worldRules             WorldRule[]
@@ -183,7 +184,7 @@ model CharacterRelationship {
   evidence          String?
   sourceChapterId   String?
   createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime @default(now()) @updatedAt
 
   project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   sourceCharacter Character @relation("SourceCharacterRelationships", fields: [sourceCharacterId], references: [id], onDelete: Restrict)
@@ -226,6 +227,7 @@ model Chapter {
   characterRelationships CharacterRelationship[]
   storylineChapters      StorylineChapter[]
   continuityReports      ContinuityReport[]
+  summaries              ChapterSummary[]
   publishPackages        PublishPackage[]
   readerAnalytics        ChapterAnalytics[]
   readerInsights         ChapterInsight[]
@@ -233,8 +235,30 @@ model Chapter {
   audioExportSegments    AudioExportSegment[]
 
   @@index([projectId, status])
-  @@index([projectId, chapterNumber])
+  @@unique([projectId, chapterNumber])
   @@map("chapters")
+}
+
+model ChapterSummary {
+  id                  String   @id @default(cuid())
+  projectId           String
+  chapterId           String
+  aiTaskId            String?  @unique
+  model               String
+  inputContextSummary String
+  outputText          String
+  sourceTextHash      String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  aiTask  AiTask? @relation(fields: [aiTaskId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([chapterId, createdAt])
+  @@index([chapterId, sourceTextHash])
+  @@map("chapter_summaries")
 }
 
 model ChapterAnalytics {
@@ -361,7 +385,7 @@ model Storyline {
   currentProgress String?
   notes           String?
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime @default(now()) @updatedAt
 
   project     Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
   characters  StorylineCharacter[]
@@ -414,7 +438,7 @@ model StorylineChapter {
   chapterId       String
   progressSummary String?
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime @default(now()) @updatedAt
 
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   storyline Storyline @relation(fields: [storylineId], references: [id], onDelete: Cascade)
@@ -494,6 +518,7 @@ model AiTask {
   pendingUpdates    PendingUpdate[]
   continuityReports ContinuityReport[]
   publishPackages   PublishPackage[]
+  chapterSummaries  ChapterSummary[]
 
   @@index([projectId, taskType])
   @@index([projectId, status])
@@ -622,6 +647,7 @@ model PendingUpdate {
   riskLevel       String    @default("medium")
   evidence        String?
   payloadJson     String?
+  sourceTextHash  String?
   status          String    @default("pending")
   resolutionNote  String?
   appliedAt       DateTime?
@@ -654,6 +680,7 @@ model ContinuityReport {
   evidence          String?
   conflictingMemory String?
   suggestedFix      String?
+  sourceTextHash    String?
   status            String    @default("open")
   resolutionNote    String?
   resolvedAt        DateTime?
@@ -735,6 +762,7 @@ model PublishRun {
   publishUrl       String?
   resultMessage    String?
   errorMessage     String?
+  requestId        String?
   createdAt        DateTime  @default(now())
   completedAt      DateTime?
 
@@ -744,6 +772,7 @@ model PublishRun {
   @@index([projectId, createdAt])
   @@index([targetId, createdAt])
   @@index([projectId, status])
+  @@unique([targetId, requestId])
   @@map("publish_runs")
 }
 
@@ -798,7 +827,7 @@ model AudioExport {
   errorMessage       String?
   metadataJson       String?
   createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  updatedAt          DateTime  @default(now()) @updatedAt
   completedAt        DateTime?
 
   project  Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -828,7 +857,7 @@ model AudioExportSegment {
   errorMessage      String?
   metadataJson      String?
   createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  updatedAt         DateTime @default(now()) @updatedAt
 
   audioExport AudioExport @relation(fields: [audioExportId], references: [id], onDelete: Cascade)
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)

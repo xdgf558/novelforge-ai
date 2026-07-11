@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  applyContinuityReportReplacementFix,
   findActiveContinuityFixPatchTask,
   updateContinuityFixPatchTaskAdoptionState,
 } from "./records";
@@ -12,6 +13,10 @@ const mocks = vi.hoisted(() => ({
       findMany: vi.fn(),
       updateMany: vi.fn(),
     },
+    continuityReport: {
+      findFirst: vi.fn(),
+    },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -111,5 +116,31 @@ describe("continuity record services", () => {
         adoptionState: "adopted",
       },
     });
+  });
+
+  it("refuses to apply a report after the chapter final text changes", async () => {
+    const { chapterFinalTextHash } = await import("@/lib/chapters/source-text");
+
+    mocks.prisma.continuityReport.findFirst.mockResolvedValue({
+      id: "report_1",
+      projectId: "project_1",
+      chapterId: "chapter_1",
+      sourceTextHash: chapterFinalTextHash("生成报告时的定稿"),
+      status: "open",
+      chapter: {
+        id: "chapter_1",
+        finalText: "作者修改后的定稿",
+      },
+    });
+
+    await expect(
+      applyContinuityReportReplacementFix({
+        projectId: "project_1",
+        reportId: "report_1",
+      }),
+    ).resolves.toEqual({
+      status: "stale-report",
+    });
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
   });
 });

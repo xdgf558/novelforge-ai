@@ -1,5 +1,8 @@
 import { clipText } from "./chapter-beats";
-import { confirmedChapterText } from "./chapter-summaries";
+import {
+  buildPromptSourceText,
+  confirmedChapterText,
+} from "./chapter-summaries";
 import {
   normalizeRiskLevel,
   normalizeTargetType,
@@ -56,12 +59,39 @@ export type PendingUpdateSummaryTaskContext = {
   completedAt?: Date | null;
 };
 
+export type PendingUpdateWorldRuleContext = {
+  id: string;
+  title: string;
+  content: string;
+  riskLevel?: string | null;
+  isCore?: boolean | null;
+};
+
+export type PendingUpdateForeshadowContext = {
+  id: string;
+  content: string;
+  status?: string | null;
+  importance?: string | null;
+  expectedResolveChapter?: number | null;
+};
+
+export type PendingUpdateTimelineEventContext = {
+  id: string;
+  title: string;
+  description: string;
+  storyTime?: string | null;
+  status?: string | null;
+};
+
 export type PendingUpdateContextInput = {
   project: PendingUpdateProjectContext;
   setting?: PendingUpdateSettingContext | null;
   chapter: PendingUpdateChapterContext;
   characters: readonly PendingUpdateCharacterContext[];
   latestSummaryTask?: PendingUpdateSummaryTaskContext | null;
+  worldRules?: readonly PendingUpdateWorldRuleContext[];
+  foreshadows?: readonly PendingUpdateForeshadowContext[];
+  timelineEvents?: readonly PendingUpdateTimelineEventContext[];
 };
 
 export type BuiltPendingUpdateContext = {
@@ -73,6 +103,7 @@ export type BuiltPendingUpdateContext = {
 export type PendingUpdateSuggestion = {
   updateType: PendingUpdateType;
   targetType: PendingUpdateTargetType;
+  targetId?: string;
   targetName?: string;
   fieldName?: string;
   title: string;
@@ -90,6 +121,7 @@ export function buildPendingUpdateContext(
   input: PendingUpdateContextInput,
 ): BuiltPendingUpdateContext {
   const sourceText = confirmedChapterText(input.chapter);
+  const promptSourceText = buildPromptSourceText(sourceText);
   const projectDescription = clipText(input.project.description);
   const projectWechatPositioning = clipText(input.project.wechatPositioning);
   const chapterBeats = clipText(input.chapter.beats);
@@ -98,6 +130,9 @@ export function buildPendingUpdateContext(
   const characterItems = input.characters.map(buildCharacterLine).filter(Boolean);
   const summaryOutput = clean(input.latestSummaryTask?.outputText);
   const latestSummaryOutput = clipText(summaryOutput, latestSummaryMaxLength);
+  const worldRules = input.worldRules ?? [];
+  const foreshadows = input.foreshadows ?? [];
+  const timelineEvents = input.timelineEvents ?? [];
 
   const inputJson = {
     project: {
@@ -116,6 +151,8 @@ export function buildPendingUpdateContext(
       notes: chapterNotes,
       finalTextLength: sourceText.length,
       finalTextPreview: clipText(sourceText, finalTextPreviewMaxLength),
+      finalTextPromptLength: promptSourceText.length,
+      finalTextPromptWasExcerpted: promptSourceText.wasExcerpted,
     },
     latestSummaryTask: input.latestSummaryTask
       ? {
@@ -126,11 +163,33 @@ export function buildPendingUpdateContext(
       : null,
     setting: Object.fromEntries(settingItems),
     characters: characterItems,
+    worldRules: worldRules.map((rule) => ({
+      id: rule.id,
+      title: rule.title,
+      content: clipText(rule.content, 500),
+      riskLevel: clean(rule.riskLevel),
+      isCore: Boolean(rule.isCore),
+    })),
+    foreshadows: foreshadows.map((foreshadow) => ({
+      id: foreshadow.id,
+      content: clipText(foreshadow.content, 500),
+      status: clean(foreshadow.status),
+      importance: clean(foreshadow.importance),
+      expectedResolveChapter: foreshadow.expectedResolveChapter ?? null,
+    })),
+    timelineEvents: timelineEvents.map((event) => ({
+      id: event.id,
+      title: event.title,
+      description: clipText(event.description, 500),
+      storyTime: clean(event.storyTime),
+      status: clean(event.status),
+    })),
     outputRequirements: [
       "只输出 JSON，不要输出 Markdown 说明。",
       "每条建议必须进入 updates 数组。",
       "不要直接修改正式记忆；只提出待审核更新。",
       "高风险项包括核心世界观、主角、反派、禁写项、能力边界和时间线冲突。",
+      "更新或回收现有角色、世界规则、伏笔或时间线时必须返回对应 targetId；项目总设定更新使用 fieldName。",
     ],
   };
 
@@ -159,6 +218,36 @@ export function buildPendingUpdateContext(
     "# 当前正式角色档案",
     characterItems.length > 0 ? characterItems.join("\n") : "暂无角色资料。",
     "",
+    "# 当前正式世界规则",
+    worldRules.length > 0
+      ? worldRules
+          .map(
+            (rule) =>
+              `- [${rule.id}] ${rule.title}（${rule.isCore ? "核心" : "普通"}/${clean(rule.riskLevel) || "medium"}）：${clipText(rule.content, 500)}`,
+          )
+          .join("\n")
+      : "暂无正式世界规则。",
+    "",
+    "# 当前正式伏笔池",
+    foreshadows.length > 0
+      ? foreshadows
+          .map(
+            (foreshadow) =>
+              `- [${foreshadow.id}] ${clipText(foreshadow.content, 500)}（状态：${clean(foreshadow.status) || "planted"}；重要度：${clean(foreshadow.importance) || "medium"}；预计回收：${foreshadow.expectedResolveChapter ?? "未指定"}）`,
+          )
+          .join("\n")
+      : "暂无正式伏笔。",
+    "",
+    "# 当前正式时间线",
+    timelineEvents.length > 0
+      ? timelineEvents
+          .map(
+            (event) =>
+              `- [${event.id}] ${event.title}（${clean(event.storyTime) || "时间未指定"}）：${clipText(event.description, 500)}`,
+          )
+          .join("\n")
+      : "暂无正式时间线事件。",
+    "",
     "# 最新章节摘要任务输出",
     latestSummaryOutput || "暂无已完成章节摘要任务输出。",
     "",
@@ -170,11 +259,16 @@ export function buildPendingUpdateContext(
     ]),
     "",
     "# 定稿正文",
-    sourceText || "未填写定稿正文。禁止基于草稿正文提取待审核更新。",
+    promptSourceText.text ||
+      "未填写定稿正文。禁止基于草稿正文提取待审核更新。",
+    promptSourceText.wasExcerpted
+      ? "\n[系统说明：定稿较长，以上为首段/中段/尾段摘录；不得臆造省略部分。]"
+      : "",
     "",
     "# 输出 JSON 字段",
     "- updates: 待审核更新数组。",
-    "- 每条 update 包含 updateType, targetType, targetName, fieldName, title, content, reason, riskLevel, sourceEvidence。",
+    "- 每条 update 包含 updateType, targetType, targetId, targetName, fieldName, title, content, reason, riskLevel, sourceEvidence。",
+    "- 更新或回收现有角色、世界规则、伏笔或时间线时，targetId 必须使用上方正式记忆中的真实 ID；create 时 targetId 留空。",
     "- targetType 只能使用 project_setting, character, world_rule, foreshadow, timeline_event, location, organization。",
     "- project_setting 更新如能定位字段，请在 fieldName 使用总设定字段名，例如 worldviewRules, timeline, forbiddenItems。",
     "- riskLevel 使用 low, medium, high。",
@@ -251,6 +345,9 @@ function normalizeSuggestion(value: unknown): PendingUpdateSuggestion | null {
       stringValue(value.target_name) ??
       stringValue(value.name),
   );
+  const targetId = clean(
+    stringValue(value.targetId) ?? stringValue(value.target_id),
+  );
   const fieldName = clean(
     stringValue(value.fieldName) ?? stringValue(value.field_name),
   );
@@ -265,6 +362,7 @@ function normalizeSuggestion(value: unknown): PendingUpdateSuggestion | null {
   return {
     updateType,
     targetType,
+    targetId: targetId || undefined,
     targetName: targetName || undefined,
     fieldName: fieldName || undefined,
     title,
@@ -554,7 +652,7 @@ function buildSettingItems(setting?: PendingUpdateSettingContext | null) {
   }
 
   return projectSettingFields
-    .map((field) => [field.name, clipText(setting[field.name])] as const)
+    .map((field) => [field.name, clipText(setting[field.name], 600)] as const)
     .filter(([, value]) => Boolean(value));
 }
 
@@ -571,7 +669,7 @@ function buildCharacterLine(character: PendingUpdateCharacterContext) {
   ]
     .map(clean)
     .filter(Boolean)
-    .map((item) => clipText(item, 360))
+    .map((item) => clipText(item, 240))
     .join("；");
 
   return `- ${character.name}${details ? `：${details}` : ""}`;

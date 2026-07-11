@@ -36,6 +36,7 @@ describe("publish run services", () => {
             localId: "chapter_1",
             localType: "chapter",
             remoteId: "remote_chapter_1",
+            lastSyncedAt: new Date("2026-07-11T09:30:00.000Z"),
           },
         ],
       ),
@@ -61,6 +62,7 @@ describe("publish run services", () => {
           title: "雨夜旧印",
         },
         remoteId: "remote_chapter_1",
+        previousSyncAt: "2026-07-11T09:30:00.000Z",
       },
     ]);
   });

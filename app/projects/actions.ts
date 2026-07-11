@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { deleteProjectAudioAssets } from "@/lib/audio/audio-assets";
 import { prisma } from "@/lib/prisma";
+import { deleteProjectCoverAssets } from "@/lib/project-cover-assets";
 
 const optionalText = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
@@ -130,6 +132,17 @@ export async function deleteProject(projectId: string, formData?: FormData) {
       id: projectId,
     },
   });
+
+  const cleanupResults = await Promise.allSettled([
+    deleteProjectCoverAssets(projectId),
+    deleteProjectAudioAssets(projectId),
+  ]);
+
+  for (const result of cleanupResults) {
+    if (result.status === "rejected") {
+      console.error("Failed to remove deleted project assets:", result.reason);
+    }
+  }
 
   revalidatePath("/");
   redirect("/");

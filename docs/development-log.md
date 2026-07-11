@@ -1,5 +1,60 @@
 # Development Log
 
+## 2026-07-11: Repository Hardening and Continuity Data Integrity
+
+Status: completed.
+
+What was done:
+
+- Added durable `chapter_summaries` records. Completed chapter-summary tasks now
+  persist their output with a SHA-256 fingerprint of the exact final text, and
+  existing completed summary tasks are backfilled by the migration.
+- Changed AI-task retention so it only prunes disposable completed logs. Chapter
+  summaries and tasks referenced by pending updates, continuity reports, publish
+  packages, or durable summaries are protected from automatic deletion.
+- Added final-text fingerprints to pending updates and continuity reports. An
+  approval, one-click continuity fix, or AI fix-patch request is blocked when the
+  chapter final text has changed since the artifact was generated.
+- Corrected foreshadow review semantics: `resolve` now updates the explicitly
+  targeted formal foreshadow instead of creating a second resolved row. Existing
+  character, world-rule, foreshadow, and timeline updates require an unambiguous
+  formal-memory target.
+- Expanded pending-update extraction context with ranked formal world rules,
+  foreshadows, and timeline events, including stable record IDs. Chapter and
+  continuity context selection now ranks explicit mentions, core roles, risk,
+  importance, and due chapters before applying a bounded prompt budget.
+- Replaced full long-form pending-update and continuity prompt bodies with the
+  same deterministic head/middle/tail excerpt strategy used by chapter summaries,
+  and raised summary/continuity request timeouts to the planning-task window.
+- Enforced unique chapter numbers per project at the database layer and added
+  visible create/edit form errors. Existing duplicate rows are preserved during
+  migration by moving only later duplicates to the project tail with a migration
+  note.
+- Added a Station Cat local outbox step: a `running` publish record and stable
+  idempotency request ID are saved before the remote call. Retries reuse the same
+  request ID even when package `generatedAt` changes, while a later explicit
+  forced upload after a successful sync receives a new request ID.
+- Sanitized backup SQLite snapshots by clearing Station Cat tokens before ZIP
+  creation. Backup directories are mode `0700`, backup files and snapshots are
+  mode `0600`, and desktop database/local secret files are tightened on write.
+- Hard project deletion now removes project-scoped cover candidates, accepted
+  covers, and audiobook export directories after the database record is deleted.
+- Added a schema-alignment migration, corrected historical `updatedAt` defaults
+  and the timeline index in Prisma metadata, and made `mvp:acceptance` run against
+  a freshly migrated temporary database instead of the possibly stale dev DB.
+
+Verification:
+
+- `npm run test` passed, 93 files and 501 tests.
+- `npm run typecheck` passed.
+- `npm run mvp:acceptance` passed against a fresh temporary database.
+- `prisma migrate diff` reported no difference between all migrations and
+  `prisma/schema.prisma`.
+- The new migration passed on a copy of the current 126 MB desktop database;
+  `PRAGMA quick_check` returned `ok`, all 20 migrations were recorded, two legacy
+  chapter summaries were backfilled, and no duplicate project/chapter numbers
+  remained.
+
 ## 2026-07-10: 0.1.86 Personal macOS Installer Rebuild
 
 Status: completed.

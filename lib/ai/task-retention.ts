@@ -10,6 +10,12 @@ type AiTaskRetentionCandidate = {
   createdAt: Date;
   status: string;
   taskType?: string | null;
+  _count?: {
+    pendingUpdates?: number;
+    continuityReports?: number;
+    publishPackages?: number;
+    chapterSummaries?: number;
+  };
 };
 
 export function aiTaskIdsToPrune(
@@ -29,8 +35,11 @@ export function aiTaskIdsToPrune(
   });
 
   return sortedTasks
+    .filter(
+      (task) =>
+        !isActiveAiTaskStatus(task.status) && !isProtectedAiTask(task),
+    )
     .slice(normalizedLimit)
-    .filter((task) => !isActiveAiTaskStatus(task.status))
     .map((task) => task.id);
 }
 
@@ -55,6 +64,14 @@ export async function pruneProjectAiTasks(
       createdAt: true,
       status: true,
       taskType: true,
+      _count: {
+        select: {
+          pendingUpdates: true,
+          continuityReports: true,
+          publishPackages: true,
+          chapterSummaries: true,
+        },
+      },
     },
   });
 
@@ -76,6 +93,14 @@ export async function pruneProjectAiTasks(
   });
 
   return result.count;
+}
+
+function isProtectedAiTask(task: AiTaskRetentionCandidate) {
+  if (task.taskType === "chapter_summary_extraction") {
+    return true;
+  }
+
+  return Object.values(task._count ?? {}).some((count) => (count ?? 0) > 0);
 }
 
 async function cleanupPrunedAiTaskArtifacts(

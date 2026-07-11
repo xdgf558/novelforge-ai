@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 
 import {
   createChapterRecord,
   deleteChapterRecord,
+  DuplicateChapterNumberError,
   findChapterForUpdate,
   updateChapterRecord,
 } from "./records";
@@ -181,5 +183,49 @@ describe("chapter record services", () => {
     ).resolves.toBeNull();
 
     expect(mocks.prisma.chapter.delete).not.toHaveBeenCalled();
+  });
+
+  it("maps the database unique constraint to a chapter-number error", async () => {
+    mocks.prisma.$transaction.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "6.19.3",
+        meta: {
+          target: ["projectId", "chapterNumber"],
+        },
+      }),
+    );
+
+    await expect(
+      createChapterRecord({
+        projectId: "project_1",
+        values: baseValues,
+      }),
+    ).rejects.toBeInstanceOf(DuplicateChapterNumberError);
+  });
+
+  it("does not mislabel an unrelated unique constraint as a chapter-number error", async () => {
+    const databaseError = new Prisma.PrismaClientKnownRequestError(
+      "Unique constraint failed",
+      {
+        code: "P2002",
+        clientVersion: "6.19.3",
+        meta: {
+          target: ["storylineId", "chapterId"],
+        },
+      },
+    );
+    mocks.prisma.$transaction.mockRejectedValueOnce(databaseError);
+
+    await expect(
+      updateChapterRecord({
+        projectId: "project_1",
+        chapter: {
+          id: "chapter_7",
+          chapterNumber: 6,
+        },
+        values: baseValues,
+      }),
+    ).rejects.toBe(databaseError);
   });
 });

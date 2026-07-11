@@ -11,6 +11,7 @@ type EditChapterPageProps = {
     chapterId: string;
   }>;
   searchParams?: Promise<{
+    chapterError?: string;
     finalizeError?: string;
     findText?: string;
     focusField?: string;
@@ -22,7 +23,8 @@ export default async function EditChapterPage({
   searchParams,
 }: EditChapterPageProps) {
   const { projectId, chapterId } = await params;
-  const { finalizeError, findText, focusField } = (await searchParams) ?? {};
+  const { chapterError, finalizeError, findText, focusField } =
+    (await searchParams) ?? {};
   const chapter = await prisma.chapter.findFirst({
     where: {
       id: chapterId,
@@ -43,7 +45,9 @@ export default async function EditChapterPage({
   }
 
   const formMessage =
-    finalizeError === "missingPolishedText"
+    chapterError === "duplicate-number"
+      ? "这个章节号已经存在，请改用其他章节号。"
+      : finalizeError === "missingPolishedText"
       ? "精修正文为空，无法一键定稿。请先保存精修正文，或采用 AI 精修稿后再定稿。"
       : finalizeError === "missingDraftText"
         ? "草稿正文为空，无法一键定稿。请先保存草稿正文后再定稿。"

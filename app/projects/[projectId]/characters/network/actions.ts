@@ -14,6 +14,7 @@ import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { findRecentCurrentChapterSummaries } from "@/lib/chapters/summaries";
 import {
   normalizeRelationshipDirection,
   normalizeRelationshipStatus,
@@ -178,7 +179,14 @@ export async function generateCharacterRelationshipDrafts(projectId: string) {
     redirectRelationshipError(projectId, "activeRelationshipTask");
   }
 
-  const [project, characters, relationships, outlines, recentChapters] =
+  const [
+    project,
+    characters,
+    relationships,
+    outlines,
+    recentChapters,
+    recentSummaries,
+  ] =
     await Promise.all([
       prisma.project.findUnique({
         where: {
@@ -279,25 +287,14 @@ export async function generateCharacterRelationshipDrafts(projectId: string) {
         },
         take: 6,
         select: {
+          id: true,
           chapterNumber: true,
           title: true,
           status: true,
           goal: true,
-          aiTasks: {
-            where: {
-              taskType: "chapter_summary_extraction",
-              status: "completed",
-            },
-            orderBy: {
-              createdAt: "desc",
-            },
-            take: 1,
-            select: {
-              outputText: true,
-            },
-          },
         },
       }),
+      findRecentCurrentChapterSummaries({ projectId, limit: 6 }),
     ]);
 
   if (!project) {
@@ -321,7 +318,9 @@ export async function generateCharacterRelationshipDrafts(projectId: string) {
     outlines,
     recentChapters: recentChapters.reverse().map((chapter) => ({
       ...chapter,
-      summaryOutput: chapter.aiTasks[0]?.outputText ?? "",
+      summaryOutput:
+        recentSummaries.find((summary) => summary.chapterId === chapter.id)
+          ?.outputText ?? "",
     })),
   });
 

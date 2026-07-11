@@ -22,6 +22,8 @@ import {
   startLoggedOpenAITextTask,
 } from "@/lib/ai/task-logger";
 import { findActiveChapterAiTask } from "@/lib/chapters/ai-tasks";
+import { chapterFinalTextHash } from "@/lib/chapters/source-text";
+import { persistChapterSummaryFromTask } from "@/lib/chapters/summaries";
 import {
   loadChapterBeatContext,
   loadChapterDraftContext,
@@ -260,6 +262,14 @@ export async function startChapterSummaryGeneration(
     };
   }
 
+  const sourceTextHash = chapterFinalTextHash(contextInput.chapter.finalText);
+
+  if (!sourceTextHash) {
+    return {
+      status: "missing_required_input",
+    };
+  }
+
   const template = await ensureDefaultPromptTemplate(
     projectId,
     chapterSummaryTemplateKey,
@@ -274,7 +284,10 @@ export async function startChapterSummaryGeneration(
       taskType: template.taskType,
       model: undefined,
       inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
+      inputJson: {
+        ...context.inputJson,
+        finalTextHash: sourceTextHash,
+      },
     },
     {
       systemPrompt: template.systemPrompt,
@@ -288,6 +301,16 @@ export async function startChapterSummaryGeneration(
         .filter(Boolean)
         .join("\n\n"),
       input: context.inputText,
+    },
+    {
+      onCompleted: async (task) => {
+        await persistChapterSummaryFromTask({
+          projectId,
+          chapterId,
+          sourceTextHash,
+          task,
+        });
+      },
     },
   );
 

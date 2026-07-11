@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { updateProject } from "./actions";
+import { deleteProject, updateProject } from "./actions";
 
 const mocks = vi.hoisted(() => ({
   redirect: vi.fn(),
   revalidatePath: vi.fn(),
+  deleteProjectAudioAssets: vi.fn(),
+  deleteProjectCoverAssets: vi.fn(),
   prisma: {
     project: {
+      delete: vi.fn(),
       update: vi.fn(),
     },
   },
@@ -21,6 +24,14 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mocks.prisma,
+}));
+
+vi.mock("@/lib/audio/audio-assets", () => ({
+  deleteProjectAudioAssets: mocks.deleteProjectAudioAssets,
+}));
+
+vi.mock("@/lib/project-cover-assets", () => ({
+  deleteProjectCoverAssets: mocks.deleteProjectCoverAssets,
 }));
 
 function buildProjectFormData(
@@ -58,6 +69,9 @@ describe("project actions", () => {
       throw error;
     });
     mocks.prisma.project.update.mockResolvedValue({});
+    mocks.prisma.project.delete.mockResolvedValue({});
+    mocks.deleteProjectAudioAssets.mockResolvedValue(undefined);
+    mocks.deleteProjectCoverAssets.mockResolvedValue(undefined);
   });
 
   it("clears the AI daily token budget when the field is submitted empty", async () => {
@@ -94,5 +108,23 @@ describe("project actions", () => {
         }),
       }),
     );
+  });
+
+  it("removes project-scoped cover and audio assets after hard deletion", async () => {
+    const formData = new FormData();
+    formData.set("deleteConfirmation", "DELETE");
+    formData.set("backupAcknowledged", "on");
+
+    await expect(deleteProject("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.project.delete).toHaveBeenCalledWith({
+      where: {
+        id: "project_1",
+      },
+    });
+    expect(mocks.deleteProjectCoverAssets).toHaveBeenCalledWith("project_1");
+    expect(mocks.deleteProjectAudioAssets).toHaveBeenCalledWith("project_1");
   });
 });

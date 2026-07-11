@@ -23,8 +23,10 @@ function toPrismaSqliteUrl(filePath) {
 }
 
 function ensureSqliteDatabaseFile(databasePath) {
-  fs.mkdirSync(path.dirname(databasePath), { recursive: true });
+  fs.mkdirSync(path.dirname(databasePath), { recursive: true, mode: 0o700 });
+  fs.chmodSync(path.dirname(databasePath), 0o700);
   fs.closeSync(fs.openSync(databasePath, "a"));
+  fs.chmodSync(databasePath, 0o600);
 }
 
 function parseDesktopEnv(content) {

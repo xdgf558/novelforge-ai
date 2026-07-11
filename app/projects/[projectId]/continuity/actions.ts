@@ -13,6 +13,10 @@ import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
+  chapterFinalTextHash,
+  chapterSourceMatches,
+} from "@/lib/chapters/source-text";
+import {
   applyContinuityReportReplacementFix,
   createContinuityReportsFromTask,
   findActiveContinuityFixPatchTask,
@@ -58,6 +62,13 @@ export async function generateContinuityReport(
     redirect(`/projects/${projectId}/chapters/${chapterId}`);
   }
 
+  const sourceTextHash = chapterFinalTextHash(contextInput.chapter.finalText);
+
+  if (!sourceTextHash) {
+    revalidateContinuityPaths(projectId, chapterId);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
   const template = await ensureDefaultPromptTemplate(
     projectId,
     continuityTemplateKey,
@@ -72,7 +83,10 @@ export async function generateContinuityReport(
       taskType: template.taskType,
       model: undefined,
       inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
+      inputJson: {
+        ...context.inputJson,
+        finalTextHash: sourceTextHash,
+      },
     },
     {
       systemPrompt: template.systemPrompt,
@@ -93,6 +107,7 @@ export async function generateContinuityReport(
           chapterId,
           outputText: task.outputText,
           projectId,
+          sourceTextHash,
           taskId: task.id,
         });
       },
@@ -175,6 +190,10 @@ export async function applyContinuityReportFix(
     redirect(`/projects/${projectId}/continuity?fix=not-found`);
   }
 
+  if (result.status === "stale-report") {
+    redirect(`/projects/${projectId}/continuity?fix=stale-report`);
+  }
+
   revalidateContinuityPaths(projectId, result.chapterId);
   revalidatePath(`/projects/${projectId}/chapters/${result.chapterId}/history`);
   redirect(`/projects/${projectId}/continuity?fix=applied`);
@@ -201,6 +220,15 @@ export async function generateContinuityFixPatch(
 
   if (!report.chapter) {
     redirect(`/projects/${projectId}/continuity?patch=missing-chapter`);
+  }
+
+  if (
+    report.sourceTextHash &&
+    !chapterSourceMatches(report.sourceTextHash, report.chapter.finalText)
+  ) {
+    redirect(
+      `/projects/${projectId}/continuity?patch=stale-report#report-${report.id}`,
+    );
   }
 
   const activeTask = await findActiveContinuityFixPatchTask(

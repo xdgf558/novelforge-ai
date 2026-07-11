@@ -58,6 +58,7 @@ import {
   staleAiTaskErrorMessage,
 } from "@/lib/ai/task-timeouts";
 import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields";
+import { aiTaskFinalTextIsStale } from "@/lib/chapters/source-text";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { getAiRuntimeEnvForTaskType } from "@/lib/ai/local-config";
 import {
@@ -386,6 +387,7 @@ export default async function ChapterPage({
 
       <ChapterSummaryAiPanel
         chapterId={chapter.id}
+        finalText={chapter.finalText}
         hasApiKey={hasDefaultApiKey}
         hasConfirmedText={hasConfirmedText}
         projectId={chapter.project.id}
@@ -394,6 +396,7 @@ export default async function ChapterPage({
 
       <ChapterPendingUpdatePanel
         chapterId={chapter.id}
+        finalText={chapter.finalText}
         hasApiKey={hasDefaultApiKey}
         hasConfirmedText={hasConfirmedText}
         pendingUpdateCount={pendingUpdateReviewCount}
@@ -404,6 +407,7 @@ export default async function ChapterPage({
       <ChapterContinuityPanel
         chapterId={chapter.id}
         continuityReportCount={chapter._count.continuityReports}
+        finalText={chapter.finalText}
         hasApiKey={hasDefaultApiKey}
         hasConfirmedText={hasConfirmedText}
         projectId={chapter.project.id}
@@ -1547,12 +1551,14 @@ function ChapterPolishAiPanel({
 
 function ChapterSummaryAiPanel({
   chapterId,
+  finalText,
   hasApiKey,
   hasConfirmedText,
   projectId,
   tasks,
 }: {
   chapterId: string;
+  finalText?: string | null;
   hasApiKey: boolean;
   hasConfirmedText: boolean;
   projectId: string;
@@ -1575,7 +1581,7 @@ function ChapterSummaryAiPanel({
             从定稿正文提取结构化摘要
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
-            摘要任务只读取作者确认的定稿正文，输出短摘要、主要事件、角色变化、伏笔和连续性风险。结果先保存在 AI 任务中，不会自动写入正式故事记忆。
+            摘要任务只读取作者确认的定稿正文，输出短摘要、主要事件、角色变化、伏笔和连续性风险。结果会保存为可追溯的章节摘要，但不会自动修改正式故事记忆。
           </p>
         </div>
 
@@ -1639,7 +1645,7 @@ function ChapterSummaryAiPanel({
                     {aiTaskStatusLabel(task.status)}
                   </span>
                   <span className="rounded-md bg-white px-2.5 py-1">
-                    {chapterSummaryTaskReviewLabel(task)}
+                    {chapterSummaryTaskReviewLabel(task, finalText)}
                   </span>
                   <span>{formatDate(task.createdAt)}</span>
                 </div>
@@ -1665,8 +1671,15 @@ function ChapterSummaryAiPanel({
   );
 }
 
-function chapterSummaryTaskReviewLabel(task: ChapterAiTask) {
+function chapterSummaryTaskReviewLabel(
+  task: ChapterAiTask,
+  finalText?: string | null,
+) {
   if (task.status === "completed") {
+    if (aiTaskFinalTextIsStale(task.inputJson, finalText)) {
+      return "来源已过期";
+    }
+
     return "供后续任务参考";
   }
 
@@ -1677,8 +1690,15 @@ function chapterSummaryTaskReviewLabel(task: ChapterAiTask) {
   return aiTaskAdoptionLabel(task.adoptionState);
 }
 
-function pendingUpdateExtractionReviewLabel(task: ChapterAiTask) {
+function pendingUpdateExtractionReviewLabel(
+  task: ChapterAiTask,
+  finalText?: string | null,
+) {
   if (task.status === "completed") {
+    if (aiTaskFinalTextIsStale(task.inputJson, finalText)) {
+      return "来源已过期";
+    }
+
     return pendingUpdateTaskReviewLabel(
       task.pendingUpdates.map((update) => update.status),
     );
@@ -1691,7 +1711,17 @@ function pendingUpdateExtractionReviewLabel(task: ChapterAiTask) {
   return aiTaskAdoptionLabel(task.adoptionState);
 }
 
-function continuityCheckReviewLabel(task: ChapterAiTask) {
+function continuityCheckReviewLabel(
+  task: ChapterAiTask,
+  finalText?: string | null,
+) {
+  if (
+    task.status === "completed" &&
+    aiTaskFinalTextIsStale(task.inputJson, finalText)
+  ) {
+    return "来源已过期";
+  }
+
   return continuityCheckTaskReviewLabel(
     task.status,
     task.continuityReports.map((report) => report.status),
@@ -1701,6 +1731,7 @@ function continuityCheckReviewLabel(task: ChapterAiTask) {
 
 function ChapterPendingUpdatePanel({
   chapterId,
+  finalText,
   hasApiKey,
   hasConfirmedText,
   pendingUpdateCount,
@@ -1708,6 +1739,7 @@ function ChapterPendingUpdatePanel({
   tasks,
 }: {
   chapterId: string;
+  finalText?: string | null;
   hasApiKey: boolean;
   hasConfirmedText: boolean;
   pendingUpdateCount: number;
@@ -1802,7 +1834,7 @@ function ChapterPendingUpdatePanel({
                   {aiTaskStatusLabel(task.status)}
                 </span>
                 <span className="rounded-md bg-white px-2.5 py-1">
-                  {pendingUpdateExtractionReviewLabel(task)}
+                  {pendingUpdateExtractionReviewLabel(task, finalText)}
                 </span>
                 <span>{formatDate(task.createdAt)}</span>
               </div>
@@ -1829,6 +1861,7 @@ function ChapterPendingUpdatePanel({
 function ChapterContinuityPanel({
   chapterId,
   continuityReportCount,
+  finalText,
   hasApiKey,
   hasConfirmedText,
   projectId,
@@ -1836,6 +1869,7 @@ function ChapterContinuityPanel({
 }: {
   chapterId: string;
   continuityReportCount: number;
+  finalText?: string | null;
   hasApiKey: boolean;
   hasConfirmedText: boolean;
   projectId: string;
@@ -1927,7 +1961,7 @@ function ChapterContinuityPanel({
                   {aiTaskStatusLabel(task.status)}
                 </span>
                 <span className="rounded-md bg-white px-2.5 py-1">
-                  {continuityCheckReviewLabel(task)}
+                  {continuityCheckReviewLabel(task, finalText)}
                 </span>
                 <span>{formatDate(task.createdAt)}</span>
               </div>

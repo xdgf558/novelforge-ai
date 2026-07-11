@@ -246,6 +246,8 @@ export function resolveAiTaskRequestTimeoutMs(taskType: string) {
 
   if (
     taskType === "chapter_beat_generation" ||
+    taskType === "chapter_summary_extraction" ||
+    taskType === "continuity_check" ||
     taskType === "outline_generation" ||
     taskType === "ending_planning_generation" ||
     taskType === "pending_update_extraction"

@@ -60,6 +60,27 @@ describe("AI task retention", () => {
     expect(aiTaskIdsToPrune(tasks)).toEqual([]);
   });
 
+  it("never prunes durable summaries or tasks referenced by formal records", () => {
+    const tasks = Array.from({ length: 14 }, (_, index) =>
+      task(`task_${index}`, index),
+    ).map((item, index) => ({
+      ...item,
+      taskType:
+        index === 0
+          ? "chapter_summary_extraction"
+          : "chapter_beat_generation",
+      ...(index === 1
+        ? {
+            _count: {
+              pendingUpdates: 1,
+            },
+          }
+        : {}),
+    }));
+
+    expect(aiTaskIdsToPrune(tasks)).toEqual(["task_3", "task_2"]);
+  });
+
   it("cleans cover candidate assets before pruning old cover image tasks", async () => {
     mocks.prisma.aiTask.findMany.mockResolvedValue([
       {

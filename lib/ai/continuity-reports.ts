@@ -1,5 +1,8 @@
 import { clipText } from "./chapter-beats";
-import { confirmedChapterText } from "./chapter-summaries";
+import {
+  buildPromptSourceText,
+  confirmedChapterText,
+} from "./chapter-summaries";
 import {
   normalizeContinuityCategory,
   normalizeContinuitySeverity,
@@ -128,6 +131,7 @@ export function buildContinuityContext(
   input: ContinuityContextInput,
 ): BuiltContinuityContext {
   const sourceText = confirmedChapterText(input.chapter);
+  const promptSourceText = buildPromptSourceText(sourceText);
   const settingItems = buildSettingItems(input.setting);
   const characterItems = input.characters.map(buildCharacterLine).filter(Boolean);
   const worldRuleItems = input.worldRules.map(buildWorldRuleLine).filter(Boolean);
@@ -159,6 +163,9 @@ export function buildContinuityContext(
       notes: clean(input.chapter.notes),
       finalTextLength: sourceText.length,
       finalTextPreview: clipText(sourceText, finalTextPreviewMaxLength),
+      finalTextPromptLength: promptSourceText.length,
+      finalTextPromptWasExcerpted: promptSourceText.wasExcerpted,
+      finalTextPromptStrategy: promptSourceText.strategy,
     },
     setting: Object.fromEntries(settingItems),
     characters: characterItems,
@@ -243,7 +250,11 @@ export function buildContinuityContext(
     ]),
     "",
     "# 当前章节定稿正文",
-    sourceText || "未填写定稿正文。禁止基于草稿正文进行连续性检查。",
+    promptSourceText.text ||
+      "未填写定稿正文。禁止基于草稿正文进行连续性检查。",
+    promptSourceText.wasExcerpted
+      ? "\n[系统说明：定稿较长，以上为首段/中段/尾段摘录；不得臆造省略部分。]"
+      : "",
     "",
     "# 输出 JSON 字段",
     "- chapter_number: 当前章节号。",
@@ -353,7 +364,7 @@ function buildSettingItems(setting?: ContinuitySettingContext | null) {
   }
 
   return projectSettingFields
-    .map((field) => [field.name, clipText(setting[field.name])] as const)
+    .map((field) => [field.name, clipText(setting[field.name], 600)] as const)
     .filter(([, value]) => Boolean(value));
 }
 
@@ -371,7 +382,7 @@ function buildCharacterLine(character: ContinuityCharacterContext) {
   ]
     .map(clean)
     .filter(Boolean)
-    .map((value) => clipText(value, 360))
+    .map((value) => clipText(value, 240))
     .join("；");
 
   return `- ${character.name}${details ? `：${details}` : ""}`;
@@ -390,8 +401,8 @@ function buildWorldRuleLine(rule: ContinuityWorldRuleContext) {
     .filter(Boolean)
     .join("；");
 
-  return `- ${rule.title}：${clipText(rule.content, 500)}${
-    details ? `（${clipText(details, 260)}）` : ""
+  return `- ${rule.title}：${clipText(rule.content, 400)}${
+    details ? `（${clipText(details, 200)}）` : ""
   }`;
 }
 
@@ -410,8 +421,8 @@ function buildForeshadowLine(foreshadow: ContinuityForeshadowContext) {
 
   return `- ${foreshadow.status || "unknown"} / ${
     foreshadow.importance || "medium"
-  }：${clipText(foreshadow.content, 400)}${
-    details ? `（${clipText(details, 240)}）` : ""
+  }：${clipText(foreshadow.content, 320)}${
+    details ? `（${clipText(details, 180)}）` : ""
   }`;
 }
 
@@ -426,22 +437,22 @@ function buildTimelineEventLine(event: ContinuityTimelineEventContext) {
     .filter(Boolean)
     .join("；");
 
-  return `- ${event.title}：${clipText(event.description, 420)}${
-    details ? `（${details}）` : ""
+  return `- ${event.title}：${clipText(event.description, 340)}${
+    details ? `（${clipText(details, 200)}）` : ""
   }`;
 }
 
 function buildSummaryTaskLine(task: ContinuitySummaryTaskContext) {
   return [
     `## ${task.inputContextSummary}`,
-    clipText(task.outputText, 1600) || "摘要任务无输出。",
+    clipText(task.outputText, 1200) || "摘要任务无输出。",
   ].join("\n");
 }
 
 function buildPendingUpdateLine(update: ContinuityPendingUpdateContext) {
   return `- ${update.status} / ${update.targetType} / ${update.riskLevel}：${
     update.title
-  }；${clipText(update.proposedContent, 500)}`;
+  }；${clipText(update.proposedContent, 400)}`;
 }
 
 function lines(items: readonly (readonly [string, string | number | null | undefined])[]) {

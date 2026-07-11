@@ -1,6 +1,5 @@
 "use server";
 
-import { Prisma, type PendingUpdate } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -13,22 +12,20 @@ import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
 import {
-  characterSnapshot,
-  characterValuesFromRecord,
-  type CharacterTextFieldName,
-} from "@/lib/character-fields";
+  selectRelevantCharacters,
+  selectRelevantForeshadows,
+  selectRelevantTimelineEvents,
+  selectRelevantWorldRules,
+} from "@/lib/ai/context-priority";
 import {
-  appendMemoryNote,
-  characterValuesForPendingUpdate,
-  inferProjectSettingFieldName,
-  isCharacterFieldName,
-  isProjectSettingFieldName,
-} from "@/lib/pending-updates";
+  chapterFinalTextHash,
+  chapterSourceMatches,
+} from "@/lib/chapters/source-text";
+import { findCurrentChapterSummary } from "@/lib/chapters/summaries";
 import {
-  projectSettingSnapshot,
-  projectSettingValuesFromRecord,
-  type ProjectSettingFieldName,
-} from "@/lib/project-setting-fields";
+  applyApprovedPendingUpdate,
+  PendingUpdateTargetNotFoundError,
+} from "@/lib/pending-updates/approval";
 import { prisma } from "@/lib/prisma";
 
 const pendingUpdateTemplateKey = "pending_update_extraction";
@@ -38,7 +35,9 @@ const reviewSchema = z.object({
   resolutionNote: z
     .preprocess(
       (value) =>
-        typeof value === "string" && value.trim() === "" ? undefined : value,
+        value == null || (typeof value === "string" && value.trim() === "")
+          ? undefined
+          : value,
       z.string().trim().max(1000).optional(),
     ),
 });
@@ -47,7 +46,9 @@ const rejectionSchema = z.object({
   resolutionNote: z
     .preprocess(
       (value) =>
-        typeof value === "string" && value.trim() === "" ? undefined : value,
+        value == null || (typeof value === "string" && value.trim() === "")
+          ? undefined
+          : value,
       z.string().trim().max(1000).optional(),
     ),
 });
@@ -68,6 +69,13 @@ export async function generatePendingUpdates(projectId: string, chapterId: strin
     redirect(`/projects/${projectId}/chapters/${chapterId}`);
   }
 
+  const sourceTextHash = chapterFinalTextHash(sourceText);
+
+  if (!sourceTextHash) {
+    revalidateChapterAndPendingUpdatePaths(projectId, chapterId);
+    redirect(`/projects/${projectId}/chapters/${chapterId}`);
+  }
+
   const template = await ensureDefaultPromptTemplate(
     projectId,
     pendingUpdateTemplateKey,
@@ -82,7 +90,10 @@ export async function generatePendingUpdates(projectId: string, chapterId: strin
       taskType: template.taskType,
       model: undefined,
       inputContextSummary: context.inputContextSummary,
-      inputJson: context.inputJson,
+      inputJson: {
+        ...context.inputJson,
+        finalTextHash: sourceTextHash,
+      },
     },
     {
       systemPrompt: template.systemPrompt,
@@ -114,6 +125,7 @@ export async function generatePendingUpdates(projectId: string, chapterId: strin
                 aiTaskId: task.id,
                 updateType: suggestion.updateType,
                 targetType: suggestion.targetType,
+                targetId: suggestion.targetId,
                 targetName: suggestion.targetName,
                 fieldName: suggestion.fieldName,
                 title: suggestion.title,
@@ -122,6 +134,7 @@ export async function generatePendingUpdates(projectId: string, chapterId: strin
                 riskLevel: suggestion.riskLevel,
                 evidence: suggestion.evidence,
                 payloadJson: JSON.stringify(suggestion.payload, null, 2),
+                sourceTextHash,
               },
             }),
           ),
@@ -150,27 +163,60 @@ export async function approvePendingUpdate(
       projectId,
       status: "pending",
     },
+    include: {
+      chapter: {
+        select: {
+          finalText: true,
+        },
+      },
+    },
   });
 
   if (!pendingUpdate) {
     notFound();
   }
 
-  await prisma.$transaction(async (tx) => {
-    await applyApprovedUpdate(tx, pendingUpdate, parsed.proposedContent);
+  if (
+    pendingUpdate.sourceTextHash &&
+    !chapterSourceMatches(
+      pendingUpdate.sourceTextHash,
+      pendingUpdate.chapter?.finalText,
+    )
+  ) {
+    revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
+    redirect(`/projects/${projectId}/pending-updates?review=stale-source`);
+  }
 
-    await tx.pendingUpdate.update({
-      where: {
-        id: pendingUpdate.id,
-      },
-      data: {
-        status: "approved",
-        proposedContent: parsed.proposedContent,
-        resolutionNote: parsed.resolutionNote,
-        appliedAt: new Date(),
-      },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await applyApprovedPendingUpdate(
+        tx,
+        pendingUpdate,
+        parsed.proposedContent,
+      );
+
+      await tx.pendingUpdate.update({
+        where: {
+          id: pendingUpdate.id,
+        },
+        data: {
+          status: "approved",
+          proposedContent: parsed.proposedContent,
+          resolutionNote: parsed.resolutionNote,
+          appliedAt: new Date(),
+        },
+      });
     });
-  });
+  } catch (error) {
+    if (error instanceof PendingUpdateTargetNotFoundError) {
+      revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
+      redirect(
+        `/projects/${projectId}/pending-updates?review=target-not-found`,
+      );
+    }
+
+    throw error;
+  }
 
   revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
   redirect(`/projects/${projectId}/pending-updates?review=approved`);
@@ -212,247 +258,6 @@ export async function rejectPendingUpdate(
   redirect(`/projects/${projectId}/pending-updates?review=rejected`);
 }
 
-async function applyApprovedUpdate(
-  tx: Prisma.TransactionClient,
-  pendingUpdate: PendingUpdate,
-  proposedContent: string,
-) {
-  switch (pendingUpdate.targetType) {
-    case "character":
-      await applyCharacterUpdate(tx, pendingUpdate, proposedContent);
-      return;
-    case "world_rule":
-      await applyWorldRuleUpdate(tx, pendingUpdate, proposedContent);
-      return;
-    case "foreshadow":
-      await applyForeshadowUpdate(tx, pendingUpdate, proposedContent);
-      return;
-    case "timeline_event":
-      await applyTimelineEventUpdate(tx, pendingUpdate, proposedContent);
-      return;
-    case "location":
-      await applyProjectSettingUpdate(tx, pendingUpdate, proposedContent, "worldviewRules");
-      return;
-    case "organization":
-      await applyProjectSettingUpdate(tx, pendingUpdate, proposedContent, "factions");
-      return;
-    case "project_setting":
-    default:
-      await applyProjectSettingUpdate(tx, pendingUpdate, proposedContent);
-  }
-}
-
-async function applyProjectSettingUpdate(
-  tx: Prisma.TransactionClient,
-  pendingUpdate: PendingUpdate,
-  proposedContent: string,
-  forcedFieldName?: ProjectSettingFieldName,
-) {
-  const fieldName =
-    forcedFieldName ??
-    (isProjectSettingFieldName(pendingUpdate.fieldName)
-      ? pendingUpdate.fieldName
-      : inferProjectSettingFieldName(pendingUpdate.title, proposedContent));
-  const currentSetting = await tx.projectSetting.findUnique({
-    where: {
-      projectId: pendingUpdate.projectId,
-    },
-  });
-  const nextValue = appendMemoryNote(currentSetting?.[fieldName], proposedContent);
-  const fieldData = {
-    [fieldName]: nextValue,
-  } as Partial<Record<ProjectSettingFieldName, string>>;
-
-  const setting = await tx.projectSetting.upsert({
-    where: {
-      projectId: pendingUpdate.projectId,
-    },
-    create: {
-      projectId: pendingUpdate.projectId,
-      ...fieldData,
-    },
-    update: fieldData,
-  });
-  const updatedSetting = await tx.projectSetting.findUniqueOrThrow({
-    where: {
-      projectId: pendingUpdate.projectId,
-    },
-  });
-  const snapshot = projectSettingSnapshot(
-    projectSettingValuesFromRecord(updatedSetting),
-  );
-  const versionCount = await tx.settingVersion.count({
-    where: {
-      projectId: pendingUpdate.projectId,
-    },
-  });
-
-  await tx.settingVersion.create({
-    data: {
-      projectId: pendingUpdate.projectId,
-      settingId: setting.id,
-      versionNumber: versionCount + 1,
-      snapshotJson: JSON.stringify(snapshot),
-      changeReason: `批准待审核更新：${pendingUpdate.title}`,
-      sourceType: "pending_update",
-      sourceChapterId: pendingUpdate.chapterId,
-    },
-  });
-}
-
-async function applyCharacterUpdate(
-  tx: Prisma.TransactionClient,
-  pendingUpdate: PendingUpdate,
-  proposedContent: string,
-) {
-  const targetName = clean(pendingUpdate.targetName) || clean(pendingUpdate.title);
-  const fieldName = characterMemoryField(pendingUpdate.fieldName);
-  const existingCharacter = pendingUpdate.targetId
-    ? await tx.character.findFirst({
-        where: {
-          id: pendingUpdate.targetId,
-          projectId: pendingUpdate.projectId,
-        },
-      })
-    : targetName
-      ? await tx.character.findFirst({
-          where: {
-            projectId: pendingUpdate.projectId,
-            name: targetName,
-          },
-        })
-      : null;
-
-  if (existingCharacter) {
-    const nextValue = appendMemoryNote(
-      existingCharacter[fieldName],
-      proposedContent,
-    );
-    const fieldData = {
-      [fieldName]: nextValue,
-    } as Partial<Record<CharacterTextFieldName, string>>;
-
-    await tx.character.update({
-      where: {
-        id: existingCharacter.id,
-      },
-      data: fieldData,
-    });
-
-    const updatedCharacter = await tx.character.findUniqueOrThrow({
-      where: {
-        id: existingCharacter.id,
-      },
-    });
-    const versionCount = await tx.characterVersion.count({
-      where: {
-        characterId: existingCharacter.id,
-      },
-    });
-
-    await tx.characterVersion.create({
-      data: {
-        projectId: pendingUpdate.projectId,
-        characterId: existingCharacter.id,
-        versionNumber: versionCount + 1,
-        snapshotJson: JSON.stringify(
-          characterSnapshot(characterValuesFromRecord(updatedCharacter)),
-        ),
-        changeReason: `批准待审核更新：${pendingUpdate.title}`,
-        sourceType: "pending_update",
-        sourceChapterId: pendingUpdate.chapterId,
-      },
-    });
-
-    return;
-  }
-
-  const snapshot = characterSnapshot(
-    characterValuesForPendingUpdate({
-      targetName,
-      title: pendingUpdate.title,
-      fieldName,
-      proposedContent,
-    }),
-  );
-  const createdCharacter = await tx.character.create({
-    data: {
-      projectId: pendingUpdate.projectId,
-      ...snapshot,
-    },
-  });
-
-  await tx.characterVersion.create({
-    data: {
-      projectId: pendingUpdate.projectId,
-      characterId: createdCharacter.id,
-      versionNumber: 1,
-      snapshotJson: JSON.stringify(snapshot),
-      changeReason: `批准待审核更新：${pendingUpdate.title}`,
-      sourceType: "pending_update",
-      sourceChapterId: pendingUpdate.chapterId,
-    },
-  });
-}
-
-async function applyWorldRuleUpdate(
-  tx: Prisma.TransactionClient,
-  pendingUpdate: PendingUpdate,
-  proposedContent: string,
-) {
-  await tx.worldRule.create({
-    data: {
-      projectId: pendingUpdate.projectId,
-      title: pendingUpdate.title,
-      content: proposedContent,
-      category: pendingUpdate.fieldName || pendingUpdate.targetName,
-      riskLevel: pendingUpdate.riskLevel,
-      sourceChapterId: pendingUpdate.chapterId,
-      pendingUpdateId: pendingUpdate.id,
-    },
-  });
-}
-
-async function applyForeshadowUpdate(
-  tx: Prisma.TransactionClient,
-  pendingUpdate: PendingUpdate,
-  proposedContent: string,
-) {
-  await tx.foreshadow.create({
-    data: {
-      projectId: pendingUpdate.projectId,
-      content: proposedContent,
-      status: pendingUpdate.updateType === "resolve" ? "resolved" : "planted",
-      importance: pendingUpdate.riskLevel === "high" ? "high" : "medium",
-      plantedChapterId:
-        pendingUpdate.updateType === "resolve" ? undefined : pendingUpdate.chapterId,
-      resolvedChapterId:
-        pendingUpdate.updateType === "resolve" ? pendingUpdate.chapterId : undefined,
-      sourceChapterId: pendingUpdate.chapterId,
-      pendingUpdateId: pendingUpdate.id,
-    },
-  });
-}
-
-async function applyTimelineEventUpdate(
-  tx: Prisma.TransactionClient,
-  pendingUpdate: PendingUpdate,
-  proposedContent: string,
-) {
-  await tx.timelineEvent.create({
-    data: {
-      projectId: pendingUpdate.projectId,
-      title: pendingUpdate.title,
-      description: proposedContent,
-      storyTime: pendingUpdate.targetName,
-      impact: pendingUpdate.reason,
-      chapterId: pendingUpdate.chapterId,
-      sourceChapterId: pendingUpdate.chapterId,
-      pendingUpdateId: pendingUpdate.id,
-    },
-  });
-}
-
 async function loadPendingUpdateContext(projectId: string, chapterId: string) {
   const chapter = await prisma.chapter.findFirst({
     where: {
@@ -477,7 +282,14 @@ async function loadPendingUpdateContext(projectId: string, chapterId: string) {
     notFound();
   }
 
-  const [setting, characters, latestSummaryTask] = await Promise.all([
+  const [
+    setting,
+    characters,
+    latestSummary,
+    worldRules,
+    foreshadows,
+    timelineEvents,
+  ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
@@ -488,41 +300,69 @@ async function loadPendingUpdateContext(projectId: string, chapterId: string) {
         projectId,
         status: "active",
       },
-      orderBy: {
-        name: "asc",
-      },
-      take: 12,
     }),
-    prisma.aiTask.findFirst({
+    findCurrentChapterSummary({
+      projectId,
+      chapterId,
+      finalText: chapter.finalText,
+    }),
+    prisma.worldRule.findMany({
       where: {
         projectId,
-        chapterId,
-        taskType: "chapter_summary_extraction",
-        status: "completed",
+        status: "active",
       },
-      orderBy: [
-        {
-          completedAt: "desc",
+    }),
+    prisma.foreshadow.findMany({
+      where: {
+        projectId,
+        status: {
+          not: "abandoned",
         },
-        {
-          createdAt: "desc",
-        },
-      ],
-      select: {
-        id: true,
-        inputContextSummary: true,
-        outputText: true,
-        completedAt: true,
+      },
+    }),
+    prisma.timelineEvent.findMany({
+      where: {
+        projectId,
+        status: "active",
       },
     }),
   ]);
+
+  const relevanceText = [
+    chapter.title,
+    chapter.goal,
+    chapter.beats,
+    chapter.finalText,
+    chapter.notes,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return {
     project: chapter.project,
     setting,
     chapter: pickPendingUpdateChapterContext(chapter),
-    characters,
-    latestSummaryTask,
+    characters: selectRelevantCharacters(characters, relevanceText, 8),
+    latestSummaryTask: latestSummary
+      ? {
+          id: latestSummary.id,
+          inputContextSummary: latestSummary.inputContextSummary,
+          outputText: latestSummary.outputText,
+          completedAt: latestSummary.createdAt,
+        }
+      : null,
+    worldRules: selectRelevantWorldRules(worldRules, relevanceText, 10),
+    foreshadows: selectRelevantForeshadows(
+      foreshadows,
+      relevanceText,
+      chapter.chapterNumber,
+      14,
+    ),
+    timelineEvents: selectRelevantTimelineEvents(
+      timelineEvents,
+      relevanceText,
+      14,
+    ),
   };
 }
 
@@ -553,18 +393,6 @@ async function findActivePendingUpdateTask(projectId: string, chapterId: string)
   });
 }
 
-function characterMemoryField(fieldName?: string | null): CharacterTextFieldName {
-  if (
-    isCharacterFieldName(fieldName) &&
-    fieldName !== "name" &&
-    fieldName !== "status"
-  ) {
-    return fieldName;
-  }
-
-  return "notes";
-}
-
 function revalidateChapterAndPendingUpdatePaths(
   projectId: string,
   chapterId: string,
@@ -589,8 +417,4 @@ function revalidatePendingUpdatePaths(
   if (chapterId) {
     revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
   }
-}
-
-function clean(value?: string | null) {
-  return value?.trim() ?? "";
 }

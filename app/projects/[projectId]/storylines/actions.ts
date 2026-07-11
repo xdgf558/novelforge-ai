@@ -10,6 +10,7 @@ import {
 import { expireStaleStorylineAiTasks } from "@/lib/ai/storyline-task-maintenance";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
+import { findRecentCurrentChapterSummaries } from "@/lib/chapters/summaries";
 import {
   normalizeStorylineStatus,
   normalizeStorylineType,
@@ -140,6 +141,7 @@ export async function generateStorylineDrafts(projectId: string) {
     characters,
     foreshadows,
     chapters,
+    recentSummaries,
     outlines,
     existingStorylines,
   ] = await Promise.all([
@@ -207,21 +209,9 @@ export async function generateStorylineDrafts(projectId: string) {
         title: true,
         status: true,
         goal: true,
-        aiTasks: {
-          where: {
-            taskType: "chapter_summary_extraction",
-            status: "completed",
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-          take: 1,
-          select: {
-            outputText: true,
-          },
-        },
       },
     }),
+    findRecentCurrentChapterSummaries({ projectId, limit: 12 }),
     prisma.outline.findMany({
       where: {
         projectId,
@@ -295,12 +285,12 @@ export async function generateStorylineDrafts(projectId: string) {
     setting: project.setting,
     characters,
     foreshadows,
-    chapters: chapters
-      .reverse()
-      .map((chapter) => ({
-        ...chapter,
-        summaryOutput: chapter.aiTasks[0]?.outputText ?? "",
-      })),
+    chapters: chapters.reverse().map((chapter) => ({
+      ...chapter,
+      summaryOutput:
+        recentSummaries.find((summary) => summary.chapterId === chapter.id)
+          ?.outputText ?? "",
+    })),
     outlines,
     existingStorylines,
   });

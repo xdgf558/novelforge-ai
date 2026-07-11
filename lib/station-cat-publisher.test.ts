@@ -93,6 +93,49 @@ describe("station cat publisher adapter", () => {
     expect(serialized).not.toContain("secret-token");
   });
 
+  it("keeps the idempotency key stable when only generatedAt changes", () => {
+    const firstRequest = buildStationCatImportRequest({
+      publishPackage,
+      changedItems,
+      mode: "draft",
+      onlyChanged: true,
+    });
+    const retryRequest = buildStationCatImportRequest({
+      publishPackage: {
+        ...publishPackage,
+        generatedAt: "2026-07-11T09:30:00.000Z",
+      },
+      changedItems,
+      mode: "draft",
+      onlyChanged: true,
+    });
+
+    expect(retryRequest.requestId).toBe(firstRequest.requestId);
+  });
+
+  it("creates a new idempotency key after a completed sync is forced again", () => {
+    const firstRequest = buildStationCatImportRequest({
+      publishPackage,
+      changedItems: changedItems.map((item) => ({
+        ...item,
+        previousSyncAt: "2026-07-11T09:30:00.000Z",
+      })),
+      mode: "draft",
+      onlyChanged: false,
+    });
+    const nextRequest = buildStationCatImportRequest({
+      publishPackage,
+      changedItems: changedItems.map((item) => ({
+        ...item,
+        previousSyncAt: "2026-07-11T10:30:00.000Z",
+      })),
+      mode: "draft",
+      onlyChanged: false,
+    });
+
+    expect(nextRequest.requestId).not.toBe(firstRequest.requestId);
+  });
+
   it("normalizes Station Cat endpoint variants", () => {
     expect(buildStationCatImportEndpoint("https://wwwstationcat.org")).toBe(
       "https://wwwstationcat.org/api/novelforge/import",

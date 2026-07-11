@@ -7,7 +7,15 @@ import {
   readContinuityFixPatchReportId,
 } from "@/lib/ai/continuity-fix-patches";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
+import {
+  selectRelevantCharacters,
+  selectRelevantForeshadows,
+  selectRelevantTimelineEvents,
+  selectRelevantWorldRules,
+} from "@/lib/ai/context-priority";
 import { chapterSnapshot, chapterValuesFromRecord } from "@/lib/chapter-fields";
+import { chapterSourceMatches } from "@/lib/chapters/source-text";
+import { findRecentCurrentChapterSummaries } from "@/lib/chapters/summaries";
 import {
   applyContinuityReplacement,
   describeContinuityReplacementFix,
@@ -21,11 +29,13 @@ export async function createContinuityReportsFromTask({
   chapterId,
   outputText,
   projectId,
+  sourceTextHash,
   taskId,
 }: {
   chapterId: string;
   outputText?: string | null;
   projectId: string;
+  sourceTextHash?: string | null;
   taskId: string;
 }) {
   const issues = parseContinuityIssues(outputText);
@@ -48,6 +58,7 @@ export async function createContinuityReportsFromTask({
       evidence: issue.evidence,
       conflictingMemory: issue.conflictingMemory,
       suggestedFix: issue.suggestedFix,
+      sourceTextHash,
       status: "open",
     })),
   });
@@ -85,51 +96,25 @@ export async function loadContinuityContext(projectId: string, chapterId: string
         projectId,
         status: "active",
       },
-      orderBy: {
-        updatedAt: "desc",
-      },
-      take: 12,
     }),
     prisma.worldRule.findMany({
       where: {
         projectId,
         status: "active",
       },
-      orderBy: [{ riskLevel: "desc" }, { updatedAt: "desc" }],
-      take: 20,
     }),
     prisma.foreshadow.findMany({
       where: {
         projectId,
       },
-      orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
-      take: 24,
     }),
     prisma.timelineEvent.findMany({
       where: {
         projectId,
         status: "active",
       },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: 30,
     }),
-    prisma.aiTask.findMany({
-      where: {
-        projectId,
-        taskType: "chapter_summary_extraction",
-        status: "completed",
-      },
-      orderBy: [{ completedAt: "desc" }, { createdAt: "desc" }],
-      take: 3,
-      select: {
-        id: true,
-        inputContextSummary: true,
-        outputText: true,
-        completedAt: true,
-      },
-    }),
+    findRecentCurrentChapterSummaries({ projectId, limit: 3 }),
     prisma.pendingUpdate.findMany({
       where: {
         projectId,
@@ -150,6 +135,15 @@ export async function loadContinuityContext(projectId: string, chapterId: string
   ]);
 
   const setting = chapter.project.setting;
+  const relevanceText = [
+    chapter.title,
+    chapter.goal,
+    chapter.beats,
+    chapter.finalText,
+    chapter.notes,
+  ]
+    .filter(Boolean)
+    .join("\n");
   const contextChapter: ContinuityChapterContext = {
     chapterNumber: chapter.chapterNumber,
     title: chapter.title,
@@ -170,11 +164,25 @@ export async function loadContinuityContext(projectId: string, chapterId: string
     },
     setting,
     chapter: contextChapter,
-    characters,
-    worldRules,
-    foreshadows,
-    timelineEvents,
-    recentSummaryTasks,
+    characters: selectRelevantCharacters(characters, relevanceText, 10),
+    worldRules: selectRelevantWorldRules(worldRules, relevanceText, 12),
+    foreshadows: selectRelevantForeshadows(
+      foreshadows,
+      relevanceText,
+      chapter.chapterNumber,
+      16,
+    ),
+    timelineEvents: selectRelevantTimelineEvents(
+      timelineEvents,
+      relevanceText,
+      18,
+    ),
+    recentSummaryTasks: recentSummaryTasks.map((summary) => ({
+      id: summary.id,
+      inputContextSummary: summary.inputContextSummary,
+      outputText: summary.outputText,
+      completedAt: summary.createdAt,
+    })),
     pendingUpdates,
   };
 }
@@ -242,6 +250,7 @@ export async function applyContinuityReportReplacementFix({
   | { status: "missing-chapter" }
   | { status: "unsupported" }
   | { status: "not-found" }
+  | { status: "stale-report" }
   | {
       status: "applied";
       chapterId: string;
@@ -273,6 +282,15 @@ export async function applyContinuityReportReplacementFix({
   if (!report.chapter) {
     return {
       status: "missing-chapter",
+    };
+  }
+
+  if (
+    report.sourceTextHash &&
+    !chapterSourceMatches(report.sourceTextHash, report.chapter.finalText)
+  ) {
+    return {
+      status: "stale-report",
     };
   }
 

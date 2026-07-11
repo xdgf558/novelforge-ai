@@ -13,10 +13,17 @@ type NewChapterPageProps = {
   params: Promise<{
     projectId: string;
   }>;
+  searchParams?: Promise<{
+    chapterError?: string;
+  }>;
 };
 
-export default async function NewChapterPage({ params }: NewChapterPageProps) {
+export default async function NewChapterPage({
+  params,
+  searchParams,
+}: NewChapterPageProps) {
   const { projectId } = await params;
+  const { chapterError } = (await searchParams) ?? {};
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -71,6 +78,11 @@ export default async function NewChapterPage({ params }: NewChapterPageProps) {
         goal: chapterOutlinePrefill?.goal,
         title: defaultChapterTitle,
       }}
+      formMessage={
+        chapterError === "duplicate-number"
+          ? "这个章节号已经存在，请改用其他章节号。"
+          : undefined
+      }
       project={project}
       submitLabel="创建章节"
       subtitle={
