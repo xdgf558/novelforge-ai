@@ -95,13 +95,8 @@ async function applyProjectSettingUpdate(
     },
     update: fieldData,
   });
-  const updatedSetting = await tx.projectSetting.findUniqueOrThrow({
-    where: {
-      projectId: pendingUpdate.projectId,
-    },
-  });
   const snapshot = projectSettingSnapshot(
-    projectSettingValuesFromRecord(updatedSetting),
+    projectSettingValuesFromRecord(setting),
   );
   const versionCount = await tx.settingVersion.count({
     where: {
@@ -144,17 +139,11 @@ async function applyCharacterUpdate(
       [fieldName]: nextValue,
     } as Partial<Record<CharacterTextFieldName, string>>;
 
-    await tx.character.update({
+    const updatedCharacter = await tx.character.update({
       where: {
         id: existingCharacter.id,
       },
       data: fieldData,
-    });
-
-    const updatedCharacter = await tx.character.findUniqueOrThrow({
-      where: {
-        id: existingCharacter.id,
-      },
     });
     const versionCount = await tx.characterVersion.count({
       where: {

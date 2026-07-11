@@ -45,7 +45,7 @@ What was done:
 
 Verification:
 
-- `npm run test` passed, 93 files and 499 tests.
+- `npm run test` passed, 93 files and 501 tests.
 - `npm run typecheck` passed.
 - `npm run mvp:acceptance` passed against a fresh temporary database.
 - `prisma migrate diff` reported no difference between all migrations and
