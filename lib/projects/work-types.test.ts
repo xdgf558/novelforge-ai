@@ -24,6 +24,7 @@ describe("project work types", () => {
   it("keeps long-form-only tools out of the short-story workspace", () => {
     expect(projectToolPathsForWorkType("short_story")).toEqual([
       "",
+      "blueprint",
       "settings",
       "characters",
       "memory",

@@ -33,6 +33,8 @@ model Project {
 
   setting                ProjectSetting?
   settingVersions        SettingVersion[]
+  shortStoryBlueprint         ShortStoryBlueprint?
+  shortStoryBlueprintVersions ShortStoryBlueprintVersion[]
   characters             Character[]
   characterVersions      CharacterVersion[]
   chapters               Chapter[]
@@ -117,6 +119,48 @@ model SettingVersion {
   @@index([projectId, versionNumber])
   @@index([settingId])
   @@map("setting_versions")
+}
+
+model ShortStoryBlueprint {
+  id                  String   @id @default(cuid())
+  projectId           String   @unique
+  premise             String?
+  openingHook         String?
+  protagonistPressure String?
+  coreConflict        String?
+  reversalChain       String?
+  emotionalArc        String?
+  climax              String?
+  ending              String?
+  requiredPayoffs     String?
+  forbiddenDeviations String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  project  Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  versions ShortStoryBlueprintVersion[]
+
+  @@map("short_story_blueprints")
+}
+
+model ShortStoryBlueprintVersion {
+  id             String   @id @default(cuid())
+  projectId      String
+  blueprintId    String?
+  sourceAiTaskId String?  @unique
+  versionNumber  Int
+  snapshotJson   String
+  changeReason   String?
+  sourceType     String   @default("manual")
+  createdAt      DateTime @default(now())
+
+  project      Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  blueprint    ShortStoryBlueprint? @relation(fields: [blueprintId], references: [id], onDelete: SetNull)
+  sourceAiTask AiTask?              @relation(fields: [sourceAiTaskId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, versionNumber])
+  @@index([blueprintId])
+  @@map("short_story_blueprint_versions")
 }
 
 model Character {
@@ -521,6 +565,7 @@ model AiTask {
   continuityReports ContinuityReport[]
   publishPackages   PublishPackage[]
   chapterSummaries  ChapterSummary[]
+  shortStoryBlueprintVersions ShortStoryBlueprintVersion[]
 
   @@index([projectId, taskType])
   @@index([projectId, status])

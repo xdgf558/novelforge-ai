@@ -18,6 +18,7 @@ describe("default AI prompt templates", () => {
         "project_setting_generation",
         "project_setting_completion",
         "project_setting_optimization",
+        "short_story_blueprint_generation",
         "outline_generation",
         "character_relationship_generation",
         "chapter_beat_generation",
@@ -40,6 +41,29 @@ describe("default AI prompt templates", () => {
         (template) => !template.responseSchema || template.outputFormat === "json",
       ),
     ).toBe(true);
+  });
+
+  it("requires every formal short-story blueprint field in its schema", () => {
+    const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
+      (item) => item.key === "short_story_blueprint_generation",
+    );
+    const schema = JSON.parse(template?.responseSchema ?? "{}");
+
+    expect(template?.outputFormat).toBe("json");
+    expect(schema.properties.blueprint.required).toEqual(
+      expect.arrayContaining([
+        "premise",
+        "openingHook",
+        "protagonistPressure",
+        "coreConflict",
+        "reversalChain",
+        "emotionalArc",
+        "climax",
+        "ending",
+        "requiredPayoffs",
+        "forbiddenDeviations",
+      ]),
+    );
   });
 
   it("keeps prose generation templates guarded against repetitive AI phrasing", () => {

@@ -1,5 +1,47 @@
 # Development Log
 
+## 2026-07-11: Short Story Phase 2 Blueprint
+
+Status: completed for PR review.
+
+What was done:
+
+- Added one formal short-story blueprint per short-story project, covering the
+  premise, opening hook, protagonist pressure, core conflict, reversal chain,
+  emotional arc, climax, ending, required payoffs, and forbidden deviations.
+- Added immutable blueprint version snapshots for manual saves, adopted AI
+  drafts, and historical restores. Restoring a version creates a new rollback
+  snapshot instead of rewriting history.
+- Added a dedicated short-story blueprint workspace, compact structured draft
+  review, version list, version detail, and restore flow. The route is excluded
+  from serial-novel navigation and returns 404 for serial projects.
+- Added logged `short_story_blueprint_generation` background tasks with bounded
+  setting, character, and current-blueprint context. AI output remains a draft
+  until the author explicitly adopts or rejects it.
+- Made AI adoption transactional and idempotent. An adopted task can create at
+  most one formal blueprint version, while manual saves may remain partial and
+  AI adoption requires the minimum premise, conflict, and ending structure.
+- Preserved the formal blueprint in project JSON and Markdown exports. The
+  standard website package remains unchanged because short-story manuscript
+  assembly belongs to later phases.
+
+Verification:
+
+- Focused blueprint, prompt-template, task-retention, work-type, and export
+  tests passed: 8 files and 34 tests. Full `npm run test` passed: 100 files and
+  539 tests.
+- `npx prisma validate`, `npx prisma generate`, `npm run typecheck`, and
+  `npm run build` passed.
+- `npm run desktop:smoke` and `npm run mvp:acceptance` passed.
+- A fresh isolated SQLite database applied all 22 migrations. A copy of the
+  current desktop database also applied the Phase 1 and Phase 2 migrations;
+  `PRAGMA quick_check` returned `ok` for both databases.
+- `prisma migrate diff` reported no difference between migration history and
+  `prisma/schema.prisma`.
+- Local browser verification confirmed all ten blueprint fields, manual save,
+  persisted formal values, version history/detail, short-story navigation, and
+  serial-project route isolation. Browser logs contained no application errors.
+
 ## 2026-07-11: Short Story Phase 1 Work Type Foundation
 
 Status: completed for PR review.

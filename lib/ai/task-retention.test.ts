@@ -75,10 +75,16 @@ describe("AI task retention", () => {
               pendingUpdates: 1,
             },
           }
-        : {}),
+        : index === 2
+          ? {
+              _count: {
+                shortStoryBlueprintVersions: 1,
+              },
+            }
+          : {}),
     }));
 
-    expect(aiTaskIdsToPrune(tasks)).toEqual(["task_3", "task_2"]);
+    expect(aiTaskIdsToPrune(tasks)).toEqual(["task_3"]);
   });
 
   it("cleans cover candidate assets before pruning old cover image tasks", async () => {

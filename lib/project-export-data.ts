@@ -3,6 +3,7 @@ import type { ProjectExportData } from "./project-export";
 
 export const projectPublishInclude = {
   setting: true,
+  shortStoryBlueprint: true,
   characters: {
     orderBy: {
       name: "asc",
@@ -262,6 +263,21 @@ export function buildExportData(project: PublishProject) {
           "longTermForeshadowing",
           "endingDirection",
           "sensitiveContentRules",
+          "updatedAt",
+        ])
+      : null,
+    shortStoryBlueprint: project.shortStoryBlueprint
+      ? pickScalarRecord(project.shortStoryBlueprint, [
+          "premise",
+          "openingHook",
+          "protagonistPressure",
+          "coreConflict",
+          "reversalChain",
+          "emotionalArc",
+          "climax",
+          "ending",
+          "requiredPayoffs",
+          "forbiddenDeviations",
           "updatedAt",
         ])
       : null,

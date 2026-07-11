@@ -20,7 +20,7 @@ monolith with shared project, character, memory, AI-task, and chapter storage.
 
 ## Phase 1: Work Type and Architecture Foundation
 
-Status: implemented for review.
+Status: completed and merged.
 
 - Add the backward-compatible `Project.workType` field and migration.
 - Centralize work-type values, labels, normalization, and tool availability in
@@ -31,6 +31,8 @@ Status: implemented for review.
 - Preserve work type in JSON, Markdown, and standard website publish packages.
 
 ## Phase 2: Short Story Blueprint
+
+Status: implemented for PR review.
 
 - Add a formal short-story blueprint with premise, hook, protagonist pressure,
   core conflict, reversal chain, emotional curve, climax, ending, required
