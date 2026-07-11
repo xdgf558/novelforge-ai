@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BookOpenText,
   ClipboardList,
+  FileDown,
   GitBranch,
   Headphones,
   LayoutDashboard,
@@ -75,6 +76,11 @@ const projectToolItems = [
     path: "story-review" as const,
     label: "整篇审校",
     icon: ShieldCheck,
+  },
+  {
+    path: "manuscript" as const,
+    label: "成稿导出",
+    icon: FileDown,
   },
   {
     path: "audiobook" as const,

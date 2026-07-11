@@ -14,6 +14,7 @@ export type ProjectToolPath =
   | "storylines"
   | "chapters"
   | "story-review"
+  | "manuscript"
   | "audiobook"
   | "memory"
   | "ai";
@@ -74,6 +75,7 @@ const shortStoryToolPaths: readonly ProjectToolPath[] = [
   "characters",
   "chapters",
   "story-review",
+  "manuscript",
   "memory",
   "ai",
 ];

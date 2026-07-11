@@ -29,6 +29,9 @@ MVP includes:
 - Short-story whole-story review workspace with bounded confirmed-unit context,
   seven closure dimensions, unit-bound suggestions, source-text staleness
   checks, and manual-only author resolution.
+- Short-story complete-manuscript export with deterministic confirmed-unit
+  assembly, three unit-boundary strategies, copy/TXT/Markdown output, and a
+  visible 6,000-80,000 word-range check. Fanqie upload remains manual.
 - Project dashboard
 - Project setting editor
 - AI project setting generation
@@ -257,6 +260,14 @@ Recommended implementation order:
   bind to stable unit ids and per-unit final-text hashes, and remain manual-only:
   generic one-click replacement and continuity fix-patch generation must reject
   this task source.
+- Short Story Phase 5: `/projects/[projectId]/manuscript` deterministically
+  assembles only `final` / `published` writing units with non-empty `finalText`.
+  It supports no unit headings, neutral separators, or retained short headings;
+  removes duplicate unit titles, internal work labels, known AI structure
+  traces, and serial-only follow hooks without mutating source records; and
+  provides copy, TXT, and Markdown outputs with visible 6,000-80,000 word-range
+  and omitted-unit warnings. There is no export-history write or automatic
+  Fanqie upload in this phase.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
@@ -333,6 +344,10 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
   AI-task/continuity-report infrastructure. It requires a formal blueprint and
   at least two confirmed units, preserves unit source hashes for stale-result
   detection, and never writes confirmed prose automatically.
+  `/projects/[projectId]/manuscript` is also short-story-only. It is a pure local
+  export surface: only confirmed `finalText` is eligible, output cleanup is
+  deterministic and in-memory, and missing/unconfirmed units remain visible
+  instead of silently falling back to draft or polished candidates.
 - Phase 1 of the Fanqie template/export work is implemented as a deterministic core library: `lib/fanqie-layout-export.ts` selects正文 from `polishedText -> finalText -> draftText`, cleans duplicate chapter titles, Markdown, completion markers, web tails, and AI outline traces, counts CJK-aware words, and returns validation/split-manifest helpers.
 - Phase 2 of the Fanqie template/export work adds a publish-page 番茄小说正文粘贴版 panel. It supports chapter selection, source selection, optional title inclusion, validation display, copy, and TXT download. It is still local/manual only: no database writes, no automatic Fanqie upload, no ZIP package generation, and no hidden chapter rewrites.
 - Phase 3 of the Fanqie template/export work adds the publish-page 番茄分章 TXT 包 path. The panel now supports template switching, 3000/4000/5000/custom target word counts, split preview, `拆分清单.md`, and browser-side ZIP download containing the manifest plus generated TXT files. This remains deterministic local export only: no database export-history table, no automatic Fanqie login/upload, and no silent chapter rewrites.

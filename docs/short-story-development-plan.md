@@ -58,7 +58,7 @@ Status: completed and merged.
 
 ## Phase 4: Whole-Story Continuity and Closure
 
-Status: implemented for PR review.
+Status: completed and merged.
 
 - Assemble confirmed units into a whole-story review context.
 - Check motivation, chronology, repeated information, pacing gaps, opening
@@ -71,12 +71,18 @@ Status: implemented for PR review.
 
 ## Phase 5: Complete Manuscript and Fanqie Export
 
+Status: implemented for PR review.
+
 - Deterministically merge confirmed units into one complete short story.
 - Support no headings, section separators, or retained short headings.
 - Remove internal work labels, duplicate titles, AI structure traces, and
   serial-only follow hooks without changing source prose.
 - Provide copy, TXT, and Markdown output plus visible 6,000-80,000 word-range
   checks. Keep Fanqie upload manual.
+- The implementation is short-story-only at
+  `/projects/[projectId]/manuscript`. It reads only `final` / `published` units
+  with non-empty `finalText`, performs all assembly in memory, and never writes
+  the cleaned export back to chapter records.
 
 ## Phase 6: Hardening and Desktop Delivery
 
