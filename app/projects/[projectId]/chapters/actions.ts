@@ -38,6 +38,7 @@ import {
   updateChapterRecord,
 } from "@/lib/chapters/records";
 import { prisma } from "@/lib/prisma";
+import { isShortStoryProject } from "@/lib/projects/work-types";
 import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 import { fetchStationCatReaderFeedback } from "@/lib/reader-feedback";
 
@@ -57,6 +58,15 @@ const chapterNumberSchema = z.preprocess((value) => {
   return Number.isFinite(parsed) ? parsed : value;
 }, z.number().int().positive());
 
+const optionalNonNegativeIntegerSchema = z.preprocess((value) => {
+  if (typeof value !== "string" || value.trim() === "") {
+    return 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : value;
+}, z.number().int().nonnegative());
+
 const statusValues = chapterStatusOptions.map((option) => option.value) as [
   string,
   ...string[],
@@ -68,6 +78,11 @@ const chapterSchema = z.object({
   status: z.enum(statusValues).default("draft"),
   goal: optionalChapterText,
   beats: optionalChapterText,
+  unitSceneMovement: optionalChapterText,
+  unitConflict: optionalChapterText,
+  unitTurn: optionalChapterText,
+  unitPayoffMovement: optionalChapterText,
+  unitWordTarget: optionalNonNegativeIntegerSchema,
   draftText: optionalChapterText,
   polishedText: optionalChapterText,
   finalText: optionalChapterText,
@@ -170,7 +185,8 @@ function finishChapterAiGenerationAction({
 }
 
 export async function createChapter(projectId: string, formData: FormData) {
-  await assertProject(projectId);
+  const project = await assertProject(projectId);
+  const serialProject = !isShortStoryProject(project.workType);
 
   const { values, changeReason } = parseChapterForm(formData);
   let createResult: Awaited<ReturnType<typeof createChapterRecord>>;
@@ -180,6 +196,7 @@ export async function createChapter(projectId: string, formData: FormData) {
       projectId,
       values,
       changeReason,
+      linkStorylines: serialProject,
     });
   } catch (error) {
     if (error instanceof DuplicateChapterNumberError) {
@@ -193,7 +210,9 @@ export async function createChapter(projectId: string, formData: FormData) {
 
   const { chapter, chapterNumber } = createResult;
 
-  await syncOutlineStatusesForChapterNumbers(projectId, [chapterNumber]);
+  if (serialProject) {
+    await syncOutlineStatusesForChapterNumbers(projectId, [chapterNumber]);
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
@@ -207,6 +226,8 @@ export async function updateChapter(
   chapterId: string,
   formData: FormData,
 ) {
+  const project = await assertProject(projectId);
+  const serialProject = !isShortStoryProject(project.workType);
   const chapter = await findChapterForUpdate({
     projectId,
     chapterId,
@@ -236,6 +257,7 @@ export async function updateChapter(
       chapter,
       values,
       changeReason,
+      linkStorylines: serialProject,
     });
   } catch (error) {
     if (error instanceof DuplicateChapterNumberError) {
@@ -247,10 +269,12 @@ export async function updateChapter(
     throw error;
   }
 
-  await syncOutlineStatusesForChapterNumbers(projectId, [
-    updateResult.previousChapterNumber,
-    updateResult.chapterNumber,
-  ]);
+  if (serialProject) {
+    await syncOutlineStatusesForChapterNumbers(projectId, [
+      updateResult.previousChapterNumber,
+      updateResult.chapterNumber,
+    ]);
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);
@@ -262,6 +286,8 @@ export async function updateChapter(
 }
 
 export async function deleteChapter(projectId: string, chapterId: string) {
+  const project = await assertProject(projectId);
+  const serialProject = !isShortStoryProject(project.workType);
   const deleteResult = await deleteChapterRecord({
     projectId,
     chapterId,
@@ -271,9 +297,11 @@ export async function deleteChapter(projectId: string, chapterId: string) {
     notFound();
   }
 
-  await syncOutlineStatusesForChapterNumbers(projectId, [
-    deleteResult.chapterNumber,
-  ]);
+  if (serialProject) {
+    await syncOutlineStatusesForChapterNumbers(projectId, [
+      deleteResult.chapterNumber,
+    ]);
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/chapters`);

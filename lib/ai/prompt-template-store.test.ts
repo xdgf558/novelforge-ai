@@ -24,7 +24,7 @@ describe("prompt template store", () => {
     const activeTemplate = {
       id: "template_active",
       key: "chapter_draft_generation",
-      version: 3,
+      version: 4,
       status: "active",
     };
     mocks.prisma.aiPromptTemplate.findFirst.mockResolvedValue(activeTemplate);
@@ -39,9 +39,9 @@ describe("prompt template store", () => {
 
   it("upserts the newer default template and disables older active versions when the active project template is stale", async () => {
     const defaultTemplate = {
-      id: "template_default_v3",
+      id: "template_default_v4",
       key: "chapter_draft_generation",
-      version: 3,
+      version: 4,
       status: "active",
       systemPrompt: "new default",
     };
@@ -63,13 +63,13 @@ describe("prompt template store", () => {
           projectId_key_version: {
             projectId: "project_1",
             key: "chapter_draft_generation",
-            version: 3,
+            version: 4,
           },
         },
         create: expect.objectContaining({
           projectId: "project_1",
           key: "chapter_draft_generation",
-          version: 3,
+          version: 4,
           status: "active",
         }),
       }),
@@ -79,7 +79,7 @@ describe("prompt template store", () => {
         projectId: "project_1",
         key: "chapter_draft_generation",
         version: {
-          lt: 3,
+          lt: 4,
         },
         status: "active",
       },

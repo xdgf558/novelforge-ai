@@ -147,6 +147,10 @@ export function AppShellNavigation({
             .filter((item) => visibleToolPaths.has(item.path))
             .map((item) => {
               const Icon = item.icon;
+              const label =
+                shortStoryProject && item.path === "chapters"
+                  ? "写作单元"
+                  : item.label;
               const href = projectId
                 ? item.path
                   ? `/projects/${projectId}/${item.path}`
@@ -166,7 +170,7 @@ export function AppShellNavigation({
                     key={item.path}
                   >
                     <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-                    {item.label}
+                    {label}
                   </div>
                 );
               }
@@ -180,7 +184,7 @@ export function AppShellNavigation({
                   key={item.path}
                 >
                   <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
-                  {item.label}
+                  {label}
                 </Link>
               );
             })}

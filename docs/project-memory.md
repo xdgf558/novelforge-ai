@@ -241,6 +241,12 @@ Recommended implementation order:
 - Short Story Phase 2: one formal ten-field short-story blueprint per project,
   review-only AI blueprint drafts, explicit transactional adoption, versioned
   manual/adopted/restored snapshots, and project export coverage.
+- Short Story Phase 3: shared `Chapter` records are active internal writing
+  units with bounded count recommendations; scene movement, conflict, turn,
+  payoff movement, and word-target planning; unit-aware CRUD/history/export
+  surfaces; and short-story beat, draft, and polish contexts that combine the
+  formal blueprint with continuous-prose safeguards. Short-story unit writes
+  must not auto-link serial storylines or synchronize serial outline status.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
@@ -307,8 +313,12 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
   creation, and must not be changed by the general edit form. Existing records
   default to `serial_novel`. Shared setting, character, memory, AI-task, and
   version infrastructure should be reused; long-form-only tools are hidden from
-  the short-story navigation. `Chapter` remains the planned internal writing-unit
-  foundation rather than introducing a duplicate short-story prose stack.
+  the short-story navigation. `Chapter` is the active internal writing-unit
+  foundation rather than a duplicate prose stack. Short-story units persist
+  `unitSceneMovement`, `unitConflict`, `unitTurn`, `unitPayoffMovement`, and
+  `unitWordTarget`; their beat, draft, and polish contexts use the formal
+  blueprint and continuous-prose safeguards instead of serial outlines,
+  storylines, reader feedback, repeated openings, or artificial chapter hooks.
 - Phase 1 of the Fanqie template/export work is implemented as a deterministic core library: `lib/fanqie-layout-export.ts` selects正文 from `polishedText -> finalText -> draftText`, cleans duplicate chapter titles, Markdown, completion markers, web tails, and AI outline traces, counts CJK-aware words, and returns validation/split-manifest helpers.
 - Phase 2 of the Fanqie template/export work adds a publish-page 番茄小说正文粘贴版 panel. It supports chapter selection, source selection, optional title inclusion, validation display, copy, and TXT download. It is still local/manual only: no database writes, no automatic Fanqie upload, no ZIP package generation, and no hidden chapter rewrites.
 - Phase 3 of the Fanqie template/export work adds the publish-page 番茄分章 TXT 包 path. The panel now supports template switching, 3000/4000/5000/custom target word counts, split preview, `拆分清单.md`, and browser-side ZIP download containing the manifest plus generated TXT files. This remains deterministic local export only: no database export-history table, no automatic Fanqie login/upload, and no silent chapter rewrites.

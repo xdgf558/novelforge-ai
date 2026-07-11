@@ -32,7 +32,7 @@ Status: completed and merged.
 
 ## Phase 2: Short Story Blueprint
 
-Status: implemented for PR review.
+Status: completed and merged.
 
 - Add a formal short-story blueprint with premise, hook, protagonist pressure,
   core conflict, reversal chain, emotional curve, climax, ending, required
@@ -42,6 +42,8 @@ Status: implemented for PR review.
   version snapshots.
 
 ## Phase 3: Writing Unit Planning and Drafting
+
+Status: implemented for PR review.
 
 - Add a short-story writing-unit list plus manual new, edit, and review entry
   points, relabeling shared `Chapter` records without exposing serial-only tools.

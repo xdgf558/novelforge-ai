@@ -93,6 +93,12 @@ const exportData = {
       chapterNumber: 1,
       title: "第一封短信",
       status: "final",
+      goal: "林野被迫接受借命契约。",
+      unitSceneMovement: "从死者短信推进到医院旧档案室。",
+      unitConflict: "林野必须在契约倒计时归零前找到第一份病历。",
+      unitTurn: "病历上的签名来自林野本人。",
+      unitPayoffMovement: "兑现死者短信可以预知下一个名字。",
+      unitWordTarget: 5000,
       finalText: "短信来自一个死人。",
       wordCount: 1200,
     },
@@ -158,6 +164,11 @@ describe("project export builders", () => {
     expect(markdown).toContain("关联人物: 林野");
     expect(markdown).toContain("## 写作单元");
     expect(markdown).toContain("### 单元 1 第一封短信");
+    expect(markdown).toContain("目标字数: 5000");
+    expect(markdown).toContain("场景推进: 从死者短信推进到医院旧档案室");
+    expect(markdown).toContain("核心冲突: 林野必须在契约倒计时归零前");
+    expect(markdown).toContain("关键转折: 病历上的签名来自林野本人");
+    expect(markdown).toContain("兑现推进: 兑现死者短信可以预知");
     expect(markdown).toContain("短信来自一个死人");
     expect(markdown).toContain("## 历史发布包装");
     expect(markdown).toContain("死人给他发来短信");

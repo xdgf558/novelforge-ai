@@ -12,9 +12,15 @@ import {
   buildChapterPlatformTemplateContext,
   type ChapterPlatformTemplate,
 } from "./chapter-platform-templates";
+import {
+  formatShortStoryBlueprintForContext,
+  shortStoryBlueprintValuesFromRecord,
+  type ShortStoryBlueprintFieldName,
+} from "../short-stories/blueprint-fields";
 
 export type ChapterDraftProjectContext = {
   title: string;
+  workType?: string | null;
   genre?: string | null;
   targetAudience?: string | null;
   platform?: string | null;
@@ -47,6 +53,11 @@ export type ChapterDraftChapterContext = {
   title: string;
   goal?: string | null;
   beats?: string | null;
+  unitSceneMovement?: string | null;
+  unitConflict?: string | null;
+  unitTurn?: string | null;
+  unitPayoffMovement?: string | null;
+  unitWordTarget?: number | null;
   draftText?: string | null;
   polishedText?: string | null;
   finalText?: string | null;
@@ -55,6 +66,9 @@ export type ChapterDraftChapterContext = {
 
 export type ChapterDraftContextInput = {
   project: ChapterDraftProjectContext;
+  blueprint?: Partial<
+    Record<ShortStoryBlueprintFieldName, string | null>
+  > | null;
   setting?: ChapterDraftSettingContext | null;
   chapter: ChapterDraftChapterContext;
   outlines?: readonly OutlineLike[];
@@ -101,6 +115,10 @@ export function buildChapterDraftContext(
   input: ChapterDraftContextInput,
   options: BuildChapterDraftContextOptions = {},
 ): BuiltChapterDraftContext {
+  const shortStoryProject = input.project.workType === "short_story";
+  const unitLabel = shortStoryProject ? "写作单元" : "章节";
+  const blueprint = shortStoryBlueprintValuesFromRecord(input.blueprint);
+  const blueprintText = formatShortStoryBlueprintForContext(input.blueprint);
   const confirmedBeats = clean(input.chapter.beats);
   const platformTemplate = buildChapterPlatformTemplateContext({
     task: "draft",
@@ -130,26 +148,40 @@ export function buildChapterDraftContext(
     input.setting,
     draftForbiddenSettingFields,
   ).join("\n");
-  const wordRange = formatWordRange(
-    input.project.chapterWordMin,
-    input.project.chapterWordMax,
-  );
+  const wordRange =
+    shortStoryProject && (input.chapter.unitWordTarget ?? 0) > 0
+      ? `约 ${input.chapter.unitWordTarget?.toLocaleString("zh-CN")} 字`
+      : formatWordRange(
+          input.project.chapterWordMin,
+          input.project.chapterWordMax,
+        );
 
   const inputJson = {
     project: {
       title: input.project.title,
+      workType: clean(input.project.workType),
       genre: clean(input.project.genre),
       targetAudience: clean(input.project.targetAudience),
       platform: clean(input.project.platform),
       chapterWordRange: wordRange,
       description: clipText(input.project.description),
     },
+    blueprint: shortStoryProject ? blueprint : null,
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
       goal: clean(input.chapter.goal),
       confirmedBeats,
       notes: clean(input.chapter.notes),
+      unitPlan: shortStoryProject
+        ? {
+            sceneMovement: clean(input.chapter.unitSceneMovement),
+            conflict: clean(input.chapter.unitConflict),
+            turn: clean(input.chapter.unitTurn),
+            payoffMovement: clean(input.chapter.unitPayoffMovement),
+            wordTarget: input.chapter.unitWordTarget ?? 0,
+          }
+        : null,
     },
     outlines: outlineItems,
     styleConstraints,
@@ -164,36 +196,54 @@ export function buildChapterDraftContext(
     previousChapterEnding,
     forbiddenItems,
     outputRequirements: [
-      "输出完整章节草稿正文。",
-      "严格遵循已确认章节节拍。",
+      `输出完整${unitLabel}草稿正文。`,
+      `严格遵循已确认${shortStoryProject ? "单元" : "章节"}节拍。`,
       "读者反馈只作为段落节奏、钩子强度、角色出场权重和信息解释密度参考。",
       "保持角色说话规则和世界观边界。",
       "硬性压低模板腔：全章“不是……而是……”/“不是……是……”二元对照表达最多保留 1 处，输出前必须自检并改写多余句式。",
       "硬性避免逐日流水账：不要把正文写成第一天、第二天、第三天或早中晚日程；跳过没有新信息的过渡日。",
       "每个场景都要推进至少一种有效信息：冲突、线索、选择、代价、人物关系、风险升级或伏笔回收。",
-      "不得宣称已经修改正式设定或正式章节。",
+      `不得宣称已经修改正式设定或正式${unitLabel}。`,
+      ...(shortStoryProject
+        ? [
+            "把所有写作单元视为同一篇连续正文，除首单元外禁止重复开篇前提、背景说明和角色首次介绍。",
+            "禁止复述上一单元；直接承接上一单元的动作后果、情绪余波或新压力。",
+            "禁止为了内部切分添加独立章节标题、总结、下回预告或人工章末追读钩子。",
+            "必须推进正式蓝图的反转链、情绪曲线和必须兑现事项。",
+          ]
+        : []),
     ],
   };
 
   const inputText = [
     "# 任务",
-    `根据已确认节拍，为第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》生成章节草稿正文。`,
-    "输出只作为作者审核草稿，不得视为已写入正式章节。",
+    shortStoryProject
+      ? `根据已确认节拍，为写作单元 ${input.chapter.chapterNumber}《${input.chapter.title}》生成连续正文草稿。`
+      : `根据已确认节拍，为第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》生成章节草稿正文。`,
+    `输出只作为作者审核草稿，不得视为已写入正式${unitLabel}。`,
     "",
-    "# 当前章节",
+    `# 当前${unitLabel}`,
     lines([
-      ["章节目标", input.chapter.goal],
+      [`${shortStoryProject ? "单元" : "章节"}目标`, input.chapter.goal],
       ["目标字数", wordRange],
+      ["场景推进", input.chapter.unitSceneMovement],
+      ["核心冲突", input.chapter.unitConflict],
+      ["关键转折", input.chapter.unitTurn],
+      ["兑现推进", input.chapter.unitPayoffMovement],
       ["作者备注", input.chapter.notes],
     ]),
     "",
-    "# 已确认章节节拍",
+    `# 已确认${shortStoryProject ? "单元" : "章节"}节拍`,
     confirmedBeats || "未填写已确认节拍。禁止在没有节拍时自由生成正文。",
     "",
-    "# 当前大纲",
-    outlineItems.length > 0
-      ? outlineItems.join("\n")
-      : "暂无匹配当前章节的卷、剧情单元或章节大纲。",
+    ...(shortStoryProject
+      ? ["# 正式短故事蓝图", blueprintText || "尚未建立正式蓝图。"]
+      : [
+          "# 当前大纲",
+          outlineItems.length > 0
+            ? outlineItems.join("\n")
+            : "暂无匹配当前章节的卷、剧情单元或章节大纲。",
+        ]),
     "",
     "# 文风与发布约束",
     styleConstraints.length > 0 ? styleConstraints.join("\n") : "未设置。",
@@ -215,21 +265,30 @@ export function buildChapterDraftContext(
     "# 读者反馈信号",
     readerFeedbackText,
     "",
-    "# 上一章结尾",
-    previousChapterEnding || "暂无上一章正文结尾。",
+    `# 上一${shortStoryProject ? "单元" : "章"}结尾`,
+    previousChapterEnding ||
+      `暂无上一${shortStoryProject ? "单元" : "章"}正文结尾。`,
     "",
     "# 禁写事项",
     forbiddenItems || "未设置。",
     "",
     "# 输出要求",
-    "- 直接输出章节草稿正文，不要输出分析过程。",
+    `- 直接输出${unitLabel}草稿正文，不要输出分析过程。`,
     "- 按已确认节拍推进，不要新增未经作者确认的核心设定。",
     "- 如有读者反馈，落实为更清晰的开场推进、段落节奏、追更钩子和读者关注角色的戏份分配；不要直接在正文中提到数据、指标或读者反馈。",
     "- 保持人物语气、行动边界、世界观规则和禁写事项。",
-    "- 使用适合连载阅读的开场推进、段落节奏和章末钩子。",
+    shortStoryProject
+      ? "- 把本单元写成整篇正文的连续片段：不重复开篇、不复述前文、不重新介绍已登场人物，结尾只服从整篇自然节奏。"
+      : "- 使用适合连载阅读的开场推进、段落节奏和章末钩子。",
     "- 反模板腔硬性自检：全章“不是……而是……”“不是因为……而是因为……”“真正的……不是……而是……”和“不是……是……”这类二元对照表达最多保留 1 处；如果草稿中出现多处，必须先改成动作、细节、人物反应、台词或因果推进，再输出正文。",
     "- 反流水账硬性自检：不要按“第一天/第二天/第三天”或“早上/中午/晚上”逐日打卡推进；只有倒计时、证据矛盾、人物错位或压力升级依赖具体时间时才写清日期。",
     "- 跳过无冲突过渡日：吃饭、赶路、等待、常规训练、日常整理等没有新线索、新阻碍、新选择、新代价、关系变化、风险升级或伏笔回收的内容，要压缩为一句转场或直接切到下一场有效冲突。",
+    ...(shortStoryProject
+      ? [
+          "- 禁止输出内部单元标题、章节编号、上回提要、结尾总结或下回预告。",
+          "- 必须推动正式蓝图中的反转链、情绪曲线或必须兑现事项；不得新增无法在本篇收束的支线。",
+        ]
+      : []),
   ].join("\n");
 
   return {
@@ -243,18 +302,25 @@ export function buildChapterDraftContextSummary(
   input: ChapterDraftContextInput,
   options: BuildChapterDraftContextOptions = {},
 ) {
+  const shortStoryProject = input.project.workType === "short_story";
   const platformTemplate = buildChapterPlatformTemplateContext({
     task: "draft",
     template: options.platformTemplate,
   });
 
   return [
-    `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节草稿生成`,
+    shortStoryProject
+      ? `写作单元 ${input.chapter.chapterNumber}《${input.chapter.title}》草稿生成`
+      : `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节草稿生成`,
     clean(input.chapter.beats) ? "包含已确认节拍" : "缺少已确认节拍",
-    `大纲 ${(input.outlines ?? []).length} 条`,
+    shortStoryProject
+      ? `蓝图 ${input.blueprint ? "已建立" : "未建立"}`
+      : `大纲 ${(input.outlines ?? []).length} 条`,
     `角色 ${input.characters.length} 个`,
     input.readerFeedback?.length ? `读者反馈 ${input.readerFeedback.length} 条` : "无读者反馈",
-    input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
+    input.previousChapter
+      ? `包含上一${shortStoryProject ? "单元" : "章"}结尾`
+      : `无上一${shortStoryProject ? "单元" : "章"}结尾`,
     platformTemplate.template === "fanqie"
       ? `平台模板：${platformTemplate.label}`
       : "",

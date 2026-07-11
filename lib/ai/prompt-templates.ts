@@ -166,16 +166,16 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
   },
   {
     key: "chapter_beat_generation",
-    name: "章节节拍生成",
+    name: "正文节拍生成",
     taskType: "chapter_beat_generation",
-    version: 2,
+    version: 3,
     outputFormat: "markdown",
     systemPrompt:
-      `你是长篇连载小说的章节节拍助手。遵守既有设定、角色信息边界和禁写项，不得引入未经作者确认的正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
+      `你是小说正文节拍助手。必须根据输入中的作品类型区分长篇连载章节与单篇完结短故事写作单元，遵守既有设定、角色信息边界和禁写项，不得引入未经作者确认的正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
-      "根据当前章节目标、项目设定、相关角色和最近章节摘要，生成本章关键事件、情绪转折和结尾钩子。",
+      "根据当前章节或写作单元目标、项目设定、相关角色和前序正文，生成符合当前作品架构的关键事件与情绪转折。",
     contextNotes:
-      "输入应限制为任务相关上下文：项目设定摘要、相关角色、最近 3 章摘要、上一章结尾、当前章节目标。节拍应按冲突链、线索链和人物选择推进，避免逐日流水账。",
+      "长篇连载输入应包含最近章节、上一章结尾和当前章节目标；短故事输入应包含正式蓝图、单元规划和上一单元结尾。节拍应按冲突链、线索链和人物选择推进，避免逐日流水账。",
   },
   {
     key: "outline_generation",
@@ -380,29 +380,29 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
   },
   {
     key: "chapter_draft_generation",
-    name: "章节草稿生成",
+    name: "正文草稿生成",
     taskType: "chapter_draft_generation",
-    version: 3,
+    version: 4,
     outputFormat: "text",
     systemPrompt:
-      `你是长篇连载小说草稿助手。严格按已确认节拍写作，保持人物说话规则和世界观边界。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
+      `你是小说正文草稿助手。必须根据输入中的作品类型区分长篇连载章节与单篇完结短故事写作单元。严格按已确认节拍写作，保持人物说话规则和世界观边界。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
-      "根据已确认章节节拍、文风样本、角色说话规则和目标字数，生成章节草稿。",
+      "根据已确认节拍、文风样本、角色说话规则和目标字数，生成当前章节或写作单元草稿。",
     contextNotes:
-      "输入应包含已确认节拍、文风样本、角色说话规则、上一章结尾、目标字数和禁写项。正文必须按有效冲突、线索、选择和代价推进，跳过无新信息的过渡日。",
+      "输入应包含已确认节拍、文风样本、角色说话规则、前序正文结尾、目标字数和禁写项。短故事还必须遵守正式蓝图与单元规划，将所有单元视为同一篇连续正文。",
   },
   {
     key: "chapter_polish_generation",
     name: "正文精修",
     taskType: "chapter_polish_generation",
-    version: 3,
+    version: 4,
     outputFormat: "text",
     systemPrompt:
-      `你是长篇连载小说正文精修助手。只优化表达、节奏、段落衔接和可读性，不改变作者已确认的剧情事实和正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
+      `你是小说正文精修助手。必须根据输入中的作品类型区分长篇连载章节与单篇完结短故事写作单元。只优化表达、节奏、段落衔接和可读性，不改变作者已确认的剧情事实和正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
-      "根据章节草稿或已有精修稿、章节目标、文风样本、角色说话规则和禁写事项，输出完整精修正文。",
+      "根据草稿或已有精修稿、当前章节或写作单元目标、文风样本、角色说话规则和禁写事项，输出完整精修正文。",
     contextNotes:
-      "输入应包含待精修正文、章节目标、章节节拍、文风样本、角色说话规则、世界观边界和禁写项。输出必须是读者可直接阅读的完整正文，不得保留节拍标题或创作过程说明；在不改变事实的前提下压缩逐日流水账式过渡。",
+      "输入应包含待精修正文、目标、节拍、文风样本、角色说话规则、世界观边界和禁写项。短故事还必须保持跨单元连续，删除内部单元标题、重复开篇、总结和人工章末钩子。",
   },
   {
     key: "chapter_summary_extraction",

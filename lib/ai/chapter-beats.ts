@@ -12,9 +12,15 @@ import {
   type ReaderFeedbackSignal,
 } from "./reader-feedback-context";
 import { proseStyleGuardrails } from "./prose-style-guardrails";
+import {
+  formatShortStoryBlueprintForContext,
+  shortStoryBlueprintValuesFromRecord,
+  type ShortStoryBlueprintFieldName,
+} from "../short-stories/blueprint-fields";
 
 export type ChapterBeatProjectContext = {
   title: string;
+  workType?: string | null;
   genre?: string | null;
   targetAudience?: string | null;
   platform?: string | null;
@@ -51,6 +57,11 @@ export type ChapterBeatChapterContext = {
   title: string;
   goal?: string | null;
   beats?: string | null;
+  unitSceneMovement?: string | null;
+  unitConflict?: string | null;
+  unitTurn?: string | null;
+  unitPayoffMovement?: string | null;
+  unitWordTarget?: number | null;
   draftText?: string | null;
   polishedText?: string | null;
   finalText?: string | null;
@@ -74,6 +85,9 @@ export type ChapterBeatForeshadowContext = {
 
 export type ChapterBeatContextInput = {
   project: ChapterBeatProjectContext;
+  blueprint?: Partial<
+    Record<ShortStoryBlueprintFieldName, string | null>
+  > | null;
   setting?: ChapterBeatSettingContext | null;
   chapter: ChapterBeatChapterContext;
   outlines?: readonly OutlineLike[];
@@ -100,6 +114,10 @@ const settingFieldLabels = new Map(
 export function buildChapterBeatContext(
   input: ChapterBeatContextInput,
 ): BuiltChapterBeatContext {
+  const shortStoryProject = input.project.workType === "short_story";
+  const unitLabel = shortStoryProject ? "写作单元" : "章节";
+  const blueprint = shortStoryBlueprintValuesFromRecord(input.blueprint);
+  const blueprintText = formatShortStoryBlueprintForContext(input.blueprint);
   const previousChapterEnding = input.previousChapter
     ? excerptChapterEnding(input.previousChapter)
     : "";
@@ -108,7 +126,9 @@ export function buildChapterBeatContext(
   const characterItems = input.characters
     .map((character) => buildCharacterLine(character))
     .filter(Boolean);
-  const recentChapterItems = input.recentChapters.map(buildRecentChapterLine);
+  const recentChapterItems = input.recentChapters.map((chapter) =>
+    buildRecentChapterLine(chapter, shortStoryProject),
+  );
   const dueForeshadowItems = (input.dueForeshadows ?? []).map((foreshadow) =>
     buildDueForeshadowLine(foreshadow, input.chapter.chapterNumber),
   );
@@ -118,13 +138,17 @@ export function buildChapterBeatContext(
     input.setting?.forbiddenItems,
     input.setting?.sensitiveContentRules,
   ]).join("\n");
-  const wordRange = formatWordRange(
-    input.project.chapterWordMin,
-    input.project.chapterWordMax,
-  );
+  const wordRange =
+    shortStoryProject && (input.chapter.unitWordTarget ?? 0) > 0
+      ? `约 ${input.chapter.unitWordTarget?.toLocaleString("zh-CN")} 字`
+      : formatWordRange(
+          input.project.chapterWordMin,
+          input.project.chapterWordMax,
+        );
 
   const inputJson = {
     project: normalizeProject(input.project),
+    blueprint: shortStoryProject ? blueprint : null,
     setting: Object.fromEntries(settingItems),
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
@@ -132,6 +156,15 @@ export function buildChapterBeatContext(
       goal: clean(input.chapter.goal),
       notes: clean(input.chapter.notes),
       existingBeats: clean(input.chapter.beats),
+      unitPlan: shortStoryProject
+        ? {
+            sceneMovement: clean(input.chapter.unitSceneMovement),
+            conflict: clean(input.chapter.unitConflict),
+            turn: clean(input.chapter.unitTurn),
+            payoffMovement: clean(input.chapter.unitPayoffMovement),
+            wordTarget: input.chapter.unitWordTarget ?? 0,
+          }
+        : null,
     },
     outlines: outlineItems,
     characters: characterItems,
@@ -144,26 +177,45 @@ export function buildChapterBeatContext(
     forbiddenItems,
     outputRequirements: [
       "使用 Markdown 输出。",
-      "按顺序给出 8-12 个章节节拍。",
-      "包含开场钩子、关键事件、情绪转折、章末钩子。",
+      shortStoryProject
+        ? "按顺序给出 5-8 个写作单元节拍。"
+        : "按顺序给出 8-12 个章节节拍。",
+      shortStoryProject
+        ? "承接前序单元，包含场景推进、冲突升级、关键转折和兑现推进。"
+        : "包含开场钩子、关键事件、情绪转折、章末钩子。",
       "读者反馈只作为节奏、钩子、角色权重和爽点补强参考，不得改写已确认事实。",
       "节拍草案也要避免模板腔，不要反复使用“不是……而是……”这类二元对照句式。",
       "不要按第一天、第二天、第三天或早中晚打卡式推进；只有时间压力本身是冲突时才保留明确日期。",
       "每个节拍都必须提供新线索、新阻碍、新选择、新代价、关系变化、风险升级或伏笔回收；无功能的过渡日要合并或跳过。",
-      "如果本章建议处理伏笔列表有条目，节拍中必须安排回收、推进或说明暂缓理由；不得直接标记正式伏笔状态。",
+      `如果本${shortStoryProject ? "单元" : "章"}建议处理伏笔列表有条目，节拍中必须安排回收、推进或说明暂缓理由；不得直接标记正式伏笔状态。`,
       "不要宣称已经修改正式设定或角色记忆。",
+      ...(shortStoryProject
+        ? [
+            "除第一个单元外，不得重复故事开篇、背景介绍或角色首次登场说明。",
+            "不得回顾上一单元已清楚呈现的信息，直接从行动后果或新压力继续。",
+            "单元结尾服从整篇节奏，不得为了内部切分强造独立章末追读钩子。",
+            "必须推进正式蓝图的反转链、情绪曲线或必须兑现事项，不能另开无关支线。",
+          ]
+        : []),
     ],
     proseStyleGuardrails,
   };
 
   const inputText = [
     "# 任务",
-    `为第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》生成章节节拍。`,
+    shortStoryProject
+      ? `为写作单元 ${input.chapter.chapterNumber}《${input.chapter.title}》生成单元节拍。`
+      : `为第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》生成章节节拍。`,
     "输出只作为作者审核草案，不得视为已写入正式故事记忆。",
     "",
-    "# 当前章节",
+    `# 当前${unitLabel}`,
     lines([
-      ["章节目标", input.chapter.goal],
+      [`${shortStoryProject ? "单元" : "章节"}目标`, input.chapter.goal],
+      ["场景推进", input.chapter.unitSceneMovement],
+      ["核心冲突", input.chapter.unitConflict],
+      ["关键转折", input.chapter.unitTurn],
+      ["兑现推进", input.chapter.unitPayoffMovement],
+      ["目标字数", wordRange],
       ["作者备注", input.chapter.notes],
       ["已有节拍", input.chapter.beats],
     ]),
@@ -174,7 +226,7 @@ export function buildChapterBeatContext(
       ["题材", input.project.genre],
       ["目标读者", input.project.targetAudience],
       ["平台", input.project.platform],
-      ["单章字数", wordRange],
+      [shortStoryProject ? "单元字数" : "单章字数", wordRange],
       ["简介", input.project.description],
       ["公众号定位", input.project.wechatPositioning],
     ]),
@@ -186,20 +238,24 @@ export function buildChapterBeatContext(
           .join("\n")
       : "未填写项目设定。",
     "",
-    "# 当前大纲",
-    outlineItems.length > 0
-      ? outlineItems.join("\n")
-      : "暂无匹配当前章节的卷、剧情单元或章节大纲。",
+    ...(shortStoryProject
+      ? ["# 正式短故事蓝图", blueprintText || "尚未建立正式蓝图。"]
+      : [
+          "# 当前大纲",
+          outlineItems.length > 0
+            ? outlineItems.join("\n")
+            : "暂无匹配当前章节的卷、剧情单元或章节大纲。",
+        ]),
     "",
     "# 相关角色",
     characterItems.length > 0 ? characterItems.join("\n") : "暂无角色资料。",
     "",
-    "# 最近章节",
+    `# 最近${shortStoryProject ? "写作单元" : "章节"}`,
     recentChapterItems.length > 0
       ? recentChapterItems.join("\n")
-      : "暂无已保存的前序章节。",
+      : `暂无已保存的前序${shortStoryProject ? "写作单元" : "章节"}。`,
     "",
-    "# 本章建议处理伏笔",
+    `# 本${shortStoryProject ? "单元" : "章"}建议处理伏笔`,
     dueForeshadowItems.length > 0
       ? dueForeshadowItems.join("\n")
       : "暂无到期或需要处理的伏笔。",
@@ -207,22 +263,33 @@ export function buildChapterBeatContext(
     "# 读者反馈信号",
     readerFeedbackText,
     "",
-    "# 上一章结尾",
-    previousChapterEnding || "暂无上一章正文结尾。",
+    `# 上一${shortStoryProject ? "单元" : "章"}结尾`,
+    previousChapterEnding ||
+      `暂无上一${shortStoryProject ? "单元" : "章"}正文结尾。`,
     "",
     "# 禁写事项",
     forbiddenItems || "未设置。",
     "",
     "# 输出要求",
     "- 使用 Markdown。",
-    "- 给出 8-12 个顺序节拍，每个节拍包含剧情动作和情绪作用。",
-    "- 明确标出开场钩子、关键转折、章末钩子。",
-    "- 如有读者反馈，优先用它调整下一章开场推进、章末钩子、角色出场权重和信息解释密度；不得把读者反馈当作已经生效的正式设定。",
+    shortStoryProject
+      ? "- 给出 5-8 个顺序节拍，每个节拍包含剧情动作、压力变化和蓝图兑现作用。"
+      : "- 给出 8-12 个顺序节拍，每个节拍包含剧情动作和情绪作用。",
+    shortStoryProject
+      ? "- 直接承接前序单元，不重复开篇、背景说明、角色介绍或已呈现的信息；结尾只保留整篇需要的自然转折。"
+      : "- 明确标出开场钩子、关键转折、章末钩子。",
+    `- 如有读者反馈，优先用它调整下一${shortStoryProject ? "单元" : "章"}开场推进、${shortStoryProject ? "整篇情绪承接" : "章末钩子"}、角色出场权重和信息解释密度；不得把读者反馈当作已经生效的正式设定。`,
     "- 保持既有设定与角色边界，不新增未经作者确认的正式设定。",
     "- 节拍草案也要避免模板腔，少用“不是……而是……”这类二元对照句式；能用具体行动、选择和后果表达，就不要用抽象总结。",
-    "- 反流水账硬性自检：不要把本章规划成“第一天/第二天/第三天”或“早上/中午/晚上”的日程表；除非倒计时、证据矛盾或人物错位依赖明确时间，否则跳过无冲突过渡日。",
+    `- 反流水账硬性自检：不要把本${shortStoryProject ? "单元" : "章"}规划成“第一天/第二天/第三天”或“早上/中午/晚上”的日程表；除非倒计时、证据矛盾或人物错位依赖明确时间，否则跳过无冲突过渡日。`,
     "- 每个节拍必须至少承担一个叙事功能：新线索、新阻碍、新选择、新代价、关系变化、风险升级或伏笔回收；只有时间流逝但没有事件功能的节拍必须合并或删除。",
-    "- 如果“本章建议处理伏笔”列出条目，必须在节拍中安排合理回收、阶段性推进或明确暂缓理由；这只是节拍规划，不得宣称已修改伏笔池状态。",
+    `- 如果“本${shortStoryProject ? "单元" : "章"}建议处理伏笔”列出条目，必须在节拍中安排合理回收、阶段性推进或明确暂缓理由；这只是节拍规划，不得宣称已修改伏笔池状态。`,
+    ...(shortStoryProject
+      ? [
+          "- 必须落实正式蓝图的反转链、情绪曲线和必须兑现事项，不得另开与单篇闭环无关的支线。",
+          "- 内部单元不是公开章节：禁止为了切分而添加重复标题、总结段、下回预告或人工追读钩子。",
+        ]
+      : []),
   ].join("\n");
 
   return {
@@ -233,16 +300,23 @@ export function buildChapterBeatContext(
 }
 
 export function buildChapterBeatContextSummary(input: ChapterBeatContextInput) {
+  const shortStoryProject = input.project.workType === "short_story";
   return [
-    `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节节拍生成`,
-    `大纲 ${(input.outlines ?? []).length} 条`,
+    shortStoryProject
+      ? `写作单元 ${input.chapter.chapterNumber}《${input.chapter.title}》节拍生成`
+      : `第 ${input.chapter.chapterNumber} 章《${input.chapter.title}》章节节拍生成`,
+    shortStoryProject
+      ? `蓝图 ${input.blueprint ? "已建立" : "未建立"}`
+      : `大纲 ${(input.outlines ?? []).length} 条`,
     `角色 ${input.characters.length} 个`,
-    `最近章节 ${input.recentChapters.length} 个`,
+    `最近${shortStoryProject ? "单元" : "章节"} ${input.recentChapters.length} 个`,
     input.readerFeedback?.length ? `读者反馈 ${input.readerFeedback.length} 条` : "无读者反馈",
     input.dueForeshadows?.length
       ? `建议处理伏笔 ${input.dueForeshadows.length} 条`
       : "无到期伏笔",
-    input.previousChapter ? "包含上一章结尾" : "无上一章结尾",
+    input.previousChapter
+      ? `包含上一${shortStoryProject ? "单元" : "章"}结尾`
+      : `无上一${shortStoryProject ? "单元" : "章"}结尾`,
   ].join("；");
 }
 
@@ -280,6 +354,7 @@ export function clipText(
 function normalizeProject(project: ChapterBeatProjectContext) {
   return {
     title: project.title,
+    workType: clean(project.workType),
     genre: clean(project.genre),
     targetAudience: clean(project.targetAudience),
     platform: clean(project.platform),
@@ -340,8 +415,14 @@ function buildOutlineLine(outline: OutlineLike) {
   ]).join("；") || "暂无摘要"}`;
 }
 
-function buildRecentChapterLine(chapter: ChapterBeatChapterContext) {
-  return `- 第 ${chapter.chapterNumber} 章《${chapter.title}》：${compact([
+function buildRecentChapterLine(
+  chapter: ChapterBeatChapterContext,
+  shortStoryProject: boolean,
+) {
+  const prefix = shortStoryProject
+    ? `写作单元 ${chapter.chapterNumber}`
+    : `第 ${chapter.chapterNumber} 章`;
+  return `- ${prefix}《${chapter.title}》：${compact([
     chapter.goal ? `目标：${chapter.goal}` : "",
     chapter.beats ? `节拍：${clipText(chapter.beats, 600)}` : "",
     chapter.notes ? `备注：${clipText(chapter.notes, 400)}` : "",

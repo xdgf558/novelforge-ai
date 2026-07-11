@@ -31,38 +31,38 @@ model Project {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  setting                ProjectSetting?
-  settingVersions        SettingVersion[]
+  setting                     ProjectSetting?
+  settingVersions             SettingVersion[]
   shortStoryBlueprint         ShortStoryBlueprint?
   shortStoryBlueprintVersions ShortStoryBlueprintVersion[]
-  characters             Character[]
-  characterVersions      CharacterVersion[]
-  chapters               Chapter[]
-  chapterSummaries       ChapterSummary[]
-  chapterVersions        ChapterVersion[]
-  outlines               Outline[]
-  worldRules             WorldRule[]
-  foreshadows            Foreshadow[]
-  timelineEvents         TimelineEvent[]
-  characterRelationships CharacterRelationship[]
-  storylines             Storyline[]
-  storylineCharacters    StorylineCharacter[]
-  storylineForeshadows   StorylineForeshadow[]
-  storylineChapters      StorylineChapter[]
-  storylineOutlines      StorylineOutline[]
-  aiPromptTemplates      AiPromptTemplate[]
-  aiTasks                AiTask[]
-  aiUsageDaily           AiUsageDaily[]
-  pendingUpdates         PendingUpdate[]
-  continuityReports      ContinuityReport[]
-  publishPackages        PublishPackage[]
-  publishTargets         PublishTarget[]
-  publishRuns            PublishRun[]
-  publishSyncStates      PublishSyncState[]
-  chapterAnalytics       ChapterAnalytics[]
-  chapterInsights        ChapterInsight[]
-  audioExports           AudioExport[]
-  audioExportSegments    AudioExportSegment[]
+  characters                  Character[]
+  characterVersions           CharacterVersion[]
+  chapters                    Chapter[]
+  chapterSummaries            ChapterSummary[]
+  chapterVersions             ChapterVersion[]
+  outlines                    Outline[]
+  worldRules                  WorldRule[]
+  foreshadows                 Foreshadow[]
+  timelineEvents              TimelineEvent[]
+  characterRelationships      CharacterRelationship[]
+  storylines                  Storyline[]
+  storylineCharacters         StorylineCharacter[]
+  storylineForeshadows        StorylineForeshadow[]
+  storylineChapters           StorylineChapter[]
+  storylineOutlines           StorylineOutline[]
+  aiPromptTemplates           AiPromptTemplate[]
+  aiTasks                     AiTask[]
+  aiUsageDaily                AiUsageDaily[]
+  pendingUpdates              PendingUpdate[]
+  continuityReports           ContinuityReport[]
+  publishPackages             PublishPackage[]
+  publishTargets              PublishTarget[]
+  publishRuns                 PublishRun[]
+  publishSyncStates           PublishSyncState[]
+  chapterAnalytics            ChapterAnalytics[]
+  chapterInsights             ChapterInsight[]
+  audioExports                AudioExport[]
+  audioExportSegments         AudioExportSegment[]
 
   @@index([status])
   @@index([workType, status])
@@ -253,6 +253,11 @@ model Chapter {
   status                  String    @default("draft")
   goal                    String?
   beats                   String?
+  unitSceneMovement       String?
+  unitConflict            String?
+  unitTurn                String?
+  unitPayoffMovement      String?
+  unitWordTarget          Int       @default(0)
   draftText               String?
   polishedText            String?
   finalText               String?
@@ -280,8 +285,8 @@ model Chapter {
   audioExports           AudioExport[]
   audioExportSegments    AudioExportSegment[]
 
-  @@index([projectId, status])
   @@unique([projectId, chapterNumber])
+  @@index([projectId, status])
   @@map("chapters")
 }
 
@@ -558,13 +563,13 @@ model AiTask {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  project           Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  promptTemplate    AiPromptTemplate?  @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
-  chapter           Chapter?           @relation(fields: [chapterId], references: [id], onDelete: SetNull)
-  pendingUpdates    PendingUpdate[]
-  continuityReports ContinuityReport[]
-  publishPackages   PublishPackage[]
-  chapterSummaries  ChapterSummary[]
+  project                     Project                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  promptTemplate              AiPromptTemplate?            @relation(fields: [promptTemplateId], references: [id], onDelete: SetNull)
+  chapter                     Chapter?                     @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  pendingUpdates              PendingUpdate[]
+  continuityReports           ContinuityReport[]
+  publishPackages             PublishPackage[]
+  chapterSummaries            ChapterSummary[]
   shortStoryBlueprintVersions ShortStoryBlueprintVersion[]
 
   @@index([projectId, taskType])
@@ -816,10 +821,10 @@ model PublishRun {
   project Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   target  PublishTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
 
+  @@unique([targetId, requestId])
   @@index([projectId, createdAt])
   @@index([targetId, createdAt])
   @@index([projectId, status])
-  @@unique([targetId, requestId])
   @@map("publish_runs")
 }
 

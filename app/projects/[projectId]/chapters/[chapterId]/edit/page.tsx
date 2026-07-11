@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { updateChapter } from "@/app/projects/[projectId]/chapters/actions";
 import { ChapterForm } from "@/components/chapters/chapter-form";
 import { prisma } from "@/lib/prisma";
+import { isShortStoryProject } from "@/lib/projects/work-types";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +45,11 @@ export default async function EditChapterPage({
     notFound();
   }
 
+  const shortStoryProject = isShortStoryProject(chapter.project.workType);
+
   const formMessage =
     chapterError === "duplicate-number"
-      ? "这个章节号已经存在，请改用其他章节号。"
+      ? `这个${shortStoryProject ? "单元序号" : "章节号"}已经存在，请改用其他编号。`
       : finalizeError === "missingPolishedText"
       ? "精修正文为空，无法一键定稿。请先保存精修正文，或采用 AI 精修稿后再定稿。"
       : finalizeError === "missingDraftText"
@@ -68,8 +71,12 @@ export default async function EditChapterPage({
       formMessage={formMessage}
       project={chapter.project}
       submitLabel="保存并记录版本"
-      subtitle="章节资料会作为后续摘要提取、AI 生成和连续性检查的重要记忆；保存后会生成新的章节快照。"
-      title="编辑章节"
+      subtitle={
+        shortStoryProject
+          ? "单元目标、规划、节拍和正文会与正式蓝图一起进入后续生成上下文；保存后会生成新的写作单元快照。"
+          : "章节资料会作为后续摘要提取、AI 生成和连续性检查的重要记忆；保存后会生成新的章节快照。"
+      }
+      title={shortStoryProject ? "编辑写作单元" : "编辑章节"}
       versionCount={chapter._count.versions}
     />
   );
