@@ -1,5 +1,36 @@
 # Development Log
 
+## 2026-07-11: AI Transport Headers Timeout Fix
+
+Status: completed for PR review.
+
+What was done:
+
+- Diagnosed three consecutive Kimi K2.6 chapter-draft failures as Undici's
+  default roughly 300-second response-headers timeout. The failed tasks ended
+  after 300.9-302.6 seconds even though chapter writing tasks already had a
+  10-minute application timeout; earlier requests from the same route had
+  succeeded after 243.5 and 297.2 seconds.
+- Added timeout-aware Undici dispatchers for both direct and proxied server
+  requests. When a caller supplies its application timeout, transport-level
+  headers and body timeouts receive an additional 30-second grace period so the
+  caller's abort timer remains authoritative.
+- Preserved existing proxy abort behavior while keeping native abort signals on
+  direct requests. Dispatcher caching now includes the resolved timeout, so a
+  120-second task cannot cause a later 10-minute writing task to reuse a shorter
+  connection policy.
+- Wired OpenAI-compatible text requests to pass their normalized application
+  timeout into `createServerFetch`. Automatic generation retries remain out of
+  scope to avoid duplicate billing or duplicate model work.
+
+Verification:
+
+- Focused server-fetch, OpenAI-client, and AI-task timeout tests passed: 3 files
+  and 33 tests.
+- Full `npm run test` passed: 100 files and 543 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`, and
+  `npm run mvp:acceptance` passed.
+
 ## 2026-07-11: Short Story Phase 2 Blueprint
 
 Status: completed for PR review.

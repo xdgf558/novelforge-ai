@@ -157,7 +157,9 @@ export async function createOpenAITextResponse(
   }
 
   const baseUrl = getConfiguredOpenAIBaseUrl(env);
-  const fetchImpl = options.fetchImpl ?? createServerFetch(env);
+  const timeoutMs = normalizeOpenAIRequestTimeoutMs(options.timeoutMs);
+  const fetchImpl =
+    options.fetchImpl ?? createServerFetch(env, { callerTimeoutMs: timeoutMs });
   const resolvedRequest = {
     ...request,
     model: request.model ?? getConfiguredOpenAIModel(env),
@@ -168,7 +170,6 @@ export async function createOpenAITextResponse(
     : buildOpenAIChatCompletionsPayload(resolvedRequest);
   const endpoint = `${baseUrl}/${useResponsesApi ? "responses" : "chat/completions"}`;
   const requestBody = JSON.stringify(payload);
-  const timeoutMs = normalizeOpenAIRequestTimeoutMs(options.timeoutMs);
   const abortController = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {

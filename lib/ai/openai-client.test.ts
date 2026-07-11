@@ -313,6 +313,50 @@ describe("OpenAI client helpers", () => {
     );
   });
 
+  it("uses a timeout-aware server dispatcher for model requests", async () => {
+    const fetchSpy = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(
+          (init as RequestInit & { dispatcher?: unknown }).dispatcher,
+        ).toBeTruthy();
+
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "草稿结果" } }],
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    try {
+      const result = await createOpenAITextResponse(
+        {
+          model: "kimi-k2.6",
+          input: "生成章节草稿",
+        },
+        {
+          env: {
+            NOVELFORGE_AI_CONFIG_PATH: "/nonexistent/novelforge-test.env",
+            OPENAI_API_KEY: "sk-test",
+            OPENAI_MODEL: "kimi-k2.6",
+            OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+            NO_PROXY: "*",
+          },
+          timeoutMs: defaultOpenAIRequestTimeoutMs * 5,
+        },
+      );
+
+      expect(result.outputText).toBe("草稿结果");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps the request timeout active while reading the response body", async () => {
     vi.useFakeTimers();
     try {

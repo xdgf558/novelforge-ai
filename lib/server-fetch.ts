@@ -1,4 +1,4 @@
-import { ProxyAgent, type Dispatcher } from "undici";
+import { Agent, ProxyAgent, type Dispatcher } from "undici";
 import { getAiRuntimeEnv, type AiRuntimeEnv } from "@/lib/ai/local-config";
 
 type FetchWithDispatcherInit = RequestInit & {
@@ -7,22 +7,45 @@ type FetchWithDispatcherInit = RequestInit & {
 
 type FetchLike = typeof fetch;
 
+type ServerFetchOptions = {
+  callerTimeoutMs?: number;
+};
+
+export const serverFetchTransportTimeoutGraceMs = 30_000;
+
 const cachedDispatchers = new Map<string, Dispatcher>();
 
-export function createServerFetch(env: AiRuntimeEnv = process.env): FetchLike {
+export function createServerFetch(
+  env: AiRuntimeEnv = process.env,
+  options: ServerFetchOptions = {},
+): FetchLike {
   const proxyConfig = getProxyConfig(env);
+  const transportTimeoutMs = resolveTransportTimeoutMs(options.callerTimeoutMs);
 
   return ((input: RequestInfo | URL, init?: RequestInit) => {
-    const dispatcher = getProxyDispatcherForRequest(input, proxyConfig);
+    const proxyDispatcher = getProxyDispatcherForRequest(
+      input,
+      proxyConfig,
+      transportTimeoutMs,
+    );
 
-    if (!dispatcher) {
-      return fetch(input, init);
+    if (!proxyDispatcher) {
+      const directDispatcher = getDirectDispatcher(transportTimeoutMs);
+
+      if (!directDispatcher) {
+        return fetch(input, init);
+      }
+
+      return fetch(input, {
+        ...init,
+        dispatcher: directDispatcher,
+      } as FetchWithDispatcherInit);
     }
 
     const { signal, ...initWithoutSignal } = init ?? {};
     const responsePromise = fetch(input, {
       ...initWithoutSignal,
-      dispatcher,
+      dispatcher: proxyDispatcher,
     } as FetchWithDispatcherInit);
 
     if (!signal) {
@@ -72,15 +95,56 @@ export function getDefaultProxyDispatcher(env: AiRuntimeEnv = process.env) {
   return getProxyDispatcherForUrl(proxyUrl, proxyConfig.noProxy);
 }
 
-function getProxyDispatcherForUrl(proxyUrl: string, noProxy: string) {
-  const proxyKey = JSON.stringify({ proxyUrl, noProxy });
+function getDirectDispatcher(transportTimeoutMs?: number) {
+  if (!transportTimeoutMs) {
+    return null;
+  }
+
+  const directKey = JSON.stringify({
+    kind: "direct",
+    transportTimeoutMs,
+  });
+  const cachedDispatcher = cachedDispatchers.get(directKey);
+
+  if (cachedDispatcher) {
+    return cachedDispatcher;
+  }
+
+  const dispatcher = new Agent({
+    headersTimeout: transportTimeoutMs,
+    bodyTimeout: transportTimeoutMs,
+  });
+  cachedDispatchers.set(directKey, dispatcher);
+
+  return dispatcher;
+}
+
+function getProxyDispatcherForUrl(
+  proxyUrl: string,
+  noProxy: string,
+  transportTimeoutMs?: number,
+) {
+  const proxyKey = JSON.stringify({
+    kind: "proxy",
+    proxyUrl,
+    noProxy,
+    transportTimeoutMs,
+  });
   const cachedDispatcher = cachedDispatchers.get(proxyKey);
 
   if (cachedDispatcher) {
     return cachedDispatcher;
   }
 
-  const dispatcher = new ProxyAgent(proxyUrl);
+  const dispatcher = new ProxyAgent({
+    uri: proxyUrl,
+    ...(transportTimeoutMs
+      ? {
+          headersTimeout: transportTimeoutMs,
+          bodyTimeout: transportTimeoutMs,
+        }
+      : {}),
+  });
   cachedDispatchers.set(proxyKey, dispatcher);
 
   return dispatcher;
@@ -115,6 +179,7 @@ function getProxyConfig(env: AiRuntimeEnv = process.env): ProxyConfig {
 function getProxyDispatcherForRequest(
   input: RequestInfo | URL,
   proxyConfig: ProxyConfig,
+  transportTimeoutMs?: number,
 ) {
   if (shouldBypassProxy(input, proxyConfig.noProxy)) {
     return null;
@@ -130,7 +195,23 @@ function getProxyDispatcherForRequest(
     return null;
   }
 
-  return getProxyDispatcherForUrl(proxyUrl, proxyConfig.noProxy);
+  return getProxyDispatcherForUrl(
+    proxyUrl,
+    proxyConfig.noProxy,
+    transportTimeoutMs,
+  );
+}
+
+function resolveTransportTimeoutMs(callerTimeoutMs?: number) {
+  if (
+    typeof callerTimeoutMs !== "number" ||
+    !Number.isFinite(callerTimeoutMs) ||
+    callerTimeoutMs <= 0
+  ) {
+    return undefined;
+  }
+
+  return Math.round(callerTimeoutMs) + serverFetchTransportTimeoutGraceMs;
 }
 
 function shouldBypassProxy(input: RequestInfo | URL, noProxy: string) {
