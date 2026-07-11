@@ -1,5 +1,51 @@
 # Development Log
 
+## 2026-07-11: 0.1.87 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.87` after the repository
+  hardening work was reviewed and merged into `main`.
+- Built a fresh arm64 Electron app and formal PKG installer for `/Applications`.
+- Detected that the Developer ID app signature verified only in the original
+  build directory but became invalid after an ordinary copy or PKG expansion.
+  The final personal-use payload was therefore re-signed ad hoc in its staging
+  directory with hardened runtime plus the project's JIT, unsigned executable
+  memory, and library-validation entitlements before packaging.
+- Built the final unsigned PKG with `pkgbuild --root` and
+  `--ownership preserve` at
+  `release/desktop/NovelForge-AI-0.1.87-mac-arm64.pkg`.
+- Moved the previous `0.1.86` installer, failed candidates, and Electron build
+  intermediates out of the delivery directory after final verification. They
+  are quarantined under `/private/tmp` pending the required permanent-deletion
+  approval.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 93 files and 501 tests.
+- `npm run desktop:smoke` passed.
+- `npm run mvp:acceptance` passed.
+- `npm run desktop:pack:mac` completed with notarization skipped after clearing
+  stale local proxy variables.
+- The final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.87`,
+  and install location `/Applications`.
+- The app expanded from the final PKG reports `0.1.87` in `Info.plist`, passes
+  whole-bundle deep/strict signature verification, and retains the required
+  hardened-runtime entitlements.
+- The final expanded payload ran all 20 desktop migrations against an isolated
+  SQLite database, including `20260711093000_repository_hardening`.
+- A second packaged HTTP startup check could not bind a local port inside the
+  packaging sandbox (`listen EPERM`); the source-level desktop smoke test passed
+  earlier in the same build run.
+- The PKG is unsigned because no Developer ID Installer identity is available;
+  its app payload is ad-hoc signed for personal local use, so macOS may require a
+  one-time right-click Open confirmation.
+- Final SHA-256:
+  `1aa469ae8d4e8778e026863be0ff2862f338bcacbd3f997ebe9350d2eefe68b0`.
+
 ## 2026-07-11: Repository Hardening and Continuity Data Integrity
 
 Status: completed.
