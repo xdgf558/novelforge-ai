@@ -44,6 +44,73 @@ Verification:
   navigation, and the unchanged serial chapter creation path. Desktop and
   390-pixel mobile layouts had no horizontal overflow.
 
+## 2026-07-11: 0.1.90 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.90` after the AI transport
+  headers-timeout fix was reviewed, merged into `main`, and pushed to GitHub.
+- Rebuilt the personal-use arm64 macOS installer so long-running chapter draft
+  generation uses the repaired timeout-aware Undici transport.
+- Built the final unsigned personal-use PKG at
+  `release/desktop/NovelForge-AI-0.1.90-mac-arm64.pkg`. The staged app payload
+  was re-signed ad hoc with hardened runtime and the required Electron JIT,
+  unsigned executable memory, and library-validation entitlements.
+- Removed the previous `0.1.89` installer and Electron build intermediates so
+  the delivery directory contains only the new verified PKG.
+
+Verification:
+
+- `npm run typecheck` passed.
+- Full `npm run test` passed: 100 files and 543 tests.
+- `npm run desktop:smoke`, `npm run mvp:acceptance`, and the production build
+  inside `npm run desktop:pack:mac` passed.
+- The final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.90`,
+  and install location `/Applications`.
+- The app expanded from the final PKG reports `0.1.90`, retains the required
+  hardened-runtime entitlements, and passes whole-bundle deep/strict signature
+  verification. A second ordinary copy passes the same verification.
+- The expanded packaged payload applied all 22 desktop migrations to an
+  isolated SQLite database; `PRAGMA quick_check` returned `ok`.
+- The PKG is unsigned because no Developer ID Installer identity is available;
+  its app payload is ad-hoc signed for personal local use, so macOS may require
+  a one-time right-click Open confirmation.
+- Final SHA-256:
+  `ff6828de89bbe72a14f6e1d8354572c5a280216c5592a3b5cb1d9dda48ea5d07`.
+
+## 2026-07-11: AI Transport Headers Timeout Fix
+
+Status: completed for PR review.
+
+What was done:
+
+- Diagnosed three consecutive Kimi K2.6 chapter-draft failures as Undici's
+  default roughly 300-second response-headers timeout. The failed tasks ended
+  after 300.9-302.6 seconds even though chapter writing tasks already had a
+  10-minute application timeout; earlier requests from the same route had
+  succeeded after 243.5 and 297.2 seconds.
+- Added timeout-aware Undici dispatchers for both direct and proxied server
+  requests. When a caller supplies its application timeout, transport-level
+  headers and body timeouts receive an additional 30-second grace period so the
+  caller's abort timer remains authoritative.
+- Preserved existing proxy abort behavior while keeping native abort signals on
+  direct requests. Dispatcher caching now includes the resolved timeout, so a
+  120-second task cannot cause a later 10-minute writing task to reuse a shorter
+  connection policy.
+- Wired OpenAI-compatible text requests to pass their normalized application
+  timeout into `createServerFetch`. Automatic generation retries remain out of
+  scope to avoid duplicate billing or duplicate model work.
+
+Verification:
+
+- Focused server-fetch, OpenAI-client, and AI-task timeout tests passed: 3 files
+  and 33 tests.
+- Full `npm run test` passed: 100 files and 543 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`, and
+  `npm run mvp:acceptance` passed.
+
 ## 2026-07-11: Short Story Phase 2 Blueprint
 
 Status: completed for PR review.

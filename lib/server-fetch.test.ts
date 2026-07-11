@@ -1,5 +1,27 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createServerFetch, resetServerFetchProxyDispatcher } from "./server-fetch";
+import {
+  createServerFetch,
+  resetServerFetchProxyDispatcher,
+  serverFetchTransportTimeoutGraceMs,
+} from "./server-fetch";
+
+const dispatcherMocks = vi.hoisted(() => ({
+  agentOptions: [] as unknown[],
+  proxyAgentOptions: [] as unknown[],
+}));
+
+vi.mock("undici", () => ({
+  Agent: class MockAgent {
+    constructor(options: unknown) {
+      dispatcherMocks.agentOptions.push(options);
+    }
+  },
+  ProxyAgent: class MockProxyAgent {
+    constructor(options: unknown) {
+      dispatcherMocks.proxyAgentOptions.push(options);
+    }
+  },
+}));
 
 type FetchMock = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type FetchInitWithDispatcher = RequestInit & { dispatcher?: unknown };
@@ -11,7 +33,90 @@ function fetchInitAt(fetchSpy: ReturnType<typeof vi.fn<FetchMock>>, index: numbe
 describe("server fetch", () => {
   afterEach(() => {
     resetServerFetchProxyDispatcher();
+    dispatcherMocks.agentOptions.length = 0;
+    dispatcherMocks.proxyAgentOptions.length = 0;
     vi.unstubAllGlobals();
+  });
+
+  it("extends caller timeouts for direct Undici connections", async () => {
+    const fetchSpy = vi.fn<FetchMock>(async () => new Response("ok"));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const fetchImpl = createServerFetch(
+      {
+        NOVELFORGE_AI_CONFIG_PATH: "/nonexistent/novelforge-test.env",
+        NO_PROXY: "*",
+      },
+      { callerTimeoutMs: 600_000 },
+    );
+    const abortController = new AbortController();
+
+    await fetchImpl("https://api.moonshot.cn/v1/chat/completions", {
+      signal: abortController.signal,
+    });
+
+    expect(dispatcherMocks.agentOptions).toEqual([
+      {
+        headersTimeout: 600_000 + serverFetchTransportTimeoutGraceMs,
+        bodyTimeout: 600_000 + serverFetchTransportTimeoutGraceMs,
+      },
+    ]);
+    expect(fetchInitAt(fetchSpy, 0)?.dispatcher).toBeTruthy();
+    expect(fetchInitAt(fetchSpy, 0)?.signal).toBe(abortController.signal);
+  });
+
+  it("does not reuse a shorter direct dispatcher for longer tasks", async () => {
+    const fetchSpy = vi.fn<FetchMock>(async () => new Response("ok"));
+    vi.stubGlobal("fetch", fetchSpy);
+    const env = {
+      NOVELFORGE_AI_CONFIG_PATH: "/nonexistent/novelforge-test.env",
+      NO_PROXY: "*",
+    };
+
+    await createServerFetch(env, { callerTimeoutMs: 120_000 })(
+      "https://api.moonshot.cn/v1/chat/completions",
+    );
+    await createServerFetch(env, { callerTimeoutMs: 600_000 })(
+      "https://api.moonshot.cn/v1/chat/completions",
+    );
+
+    expect(dispatcherMocks.agentOptions).toEqual([
+      {
+        headersTimeout: 120_000 + serverFetchTransportTimeoutGraceMs,
+        bodyTimeout: 120_000 + serverFetchTransportTimeoutGraceMs,
+      },
+      {
+        headersTimeout: 600_000 + serverFetchTransportTimeoutGraceMs,
+        bodyTimeout: 600_000 + serverFetchTransportTimeoutGraceMs,
+      },
+    ]);
+    expect(fetchInitAt(fetchSpy, 0)?.dispatcher).not.toBe(
+      fetchInitAt(fetchSpy, 1)?.dispatcher,
+    );
+  });
+
+  it("extends caller timeouts for proxied Undici connections", async () => {
+    const fetchSpy = vi.fn<FetchMock>(async () => new Response("ok"));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const fetchImpl = createServerFetch(
+      {
+        NOVELFORGE_AI_CONFIG_PATH: "/nonexistent/novelforge-test.env",
+        HTTPS_PROXY: "http://127.0.0.1:1082",
+      },
+      { callerTimeoutMs: 600_000 },
+    );
+
+    await fetchImpl("https://api.moonshot.cn/v1/chat/completions");
+
+    expect(dispatcherMocks.proxyAgentOptions).toEqual([
+      {
+        uri: "http://127.0.0.1:1082",
+        headersTimeout: 600_000 + serverFetchTransportTimeoutGraceMs,
+        bodyTimeout: 600_000 + serverFetchTransportTimeoutGraceMs,
+      },
+    ]);
+    expect(fetchInitAt(fetchSpy, 0)?.dispatcher).toBeTruthy();
   });
 
   it("does not pass abort signals directly into proxied undici fetch calls", async () => {
