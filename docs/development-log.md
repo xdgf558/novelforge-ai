@@ -1,5 +1,27 @@
 # Development Log
 
+## 2026-07-11: Historical Foreshadow Audit Live Status
+
+Status: completed.
+
+What was done:
+
+- Fixed the structured-memory page remaining on a stale “scanning” snapshot
+  after all historical foreshadow audit batches had completed in the
+  background.
+- Reused the existing visibility-aware `AutoRefresh` component while at least
+  one recovery-audit task is pending or running. The page refreshes every five
+  seconds while visible and automatically stops polling after the final batch
+  completes.
+- Confirmed the reported local scan was not stuck: all four batches completed
+  and persisted 24 review candidates, including eight high-confidence recovery
+  candidates.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run build` passed.
+
 ## 2026-07-11: 0.1.88 Personal macOS Installer Rebuild
 
 Status: completed.
