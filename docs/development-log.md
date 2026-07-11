@@ -1,5 +1,62 @@
 # Development Log
 
+## 2026-07-11: Automatic Foreshadow Recovery Audit
+
+Status: completed.
+
+What was done:
+
+- Extended chapter-summary extraction so every new confirmed chapter can audit
+  a bounded, ranked set of unresolved formal foreshadows. Explicitly evidenced
+  progress becomes an `advance` pending update; a fully answered core question
+  becomes a `resolve` pending update.
+- Bound every automatic candidate to stable foreshadow/chapter IDs and the
+  SHA-256 hash of the exact final text. Hallucinated IDs, missing evidence,
+  low-confidence signals, pre-planting chapter references, stale source text,
+  and duplicate target/chapter/action suggestions are rejected.
+- Added a legacy-project scan to the structured-memory page. It reads every
+  unresolved foreshadow without database pre-truncation, skips targets already
+  awaiting review, and splits the remaining pool into sequential batches of 12
+  so a large old pool does not produce concurrent long-running model calls.
+- Historical evidence uses only chapter summaries whose saved source hash still
+  matches the current final text; otherwise it falls back to a bounded excerpt
+  of the current final text. Each old foreshadow reserves a semantically relevant
+  or expected-chapter evidence anchor before the remaining evidence budget is
+  filled with relevant recent chapters, so long novels do not hide early
+  recoveries behind the latest 24 chapters.
+- Added a review panel for automatic recovery candidates. Authors may
+  batch-confirm only current high-confidence `resolve` candidates; partial
+  progress and medium-confidence results remain in the normal individual review
+  flow. Formal foreshadow memory is never changed by AI alone.
+- Bumped the chapter-summary and pending-update default prompt templates to v2,
+  added stable `targetId` fields to their schemas, and introduced the dedicated
+  `foreshadow_recovery_audit` v1 template with the five-minute planning timeout.
+- Added a background-task failure callback so a failed historical batch still
+  starts the next batch instead of abandoning the rest of the old pool.
+- Review follow-up: memoized foreshadow/chapter overlap scores inside each
+  historical batch and precomputed chapter-summary mention ranks before sorting,
+  preserving selection behavior while reducing repeated trigram scans on large
+  projects.
+- Review follow-up: the batch-approval server action now uses the shared project
+  existence guard, and the memory UI explicitly warns that closing the desktop
+  app interrupts the in-process batch chain and requires another scan.
+
+Verification:
+
+- Focused automatic-recovery, prompt, task-runner, and server-action tests pass.
+- `npm run typecheck` passes.
+- `npm run test` passes, 96 files and 522 tests.
+- `npm run build` passes, including Next.js production compilation and its
+  built-in lint/type validity phase.
+- `npm run mvp:acceptance` passes.
+- Local UI verification used a migrated temporary database. The memory page
+  scan action, empty-result message, automatic recovery review card, and batch
+  confirmation control rendered correctly. At 390 x 844, both new panels kept
+  `scrollWidth === clientWidth`, with no horizontal overflow; the clean test tab
+  reported no browser console errors.
+- The repository has no standalone `npm run lint` script; invoking it reports a
+  missing script, so lint coverage comes from the successful Next.js build.
+
 ## 2026-07-11: 0.1.87 Personal macOS Installer Rebuild
 
 Status: completed.

@@ -4,12 +4,14 @@ import {
   createForeshadow,
   createTimelineEvent,
   createWorldRule,
+  scanHistoricalForeshadowRecoveries,
 } from "./actions";
 
 const mocks = vi.hoisted(() => ({
   notFound: vi.fn(),
   redirect: vi.fn(),
   revalidatePath: vi.fn(),
+  startHistoricalForeshadowRecoveryAudit: vi.fn(),
   prisma: {
     project: {
       findUnique: vi.fn(),
@@ -49,6 +51,11 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: mocks.prisma,
+}));
+
+vi.mock("@/lib/foreshadows/recovery-service", () => ({
+  startHistoricalForeshadowRecoveryAudit:
+    mocks.startHistoricalForeshadowRecoveryAudit,
 }));
 
 function formData(values: Record<string, string | number | boolean>) {
@@ -91,6 +98,11 @@ describe("story memory actions", () => {
     });
     mocks.prisma.timelineEvent.create.mockResolvedValue({
       id: "event_1",
+    });
+    mocks.startHistoricalForeshadowRecoveryAudit.mockResolvedValue({
+      status: "started",
+      batchCount: 4,
+      foreshadowCount: 46,
     });
   });
 
@@ -271,5 +283,19 @@ describe("story memory actions", () => {
       },
     });
     expect(mocks.prisma.worldRule.delete).not.toHaveBeenCalled();
+  });
+
+  it("starts a bounded historical recovery audit without changing formal memory", async () => {
+    await expect(
+      scanHistoricalForeshadowRecoveries("project_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.startHistoricalForeshadowRecoveryAudit).toHaveBeenCalledWith(
+      "project_1",
+    );
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/memory?recoveryAudit=started&recoveryBatches=4&recoveryForeshadows=46#foreshadows",
+    );
+    expect(mocks.prisma.foreshadow.update).not.toHaveBeenCalled();
   });
 });

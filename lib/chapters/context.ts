@@ -17,6 +17,7 @@ import {
 import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
 import { selectRelevantCharacters } from "@/lib/ai/context-priority";
 import { findForeshadowRecoveryReminders } from "@/lib/foreshadows/recovery-reminders";
+import { selectForeshadowsForChapterRecoveryAudit } from "@/lib/foreshadows/recovery-audit";
 import { selectRelevantOutlinesForChapter } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
 
@@ -329,7 +330,7 @@ export async function loadChapterSummaryContext(
     throw new ChapterContextNotFoundError();
   }
 
-  const [setting, characters] = await Promise.all([
+  const [setting, characters, foreshadows] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
@@ -341,17 +342,54 @@ export async function loadChapterSummaryContext(
         status: "active",
       },
     }),
+    prisma.foreshadow.findMany({
+      where: {
+        projectId,
+        status: {
+          in: ["planted", "advancing", "needs_attention"],
+        },
+      },
+      select: {
+        id: true,
+        content: true,
+        status: true,
+        importance: true,
+        expectedResolveChapter: true,
+        plantedChapterId: true,
+        plantedChapter: {
+          select: {
+            chapterNumber: true,
+          },
+        },
+      },
+    }),
   ]);
+
+  const summaryChapter = pickChapterSummaryContext(chapter);
+  const recoveryCandidates = selectForeshadowsForChapterRecoveryAudit({
+    chapterNumber: chapter.chapterNumber,
+    finalText: chapter.finalText?.trim() ?? "",
+    foreshadows: foreshadows.map((foreshadow) => ({
+      id: foreshadow.id,
+      content: foreshadow.content,
+      status: foreshadow.status,
+      importance: foreshadow.importance,
+      expectedResolveChapter: foreshadow.expectedResolveChapter,
+      plantedChapterId: foreshadow.plantedChapterId,
+      plantedChapterNumber: foreshadow.plantedChapter?.chapterNumber ?? null,
+    })),
+  });
 
   return {
     project: chapter.project,
     setting,
-    chapter: pickChapterSummaryContext(chapter),
+    chapter: summaryChapter,
     characters: selectRelevantCharacters(
       characters,
       chapterRelevanceText(chapter),
       12,
     ),
+    foreshadows: recoveryCandidates,
   };
 }
 

@@ -45,6 +45,13 @@ MVP includes:
   “本章建议处理伏笔” so the AI can plan recovery, staged progress, or an
   explicit deferral. This is only planning context; formal foreshadow status
   still changes only after author action in story memory.
+- Chapter summary generation automatically audits bounded, relevant unresolved
+  foreshadows against the confirmed final text. Evidence-backed advance or
+  resolve signals become source-hash-bound pending updates; they never mutate
+  formal foreshadow memory until author approval. Existing projects can run a
+  historical audit over every unresolved foreshadow in sequential bounded
+  batches, and authors may batch-confirm only current, high-confidence resolve
+  candidates.
 
 MVP excludes:
 
@@ -88,9 +95,9 @@ The intended author workflow is:
 13. User edits draft.
 14. AI optionally polishes text.
 15. User confirms final text.
-16. AI generates chapter summary.
-17. AI extracts pending setting updates.
-18. User approves, rejects, or edits updates.
+16. AI generates chapter summary and automatically queues evidence-backed foreshadow advance/recovery candidates for review.
+17. AI extracts other pending setting updates.
+18. User approves, rejects, edits, or batch-confirms high-confidence foreshadow recoveries.
 19. AI runs continuity check.
 20. User exports WeChat-ready or Fanqie-ready layout/copy from confirmed chapter text.
 21. User publishes manually and moves to next chapter.
@@ -128,7 +135,7 @@ Prioritize these tables early:
 - Frontend must never access `OPENAI_API_KEY`.
 - All AI calls go through backend routes/actions.
 - Store model name, prompt template version, input context summary, output, status, token usage when available, created time, and adoption state.
-- The default AI connection remains the structural/editorial model route, intended for planning, outlines, beats, summaries, continuity checks, and other management tasks. Chapter draft and chapter polish tasks may use task-level OpenAI-compatible routes such as Kimi K2.6; when a route has no saved API key, it safely falls back to the default AI connection. Routed tasks store a non-secret execution snapshot with route source, model, and base URL in `ai_tasks.inputJson`, while API keys remain only in local config. Long-form writing tasks (`chapter_draft_generation` and `chapter_polish_generation`) use a longer 10 minute model request timeout; long planning or memory-audit tasks (`chapter_beat_generation`, `outline_generation`, `ending_planning_generation`, and `pending_update_extraction`) use a 5 minute model request timeout because DeepSeek-style planning/JSON extraction responses can exceed 120 seconds even with compact inputs; shorter structural extraction/check tasks keep the default 120 second timeout.
+- The default AI connection remains the structural/editorial model route, intended for planning, outlines, beats, summaries, continuity checks, and other management tasks. Chapter draft and chapter polish tasks may use task-level OpenAI-compatible routes such as Kimi K2.6; when a route has no saved API key, it safely falls back to the default AI connection. Routed tasks store a non-secret execution snapshot with route source, model, and base URL in `ai_tasks.inputJson`, while API keys remain only in local config. Long-form writing tasks (`chapter_draft_generation` and `chapter_polish_generation`) use a longer 10 minute model request timeout; long planning or memory-audit tasks (`chapter_beat_generation`, `outline_generation`, `ending_planning_generation`, `pending_update_extraction`, and `foreshadow_recovery_audit`) use a 5 minute model request timeout because DeepSeek-style planning/JSON extraction responses can exceed 120 seconds even with compact inputs; shorter structural extraction/check tasks keep the default 120 second timeout.
 - Structured tasks should use JSON Schema:
   - Project setting generation
   - Character generation
@@ -247,6 +254,15 @@ Recommended implementation order:
 - Phase 30A AI storyline draft generation: `/projects/[projectId]/storylines` can start logged `storyline_generation` tasks that suggest storylines from project setting, characters, foreshadows, recent chapter summaries, outlines, and existing storylines. Candidate storylines may fill the formal form, but formal `storylines` rows and relation rows are written only after explicit author confirmation.
 - Storyline completion remains safe and semi-automatic: the board may suggest “可能可以收束” when a storyline reaches its ending chapter or its linked chapters are all finalized/published, but the author must manually mark it completed or archive it. The storyline board shows the latest 3 formal storylines by default and folds older ones into history.
 - Storyline chapter relations are semi-automatic from confirmed metadata: when a storyline has both `startChapter` and `endChapter`, saving/adopting it merges existing chapters in that inclusive range into “推进章节”; creating or editing a chapter adds the chapter to non-archived storylines whose explicit range contains that chapter number. The sync is additive and must not silently remove manual chapter links.
+- Automatic foreshadow recovery audit: chapter summaries now compare confirmed
+  final text with a bounded, ranked set of unresolved formal foreshadows and
+  create source-bound pending advance/resolve updates only when the model
+  returns stable target IDs plus explicit evidence. The memory page can audit
+  all legacy unresolved foreshadows in sequential batches of 12, skipping
+  targets that already await review and stale chapter summaries. Only current
+  high-confidence resolve candidates support one-click batch approval; medium
+  confidence and advance candidates remain individually reviewable. Formal
+  foreshadows still change only after an author action.
 - Modular refactor Phase 1 establishes the target modular-monolith boundaries in `docs/module-refactor-architecture.md`. Future refactor phases should keep route files focused on request parsing, redirects, and revalidation; move durable business rules into `lib/<domain>/`; keep AI orchestration in `lib/ai/`; and put shared Next server-action glue in `lib/server-actions/`. Phase 1 also centralizes repeated project-existence guards in `lib/server-actions/project-guards.ts`.
 - Modular refactor Phase 2 splits the oversized chapter server action into `lib/chapters/` domain modules. Chapter record writes and version snapshots live in `lib/chapters/records.ts`; chapter AI task startup lives in `lib/chapters/ai-generation.ts`; chapter beat/draft/polish/summary context loading lives in `lib/chapters/context.ts`; outline status sync lives in `lib/chapters/outline-status.ts`; reader-feedback snapshot persistence lives in `lib/chapters/reader-feedback-snapshots.ts`. The route action should stay responsible for form parsing, `notFound` translation, revalidation, and redirects.
 - Modular refactor Phase 3 splits outline, storyline, and structured-memory route actions into domain services. Formal memory record writes and relation guards live in `lib/memory/records.ts`; storyline writes, relation replacement, duplicate checks, range-based chapter auto-linking, and completion/archive state changes live in `lib/storylines/records.ts`; outline CRUD lives in `lib/outlines/records.ts`; outline active-task helpers and previous-ending context live in `lib/outlines/ai-tasks.ts`; ending-planning foreshadow selection lives in `lib/outlines/ending-planning.ts`. Keep formal story-memory changes author-controlled: these services may write only from existing explicit author actions, not from AI suggestions directly.

@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => {
     notFound: vi.fn(),
     redirect: vi.fn(),
     revalidatePath: vi.fn(),
+    approveAutomaticForeshadowRecoveries: vi.fn(),
+    assertProject: vi.fn(),
     prisma: {
       pendingUpdate: {
         findFirst: vi.fn(),
@@ -43,7 +45,19 @@ vi.mock("@/lib/prisma", () => ({
   prisma: mocks.prisma,
 }));
 
-import { approvePendingUpdate } from "./actions";
+vi.mock("@/lib/foreshadows/recovery-records", () => ({
+  approveAutomaticForeshadowRecoveries:
+    mocks.approveAutomaticForeshadowRecoveries,
+}));
+
+vi.mock("@/lib/server-actions/project-guards", () => ({
+  assertProjectExists: mocks.assertProject,
+}));
+
+import {
+  approveAutomaticForeshadowRecoveryBatch,
+  approvePendingUpdate,
+} from "./actions";
 
 function pendingForeshadowUpdate(overrides: Record<string, unknown> = {}) {
   const finalText = "当前定稿正文";
@@ -84,6 +98,10 @@ describe("pending update approval", () => {
       id: "foreshadow_1",
       content: "旧印来源不明。",
       status: "planted",
+    });
+    mocks.approveAutomaticForeshadowRecoveries.mockResolvedValue({
+      approvedCount: 3,
+      skippedCount: 1,
     });
   });
 
@@ -136,5 +154,23 @@ describe("pending update approval", () => {
 
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.tx.foreshadow.update).not.toHaveBeenCalled();
+  });
+
+  it("batch-confirms only the automatic recovery candidates returned by the service", async () => {
+    mocks.redirect.mockImplementationOnce(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+
+    await expect(
+      approveAutomaticForeshadowRecoveryBatch("project_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.approveAutomaticForeshadowRecoveries).toHaveBeenCalledWith(
+      "project_1",
+    );
+    expect(mocks.assertProject).toHaveBeenCalledWith("project_1");
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/pending-updates?review=auto-recovery-approved&approved=3&skipped=1",
+    );
   });
 });

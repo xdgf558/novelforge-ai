@@ -71,8 +71,35 @@ describe("chapter summary context builder", () => {
 
   it("summarizes context scope for AI task records", () => {
     expect(buildChapterSummaryContextSummary(baseInput)).toBe(
-      `第 5 章《门后的倒计时》章节摘要提取；定稿 ${baseInput.chapter.finalText.length} 字；角色 1 个；包含项目设定`,
+      `第 5 章《门后的倒计时》章节摘要提取；定稿 ${baseInput.chapter.finalText.length} 字；角色 1 个；伏笔候选 0 条；包含项目设定`,
     );
+  });
+
+  it("passes stable foreshadow ids and strict recovery rules into the summary audit", () => {
+    const context = buildChapterSummaryContext({
+      ...baseInput,
+      foreshadows: [
+        {
+          id: "foreshadow_countdown",
+          content: "门后的倒计时来源待查。",
+          status: "needs_attention",
+          importance: "high",
+          expectedResolveChapter: 5,
+          plantedChapterNumber: 2,
+        },
+      ],
+    });
+
+    expect(context.inputText).toContain("[foreshadow_countdown]");
+    expect(context.inputText).toContain("只审计候选列表中的伏笔");
+    expect(context.inputText).toContain("完整兑现使用 resolve");
+    expect(context.inputJson.foreshadows).toEqual([
+      expect.objectContaining({
+        id: "foreshadow_countdown",
+        expectedResolveChapter: 5,
+      }),
+    ]);
+    expect(context.inputContextSummary).toContain("伏笔候选 1 条");
   });
 
   it("uses safe excerpts for very long final text prompts", () => {

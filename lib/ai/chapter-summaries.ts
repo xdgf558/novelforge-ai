@@ -3,6 +3,10 @@ import {
   projectSettingFields,
   type ProjectSettingFieldName,
 } from "../project-setting-fields";
+import {
+  foreshadowImportanceLabel,
+  foreshadowStatusLabel,
+} from "../story-memory-fields";
 
 export type ChapterSummaryProjectContext = {
   title: string;
@@ -36,11 +40,22 @@ export type ChapterSummaryChapterContext = {
   notes?: string | null;
 };
 
+export type ChapterSummaryForeshadowContext = {
+  id: string;
+  content: string;
+  status: string;
+  importance: string;
+  expectedResolveChapter?: number | null;
+  plantedChapterId?: string | null;
+  plantedChapterNumber?: number | null;
+};
+
 export type ChapterSummaryContextInput = {
   project: ChapterSummaryProjectContext;
   setting?: ChapterSummarySettingContext | null;
   chapter: ChapterSummaryChapterContext;
   characters: readonly ChapterSummaryCharacterContext[];
+  foreshadows?: readonly ChapterSummaryForeshadowContext[];
 };
 
 export type BuiltChapterSummaryContext = {
@@ -60,6 +75,7 @@ export function buildChapterSummaryContext(
   const promptSourceText = buildPromptSourceText(sourceText);
   const settingItems = buildSettingItems(input.setting);
   const characterItems = input.characters.map(buildCharacterLine).filter(Boolean);
+  const foreshadows = input.foreshadows ?? [];
 
   const inputJson = {
     project: {
@@ -84,11 +100,21 @@ export function buildChapterSummaryContext(
     },
     setting: Object.fromEntries(settingItems),
     characters: characterItems,
+    foreshadows: foreshadows.map((foreshadow) => ({
+      id: foreshadow.id,
+      content: clipText(foreshadow.content, 500),
+      status: foreshadow.status,
+      importance: foreshadow.importance,
+      expectedResolveChapter: foreshadow.expectedResolveChapter ?? null,
+      plantedChapterNumber: foreshadow.plantedChapterNumber ?? null,
+    })),
     outputRequirements: [
       "只输出 JSON，不要输出 Markdown 说明。",
       "只提取定稿正文中明确出现的信息。",
       "不得根据草稿、设定脑补或未来剧情推测。",
       "不要直接修改正式设定、人物、时间线或伏笔。",
+      "只审计候选列表中的伏笔；没有明确正文证据时不要输出伏笔推进或回收。",
+      "完整兑现使用 resolve，只有新线索或局部验证时使用 advance。",
       promptSourceText.wasExcerpted
         ? "定稿正文较长，模型输入使用首段/中段/尾段摘录；不要臆造省略部分未出现的信息。"
         : "",
@@ -120,6 +146,23 @@ export function buildChapterSummaryContext(
     "# 角色名表",
     characterItems.length > 0 ? characterItems.join("\n") : "暂无角色资料。",
     "",
+    "# 本章相关的未回收伏笔候选",
+    foreshadows.length > 0
+      ? foreshadows
+          .map(
+            (foreshadow) =>
+              `- [${foreshadow.id}] ${clipText(foreshadow.content, 500)}（${foreshadowStatusLabel(foreshadow.status)}；重要度：${foreshadowImportanceLabel(foreshadow.importance)}；预计回收：${foreshadow.expectedResolveChapter ?? "未指定"}）`,
+          )
+          .join("\n")
+      : "本章没有进入审计范围的未回收伏笔。",
+    "",
+    "# 伏笔审计边界",
+    "- 只审计候选列表中的伏笔，不得为相似内容臆造新目标。",
+    "- 伏笔核心疑问已被正文明确回答时，完整兑现使用 resolve。",
+    "- 只有新线索、局部验证或继续铺垫时使用 advance。",
+    "- 重复提及、再次展示物证或仍带猜测的推论都不算回收。",
+    "- 没有可核对的定稿正文证据时，不要输出该伏笔。",
+    "",
     "# 当前章节元信息",
     lines([
       ["章节目标", input.chapter.goal],
@@ -138,6 +181,7 @@ export function buildChapterSummaryContext(
     "- newSettings: 新出现的设定、规则或事实数组。",
     "- timelineEvents: 可进入时间线的事件数组。",
     "- continuityRisks: 可能影响后续连续性的风险数组。",
+    "- foreshadowUpdates: 本章明确推进或完成回收的既有伏笔数组；每项包含 targetId, action, summary, evidence, confidence。没有可靠证据时输出空数组。",
   ].join("\n");
 
   return {
@@ -161,6 +205,7 @@ export function buildChapterSummaryContextSummary(
         : `定稿 ${sourceText.length} 字`
       : "缺少定稿正文",
     `角色 ${input.characters.length} 个`,
+    `伏笔候选 ${input.foreshadows?.length ?? 0} 条`,
     input.setting ? "包含项目设定" : "无项目设定",
   ].join("；");
 }

@@ -27,6 +27,7 @@ import {
   updateWorldRuleRecord,
 } from "@/lib/memory/records";
 import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
+import { startHistoricalForeshadowRecoveryAudit } from "@/lib/foreshadows/recovery-service";
 
 const optionalText = z
   .preprocess(
@@ -232,6 +233,26 @@ export async function abandonForeshadow(projectId: string, foreshadowId: string)
 
   revalidateMemoryPaths(projectId);
   redirect(`/projects/${projectId}/memory#foreshadows`);
+}
+
+export async function scanHistoricalForeshadowRecoveries(projectId: string) {
+  await assertProject(projectId);
+
+  const result = await startHistoricalForeshadowRecoveryAudit(projectId);
+
+  revalidateMemoryPaths(projectId);
+
+  if (result.status === "active_task") {
+    redirect(`/projects/${projectId}/memory?recoveryAudit=active#foreshadows`);
+  }
+
+  if (result.status === "nothing_to_scan") {
+    redirect(`/projects/${projectId}/memory?recoveryAudit=empty#foreshadows`);
+  }
+
+  redirect(
+    `/projects/${projectId}/memory?recoveryAudit=started&recoveryBatches=${result.batchCount}&recoveryForeshadows=${result.foreshadowCount}#foreshadows`,
+  );
 }
 
 export async function createTimelineEvent(

@@ -26,7 +26,9 @@ import {
   applyApprovedPendingUpdate,
   PendingUpdateTargetNotFoundError,
 } from "@/lib/pending-updates/approval";
+import { approveAutomaticForeshadowRecoveries } from "@/lib/foreshadows/recovery-records";
 import { prisma } from "@/lib/prisma";
+import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
 
 const pendingUpdateTemplateKey = "pending_update_extraction";
 
@@ -256,6 +258,20 @@ export async function rejectPendingUpdate(
 
   revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
   redirect(`/projects/${projectId}/pending-updates?review=rejected`);
+}
+
+export async function approveAutomaticForeshadowRecoveryBatch(
+  projectId: string,
+) {
+  await assertProject(projectId);
+
+  const result = await approveAutomaticForeshadowRecoveries(projectId);
+
+  revalidatePendingUpdatePaths(projectId);
+  revalidatePath(`/projects/${projectId}/memory`);
+  redirect(
+    `/projects/${projectId}/pending-updates?review=auto-recovery-approved&approved=${result.approvedCount}&skipped=${result.skippedCount}`,
+  );
 }
 
 async function loadPendingUpdateContext(projectId: string, chapterId: string) {

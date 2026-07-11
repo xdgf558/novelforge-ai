@@ -366,6 +366,9 @@ describe("AI task logger", () => {
     expect(resolveAiTaskRequestTimeoutMs("continuity_check")).toBe(
       longPlanningAiRequestTimeoutMs,
     );
+    expect(resolveAiTaskRequestTimeoutMs("foreshadow_recovery_audit")).toBe(
+      longPlanningAiRequestTimeoutMs,
+    );
   });
 
   it("uses the task route snapshot instead of falling back to the current default env", () => {
@@ -449,6 +452,42 @@ describe("AI task logger", () => {
         }),
       );
     });
+  });
+
+  it("runs an optional failure callback after the background failure is saved", async () => {
+    const error = new Error("provider timeout");
+    const onFailed = vi.fn();
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.createOpenAITextResponse.mockRejectedValue(error);
+
+    try {
+      await startLoggedOpenAITextTask(
+        {
+          projectId: "project_1",
+          taskType: "foreshadow_recovery_audit",
+          inputContextSummary: "历史伏笔回收审计",
+        },
+        {
+          input: "审计历史伏笔",
+        },
+        {
+          onFailed,
+        },
+      );
+
+      await vi.waitFor(() => {
+        expect(onFailed).toHaveBeenCalledWith(
+          expect.objectContaining({
+            id: "task_1",
+            status: "failed",
+            errorMessage: "provider timeout",
+          }),
+          error,
+        );
+      });
+    } finally {
+      consoleSpy.mockRestore();
+    }
   });
 
   it("does not fail a completed task when usage aggregation fails", async () => {

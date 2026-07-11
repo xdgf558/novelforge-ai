@@ -360,17 +360,22 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "chapter_summary_extraction",
     name: "章节摘要提取",
     taskType: "chapter_summary_extraction",
-    version: 1,
+    version: 2,
     outputFormat: "json",
     systemPrompt:
       "你是长篇连载小说的结构化记忆提取助手。只提取文本中明确出现的信息，不推测隐藏设定。",
     userPrompt:
-      "从最终章节正文中提取短摘要、主要事件、角色状态变化、新设定、伏笔、时间线事件和连续性风险。",
+      "从最终章节正文中提取短摘要、主要事件、角色状态变化、新设定、伏笔、时间线事件和连续性风险；同时对照候选伏笔判断本章是否推进或完成回收。",
     contextNotes:
-      "输入应包含章节号、最终正文、当前项目设定摘要和必要的角色名表。",
+      "输入应包含章节号、最终正文、当前项目设定摘要、必要的角色名表和与本章相关的未回收伏笔。伏笔状态只能输出为候选，不能直接修改正式记忆。",
     responseSchema: JSON.stringify({
       type: "object",
-      required: ["shortSummary", "mainEvents", "continuityRisks"],
+      required: [
+        "shortSummary",
+        "mainEvents",
+        "continuityRisks",
+        "foreshadowUpdates",
+      ],
       properties: {
         shortSummary: { type: "string" },
         mainEvents: { type: "array", items: { type: "string" } },
@@ -379,6 +384,29 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
         newSettings: { type: "array", items: { type: "string" } },
         timelineEvents: { type: "array", items: { type: "string" } },
         continuityRisks: { type: "array", items: { type: "string" } },
+        foreshadowUpdates: {
+          type: "array",
+          items: {
+            type: "object",
+            required: [
+              "targetId",
+              "action",
+              "summary",
+              "evidence",
+              "confidence",
+            ],
+            properties: {
+              targetId: { type: "string" },
+              action: { type: "string", enum: ["advance", "resolve"] },
+              summary: { type: "string" },
+              evidence: { type: "string" },
+              confidence: {
+                type: "string",
+                enum: ["high", "medium", "low"],
+              },
+            },
+          },
+        },
       },
     }),
   },
@@ -386,7 +414,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "pending_update_extraction",
     name: "待审核更新提取",
     taskType: "pending_update_extraction",
-    version: 1,
+    version: 2,
     outputFormat: "json",
     systemPrompt:
       "你是长篇连载小说的记忆更新审计助手。AI 只能提出待审核更新，不能直接修改正式设定、角色、世界规则、时间线或伏笔。",
@@ -405,6 +433,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
             required: [
               "updateType",
               "targetType",
+              "targetId",
               "title",
               "content",
               "riskLevel",
@@ -427,6 +456,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
                   "organization",
                 ],
               },
+              targetId: { type: "string" },
               targetName: { type: "string" },
               fieldName: { type: "string" },
               title: { type: "string" },
@@ -434,6 +464,50 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
               reason: { type: "string" },
               riskLevel: { type: "string", enum: ["low", "medium", "high"] },
               sourceEvidence: { type: "string" },
+            },
+          },
+        },
+      },
+    }),
+  },
+  {
+    key: "foreshadow_recovery_audit",
+    name: "历史伏笔回收审计",
+    taskType: "foreshadow_recovery_audit",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是长篇小说伏笔回收审计助手。只能根据正式章节证据判断既有伏笔是否推进或兑现，不能创造新事实，也不能直接修改正式伏笔池。",
+    userPrompt:
+      "逐条对照候选伏笔与后续章节摘要，输出有明确证据的推进或回收候选。",
+    contextNotes:
+      "resolve 必须完整回答伏笔核心疑问；局部线索只能标记 advance。targetId 和 resolvedChapterId 必须使用输入中的真实 ID，没有可靠证据的条目不要输出。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["updates"],
+      properties: {
+        updates: {
+          type: "array",
+          items: {
+            type: "object",
+            required: [
+              "targetId",
+              "action",
+              "resolvedChapterId",
+              "summary",
+              "evidence",
+              "confidence",
+            ],
+            properties: {
+              targetId: { type: "string" },
+              action: { type: "string", enum: ["advance", "resolve"] },
+              resolvedChapterId: { type: "string" },
+              summary: { type: "string" },
+              evidence: { type: "string" },
+              confidence: {
+                type: "string",
+                enum: ["high", "medium", "low"],
+              },
             },
           },
         },
