@@ -15,19 +15,21 @@ What was done:
   section separators, and retained short unit headings. Markdown exports keep
   the project title as the document heading while copy/TXT provide body-only
   text for manual platform entry.
-- Added source-preserving cleanup for duplicate unit titles, internal work
-  labels, known AI structure traces, completion markers, web tails, and
-  serial-only next-chapter hooks. All cleanup is in-memory and never writes back
-  to chapter records or formal memory.
+- Added source-preserving cleanup for leading duplicate unit titles, internal
+  work labels, and known AI structure traces, plus completion markers, web
+  tails, and trailing serial-only next-chapter hooks. Work-label cleanup stops
+  at the first substantive prose line so matching in-story text such as
+  `状态：失控` remains intact. All cleanup is in-memory and never writes back to
+  chapter records or formal memory.
 - Added visible confirmed/omitted unit counts, project target comparison, and
   advisory 6,000-80,000 Fanqie signing-range checks. Copy, TXT, and Markdown are
   local browser outputs; Fanqie upload remains manual.
 
 Verification:
 
-- Focused manuscript assembly and work-type isolation tests passed: 2 files
-  and 7 tests.
-- Full `npm run test` passed: 105 files and 573 tests.
+- Focused manuscript assembly, shared Fanqie cleanup, and work-type isolation
+  tests passed.
+- Full `npm run test` passed: 105 files and 574 tests.
 - `npx prisma validate`, `npx prisma generate`, `npm run typecheck`, and
   `npm run build` passed.
 - `npm run desktop:smoke` and `npm run mvp:acceptance` passed.

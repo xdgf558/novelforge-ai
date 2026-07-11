@@ -113,6 +113,35 @@ describe("short-story manuscript export", () => {
     expect(body).toBe("第一段。\n\n第二段。");
   });
 
+  it("preserves prose lines that resemble work labels after the story begins", () => {
+    const body = normalizeShortStoryManuscriptUnit(
+      [
+        "单元目标：进入封闭档案馆。",
+        "",
+        "林晚推开了档案馆的门。",
+        "",
+        "状态：失控。",
+        "",
+        "核心冲突：两个人只能有一个离开。",
+        "",
+        "剧情动作：钟摆开始倒转。",
+      ].join("\n"),
+      { chapterNumber: 3, title: "档案馆" },
+    );
+
+    expect(body).toBe(
+      [
+        "林晚推开了档案馆的门。",
+        "",
+        "状态：失控。",
+        "",
+        "核心冲突：两个人只能有一个离开。",
+        "",
+        "剧情动作：钟摆开始倒转。",
+      ].join("\n"),
+    );
+  });
+
   it("reports the visible 6,000 to 80,000 word signing range", () => {
     const below = buildShortStoryManuscriptExport({
       projectTitle: "短篇",

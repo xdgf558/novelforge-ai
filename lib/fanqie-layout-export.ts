@@ -169,6 +169,7 @@ export function normalizeFanqieChapterBody(
   options: {
     includeTitle?: boolean;
     removeSectionHeadings?: boolean;
+    removeStructureHeadings?: boolean;
   } = {},
 ) {
   const lines = value
@@ -179,7 +180,13 @@ export function normalizeFanqieChapterBody(
   const bodyLines = stripLeadingChapterDecorations(lines, chapter)
     .map((line) => normalizeMarkdownLine(line))
     .map((line) => stripInlineCompletionMarker(line))
-    .filter((line) => !shouldRemoveFanqieLine(line));
+    .filter(
+      (line) =>
+        !shouldRemoveFanqieLine(
+          line,
+          options.removeStructureHeadings !== false,
+        ),
+    );
   const normalizedLines = normalizeFanqieSpacing(
     options.removeSectionHeadings
       ? bodyLines.filter((line) => !isSectionHeading(line))
@@ -465,7 +472,10 @@ function normalizeFanqieSpacing(lines: string[]) {
   return result;
 }
 
-function shouldRemoveFanqieLine(line: string) {
+function shouldRemoveFanqieLine(
+  line: string,
+  removeStructureHeadings = true,
+) {
   const text = line.trim();
 
   if (!text) {
@@ -474,7 +484,7 @@ function shouldRemoveFanqieLine(line: string) {
 
   return (
     isMarkdownDivider(text) ||
-    isFanqieStructureHeading(text) ||
+    (removeStructureHeadings && isFanqieStructureHeading(text)) ||
     isWebTailLine(text) ||
     isCompletionMarkerLine(text)
   );

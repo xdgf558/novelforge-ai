@@ -182,17 +182,12 @@ export function normalizeShortStoryManuscriptUnit(
     stripLeadingBlankLines(sourceLines);
   }
 
-  const normalized = normalizeFanqieChapterBody(sourceLines.join("\n"), unit);
-  const lines = normalized
-    .split("\n")
-    .filter((line) => !isShortStoryStructureTrace(line));
+  const normalized = normalizeFanqieChapterBody(sourceLines.join("\n"), unit, {
+    removeStructureHeadings: false,
+  });
+  const lines = normalized.split("\n");
 
-  stripLeadingBlankLines(lines);
-
-  while (isLeadingUnitDecoration(lines[0], unit)) {
-    lines.shift();
-    stripLeadingBlankLines(lines);
-  }
+  stripLeadingShortStoryDecorations(lines, unit);
 
   stripTrailingFollowHooks(lines);
 
@@ -254,10 +249,25 @@ function isLeadingUnitDecoration(
   );
 }
 
-function isShortStoryStructureTrace(line: string) {
-  const text = line.trim();
+function stripLeadingShortStoryDecorations(
+  lines: string[],
+  unit: Pick<ShortStoryManuscriptUnit, "chapterNumber" | "title">,
+) {
+  stripLeadingBlankLines(lines);
 
-  return /^(?:(?:写作)?单元\s*[\d一二三四五六七八九十百]+(?:\s*(?:节拍|草案|正文))?|第[\d一二三四五六七八九十百]+单元|节拍总览|单元目标|场景推进|核心冲突|关键转折|兑现推进|剧情动作|情绪作用|写作要求|输出要求|状态)(?:\s*[：:].*)?$/.test(
+  while (
+    isLeadingUnitDecoration(lines[0], unit) ||
+    isShortStoryStructureTrace(lines[0])
+  ) {
+    lines.shift();
+    stripLeadingBlankLines(lines);
+  }
+}
+
+function isShortStoryStructureTrace(line?: string) {
+  const text = line?.trim() ?? "";
+
+  return /^(?:(?:写作)?单元\s*[\d一二三四五六七八九十百]+(?:\s*(?:节拍|草案|正文))?|第[\d一二三四五六七八九十百]+单元|(?:【?(?:开场|收束|结尾)钩子】?)(?:\s*节拍\s*[\d一二三四五六七八九十百]+)?|节拍\s*[\d一二三四五六七八九十百]+|节拍总览|本章目标|单元目标|场景推进|核心冲突|核心事件|章节范围|关键转折|兑现推进|剧情动作|情绪作用|写作要求|输出要求|精修目标|状态)(?:\s*[：:].*)?$/.test(
     text,
   );
 }
