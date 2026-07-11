@@ -7,6 +7,7 @@ export type ProjectWorkType = (typeof projectWorkTypeValues)[number];
 
 export type ProjectToolPath =
   | ""
+  | "blueprint"
   | "settings"
   | "characters"
   | "outlines"
@@ -67,6 +68,7 @@ const serialNovelToolPaths: readonly ProjectToolPath[] = [
 
 const shortStoryToolPaths: readonly ProjectToolPath[] = [
   "",
+  "blueprint",
   "settings",
   "characters",
   "memory",

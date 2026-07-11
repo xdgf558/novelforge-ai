@@ -15,6 +15,7 @@ type AiTaskRetentionCandidate = {
     continuityReports?: number;
     publishPackages?: number;
     chapterSummaries?: number;
+    shortStoryBlueprintVersions?: number;
   };
 };
 
@@ -70,6 +71,7 @@ export async function pruneProjectAiTasks(
           continuityReports: true,
           publishPackages: true,
           chapterSummaries: true,
+          shortStoryBlueprintVersions: true,
         },
       },
     },

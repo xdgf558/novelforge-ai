@@ -24,6 +24,8 @@ MVP includes:
 - Project creation and project list
 - Immutable project work types for long-form serials and short stories; legacy
   projects default to long-form serials.
+- Short-story blueprint workspace with ten formal planning fields, review-only
+  AI generation, explicit adoption, and blueprint version history.
 - Project dashboard
 - Project setting editor
 - AI project setting generation
@@ -111,6 +113,8 @@ Prioritize these tables early:
 - `projects`
 - `project_settings`
 - `setting_versions`
+- `short_story_blueprints`
+- `short_story_blueprint_versions`
 - `characters`
 - `character_versions`
 - `world_rules`
@@ -141,6 +145,7 @@ Prioritize these tables early:
 - Structured tasks should use JSON Schema:
   - Project setting generation
   - Character generation
+  - Short-story blueprint generation
   - Chapter summary extraction
   - Pending update extraction
   - Continuity checking
@@ -233,6 +238,9 @@ Recommended implementation order:
 - Short Story Phase 1: backward-compatible project work types, immutable type
   selection at creation, a focused short-story dashboard/navigation shell, and
   work-type preservation in project and website publish exports.
+- Short Story Phase 2: one formal ten-field short-story blueprint per project,
+  review-only AI blueprint drafts, explicit transactional adoption, versioned
+  manual/adopted/restored snapshots, and project export coverage.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.

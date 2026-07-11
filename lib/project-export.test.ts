@@ -15,6 +15,13 @@ const exportData = {
     sellingPoint: "寿命交易带来高压反转。",
     forbiddenItems: "不能自动发布。",
   },
+  shortStoryBlueprint: {
+    premise: "林野收到死者发来的借命短信。",
+    openingHook: "短信准确预告下一名死者。",
+    coreConflict: "林野必须在失去寿命前找出契约源头。",
+    ending: "林野公开契约真相并承担最后一次借命代价。",
+    requiredPayoffs: "解释死者为何能发短信。",
+  },
   characters: [
     {
       name: "林野",
@@ -138,6 +145,8 @@ describe("project export builders", () => {
     expect(markdown).toContain("作品类型: 短故事");
     expect(markdown).toContain("## 项目设定");
     expect(markdown).toContain("寿命交易带来高压反转");
+    expect(markdown).toContain("## 短故事蓝图");
+    expect(markdown).toContain("林野收到死者发来的借命短信");
     expect(markdown).toContain("## 角色库");
     expect(markdown).toContain("林野");
     expect(markdown).toContain("## 人物关系网络");

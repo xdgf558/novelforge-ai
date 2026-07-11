@@ -19,3 +19,21 @@ export async function assertProjectExists(projectId: string) {
   return project;
 }
 
+export async function assertShortStoryProject(projectId: string) {
+  const project = await prisma.project.findFirst({
+    where: {
+      id: projectId,
+      workType: "short_story",
+    },
+    select: {
+      id: true,
+      workType: true,
+    },
+  });
+
+  if (!project) {
+    notFound();
+  }
+
+  return project;
+}

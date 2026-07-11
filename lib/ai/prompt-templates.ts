@@ -117,6 +117,54 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     }),
   },
   {
+    key: "short_story_blueprint_generation",
+    name: "短故事蓝图生成",
+    taskType: "short_story_blueprint_generation",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是单篇完结短故事的结构策划助手。只输出供作者审核的完整蓝图草案，不得宣称已经修改正式蓝图、设定、角色或正文。必须在目标篇幅内完成冲突闭环，反转必须有因果依据。",
+    userPrompt:
+      "根据短故事项目基础信息、已确认设定、角色资料和当前蓝图，生成可执行的单篇完结故事蓝图。",
+    contextNotes:
+      "输入应包含目标字数、故事定位、相关项目设定、已确认角色和当前正式蓝图。蓝图必须覆盖开篇承诺、主角压力、核心冲突、反转链、情绪曲线、高潮、结局、必须兑现事项和禁止偏离项。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["blueprint"],
+      additionalProperties: false,
+      properties: {
+        blueprint: {
+          type: "object",
+          required: [
+            "premise",
+            "openingHook",
+            "protagonistPressure",
+            "coreConflict",
+            "reversalChain",
+            "emotionalArc",
+            "climax",
+            "ending",
+            "requiredPayoffs",
+            "forbiddenDeviations",
+          ],
+          additionalProperties: false,
+          properties: {
+            premise: { type: "string" },
+            openingHook: { type: "string" },
+            protagonistPressure: { type: "string" },
+            coreConflict: { type: "string" },
+            reversalChain: { type: "string" },
+            emotionalArc: { type: "string" },
+            climax: { type: "string" },
+            ending: { type: "string" },
+            requiredPayoffs: { type: "string" },
+            forbiddenDeviations: { type: "string" },
+          },
+        },
+      },
+    }),
+  },
+  {
     key: "chapter_beat_generation",
     name: "章节节拍生成",
     taskType: "chapter_beat_generation",

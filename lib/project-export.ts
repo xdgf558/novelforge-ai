@@ -11,6 +11,7 @@ type ProjectExportRecord = Record<string, ExportValue>;
 export type ProjectExportData = {
   project: ProjectExportRecord;
   setting?: ProjectExportRecord | null;
+  shortStoryBlueprint?: ProjectExportRecord | null;
   characters?: readonly ProjectExportRecord[];
   characterRelationships?: readonly ProjectExportRecord[];
   outlines?: readonly ProjectExportRecord[];
@@ -57,6 +58,7 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
       ["故事简介", data.project.description],
     ]),
     buildSettingSection(data.setting),
+    shortStory ? buildShortStoryBlueprintSection(data.shortStoryBlueprint) : "",
     buildRecordSection("角色库", data.characters, (character) => [
       `### ${formatScalar(character.name) || "未命名角色"}`,
       buildKeyValueList([
@@ -267,6 +269,30 @@ function buildSettingSection(setting?: ProjectExportRecord | null) {
   }
 
   return ["## 项目设定", buildKeyValueList(entries)].join("\n\n");
+}
+
+function buildShortStoryBlueprintSection(
+  blueprint?: ProjectExportRecord | null,
+) {
+  if (!blueprint) {
+    return "## 短故事蓝图\n\n尚未建立正式蓝图。";
+  }
+
+  return [
+    "## 短故事蓝图",
+    buildKeyValueList([
+      ["核心前提", blueprint.premise],
+      ["开篇钩子", blueprint.openingHook],
+      ["主角压力", blueprint.protagonistPressure],
+      ["核心冲突", blueprint.coreConflict],
+      ["反转链", blueprint.reversalChain],
+      ["情绪曲线", blueprint.emotionalArc],
+      ["高潮", blueprint.climax],
+      ["结局", blueprint.ending],
+      ["必须兑现", blueprint.requiredPayoffs],
+      ["禁止偏离", blueprint.forbiddenDeviations],
+    ]),
+  ].join("\n\n");
 }
 
 function buildRecordSection(

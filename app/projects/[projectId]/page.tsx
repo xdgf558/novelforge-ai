@@ -11,6 +11,7 @@ import {
   History,
   Layers3,
   ListChecks,
+  MapPinned,
   Network,
   Pencil,
   Send,
@@ -45,9 +46,15 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         id: projectId,
       },
       include: {
+        shortStoryBlueprint: {
+          select: {
+            id: true,
+          },
+        },
         _count: {
           select: {
             settingVersions: true,
+            shortStoryBlueprintVersions: true,
             characters: true,
             characterVersions: true,
             chapters: true,
@@ -455,6 +462,9 @@ type ShortStoryDashboardProject = {
   id: string;
   title: string;
   workType: string;
+  shortStoryBlueprint: {
+    id: string;
+  } | null;
   genre: string | null;
   targetAudience: string | null;
   platform: string | null;
@@ -471,6 +481,7 @@ type ShortStoryDashboardProject = {
     foreshadows: number;
     timelineEvents: number;
     aiTasks: number;
+    shortStoryBlueprintVersions: number;
   };
 };
 
@@ -482,6 +493,14 @@ function ShortStoryProjectDashboard({
   project: ShortStoryDashboardProject;
 }) {
   const workspaceLinks = [
+    {
+      href: `/projects/${project.id}/blueprint`,
+      icon: MapPinned,
+      title: "故事蓝图",
+      detail: project.shortStoryBlueprint
+        ? `已确认 · ${project._count.shortStoryBlueprintVersions} 个版本`
+        : "待建立开篇、反转与结局闭环",
+    },
     {
       href: `/projects/${project.id}/settings`,
       icon: BookMarked,
@@ -559,7 +578,7 @@ function ShortStoryProjectDashboard({
 
       <section>
         <h2 className="text-base font-semibold text-ink-950">创作资料</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {workspaceLinks.map((item) => {
             const Icon = item.icon;
 

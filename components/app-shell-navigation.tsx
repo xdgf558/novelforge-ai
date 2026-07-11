@@ -9,6 +9,7 @@ import {
   Headphones,
   LayoutDashboard,
   Layers3,
+  MapPinned,
   NotebookTabs,
   Plus,
   ShieldCheck,
@@ -39,6 +40,11 @@ const projectToolItems = [
     path: "" as const,
     label: "创作台",
     icon: LayoutDashboard,
+  },
+  {
+    path: "blueprint" as const,
+    label: "蓝图",
+    icon: MapPinned,
   },
   {
     path: "settings" as const,

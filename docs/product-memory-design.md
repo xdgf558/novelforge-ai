@@ -20,6 +20,14 @@ chapter, and audiobook surfaces remain specific to serial novels. Short stories
 use a focused workspace and will reuse `Chapter` as an internal writing-unit
 foundation rather than duplicating the prose/version/task storage model.
 
+Short-story projects also have one formal blueprint with premise, opening hook,
+protagonist pressure, core conflict, reversal chain, emotional arc, climax,
+ending, required payoffs, and forbidden deviations. The blueprint is durable
+planning memory: manual saves, adopted AI drafts, and restores create version
+snapshots. AI generation only creates a logged review draft; formal blueprint
+fields change only after explicit author adoption. Restoring an old snapshot
+creates a new rollback version so history remains append-only.
+
 ## Memory Layers
 
 ### 1. Project Setting Memory
