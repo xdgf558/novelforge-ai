@@ -21,6 +21,8 @@ What was done:
 - Made AI adoption transactional and idempotent. An adopted task can create at
   most one formal blueprint version, while manual saves may remain partial and
   AI adoption requires the minimum premise, conflict, and ending structure.
+- Aligned the formal blueprint timestamp with the repository convention by
+  giving `updatedAt` both a database default and Prisma `@updatedAt` behavior.
 - Preserved the formal blueprint in project JSON and Markdown exports. The
   standard website package remains unchanged because short-story manuscript
   assembly belongs to later phases.

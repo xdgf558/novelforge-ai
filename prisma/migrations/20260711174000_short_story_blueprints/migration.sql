@@ -12,7 +12,7 @@ CREATE TABLE "short_story_blueprints" (
   "requiredPayoffs" TEXT,
   "forbiddenDeviations" TEXT,
   "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "updatedAt" DATETIME NOT NULL,
+  "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "short_story_blueprints_projectId_fkey"
     FOREIGN KEY ("projectId") REFERENCES "projects" ("id")
     ON DELETE CASCADE ON UPDATE CASCADE
