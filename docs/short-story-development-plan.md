@@ -41,6 +41,8 @@ Status: implemented for review.
 
 ## Phase 3: Writing Unit Planning and Drafting
 
+- Add a short-story writing-unit list plus manual new, edit, and review entry
+  points, relabeling shared `Chapter` records without exposing serial-only tools.
 - Recommend a bounded unit count from the total target instead of one-shot long
   generation.
 - Plan each unit with a goal, scene movement, conflict, turn, payoff movement,

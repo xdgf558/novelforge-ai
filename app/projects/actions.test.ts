@@ -130,7 +130,7 @@ describe("project actions", () => {
       updateProject(
         "project_1",
         buildProjectFormData({
-          workType: "short_story",
+          workType: "tampered_mode",
         }),
       ),
     ).rejects.toThrow("NEXT_REDIRECT");

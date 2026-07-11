@@ -34,15 +34,8 @@ const nullableInteger = z.preprocess((value) => {
   return Number.isFinite(parsed) ? parsed : value;
 }, z.number().int().positive().nullable());
 
-const projectSchema = z.object({
+const projectDetailsSchema = z.object({
   title: z.string().trim().min(1, "请输入作品标题").max(120),
-  workType: z.preprocess(
-    (value) =>
-      typeof value === "string" && value.trim()
-        ? value.trim()
-        : defaultProjectWorkType,
-    z.enum(projectWorkTypeValues),
-  ),
   genre: optionalText,
   targetAudience: optionalText,
   platform: optionalText,
@@ -55,10 +48,19 @@ const projectSchema = z.object({
   wechatPositioning: optionalText,
 });
 
-function parseProjectForm(formData: FormData) {
-  return projectSchema.parse({
+const createProjectSchema = projectDetailsSchema.extend({
+  workType: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim()
+        ? value.trim()
+        : defaultProjectWorkType,
+    z.enum(projectWorkTypeValues),
+  ),
+});
+
+function projectDetailsFormValues(formData: FormData) {
+  return {
     title: formData.get("title"),
-    workType: formData.get("workType"),
     genre: formData.get("genre"),
     targetAudience: formData.get("targetAudience"),
     platform: formData.get("platform"),
@@ -69,11 +71,22 @@ function parseProjectForm(formData: FormData) {
     updateFrequency: formData.get("updateFrequency"),
     description: formData.get("description"),
     wechatPositioning: formData.get("wechatPositioning"),
+  };
+}
+
+function parseCreateProjectForm(formData: FormData) {
+  return createProjectSchema.parse({
+    ...projectDetailsFormValues(formData),
+    workType: formData.get("workType"),
   });
 }
 
+function parseProjectUpdateForm(formData: FormData) {
+  return projectDetailsSchema.parse(projectDetailsFormValues(formData));
+}
+
 export async function createProject(formData: FormData) {
-  const data = parseProjectForm(formData);
+  const data = parseCreateProjectForm(formData);
 
   const project = await prisma.project.create({
     data,
@@ -84,7 +97,7 @@ export async function createProject(formData: FormData) {
 }
 
 export async function updateProject(projectId: string, formData: FormData) {
-  const { workType: _workType, ...data } = parseProjectForm(formData);
+  const data = parseProjectUpdateForm(formData);
 
   await prisma.project.update({
     where: {

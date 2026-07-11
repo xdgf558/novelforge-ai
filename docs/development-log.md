@@ -22,7 +22,10 @@ What was done:
   publish package. Short-story Markdown labels existing chapter records as
   internal writing units.
 - Added `docs/short-story-development-plan.md` to hold the six-phase boundary and
-  PR sequence for the remaining work.
+  PR sequence for the remaining work, including an explicit Phase 3 manual
+  writing-unit list and editor entry.
+- Split project creation and editing validation so the general edit path does
+  not parse or accept `workType` at all.
 
 Verification:
 
