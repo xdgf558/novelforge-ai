@@ -1,5 +1,45 @@
 # Development Log
 
+## 2026-07-11: 0.1.89 Personal macOS Installer Rebuild
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version to `0.1.89` after the historical
+  foreshadow audit live-status fix was reviewed and merged into `main`.
+- Built a fresh arm64 Electron app and formal PKG installer for `/Applications`.
+- The Electron output's Developer ID signature did not survive deep validation,
+  so the final staged payload followed the established personal-build path: it
+  was re-signed ad hoc with hardened runtime plus the required JIT, unsigned
+  executable memory, and library-validation entitlements before packaging.
+- Built the final unsigned personal-use PKG at
+  `release/desktop/NovelForge-AI-0.1.89-mac-arm64.pkg` and removed the previous
+  installer and Electron build intermediates from the delivery directory.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm run test` passed, 96 files and 522 tests.
+- `npm run desktop:smoke` passed.
+- `npm run mvp:acceptance` passed.
+- `npm run desktop:pack:mac` completed with notarization skipped after clearing
+  stale local proxy variables.
+- The final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.89`,
+  and install location `/Applications`.
+- The app expanded from the final PKG reports `0.1.89`, passes whole-bundle
+  deep/strict signature verification, and retains the required hardened-runtime
+  entitlements. A second ordinary copy of the staged app also passes the same
+  signature verification.
+- The expanded payload ran all 20 desktop migrations against an isolated SQLite
+  database, including `20260711093000_repository_hardening`; `PRAGMA
+  quick_check` returned `ok`.
+- The PKG is unsigned because no Developer ID Installer identity is available;
+  its app payload is ad-hoc signed for personal local use, so macOS may require a
+  one-time right-click Open confirmation.
+- Final SHA-256:
+  `4208ed84d604e48169d37dc4e1a37d25cdcbd2d6caca7dcd21d47fac01e9e374`.
+
 ## 2026-07-11: Historical Foreshadow Audit Live Status
 
 Status: completed.
