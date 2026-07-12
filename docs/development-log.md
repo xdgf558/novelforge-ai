@@ -1,5 +1,55 @@
 # Development Log
 
+## 2026-07-12: 0.1.93 Outline Lifecycle Personal macOS Installer
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version from `0.1.92` to `0.1.93` after the
+  outline lifecycle reconciliation and next-unit planning work was reviewed and
+  merged through PR #70.
+- Rebuilt the arm64 macOS app payload with deterministic outline status
+  reconciliation, the historical status repair migration, and review-only next
+  story-unit planning.
+- Copied the app into an isolated PKG staging root and re-signed the complete
+  Electron bundle ad hoc with hardened runtime plus the required JIT, unsigned
+  executable memory, and library-validation entitlements.
+- Built the formal personal-use installer at
+  `release/desktop/NovelForge-AI-0.1.93-mac-arm64.pkg`, targeting
+  `/Applications`.
+- Removed the `0.1.92` installer and Electron build intermediates so the
+  delivery directory contains only the new verified PKG.
+
+Verification:
+
+- Full `npm run test` passed: 105 files and 577 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no difference
+  between all 24 migrations and `prisma/schema.prisma`.
+- The production build inside `npm run desktop:pack:mac` passed. The original
+  app payload passed Developer ID deep/strict signature verification and
+  reported Bundle and packaged source version `0.1.93` with 24 migrations.
+- The re-signed staging payload and a second ordinary copy both passed
+  deep/strict signature verification. The required hardened-runtime
+  entitlements remained present.
+- The final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.93`,
+  and install location `/Applications`.
+- The app expanded from the final PKG reports Bundle and packaged source version
+  `0.1.93`, passes deep/strict signature verification, retains all required
+  entitlements, and contains all 24 bundled migrations.
+- Packaged runtime inspection confirmed `runDesktopMigrations`, bundled
+  `migration.sql` loading, and no Prisma CLI `migrate deploy` startup path.
+- `npm run work-types:acceptance` passed again using the expanded PKG's
+  `app.asar.unpacked` resources, including legacy outline status repair,
+  work-type preservation, foreign keys, and SQLite health.
+- The PKG itself is unsigned because no Developer ID Installer identity is
+  available. Its app payload is verified for personal local use; no real
+  overwrite install into `/Applications` was performed.
+- Final size: `346,414,859` bytes. SHA-256:
+  `aad5e1a3b1d7d93e859896bbd9ba4a28797ccd3934aa53d87941f41aa84c9a2d`.
+
 ## 2026-07-12: Outline Lifecycle Reconciliation and Next-Unit Planning
 
 Status: completed for PR review.
