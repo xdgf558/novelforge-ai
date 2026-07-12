@@ -23,6 +23,14 @@ async function main() {
   assert.ok(packageJson.scripts["desktop:pack:mac"], "desktop:pack:mac script exists");
   assert.ok(packageJson.scripts["desktop:dist:mac"], "desktop:dist:mac script exists");
   assert.ok(
+    packageJson.scripts["work-types:acceptance"],
+    "work-types:acceptance script exists",
+  );
+  assert.ok(
+    packageJson.scripts["responsive:smoke"],
+    "responsive:smoke script exists",
+  );
+  assert.ok(
     packageJson.scripts["desktop:pack:mac"].includes("SKIP_NOTARIZE=1"),
     "desktop:pack:mac skips notarization",
   );
@@ -84,6 +92,8 @@ async function main() {
     "scripts/after-pack.cjs",
     "scripts/notarize.cjs",
     "scripts/desktop-dev.cjs",
+    "scripts/responsive-layout-smoke.cjs",
+    "scripts/work-type-lifecycle-smoke.cjs",
     "build/entitlements.mac.plist",
     "build/icon.icns",
     "build/icon.png",

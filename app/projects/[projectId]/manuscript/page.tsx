@@ -3,6 +3,14 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileDown } from "lucide-react";
 import { ManuscriptExportWorkspace } from "@/components/short-stories/manuscript-export-workspace";
 import { prisma } from "@/lib/prisma";
+import {
+  buildProjectJsonExport,
+  buildProjectMarkdownExport,
+} from "@/lib/project-export";
+import {
+  buildExportData,
+  projectPublishInclude,
+} from "@/lib/project-export-data";
 
 export const dynamic = "force-dynamic";
 
@@ -19,26 +27,14 @@ export default async function ShortStoryManuscriptPage({
       id: projectId,
       workType: "short_story",
     },
-    select: {
-      id: true,
-      title: true,
-      totalWordTarget: true,
-      chapters: {
-        orderBy: [{ chapterNumber: "asc" }, { createdAt: "asc" }],
-        select: {
-          id: true,
-          chapterNumber: true,
-          title: true,
-          status: true,
-          finalText: true,
-        },
-      },
-    },
+    include: projectPublishInclude,
   });
 
   if (!project) {
     notFound();
   }
+
+  const exportData = buildExportData(project);
 
   return (
     <div className="space-y-7">
@@ -71,6 +67,8 @@ export default async function ShortStoryManuscriptPage({
 
       <ManuscriptExportWorkspace
         projectId={project.id}
+        projectJsonExport={buildProjectJsonExport(exportData)}
+        projectMarkdownExport={buildProjectMarkdownExport(exportData)}
         projectTitle={project.title}
         targetWordCount={project.totalWordTarget}
         units={project.chapters}

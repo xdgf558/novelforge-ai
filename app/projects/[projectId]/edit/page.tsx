@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   archiveProject,
@@ -36,6 +37,8 @@ export default async function EditProjectPage({
     notFound();
   }
 
+  const shortStory = isShortStoryProject(project.workType);
+
   return (
     <div className="space-y-6">
       <ProjectForm
@@ -43,7 +46,7 @@ export default async function EditProjectPage({
         project={project}
         submitLabel="保存修改"
         subtitle="这些基础字段会作为后续设定、规划、正文和发布材料的初始上下文。"
-        title={isShortStoryProject(project.workType) ? "编辑短故事项目" : "编辑长篇连载项目"}
+        title={shortStory ? "编辑短故事项目" : "编辑长篇连载项目"}
       />
 
       <section className="rounded-lg border border-amber-300/70 bg-amber-50 p-5 shadow-panel">
@@ -53,8 +56,18 @@ export default async function EditProjectPage({
               项目归档与删除
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-900">
-              归档会把项目从默认列表中隐藏，但保留全部设定、章节、记忆、音频和导出记录。硬删除会清除本地数据库中的项目资料，请先在本机接入设置里创建备份。
+              归档会把项目从默认列表中隐藏，但保留全部
+              {shortStory
+                ? "蓝图、写作单元、记忆和任务记录"
+                : "设定、章节、记忆、音频和导出记录"}
+              。硬删除会清除本地数据库中的项目资料。
             </p>
+            <Link
+              className="mt-2 inline-flex text-sm font-semibold text-amber-950 underline decoration-amber-500 underline-offset-4 transition hover:text-signal-700"
+              href="/ai-settings#local-backups"
+            >
+              前往本机设置创建备份
+            </Link>
             {resolvedSearchParams?.projectError === "delete-confirmation" ? (
               <p className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
                 删除前需要勾选已备份，并在确认框输入 DELETE。
@@ -63,18 +76,24 @@ export default async function EditProjectPage({
           </div>
 
           {project.status === "archived" ? (
-            <form action={restoreProject.bind(null, project.id)}>
+            <form
+              action={restoreProject.bind(null, project.id)}
+              className="shrink-0"
+            >
               <button
-                className="inline-flex min-h-10 items-center rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+                className="inline-flex min-h-10 items-center whitespace-nowrap rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
                 type="submit"
               >
                 恢复项目
               </button>
             </form>
           ) : (
-            <form action={archiveProject.bind(null, project.id)}>
+            <form
+              action={archiveProject.bind(null, project.id)}
+              className="shrink-0"
+            >
               <button
-                className="inline-flex min-h-10 items-center rounded-md border border-amber-400 bg-white px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                className="inline-flex min-h-10 items-center whitespace-nowrap rounded-md border border-amber-400 bg-white px-3 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
                 type="submit"
               >
                 归档项目

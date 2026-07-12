@@ -106,10 +106,14 @@ function unwrapEnvValue(value) {
   return value;
 }
 
-async function runDesktopMigrations(appRoot, databaseUrl) {
+async function runDesktopMigrations(appRoot, databaseUrl, options = {}) {
   const { PrismaClient } = require(require.resolve("@prisma/client", {
     paths: [appRoot],
   }));
+  const throughMigration =
+    typeof options.through === "string" && options.through.trim()
+      ? options.through.trim()
+      : null;
   const prisma = new PrismaClient({
     datasources: {
       db: {
@@ -129,7 +133,22 @@ async function runDesktopMigrations(appRoot, databaseUrl) {
       appliedMigrationRows.map((row) => row.migration_name),
     );
 
-    for (const migration of listDesktopMigrations(appRoot)) {
+    const migrations = listDesktopMigrations(appRoot);
+    const migrationCutoffIndex = throughMigration
+      ? migrations.findIndex(
+          (migration) => migration.name === throughMigration,
+        )
+      : -1;
+
+    if (throughMigration && migrationCutoffIndex === -1) {
+      throw new Error(`Unknown desktop migration cutoff: ${throughMigration}`);
+    }
+
+    const selectedMigrations = throughMigration
+      ? migrations.slice(0, migrationCutoffIndex + 1)
+      : migrations;
+
+    for (const migration of selectedMigrations) {
       if (appliedMigrations.has(migration.name)) {
         continue;
       }

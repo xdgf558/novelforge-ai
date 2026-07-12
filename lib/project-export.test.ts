@@ -130,6 +130,13 @@ describe("project export builders", () => {
     expect(parsed.version).toBe(1);
     expect(parsed.exportedAt).toEqual(expect.any(String));
     expect(parsed.project.title).toBe("借命人");
+    expect(parsed.project.workType).toBe("short_story");
+    expect(parsed.shortStoryBlueprint.openingHook).toBe(
+      "短信准确预告下一名死者。",
+    );
+    expect(parsed.chapters[0].unitWordTarget).toBe(5000);
+    expect(parsed.chapters[0].unitTurn).toBe("病历上的签名来自林野本人。");
+    expect(parsed.aiTasks[0].taskType).toBe("wechat_publish_packaging");
     expect(parsed.storylines[0].relatedCharacterItems).toEqual([
       {
         id: "character_1",
@@ -173,5 +180,22 @@ describe("project export builders", () => {
     expect(markdown).toContain("## 历史发布包装");
     expect(markdown).toContain("死人给他发来短信");
     expect(markdown).toContain("## AI 任务记录");
+  });
+
+  it("keeps serial-novel export labels isolated from short-story units", () => {
+    const markdown = buildProjectMarkdownExport({
+      ...exportData,
+      project: {
+        ...exportData.project,
+        title: "长篇样例",
+        workType: "serial_novel",
+      },
+    });
+
+    expect(markdown).toContain("作品类型: 长篇连载");
+    expect(markdown).toContain("## 章节");
+    expect(markdown).toContain("### 第 1 章 第一封短信");
+    expect(markdown).not.toContain("## 短故事蓝图");
+    expect(markdown).not.toContain("## 写作单元");
   });
 });

@@ -1,5 +1,59 @@
 # Development Log
 
+## 2026-07-12: Short Story Phase 6 Lifecycle Hardening
+
+Status: completed for PR review.
+
+What was done:
+
+- Added full project Markdown and JSON download controls to the short-story
+  manuscript workspace. These exports retain the immutable work type, formal
+  blueprint, unit plans and prose, structured memory, whole-story review
+  reports, and AI task audit records; complete-manuscript TXT/Markdown remains a
+  separate output.
+- Made the archive/delete panel work-type-aware and added a direct link to local
+  backup creation before the destructive confirmation controls.
+- Added a bounded migration-cutoff option to the desktop migration runner for
+  deterministic upgrade testing without changing normal startup behavior.
+- Added `npm run work-types:acceptance`, which builds a real pre-short-story
+  SQLite database, seeds a legacy serial project, applies the current desktop
+  migration history twice, confirms legacy defaults and prose preservation,
+  creates a complete short-story blueprint/unit/review lifecycle, snapshots the
+  database, verifies all formal records, hard-deletes only that short story, and
+  checks migration count, foreign keys, and SQLite health.
+- Expanded export regression coverage across both work types and explicitly
+  protected short-story blueprint and whole-story-review tasks when formal
+  records still reference them.
+- Added `npm run responsive:smoke`, which exercises the short-story manuscript
+  and project-delete surfaces in product Chromium at 1280x900 and 390x844,
+  checks page/control overflow, and can retain screenshots for visual review.
+- Updated package metadata to describe both serialized novels and short stories.
+  The version bump and personal-use installer remain deferred until review and
+  merge.
+
+Verification:
+
+- Focused project export, task retention, manuscript export, and project action
+  tests passed: 4 files and 18 tests. Full `npm run test` passed: 105 files and
+  575 tests.
+- `npm run desktop:smoke`, `npm run mvp:acceptance`, and source-tree
+  `npm run work-types:acceptance` passed.
+- `npx prisma validate`, `npx prisma generate`, `npm run typecheck`, and
+  `npm run build` passed. `prisma migrate diff` reported no difference between
+  all 23 migrations and `prisma/schema.prisma`.
+- `npm run desktop:pack:mac` rebuilt the `0.1.90` app directory with
+  notarization intentionally skipped. Deep strict code-sign verification
+  passed, all 23 migrations were present, and `npm run work-types:acceptance`
+  passed again using the packaged `app.asar.unpacked` resources.
+- Local browser verification covered short-story project Markdown/JSON export,
+  short-story and serial archive/delete labels, backup navigation, and serial
+  manuscript-route isolation. `npm run responsive:smoke` passed at desktop and
+  mobile sizes; all four screenshots were visually inspected with no product
+  overlap or control truncation.
+- No installer was created. The version bump, final personal-use installer, and
+  removal of prior installer artifacts remain post-review/post-merge release
+  work.
+
 ## 2026-07-11: Short Story Phase 5 Complete Manuscript Export
 
 Status: completed for PR review.
