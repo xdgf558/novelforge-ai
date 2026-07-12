@@ -134,22 +134,21 @@ async function runDesktopMigrations(appRoot, databaseUrl, options = {}) {
     );
 
     const migrations = listDesktopMigrations(appRoot);
+    const migrationCutoffIndex = throughMigration
+      ? migrations.findIndex(
+          (migration) => migration.name === throughMigration,
+        )
+      : -1;
 
-    if (
-      throughMigration &&
-      !migrations.some((migration) => migration.name === throughMigration)
-    ) {
+    if (throughMigration && migrationCutoffIndex === -1) {
       throw new Error(`Unknown desktop migration cutoff: ${throughMigration}`);
     }
 
-    for (const migration of migrations) {
-      if (
-        throughMigration &&
-        migration.name.localeCompare(throughMigration) > 0
-      ) {
-        break;
-      }
+    const selectedMigrations = throughMigration
+      ? migrations.slice(0, migrationCutoffIndex + 1)
+      : migrations;
 
+    for (const migration of selectedMigrations) {
       if (appliedMigrations.has(migration.name)) {
         continue;
       }
