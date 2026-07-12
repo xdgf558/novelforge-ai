@@ -616,6 +616,7 @@ function revalidatePublishPaths(projectId: string, chapterId?: string | null) {
   revalidatePath(`/projects/${projectId}/ai`);
   revalidatePath(`/projects/${projectId}/publish`);
   revalidatePath(`/projects/${projectId}/chapters`);
+  revalidatePath(`/projects/${projectId}/outlines`);
 
   if (chapterId) {
     revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);

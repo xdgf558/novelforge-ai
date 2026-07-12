@@ -1,5 +1,51 @@
 # Development Log
 
+## 2026-07-12: Outline Lifecycle Reconciliation and Next-Unit Planning
+
+Status: completed for PR review.
+
+What was done:
+
+- Made bounded volume, story-unit, and chapter outline labels derive from
+  covered chapter progress. Final/published coverage now displays and persists
+  as completed even when a historical database row still says active; archived
+  outlines remain untouched, and open-ended manually completed outlines remain
+  author-controlled.
+- Added a forward data migration that reconciles stale non-archived outline
+  labels in existing desktop databases without changing prose or outline
+  content.
+- Synchronized outline status after successful Station Cat chapter publishing,
+  including outline-page cache invalidation.
+- Synchronized outline status when adopting a new polish candidate moves a
+  previously final chapter back to revising, so completed units can correctly
+  return to active.
+- Added an outline-workspace continuation reminder when all current story units
+  are complete but the project is not ready to finish. It calculates the next
+  starting chapter from actual unit/chapter coverage and does not skip to the
+  end of a broader volume range.
+- Added a one-click, review-only next-unit AI draft anchored to the prior
+  chapter ending. The task carries the proposed starting chapter, requires a
+  non-overlapping suggested end chapter, and never creates formal outline
+  memory automatically.
+- Updated ending-readiness counts and AI planning context to use reconciled
+  outline lifecycle state rather than stale stored labels.
+
+Verification:
+
+- Focused outline lifecycle, AI context, chapter action, publish-run, and
+  ending-readiness tests passed: 8 files and 53 tests.
+- Full `npm run test` passed: 105 files and 577 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no difference
+  between all 24 migrations and `prisma/schema.prisma`.
+- An isolated migrated SQLite database verified that a deliberately stale
+  active unit with fully confirmed chapters renders as completed, ending
+  readiness counts it as completed, and the workspace recommends planning from
+  the correct next chapter. The reminder panel had no horizontal overflow or
+  clipped labels at the tested desktop viewport.
+- The source version remains `0.1.92`; no installer was created in this change.
+
 ## 2026-07-12: 0.1.92 Reader Feedback Retirement Personal macOS Installer
 
 Status: completed.

@@ -478,6 +478,21 @@ describe("chapter actions", () => {
       outputText: "AI 新精修正文",
       adoptionState: "not_reviewed",
     });
+    mocks.prisma.outline.findMany.mockResolvedValue([
+      {
+        id: "unit_1",
+        level: "unit",
+        status: "completed",
+        startChapter: 1,
+        endChapter: 1,
+      },
+    ]);
+    mocks.prisma.chapter.findMany.mockResolvedValue([
+      {
+        chapterNumber: 1,
+        status: "revising",
+      },
+    ]);
 
     await expect(
       adoptChapterPolish("project_1", "chapter_1", "task_1"),
@@ -492,6 +507,14 @@ describe("chapter actions", () => {
         }),
       }),
     );
+    expect(mocks.prisma.outline.update).toHaveBeenCalledWith({
+      where: {
+        id: "unit_1",
+      },
+      data: {
+        status: "active",
+      },
+    });
   });
 
   it("finalizes from polished text and creates a chapter version", async () => {

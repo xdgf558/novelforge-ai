@@ -1,6 +1,7 @@
 import {
   calculateOutlineProgress,
   chapterBelongsToOutline,
+  resolveOutlineLifecycleStatus,
 } from "@/lib/outline-progress";
 import { prisma } from "@/lib/prisma";
 
@@ -42,8 +43,9 @@ export async function syncOutlineStatusesForChapterNumbers(
   await Promise.all(
     matchingOutlines.map((outline) => {
       const progress = calculateOutlineProgress(outline, chapters);
+      const nextStatus = resolveOutlineLifecycleStatus(outline, progress);
 
-      if (outline.status === progress.statusSuggestion) {
+      if (outline.status === nextStatus) {
         return null;
       }
 
@@ -52,7 +54,7 @@ export async function syncOutlineStatusesForChapterNumbers(
           id: outline.id,
         },
         data: {
-          status: progress.statusSuggestion,
+          status: nextStatus,
         },
       });
     }),

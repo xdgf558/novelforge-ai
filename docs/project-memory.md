@@ -58,6 +58,17 @@ MVP includes:
 - Successful Station Cat personal-site chapter uploads automatically mark the
   synced local chapters as `published` and create chapter version snapshots; AI
   or failed publish attempts must not silently change chapter status.
+- Serial volume, story-unit, and chapter outline lifecycle labels are
+  deterministically reconciled from their covered chapter range. Confirmed
+  `final` / `published` coverage marks bounded outlines complete, later edits
+  may return them to active, archived outlines remain untouched, Station Cat
+  publishing triggers the same synchronization, and a forward migration repairs
+  stale labels in existing desktop databases.
+- When every current story-unit outline is complete but the project is not yet
+  ready to finish, the outline workspace recommends the next starting chapter
+  and can generate one review-only next-unit draft. It never creates formal
+  outline memory automatically; the author must copy, review, and save the
+  formal unit.
 - Chapter beat generation surfaces due or attention-needed foreshadows as
   “本章建议处理伏笔” so the AI can plan recovery, staged progress, or an
   explicit deferral. This is only planning context; formal foreshadow status

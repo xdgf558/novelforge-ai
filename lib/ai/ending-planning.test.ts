@@ -140,4 +140,23 @@ describe("ending planning context", () => {
 
     expect(context.readiness.stage).toBe("enter_endgame");
   });
+
+  it("uses confirmed chapter progress instead of stale stored outline labels", () => {
+    const readiness = calculateEndingReadiness({
+      ...baseInput,
+      chapters: baseInput.chapters.slice(0, 2),
+      outlines: [
+        {
+          level: "unit",
+          status: "active",
+          title: "雨夜双刃",
+          startChapter: 1,
+          endChapter: 2,
+        },
+      ],
+    });
+
+    expect(readiness.activeOutlineCount).toBe(0);
+    expect(readiness.completedOutlineCount).toBe(1);
+  });
 });

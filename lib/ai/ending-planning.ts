@@ -1,4 +1,8 @@
 import { outlineLevelLabel, outlineRangeLabel, type OutlineLike } from "../outline-fields";
+import {
+  calculateOutlineProgress,
+  resolveOutlineLifecycleStatus,
+} from "../outline-progress";
 
 export const endingPlanningTaskType = "ending_planning_generation";
 
@@ -124,11 +128,17 @@ export function calculateEndingReadiness(
   const publishedChapterCount = input.chapters.filter(
     (chapter) => chapter.status === "published",
   ).length;
-  const activeOutlineCount = input.outlines.filter(
-    (outline) => outline.status === "active",
+  const outlineStatuses = input.outlines.map((outline) =>
+    resolveOutlineLifecycleStatus(
+      outline,
+      calculateOutlineProgress(outline, input.chapters),
+    ),
+  );
+  const activeOutlineCount = outlineStatuses.filter(
+    (status) => status === "active",
   ).length;
-  const completedOutlineCount = input.outlines.filter(
-    (outline) => outline.status === "completed",
+  const completedOutlineCount = outlineStatuses.filter(
+    (status) => status === "completed",
   ).length;
   const stage = resolveEndingStage({
     progressPercent,
@@ -164,9 +174,15 @@ export function buildEndingPlanningContext(
   );
   const recentChapters = input.chapters.slice(-8);
   const latestTimelineEvents = input.timelineEvents.slice(-8);
-  const activeOutlines = input.outlines.filter(
-    (outline) => outline.status !== "archived",
-  );
+  const activeOutlines = input.outlines
+    .filter((outline) => outline.status !== "archived")
+    .map((outline) => ({
+      ...outline,
+      status: resolveOutlineLifecycleStatus(
+        outline,
+        calculateOutlineProgress(outline, input.chapters),
+      ),
+    }));
 
   const inputJson = {
     project: {

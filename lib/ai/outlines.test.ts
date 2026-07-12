@@ -135,4 +135,35 @@ describe("outline generation context builder", () => {
       targetChapterNumber: null,
     });
   });
+
+  it("anchors a requested next story unit to its starting chapter", () => {
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      request: {
+        targetLevel: "unit",
+        targetChapterNumber: 17,
+      },
+      previousChapter: {
+        chapterNumber: 16,
+        title: "炭图藏锋",
+        endingText: "铁匣开启，完整密信重见天日。",
+      },
+    });
+
+    expect(context.inputJson.request).toEqual({
+      targetLevel: "unit",
+      chapterCount: null,
+      targetChapterNumber: 17,
+    });
+    expect(context.inputText).toContain("从第 17 章开始的下一剧情单元");
+    expect(context.inputText).toContain("不与已有单元重叠的建议结束章节");
+    expect(context.inputText).toContain("铁匣开启，完整密信重见天日");
+    expect(buildOutlineGenerationContextSummary({
+      ...baseInput,
+      request: {
+        targetLevel: "unit",
+        targetChapterNumber: 17,
+      },
+    })).toContain("建议起始第 17 章");
+  });
 });

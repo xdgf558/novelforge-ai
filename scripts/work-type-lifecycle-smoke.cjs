@@ -16,6 +16,7 @@ const acceptanceAppRoot = process.env.NOVELFORGE_ACCEPTANCE_APP_ROOT?.trim()
 const legacyMigrationCutoff = "20260711093000_repository_hardening";
 const legacyProjectId = "phase6_legacy_serial";
 const legacyChapterId = "phase6_legacy_chapter";
+const legacyOutlineId = "phase6_legacy_outline";
 
 async function main() {
   const tempRoot = fs.mkdtempSync(
@@ -108,6 +109,27 @@ async function seedLegacySerialProject(databaseUrl) {
         CURRENT_TIMESTAMP
       )
     `;
+    await prisma.$executeRaw`
+      INSERT INTO "outlines" (
+        "id",
+        "projectId",
+        "level",
+        "title",
+        "status",
+        "startChapter",
+        "endChapter",
+        "updatedAt"
+      ) VALUES (
+        ${legacyOutlineId},
+        ${legacyProjectId},
+        ${"unit"},
+        ${"旧版剧情单元"},
+        ${"active"},
+        ${1},
+        ${1},
+        CURRENT_TIMESTAMP
+      )
+    `;
   } finally {
     await prisma.$disconnect();
   }
@@ -134,6 +156,14 @@ async function assertLegacyMigration(prisma) {
   assert.equal(project.chapters[0].unitTurn, null);
   assert.equal(project.chapters[0].unitPayoffMovement, null);
   assert.equal(project.chapters[0].unitWordTarget, 0);
+
+  const outline = await prisma.outline.findUniqueOrThrow({
+    where: {
+      id: legacyOutlineId,
+    },
+  });
+
+  assert.equal(outline.status, "completed");
 
   const blueprintCount = await prisma.shortStoryBlueprint.count({
     where: {
