@@ -1,5 +1,54 @@
 # Development Log
 
+## 2026-07-12: 0.1.92 Reader Feedback Retirement Personal macOS Installer
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version from `0.1.91` to `0.1.92` after the
+  reader-feedback retirement was reviewed and merged through PR #69.
+- Rebuilt the arm64 macOS app payload without the chapter reader-feedback UI,
+  Station Cat feedback fetch path, or feedback-driven beat/draft context. The
+  legacy feedback schema remains bundled for non-destructive database upgrades.
+- Copied the app into an isolated PKG staging root and re-signed the complete
+  Electron bundle ad hoc with hardened runtime plus the required JIT, unsigned
+  executable memory, and library-validation entitlements.
+- Built the formal personal-use installer at
+  `release/desktop/NovelForge-AI-0.1.92-mac-arm64.pkg`, targeting
+  `/Applications`.
+- Removed the `0.1.91` installer and Electron build intermediates so the
+  delivery directory contains only the new verified PKG.
+
+Verification:
+
+- Full `npm run test` passed: 103 files and 565 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no difference
+  between all 23 migrations and `prisma/schema.prisma`.
+- The production build inside `npm run desktop:pack:mac` passed. The original
+  app payload passed Developer ID deep/strict signature verification and
+  reported Bundle and packaged source version `0.1.92`.
+- The re-signed staging payload and a second ordinary copy both passed
+  deep/strict signature verification. The required hardened-runtime
+  entitlements remained present.
+- The final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.92`,
+  and install location `/Applications`.
+- The app expanded from the final PKG reports Bundle and packaged source version
+  `0.1.92`, passes deep/strict signature verification, retains all required
+  entitlements, and contains all 23 bundled migrations.
+- Packaged runtime inspection confirmed `runDesktopMigrations`, bundled
+  migration SQL loading, and no Prisma CLI `migrate deploy` startup path.
+- `npm run work-types:acceptance` passed again using the expanded PKG's
+  `app.asar.unpacked` resources, including legacy serial migration, short-story
+  snapshot/delete behavior, foreign keys, and SQLite health.
+- The PKG itself is unsigned because no Developer ID Installer identity is
+  available. Its app payload is verified for personal local use; no real
+  overwrite install into `/Applications` was performed.
+- Final SHA-256:
+  `5d405048826fff38adb41c40ee1f44267a8050c74c267fff00edb7dec1a41568`.
+
 ## 2026-07-12: Reader Feedback Feature Retirement
 
 Status: completed for PR review.
