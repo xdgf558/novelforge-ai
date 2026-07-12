@@ -128,7 +128,7 @@ const generationRequestSchema = z.object({
   ...request,
   chapterCount: request.targetLevel === "chapter" ? 1 : null,
   targetChapterNumber:
-    request.targetLevel === "chapter" ? request.targetChapterNumber : null,
+    request.targetLevel === "volume" ? null : request.targetChapterNumber,
 }));
 
 type ParseOutlineFormResult =
@@ -378,7 +378,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
         }
       : request;
   const previousChapter =
-    resolvedRequest.targetLevel === "chapter" &&
+    resolvedRequest.targetLevel !== "volume" &&
     resolvedRequest.targetChapterNumber &&
     resolvedRequest.targetChapterNumber > 1
       ? await prisma.chapter.findFirst({

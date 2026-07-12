@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => {
       upsert: vi.fn(async () => ({})),
     },
     chapter: {
-      findMany: vi.fn(async () => []),
+      findMany: vi.fn(async (): Promise<unknown[]> => []),
       update: vi.fn(async () => ({})),
     },
     chapterVersion: {
@@ -44,6 +44,9 @@ const mocks = vi.hoisted(() => {
         statusCode: 200,
       };
     }),
+    syncOutlineStatusesForChapterNumbers: vi.fn(
+      async (_projectId: string, _chapterNumbers: Iterable<number>) => undefined,
+    ),
     prisma: {
       publishRun: {
         findUnique: vi.fn(async (): Promise<unknown> => null),
@@ -65,6 +68,11 @@ vi.mock("@/lib/prisma", () => ({
   prisma: mocks.prisma,
 }));
 
+vi.mock("@/lib/chapters/outline-status", () => ({
+  syncOutlineStatusesForChapterNumbers:
+    mocks.syncOutlineStatusesForChapterNumbers,
+}));
+
 vi.mock("@/lib/station-cat-publisher", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/lib/station-cat-publisher")>();
@@ -77,7 +85,7 @@ vi.mock("@/lib/station-cat-publisher", async (importOriginal) => {
 
 import { createPublishRun } from "./runs";
 
-function projectFixture() {
+function projectFixture(chapters: unknown[] = []) {
   return {
     id: "project_1",
     title: "照夜寒舟录",
@@ -103,7 +111,7 @@ function projectFixture() {
     setting: null,
     characters: [],
     characterRelationships: [],
-    chapters: [],
+    chapters,
     chapterSummaries: [],
     outlines: [],
     storylines: [],
@@ -126,6 +134,32 @@ function projectFixture() {
       aiUsageDaily: 0,
     },
   } as never;
+}
+
+function chapterFixture() {
+  return {
+    id: "chapter_1",
+    projectId: "project_1",
+    chapterNumber: 1,
+    title: "雨夜旧印",
+    status: "final",
+    goal: "取得旧印。",
+    unitSceneMovement: null,
+    unitConflict: null,
+    unitTurn: null,
+    unitPayoffMovement: null,
+    unitWordTarget: 0,
+    beats: null,
+    draftText: null,
+    polishedText: null,
+    finalText: "沈照夜在雨夜旧牢取得沈氏旧印。",
+    notes: null,
+    wordCount: 17,
+    readerRemoteId: null,
+    readerFeedbackUpdatedAt: null,
+    createdAt: new Date("2026-07-11T00:00:00.000Z"),
+    updatedAt: new Date("2026-07-11T00:00:00.000Z"),
+  };
 }
 
 function targetFixture() {
@@ -211,5 +245,28 @@ describe("publish run outbox", () => {
         },
       }),
     );
+  });
+
+  it("synchronizes matching outline statuses after publishing chapters", async () => {
+    const chapter = chapterFixture();
+    mocks.tx.chapter.findMany.mockResolvedValueOnce([chapter]);
+
+    await createPublishRun({
+      projectId: "project_1",
+      project: projectFixture([chapter]),
+      target: targetFixture(),
+      mode: "publish",
+      onlyChanged: false,
+      uploadSelection: {
+        scope: "all",
+        chapterId: null,
+      },
+    });
+
+    expect(mocks.syncOutlineStatusesForChapterNumbers).toHaveBeenCalledTimes(1);
+    const [, chapterNumbers] =
+      mocks.syncOutlineStatusesForChapterNumbers.mock.calls[0];
+
+    expect([...chapterNumbers]).toEqual([1]);
   });
 });

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { buildExportData, projectPublishInclude } from "@/lib/project-export-data";
 import { chapterSnapshot, chapterValuesFromRecord } from "@/lib/chapter-fields";
+import { syncOutlineStatusesForChapterNumbers } from "@/lib/chapters/outline-status";
 import {
   buildPublishSyncItems,
   buildStandardPublishPackage,
@@ -164,6 +165,7 @@ export async function createPublishRun({
     stationCatResult,
   );
   const publishedChapterIdSet = new Set(publishedChapterIds);
+  const chapterNumbersToSync = new Set<number>();
 
   await prisma.$transaction(async (tx) => {
     await tx.publishRun.update({
@@ -239,6 +241,7 @@ export async function createPublishRun({
       });
 
       for (const chapter of chaptersToMark) {
+        chapterNumbersToSync.add(chapter.chapterNumber);
         const snapshot = chapterSnapshot({
           ...chapterValuesFromRecord(chapter),
           status: "published",
@@ -270,6 +273,8 @@ export async function createPublishRun({
       }
     }
   });
+
+  await syncOutlineStatusesForChapterNumbers(projectId, chapterNumbersToSync);
 }
 
 export async function loadProjectForPublishRun(projectId: string) {

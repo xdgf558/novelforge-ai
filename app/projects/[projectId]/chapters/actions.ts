@@ -574,7 +574,7 @@ export async function adoptChapterPolish(
     status: chapter.status === "published" ? "published" : "revising",
   });
 
-  await prisma.$transaction(async (tx) => {
+  const adopted = await prisma.$transaction(async (tx) => {
     const adoptedTask = await tx.aiTask.updateMany({
       where: {
         id: task.id,
@@ -586,7 +586,7 @@ export async function adoptChapterPolish(
     });
 
     if (adoptedTask.count !== 1) {
-      return;
+      return false;
     }
 
     await tx.chapter.update({
@@ -612,11 +612,20 @@ export async function adoptChapterPolish(
         sourceType: "ai_chapter_polish",
       },
     });
+
+    return true;
   });
+
+  if (adopted) {
+    await syncOutlineStatusesForChapterNumbers(projectId, [
+      chapter.chapterNumber,
+    ]);
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/ai`);
   revalidatePath(`/projects/${projectId}/chapters`);
+  revalidatePath(`/projects/${projectId}/outlines`);
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
   revalidatePath(`/projects/${projectId}/chapters/${chapterId}/history`);
   redirect(`/projects/${projectId}/chapters/${chapterId}`);

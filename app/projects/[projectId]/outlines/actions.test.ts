@@ -384,6 +384,52 @@ describe("outline actions", () => {
     );
   });
 
+  it("anchors a next-unit draft to its suggested starting chapter", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "unit");
+    formData.set("targetChapterNumber", "17");
+    mocks.prisma.chapter.findFirst.mockResolvedValue({
+      chapterNumber: 16,
+      title: "炭图藏锋",
+      draftText: null,
+      polishedText: null,
+      finalText: "铁匣开启，裴仲明留下的完整密信终于重见天日。",
+    });
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.chapter.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          projectId: "project_1",
+          chapterNumber: 16,
+        },
+      }),
+    );
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputJson: expect.objectContaining({
+          request: {
+            targetLevel: "unit",
+            chapterCount: null,
+            targetChapterNumber: 17,
+          },
+          previousChapter: expect.objectContaining({
+            chapterNumber: 16,
+          }),
+        }),
+        inputContextSummary:
+          "《离线未来》剧情单元大纲生成；已有大纲 0 条；角色 0 个；已有章节 0 个；建议起始第 17 章",
+      }),
+      expect.objectContaining({
+        input: expect.stringContaining("从第 17 章开始的下一剧情单元"),
+      }),
+    );
+    expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
+  });
+
   it("starts a draft-only ending planning task without writing formal outline memory", async () => {
     mocks.ensureDefaultPromptTemplate.mockResolvedValue({
       id: "ending_template_1",

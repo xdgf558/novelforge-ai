@@ -54,8 +54,13 @@ import {
 } from "@/lib/outline-fields";
 import {
   calculateOutlineProgress,
+  resolveOutlineLifecycleStatus,
   type OutlineProgress,
 } from "@/lib/outline-progress";
+import {
+  findNextUnitPlanningReminder,
+  type NextUnitPlanningReminder,
+} from "@/lib/outlines/unit-lifecycle";
 import { prisma } from "@/lib/prisma";
 import { storylineStatusLabel, storylineTypeLabel } from "@/lib/storyline-fields";
 
@@ -172,10 +177,23 @@ export default async function OutlinesPage({
   )
     ? (query.outlineSaved as OutlineLevel)
     : null;
+  const progressByOutlineId = new Map(
+    project.outlines.map((outline) => [
+      outline.id,
+      calculateOutlineProgress(outline, project.chapters),
+    ]),
+  );
+  const lifecycleOutlines = project.outlines.map((outline) => ({
+    ...outline,
+    status: resolveOutlineLifecycleStatus(
+      outline,
+      progressByOutlineId.get(outline.id)!,
+    ),
+  }));
   const groupedOutlines = {
-    volume: project.outlines.filter((outline) => outline.level === "volume"),
-    unit: project.outlines.filter((outline) => outline.level === "unit"),
-    chapter: project.outlines.filter((outline) => outline.level === "chapter"),
+    volume: lifecycleOutlines.filter((outline) => outline.level === "volume"),
+    unit: lifecycleOutlines.filter((outline) => outline.level === "unit"),
+    chapter: lifecycleOutlines.filter((outline) => outline.level === "chapter"),
   };
   const defaultTargetChapterNumber =
     Math.max(
@@ -202,15 +220,14 @@ export default async function OutlinesPage({
   const endingReadiness = calculateEndingReadiness({
     project,
     chapters: project.chapters,
-    outlines: project.outlines,
+    outlines: lifecycleOutlines,
     foreshadows: project.foreshadows,
   });
-  const progressByOutlineId = new Map(
-    project.outlines.map((outline) => [
-      outline.id,
-      calculateOutlineProgress(outline, project.chapters),
-    ]),
-  );
+  const nextUnitReminder = findNextUnitPlanningReminder({
+    chapters: project.chapters,
+    outlines: project.outlines,
+    readyToFinish: endingReadiness.stage === "ready_to_finish",
+  });
 
   return (
     <div className="space-y-6">
@@ -283,9 +300,20 @@ export default async function OutlinesPage({
         readiness={endingReadiness}
         tasks={endingPlanTasks}
       />
+      {nextUnitReminder ? (
+        <NextUnitPlanningPanel
+          generateAction={generateOutlineDraft.bind(null, project.id)}
+          hasActiveTask={hasActiveOutlineTask}
+          hasApiKey={aiSettings.hasApiKey}
+          reminder={nextUnitReminder}
+        />
+      ) : null}
       <AiBudgetNotice projectId={project.id} />
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+      <section
+        className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
+        id="quick-create-outlines"
+      >
         <div>
           <h2 className="text-base font-semibold text-ink-950">快速新增大纲</h2>
           <p className="mt-1 text-xs leading-5 text-ink-700">
@@ -482,6 +510,84 @@ function outlineLevelFromTaskSummary(summary?: string | null) {
   }
 
   return null;
+}
+
+function NextUnitPlanningPanel({
+  generateAction,
+  hasActiveTask,
+  hasApiKey,
+  reminder,
+}: {
+  generateAction: (formData: FormData) => Promise<void>;
+  hasActiveTask: boolean;
+  hasApiKey: boolean;
+  reminder: NextUnitPlanningReminder;
+}) {
+  const canGenerate = hasApiKey && !hasActiveTask;
+
+  return (
+    <section
+      className="rounded-lg border border-signal-600/25 bg-white p-4 shadow-panel"
+      id="next-unit-planning"
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="max-w-3xl">
+          <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
+            <Route aria-hidden="true" className="h-4 w-4" />
+            下一剧情单元
+          </div>
+          <h2 className="mt-1.5 text-base font-semibold text-ink-950">
+            当前剧情单元已全部完成
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-ink-700">
+            已完成 {formatNumber(reminder.completedUnitCount)} 个剧情单元，作品尚未达到可完结状态。建议从第 {formatNumber(reminder.nextChapterNumber)} 章开始规划下一单元。
+          </p>
+          <p className="mt-1 text-xs leading-5 text-ink-700">
+            系统不会自动创建正式大纲。这里仅生成可审阅草案，作者确认后再复制到大纲表单保存。
+          </p>
+          <Link
+            className="mt-2 inline-flex text-xs font-semibold text-signal-700 transition hover:text-signal-600"
+            href="#quick-create-outlines"
+          >
+            手动新增剧情单元
+          </Link>
+        </div>
+
+        <PreserveScrollForm
+          action={generateAction}
+          preserveKey="next-unit-outline-generation"
+          statusText="已开始生成下一剧情单元草案，页面会自动刷新结果。"
+        >
+          <input name="targetLevel" type="hidden" value="unit" />
+          <input
+            name="targetChapterNumber"
+            type="hidden"
+            value={reminder.nextChapterNumber}
+          />
+          <FormActionButton
+            disabled={!canGenerate}
+            icon="play"
+            idleLabel="生成下一单元草案"
+            pendingLabel="正在生成草案"
+            statusText={`正在从第 ${reminder.nextChapterNumber} 章起规划下一剧情单元。`}
+            variant="dark"
+          />
+        </PreserveScrollForm>
+      </div>
+
+      {!hasApiKey ? (
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          未配置 API Key，仍可使用上方入口手动新增剧情单元。
+        </p>
+      ) : null}
+
+      {hasActiveTask ? (
+        <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
+          当前已有大纲草案任务运行中，完成后可再生成下一单元。
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
 function EndingPlanningPanel({

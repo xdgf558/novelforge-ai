@@ -3,6 +3,7 @@ import {
   calculateOutlineProgress,
   chapterBelongsToOutline,
   outlineExpectedChapterCount,
+  resolveOutlineLifecycleStatus,
 } from "./outline-progress";
 
 describe("outline progress", () => {
@@ -64,6 +65,48 @@ describe("outline progress", () => {
     expect(progress.statusSuggestion).toBe("completed");
     expect(progress.completedChapters).toBe(2);
     expect(progress.publishedChapters).toBe(1);
+  });
+
+  it("resolves stale stored labels from deterministic chapter progress", () => {
+    const outline = {
+      level: "unit",
+      status: "active",
+      startChapter: 1,
+      endChapter: 2,
+    };
+    const progress = calculateOutlineProgress(outline, [
+      { chapterNumber: 1, status: "final" },
+      { chapterNumber: 2, status: "published" },
+    ]);
+
+    expect(resolveOutlineLifecycleStatus(outline, progress)).toBe("completed");
+  });
+
+  it("preserves archived and manually completed open-ended outlines", () => {
+    expect(
+      resolveOutlineLifecycleStatus(
+        { level: "unit", status: "archived", startChapter: 1, endChapter: 2 },
+        {
+          completedChapters: 2,
+          createdChapters: 2,
+          expectedChapters: 2,
+          publishedChapters: 2,
+          statusSuggestion: "completed",
+        },
+      ),
+    ).toBe("archived");
+    expect(
+      resolveOutlineLifecycleStatus(
+        { level: "unit", status: "completed", startChapter: 1 },
+        {
+          completedChapters: 1,
+          createdChapters: 1,
+          expectedChapters: null,
+          publishedChapters: 0,
+          statusSuggestion: "active",
+        },
+      ),
+    ).toBe("completed");
   });
 
   it("supports chapter outlines and open-ended ranges", () => {

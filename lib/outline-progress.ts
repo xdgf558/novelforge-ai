@@ -1,4 +1,4 @@
-import type { OutlineLike } from "./outline-fields";
+import type { OutlineLike, OutlineStatus } from "./outline-fields";
 
 export type OutlineProgressChapter = {
   chapterNumber: number;
@@ -42,6 +42,29 @@ export function calculateOutlineProgress(
     publishedChapters,
     statusSuggestion,
   };
+}
+
+export function resolveOutlineLifecycleStatus(
+  outline: OutlineLike,
+  progress: OutlineProgress,
+): OutlineStatus {
+  if (outline.status === "archived") {
+    return "archived";
+  }
+
+  if (progress.expectedChapters != null && progress.expectedChapters > 0) {
+    return progress.statusSuggestion;
+  }
+
+  if (outline.status === "completed") {
+    return "completed";
+  }
+
+  if (progress.createdChapters > 0) {
+    return "active";
+  }
+
+  return outline.status === "active" ? "active" : "planned";
 }
 
 export function chapterBelongsToOutline(

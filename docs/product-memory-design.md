@@ -58,6 +58,21 @@ backup acknowledgement and removes only the selected project's database rows
 and generated assets. Existing desktop databases migrate forward with legacy
 projects defaulting to `serial_novel` and existing chapter prose unchanged.
 
+Long-form outline status is a deterministic view of confirmed chapter progress
+when an outline has a bounded chapter count or range. A range is `completed`
+only when every expected chapter is `final` or `published`; created but
+unfinished coverage is `active`, and a later prose revision may move a formerly
+completed outline back to active. Explicitly archived outlines stay archived.
+All chapter-status paths, including successful Station Cat publishing, should
+run the same reconciliation, and migrations may repair historical stale labels.
+
+Story-unit continuation remains review-first. When every current non-archived
+unit is complete and the project is not ready to finish, the workspace may
+recommend the next uncovered chapter and offer a one-click AI unit-planning
+draft anchored to the previous chapter ending. The draft is only an AI task
+record; it must not create or mutate a formal outline until the author reviews
+and saves it.
+
 ## Memory Layers
 
 ### 1. Project Setting Memory

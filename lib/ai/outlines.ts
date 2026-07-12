@@ -86,11 +86,11 @@ export function buildOutlineGenerationContext(
       ? 1
       : null;
   const targetChapterNumber =
-    input.request.targetLevel === "chapter"
-      ? (input.request.targetChapterNumber ?? null)
-      : null;
+    input.request.targetLevel === "volume"
+      ? null
+      : (input.request.targetChapterNumber ?? null);
   const previousChapter =
-    input.request.targetLevel === "chapter" && input.previousChapter
+    input.request.targetLevel !== "volume" && input.previousChapter
       ? {
           chapterNumber: input.previousChapter.chapterNumber,
           title: input.previousChapter.title,
@@ -98,17 +98,19 @@ export function buildOutlineGenerationContext(
         }
       : null;
   const previousChapterSection =
-    input.request.targetLevel === "chapter"
+    input.request.targetLevel !== "volume" && targetChapterNumber
       ? [
           "",
           "# 必须承接的上一章结尾",
           previousChapter
             ? [
                 `目标章节的上一章是第 ${previousChapter.chapterNumber} 章《${previousChapter.title}》。`,
-                "请让本次章节大纲直接承接下面这段结尾里的最后事件、人物状态和章末钩子，不要跳回更早事件，也不要因为新增角色而另起一条与上一章脱节的线。",
+                input.request.targetLevel === "chapter"
+                  ? "请让本次章节大纲直接承接下面这段结尾里的最后事件、人物状态和章末钩子，不要跳回更早事件，也不要因为新增角色而另起一条与上一章脱节的线。"
+                  : `请让从第 ${targetChapterNumber} 章开始的下一剧情单元直接承接下面这段结尾，延续人物状态、未完成行动和当前压力，不要重复开篇或另起脱节支线。`,
                 previousChapter.endingText,
               ].join("\n")
-            : "未找到目标章节的上一章正文结尾；请根据已有章节目标和大纲保持顺序衔接。",
+            : "未找到起始章节的上一章正文结尾；请根据已有章节目标和大纲保持顺序衔接。",
         ]
       : [];
 
@@ -144,6 +146,8 @@ export function buildOutlineGenerationContext(
       ? targetChapterNumber
         ? `本次只生成第 ${targetChapterNumber} 章的一条章节大纲，不要生成其他章节。`
         : "本次只生成下一章的一条章节大纲，不要生成连续多章。"
+      : input.request.targetLevel === "unit" && targetChapterNumber
+        ? `本次只规划一个从第 ${targetChapterNumber} 章开始的下一剧情单元。请根据总目标、已有卷大纲和最近章节建议合理的结束章节，不要覆盖已有剧情单元。`
       : "",
     "",
     "# 项目基础信息",
@@ -184,6 +188,7 @@ export function buildOutlineGenerationContext(
     "- 不要直接修改正式设定、角色、世界规则、时间线或伏笔。",
     "- 如果任务是章节大纲，只输出目标章节这一章，不要输出连续章节列表。",
     "- 如果任务是章节大纲，开篇必须承接上一章最后事件和章末钩子；新增人物只能服务这个承接，不要替换主线衔接。",
+    "- 如果任务是下一剧情单元，必须从指定起始章节承接最近正文，并给出不与已有单元重叠的建议结束章节。",
     "- 给出可复制到大纲表单的字段：标题、目标、章节范围、核心事件、冲突、爽点、伏笔和章末钩子。",
     "- 可复制字段必须使用独立行式标签，例如 `**标题：** ...`、`**目标：** ...`、`**章节范围：** 第1章-第10章`；不要只把关键字段放进 Markdown 表格。",
   ]
@@ -206,7 +211,10 @@ export function buildOutlineGenerationContextSummary(
       ? input.request.targetChapterNumber
         ? `；目标第 ${input.request.targetChapterNumber} 章；固定 1 条章节大纲`
         : "；固定 1 条章节大纲"
-      : "";
+      : input.request.targetLevel === "unit" &&
+          input.request.targetChapterNumber
+        ? `；建议起始第 ${input.request.targetChapterNumber} 章`
+        : "";
 
   return [
     `《${input.project.title}》${targetLabel}生成`,
