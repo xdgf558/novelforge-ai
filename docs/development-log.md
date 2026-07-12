@@ -1,5 +1,52 @@
 # Development Log
 
+## 2026-07-12: 0.1.91 Short Story Complete Personal macOS Installer
+
+Status: completed.
+
+What was done:
+
+- Bumped the source app/package version from `0.1.90` to `0.1.91` after Short
+  Story Phase 6 was reviewed and merged through PR #68.
+- Rebuilt the arm64 macOS app payload with the completed short-story workflow,
+  full project export, lifecycle hardening, legacy migration coverage, and
+  desktop/mobile layout checks.
+- Copied the app into its final PKG staging location and re-signed the complete
+  Electron bundle ad hoc with hardened runtime plus the required JIT, unsigned
+  executable memory, and library-validation entitlements.
+- Built the formal personal-use installer at
+  `release/desktop/NovelForge-AI-0.1.91-mac-arm64.pkg`, targeting
+  `/Applications`.
+- Removed the `0.1.90` installer and Electron build intermediates so the
+  delivery directory contains only the new verified PKG.
+
+Verification:
+
+- Full `npm run test` passed: 105 files and 575 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- The production build inside `npm run desktop:pack:mac` passed. The original
+  app payload passed Developer ID deep/strict signature verification and
+  reported version `0.1.91` with all 23 migrations.
+- The re-signed staging payload and a second ordinary copy both passed
+  deep/strict signature verification. The required hardened-runtime
+  entitlements remained present.
+- The final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.91`,
+  and install location `/Applications`.
+- The app expanded from the final PKG reports Bundle and packaged source version
+  `0.1.91`, passes deep/strict signature verification, and retains all required
+  entitlements.
+- Packaged runtime inspection confirmed `runDesktopMigrations`, bundled
+  `migration.sql` loading, and no Prisma CLI `migrate deploy` startup path.
+- `npm run work-types:acceptance` passed again using the expanded PKG's
+  `app.asar.unpacked` resources, including legacy serial migration, short-story
+  snapshot/delete behavior, foreign keys, and SQLite health.
+- The PKG itself is unsigned because no Developer ID Installer identity is
+  available. Its app payload is verified for personal local use; no real
+  overwrite install into `/Applications` was performed.
+- Final SHA-256:
+  `1ad1b5ac804cb1b209b400b1a0f5e2ca562bbbabbd3c0ab580f3027ebebd9a4e`.
+
 ## 2026-07-12: Short Story Phase 6 Lifecycle Hardening
 
 Status: completed for PR review.

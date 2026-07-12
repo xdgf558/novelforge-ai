@@ -53,14 +53,20 @@ npm run desktop:dist:mac
 npm run desktop:dist:mac:notarized
 ```
 
-Use `desktop:pack:mac` for a fast local `.app` directory verification. Use `desktop:dist:mac` when signed DMG/ZIP artifacts are needed without Apple notarization.
+Use `desktop:pack:mac` to produce the signed `.app` payload used for local
+verification and the formal personal-use PKG. Use `desktop:dist:mac` only when
+DMG/ZIP artifacts are explicitly needed without Apple notarization.
 
 Current personal-use rebuild policy:
 
 - Do not run Apple notarization by default.
-- Use signed local DMG/ZIP artifacts for the user's own Mac.
+- Build a clean `.pkg` that installs `NovelForge AI.app` into `/Applications`.
+- Leave only the final versioned PKG in `release/desktop/` for normal handoff.
 - Keep `desktop:dist:mac:notarized` only for an explicit future public-distribution request.
-- An unnotarized Developer ID build can still be used locally; macOS may require right-click Open or local Gatekeeper approval depending on quarantine state.
+- The current keychain has no Developer ID Installer identity, so the PKG is
+  unsigned. Re-sign and verify its staged app payload with hardened runtime and
+  `build/entitlements.mac.plist`; macOS may require a one-time right-click Open
+  confirmation.
 
 ## Packaging Notes
 
@@ -71,3 +77,12 @@ Current personal-use rebuild policy:
 - The packaged app runs from `Contents/Resources/app.asar.unpacked` because the desktop shell launches a bundled Next.js server and Prisma startup migrations.
 - `scripts/after-pack.cjs` prunes unused Electron locale resources and copies `node_modules/.prisma` into `app.asar.unpacked`; keep this copy step, because electron-builder glob rules can skip the generated Prisma client dot directory.
 - The signed-only scripts set `SKIP_NOTARIZE=1`; notarized builds use `APPLE_KEYCHAIN_PROFILE`, defaulting to `simplecut-pro-notary`, but should not be used for normal personal rebuilds.
+- Build the PKG from a separate staging root with `pkgbuild`, identifier
+  `com.novelforge.ai`, the current source version, and install location
+  `/Applications`.
+- Before handoff, verify the staged app, a second ordinary copy, and the app
+  expanded from the final PKG with `codesign --verify --deep --strict`.
+- Confirm the expanded app's Bundle version, packaged `package.json`, bundled
+  migration count, runtime migration runner, and isolated SQLite migration
+  acceptance. Do not overwrite the real `/Applications/NovelForge AI.app`
+  merely to test an installer.

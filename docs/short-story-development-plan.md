@@ -86,7 +86,7 @@ Status: completed and merged.
 
 ## Phase 6: Hardening and Desktop Delivery
 
-Status: implemented for PR review.
+Status: completed and merged.
 
 - Run serial-novel and short-story regression coverage together.
 - Cover backup, project export, hard deletion, task retention, and migration from
