@@ -14,7 +14,6 @@ import {
   type ChapterSummaryChapterContext,
   type ChapterSummaryContextInput,
 } from "@/lib/ai/chapter-summaries";
-import { loadReaderFeedbackSignalsForChapterGeneration } from "@/lib/ai/reader-feedback-signal-store";
 import { selectRelevantCharacters } from "@/lib/ai/context-priority";
 import { findForeshadowRecoveryReminders } from "@/lib/foreshadows/recovery-reminders";
 import { selectForeshadowsForChapterRecoveryAudit } from "@/lib/foreshadows/recovery-audit";
@@ -67,7 +66,6 @@ export async function loadChapterBeatContext(
     characters,
     recentChapters,
     previousChapter,
-    readerFeedbackSignals,
     dueForeshadows,
   ] = await Promise.all([
     prisma.projectSetting.findUnique({
@@ -125,12 +123,6 @@ export async function loadChapterBeatContext(
         chapterNumber: "desc",
       },
     }),
-    shortStoryProject
-      ? Promise.resolve([])
-      : loadReaderFeedbackSignalsForChapterGeneration({
-          projectId,
-          beforeChapterNumber: chapter.chapterNumber,
-        }),
     findForeshadowRecoveryReminders({
       projectId,
       currentChapterNumber: chapter.chapterNumber,
@@ -150,7 +142,6 @@ export async function loadChapterBeatContext(
     ),
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
-    readerFeedback: readerFeedbackSignals,
     dueForeshadows,
   };
 }
@@ -188,13 +179,7 @@ export async function loadChapterDraftContext(
   }
   const shortStoryProject = chapter.project.workType === "short_story";
 
-  const [
-    setting,
-    outlines,
-    characters,
-    previousChapter,
-    readerFeedbackSignals,
-  ] = await Promise.all([
+  const [setting, outlines, characters, previousChapter] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
@@ -238,12 +223,6 @@ export async function loadChapterDraftContext(
         chapterNumber: "desc",
       },
     }),
-    shortStoryProject
-      ? Promise.resolve([])
-      : loadReaderFeedbackSignalsForChapterGeneration({
-          projectId,
-          beforeChapterNumber: chapter.chapterNumber,
-        }),
   ]);
 
   return {
@@ -260,7 +239,6 @@ export async function loadChapterDraftContext(
     previousChapter: previousChapter
       ? pickChapterDraftContext(previousChapter)
       : null,
-    readerFeedback: readerFeedbackSignals,
   };
 }
 

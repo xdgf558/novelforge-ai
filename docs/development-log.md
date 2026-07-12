@@ -1,5 +1,36 @@
 # Development Log
 
+## 2026-07-12: Reader Feedback Feature Retirement
+
+Status: completed for PR review.
+
+What was done:
+
+- Removed the chapter-detail reader-feedback panel, Station Cat feedback fetch,
+  remote chapter ID editing, snapshot display, and generation-reference UI.
+- Removed reader analytics and insight loading from chapter beat and draft
+  generation, including prompt text, task input JSON, and context summaries.
+- Deleted the retired Station Cat feedback client, snapshot persistence,
+  signal-compression/store modules, and their dedicated tests.
+- Preserved `Chapter.readerRemoteId`, `Chapter.readerFeedbackUpdatedAt`,
+  `chapter_analytics`, and `chapter_insights` in the Prisma schema and migration
+  history so existing desktop databases and backups upgrade non-destructively.
+- Kept the source version at `0.1.91`; installer replacement remains deferred
+  until review and merge.
+
+Verification:
+
+- Focused chapter beat, chapter draft, and chapter action tests passed: 3 files
+  and 25 tests. Full `npm run test` passed: 103 files and 565 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no difference
+  between all migrations and `prisma/schema.prisma`.
+- An isolated migrated SQLite database and local browser session confirmed the
+  chapter page contains no reader-feedback panel, fetch action, or generation
+  reference, while the storyline and chapter-beat panels remain present. The
+  page produced no browser warnings or errors.
+
 ## 2026-07-12: 0.1.91 Short Story Complete Personal macOS Installer
 
 Status: completed.
