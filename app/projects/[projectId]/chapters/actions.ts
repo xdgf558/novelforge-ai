@@ -13,7 +13,6 @@ import {
   startChapterSummaryGeneration,
   type ChapterAiGenerationResult,
 } from "@/lib/chapters/ai-generation";
-import { readStationCatPublishSecrets } from "@/lib/ai/local-config";
 import {
   chapterFieldNames,
   chapterValuesFromRecord,
@@ -26,21 +25,15 @@ import {
 } from "@/lib/chapters/context";
 import { syncOutlineStatusesForChapterNumbers } from "@/lib/chapters/outline-status";
 import {
-  latestStationCatChapterRemoteId,
-  saveChapterReaderFeedbackSnapshot,
-} from "@/lib/chapters/reader-feedback-snapshots";
-import {
   createChapterRecord,
   deleteChapterRecord,
   DuplicateChapterNumberError,
   findChapterForUpdate,
-  updateChapterReaderRemoteIdRecord,
   updateChapterRecord,
 } from "@/lib/chapters/records";
 import { prisma } from "@/lib/prisma";
 import { isShortStoryProject } from "@/lib/projects/work-types";
 import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
-import { fetchStationCatReaderFeedback } from "@/lib/reader-feedback";
 
 const optionalChapterText = z
   .preprocess(
@@ -95,14 +88,6 @@ const changeReasonSchema = z
       typeof value === "string" && value.trim() === "" ? undefined : value,
     z.string().trim().max(1000).optional(),
   );
-
-const readerRemoteIdSchema = z
-  .preprocess(
-    (value) =>
-      typeof value === "string" && value.trim() === "" ? null : value,
-    z.string().trim().max(240).nullable(),
-  )
-  .default(null);
 
 function parseChapterForm(formData: FormData) {
   const parsedValues = chapterSchema.parse(
@@ -308,102 +293,6 @@ export async function deleteChapter(projectId: string, chapterId: string) {
   revalidatePath(`/projects/${projectId}/outlines`);
   revalidatePath(`/projects/${projectId}/storylines`);
   redirect(`/projects/${projectId}/chapters`);
-}
-
-export async function updateChapterReaderRemoteId(
-  projectId: string,
-  chapterId: string,
-  formData: FormData,
-) {
-  const chapter = await findChapterForUpdate({
-    projectId,
-    chapterId,
-  });
-
-  if (!chapter) {
-    notFound();
-  }
-
-  const readerRemoteId = readerRemoteIdSchema.parse(
-    formData.get("readerRemoteId"),
-  );
-  await updateChapterReaderRemoteIdRecord({
-    projectId,
-    chapter,
-    readerRemoteId,
-  });
-
-  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-  redirect(`/projects/${projectId}/chapters/${chapterId}#reader-feedback`);
-}
-
-export async function fetchChapterReaderFeedback(
-  projectId: string,
-  chapterId: string,
-) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    select: {
-      id: true,
-      readerRemoteId: true,
-    },
-  });
-
-  if (!chapter) {
-    notFound();
-  }
-
-  const remoteChapterId =
-    chapter.readerRemoteId?.trim() ||
-    (await latestStationCatChapterRemoteId(projectId, chapterId));
-
-  if (!remoteChapterId) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(
-      `/projects/${projectId}/chapters/${chapterId}?readerFeedbackError=missingRemoteId#reader-feedback`,
-    );
-  }
-
-  const stationCatSecrets = readStationCatPublishSecrets();
-
-  if (!stationCatSecrets.token) {
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(
-      `/projects/${projectId}/chapters/${chapterId}?readerFeedbackError=missingToken#reader-feedback`,
-    );
-  }
-
-  try {
-    const feedback = await fetchStationCatReaderFeedback({
-      apiBaseUrl: stationCatSecrets.apiBaseUrl,
-      token: stationCatSecrets.token,
-      remoteChapterId,
-    });
-
-    await saveChapterReaderFeedbackSnapshot({
-      projectId,
-      chapterId,
-      remoteChapterId,
-      feedback,
-    });
-  } catch (error) {
-    const errorMessage = encodeURIComponent(
-      error instanceof Error ? error.message : String(error),
-    );
-
-    revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-    redirect(
-      `/projects/${projectId}/chapters/${chapterId}?readerFeedbackError=fetchFailed&readerFeedbackMessage=${errorMessage}#reader-feedback`,
-    );
-  }
-
-  revalidatePath(`/projects/${projectId}/chapters/${chapterId}`);
-  redirect(
-    `/projects/${projectId}/chapters/${chapterId}?readerFeedbackSaved=1#reader-feedback`,
-  );
 }
 
 export async function generateChapterBeats(projectId: string, chapterId: string) {

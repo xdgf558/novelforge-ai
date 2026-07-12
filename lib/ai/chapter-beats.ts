@@ -6,11 +6,6 @@ import {
   foreshadowImportanceLabel,
   foreshadowStatusLabel,
 } from "../story-memory-fields";
-import {
-  formatReaderFeedbackSignals,
-  readerFeedbackSignalsToJson,
-  type ReaderFeedbackSignal,
-} from "./reader-feedback-context";
 import { proseStyleGuardrails } from "./prose-style-guardrails";
 import {
   formatShortStoryBlueprintForContext,
@@ -94,7 +89,6 @@ export type ChapterBeatContextInput = {
   characters: readonly ChapterBeatCharacterContext[];
   recentChapters: readonly ChapterBeatChapterContext[];
   previousChapter?: ChapterBeatChapterContext | null;
-  readerFeedback?: readonly ReaderFeedbackSignal[];
   dueForeshadows?: readonly ChapterBeatForeshadowContext[];
 };
 
@@ -134,8 +128,6 @@ export function buildChapterBeatContext(
   const dueForeshadowItems = (input.dueForeshadows ?? []).map((foreshadow) =>
     buildDueForeshadowLine(foreshadow, input.chapter.chapterNumber),
   );
-  const readerFeedback = input.readerFeedback ?? [];
-  const readerFeedbackText = formatReaderFeedbackSignals(readerFeedback);
   const forbiddenItems = compact([
     input.setting?.forbiddenItems,
     input.setting?.sensitiveContentRules,
@@ -174,7 +166,6 @@ export function buildChapterBeatContext(
     dueForeshadows: (input.dueForeshadows ?? []).map((foreshadow) =>
       compactDueForeshadow(foreshadow, input.chapter.chapterNumber),
     ),
-    readerFeedback: readerFeedbackSignalsToJson(readerFeedback),
     previousChapterEnding,
     forbiddenItems,
     outputRequirements: [
@@ -187,7 +178,6 @@ export function buildChapterBeatContext(
           ? "建立故事开篇，落实正式蓝图的开篇钩子，并启动核心冲突。"
           : "承接前序单元，包含场景推进、冲突升级、关键转折和兑现推进。"
         : "包含开场钩子、关键事件、情绪转折、章末钩子。",
-      "读者反馈只作为节奏、钩子、角色权重和爽点补强参考，不得改写已确认事实。",
       "节拍草案也要避免模板腔，不要反复使用“不是……而是……”这类二元对照句式。",
       "不要按第一天、第二天、第三天或早中晚打卡式推进；只有时间压力本身是冲突时才保留明确日期。",
       "每个节拍都必须提供新线索、新阻碍、新选择、新代价、关系变化、风险升级或伏笔回收；无功能的过渡日要合并或跳过。",
@@ -268,9 +258,6 @@ export function buildChapterBeatContext(
       ? dueForeshadowItems.join("\n")
       : "暂无到期或需要处理的伏笔。",
     "",
-    "# 读者反馈信号",
-    readerFeedbackText,
-    "",
     `# 上一${shortStoryProject ? "单元" : "章"}结尾`,
     previousChapterEnding ||
       `暂无上一${shortStoryProject ? "单元" : "章"}正文结尾。`,
@@ -288,7 +275,6 @@ export function buildChapterBeatContext(
         ? "- 建立故事开篇，优先落实正式蓝图的开篇钩子、主角压力和核心冲突；必要背景随行动呈现。"
         : "- 直接承接前序单元，不重复开篇、背景说明、角色介绍或已呈现的信息；结尾只保留整篇需要的自然转折。"
       : "- 明确标出开场钩子、关键转折、章末钩子。",
-    `- 如有读者反馈，优先用它调整下一${shortStoryProject ? "单元" : "章"}开场推进、${shortStoryProject ? "整篇情绪承接" : "章末钩子"}、角色出场权重和信息解释密度；不得把读者反馈当作已经生效的正式设定。`,
     "- 保持既有设定与角色边界，不新增未经作者确认的正式设定。",
     "- 节拍草案也要避免模板腔，少用“不是……而是……”这类二元对照句式；能用具体行动、选择和后果表达，就不要用抽象总结。",
     `- 反流水账硬性自检：不要把本${shortStoryProject ? "单元" : "章"}规划成“第一天/第二天/第三天”或“早上/中午/晚上”的日程表；除非倒计时、证据矛盾或人物错位依赖明确时间，否则跳过无冲突过渡日。`,
@@ -320,7 +306,6 @@ export function buildChapterBeatContextSummary(input: ChapterBeatContextInput) {
       : `大纲 ${(input.outlines ?? []).length} 条`,
     `角色 ${input.characters.length} 个`,
     `最近${shortStoryProject ? "单元" : "章节"} ${input.recentChapters.length} 个`,
-    input.readerFeedback?.length ? `读者反馈 ${input.readerFeedback.length} 条` : "无读者反馈",
     input.dueForeshadows?.length
       ? `建议处理伏笔 ${input.dueForeshadows.length} 条`
       : "无到期伏笔",

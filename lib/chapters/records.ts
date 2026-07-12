@@ -205,22 +205,3 @@ export async function deleteChapterRecord({
     chapterNumber: chapter.chapterNumber,
   };
 }
-
-export async function updateChapterReaderRemoteIdRecord({
-  chapter,
-  projectId,
-  readerRemoteId,
-}: {
-  chapter: Pick<ExistingChapterForUpdate, "id">;
-  projectId: string;
-  readerRemoteId: string | null;
-}) {
-  await prisma.chapter.update({
-    where: {
-      id: chapter.id,
-    },
-    data: {
-      readerRemoteId,
-    },
-  });
-}
