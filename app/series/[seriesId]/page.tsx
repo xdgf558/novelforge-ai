@@ -6,6 +6,8 @@ import {
   ArrowUp,
   BookCopy,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Link2,
   Pencil,
@@ -155,9 +157,12 @@ export default async function ShortStorySeriesDetailPage({
             <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink-950">
               {series.title}
             </h1>
-            <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-ink-700">
-              {series.premise || "尚未填写系列定位。"}
-            </p>
+            <ExpandableSeriesText
+              className="mt-3 max-w-3xl"
+              emptyMessage="尚未填写系列定位。"
+              expandLabel="展开系列简介"
+              value={series.premise}
+            />
           </div>
           <Link
             className="inline-flex min-h-10 w-fit items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
@@ -186,7 +191,7 @@ export default async function ShortStorySeriesDetailPage({
         <p className="mt-2 text-sm leading-6 text-ink-700">
           这些内容只约束跨篇事实；每篇故事仍需在自己的蓝图中完成独立冲突闭环。
         </p>
-        <dl className="mt-4 grid gap-x-6 gap-y-5 lg:grid-cols-2">
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <SeriesMemoryField label="共享世界观" value={series.sharedWorldview} />
           <SeriesMemoryField
             label="跨篇连续性规则"
@@ -202,7 +207,7 @@ export default async function ShortStorySeriesDetailPage({
             label="后续推进方向"
             value={series.futureDirection}
           />
-        </dl>
+        </div>
       </section>
 
       <section className="border-t border-ink-950/10 pt-5" id="series-stories">
@@ -558,14 +563,109 @@ function SeriesMemoryField({
   label: string;
   value?: string | null;
 }) {
+  const displayValue = value?.trim() || "未填写";
+  const expandable = Boolean(value?.trim()) && shouldCollapseText(displayValue, 160, 3);
+
+  if (!expandable) {
+    return (
+      <div
+        className={`rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel ${className}`}
+      >
+        <h3 className="text-sm font-semibold text-ink-950">{label}</h3>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-700">
+          {displayValue}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className={className}>
-      <dt className="text-sm font-semibold text-ink-950">{label}</dt>
-      <dd className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-700">
-        {value || "未填写"}
-      </dd>
-    </div>
+    <details
+      className={`group rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel ${className}`}
+    >
+      <summary
+        aria-label={`展开或收起${label}`}
+        className="cursor-pointer list-none rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-signal-500/50"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-ink-950">{label}</h3>
+          <SeriesTextToggle />
+        </div>
+        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-ink-700 group-open:hidden">
+          {displayValue}
+        </p>
+      </summary>
+      <div className="mt-3 max-h-80 overflow-y-auto border-t border-ink-950/10 pt-3 pr-2">
+        <p className="whitespace-pre-wrap text-sm leading-6 text-ink-700">
+          {displayValue}
+        </p>
+      </div>
+    </details>
   );
+}
+
+function ExpandableSeriesText({
+  className = "",
+  emptyMessage,
+  expandLabel,
+  value,
+}: {
+  className?: string;
+  emptyMessage: string;
+  expandLabel: string;
+  value?: string | null;
+}) {
+  const displayValue = value?.trim() || emptyMessage;
+  const expandable = Boolean(value?.trim()) && shouldCollapseText(displayValue, 240, 3);
+
+  if (!expandable) {
+    return (
+      <p className={`${className} whitespace-pre-wrap text-sm leading-6 text-ink-700`}>
+        {displayValue}
+      </p>
+    );
+  }
+
+  return (
+    <details className={`group ${className}`}>
+      <summary
+        aria-label="展开或收起系列简介"
+        className="cursor-pointer list-none rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-signal-500/50"
+      >
+        <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-ink-700 group-open:hidden">
+          {displayValue}
+        </p>
+        <span className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-signal-600 group-open:hidden">
+          <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+          {expandLabel}
+        </span>
+        <span className="hidden items-center gap-1.5 text-xs font-semibold text-signal-600 group-open:inline-flex">
+          <ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />
+          收起系列简介
+        </span>
+      </summary>
+      <div className="mt-3 max-h-72 overflow-y-auto border-t border-ink-950/10 pt-3 pr-2">
+        <p className="whitespace-pre-wrap text-sm leading-6 text-ink-700">
+          {displayValue}
+        </p>
+      </div>
+    </details>
+  );
+}
+
+function SeriesTextToggle() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-signal-600">
+      <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 group-open:hidden" />
+      <ChevronUp aria-hidden="true" className="hidden h-3.5 w-3.5 group-open:block" />
+      <span className="group-open:hidden">展开</span>
+      <span className="hidden group-open:inline">收起</span>
+    </span>
+  );
+}
+
+function shouldCollapseText(value: string, characterLimit: number, lineLimit: number) {
+  return value.length > characterLimit || value.split(/\r?\n/).length > lineLimit;
 }
 
 function CharacterStateRow({

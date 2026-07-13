@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-07-13: Compact Short-Story Series Detail Memory
+
+Status: completed for review.
+
+What was done:
+
+- Compacted imported series-bible text on the series detail page so large
+  documents no longer push story and character operations far down the page.
+- Limited the series premise and each shared-continuity field to three lines by
+  default, with clear expand/collapse controls for long values.
+- Kept full text available inside bounded scroll regions when expanded, so an
+  author can inspect the complete formal series memory without restoring an
+  unbounded page layout.
+- Replaced the raw two-column definition list with consistent repeated memory
+  panels while preserving the existing responsive one-column layout.
+
+Verification:
+
+- `npm run typecheck`, `npm run build`, and `git diff --check` passed.
+- Full `npm test` passed: 109 files and 602 tests. Source-tree
+  `npm run work-types:acceptance` also passed.
+- A local preview using an isolated copy of the real desktop database confirmed
+  compact rendering at 1280x900 and 390x844, with no horizontal overflow.
+- Expand/collapse interaction was exercised on the shared-worldview panel. The
+  expanded text stays within a roughly 320px scroll region even when the source
+  content is much longer.
+- The preview console reported no warnings or errors.
+
 ## 2026-07-13: 0.1.96 Title-Only Short-Story Creation Installer
 
 Status: completed.
