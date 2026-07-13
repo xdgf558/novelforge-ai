@@ -1,5 +1,47 @@
 # Development Log
 
+## 2026-07-13: 0.1.96 Title-Only Short-Story Creation Installer
+
+Status: completed.
+
+What was done:
+
+- Merged approved PR #74 into `main` at merge commit `5de0785`.
+- Bumped the source app/package version from `0.1.95` to `0.1.96`.
+- Rebuilt the arm64 macOS app with the title-only short-story creation fix.
+  Missing hidden optional text fields now normalize to unset values instead of
+  causing a server-side Zod exception before project creation.
+- Signed the Electron app with `Developer ID Application: HAO YE
+  (Y35K7AQ974)` and the installer with `Developer ID Installer: HAO YE
+  (Y35K7AQ974)` plus a trusted timestamp.
+- Created the formal installer at
+  `release/desktop/NovelForge-AI-0.1.96-mac-arm64.pkg`, targeting
+  `/Applications`.
+- Kept the personal local build unnotarized because Apple notarization requires
+  an external artifact upload and no explicit upload authorization was given.
+
+Verification:
+
+- Full `npm test` passed: 109 files and 602 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 25 migrations and `prisma/schema.prisma`.
+- The production macOS build passed. Bundle short version and bundle version
+  are both `0.1.96`.
+- `pkgutil --check-signature` confirmed the final PKG's Apple-issued Developer
+  ID Installer chain and trusted timestamp. `spctl` reports the expected
+  `Unnotarized Developer ID` status.
+- The app expanded from the final PKG passed system-level
+  `codesign --verify --deep --strict`, retained all 25 migrations, and contains
+  the fixed optional-field normalization in `app/projects/actions.ts`.
+- Packaged `npm run work-types:acceptance` passed. ASAR inspection confirmed
+  desktop startup still uses `runDesktopMigrations` and contains no Prisma CLI
+  `migrate deploy` startup path.
+- No real overwrite install into `/Applications` was performed.
+- Final size: `361,764,453` bytes. SHA-256:
+  `1979603371009ae392d026089308ef63934efb7b3bb5c6066984a2c537bca845`.
+
 ## 2026-07-13: Title-Only Short-Story Creation Fix
 
 Status: completed for review.
