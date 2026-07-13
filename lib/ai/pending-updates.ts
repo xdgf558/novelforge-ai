@@ -114,6 +114,11 @@ export type PendingUpdateSuggestion = {
   payload: Record<string, unknown>;
 };
 
+type PendingUpdateTargetContext = Pick<
+  PendingUpdateContextInput,
+  "characters" | "worldRules" | "foreshadows" | "timelineEvents"
+>;
+
 const finalTextPreviewMaxLength = 1200;
 const latestSummaryMaxLength = 2000;
 
@@ -311,6 +316,56 @@ export function parsePendingUpdateSuggestions(
   }
 
   return normalizeSuggestionList(parseLooseUpdateObjects(outputText));
+}
+
+export function normalizePendingUpdateSuggestionTargetIds(
+  suggestions: readonly PendingUpdateSuggestion[],
+  context: PendingUpdateTargetContext,
+) {
+  const validIds = new Map<PendingUpdateTargetType, Set<string>>([
+    ["character", idsFrom(context.characters)],
+    ["world_rule", idsFrom(context.worldRules)],
+    ["foreshadow", idsFrom(context.foreshadows)],
+    ["timeline_event", idsFrom(context.timelineEvents)],
+  ]);
+  const idsByName = new Map<PendingUpdateTargetType, Map<string, string>>([
+    ["character", uniqueIdsByName(context.characters, (item) => item.name)],
+    ["world_rule", uniqueIdsByName(context.worldRules, (item) => item.title)],
+    [
+      "foreshadow",
+      uniqueIdsByName(context.foreshadows, (item) => item.content),
+    ],
+    [
+      "timeline_event",
+      uniqueIdsByName(context.timelineEvents, (item) => item.title),
+    ],
+  ]);
+
+  return suggestions.map((suggestion) => {
+    if (suggestion.updateType === "create") {
+      return suggestion.targetId
+        ? { ...suggestion, targetId: undefined }
+        : suggestion;
+    }
+
+    const typeIds = validIds.get(suggestion.targetType);
+    const targetId = clean(suggestion.targetId);
+    const resolvedId = idsByName
+      .get(suggestion.targetType)
+      ?.get(clean(suggestion.targetName));
+
+    if (resolvedId) {
+      return resolvedId === targetId
+        ? suggestion
+        : { ...suggestion, targetId: resolvedId };
+    }
+
+    if (targetId && typeIds?.has(targetId)) {
+      return suggestion;
+    }
+
+    return targetId ? { ...suggestion, targetId: undefined } : suggestion;
+  });
 }
 
 function normalizeSuggestionList(values: unknown[]) {
@@ -675,7 +730,39 @@ function buildCharacterLine(character: PendingUpdateCharacterContext) {
     .map((item) => clipText(item, 240))
     .join("；");
 
-  return `- ${character.name}${details ? `：${details}` : ""}`;
+  const id = clean(character.id);
+
+  return `- ${id ? `[${id}] ` : ""}${character.name}${details ? `：${details}` : ""}`;
+}
+
+function idsFrom(items?: readonly { id?: string | null }[]) {
+  return new Set(
+    (items ?? []).map((item) => clean(item.id)).filter(Boolean),
+  );
+}
+
+function uniqueIdsByName<T extends { id?: string | null }>(
+  items: readonly T[] | undefined,
+  nameOf: (item: T) => string,
+) {
+  const names = new Map<string, string | null>();
+
+  for (const item of items ?? []) {
+    const id = clean(item.id);
+    const name = clean(nameOf(item));
+
+    if (!id || !name) {
+      continue;
+    }
+
+    names.set(name, names.has(name) ? null : id);
+  }
+
+  return new Map(
+    [...names.entries()].filter(
+      (entry): entry is [string, string] => Boolean(entry[1]),
+    ),
+  );
 }
 
 function lines(items: readonly (readonly [string, string | number | null | undefined])[]) {

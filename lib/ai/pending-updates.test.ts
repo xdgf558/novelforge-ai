@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildPendingUpdateContext,
   buildPendingUpdateContextSummary,
+  normalizePendingUpdateSuggestionTargetIds,
   parsePendingUpdateSuggestions,
 } from "./pending-updates";
 
@@ -77,7 +78,7 @@ describe("pending update context builder", () => {
 
     expect(context.inputText).toContain("第 6 章《倒计时归零》");
     expect(context.inputText).toContain("真正的代价会在七天后生效");
-    expect(context.inputText).toContain("周医生");
+    expect(context.inputText).toContain("[character-1] 周医生");
     expect(context.inputText).toContain("借命契约需要支付寿命代价");
     expect(context.inputText).toContain("[foreshadow-1]");
     expect(context.inputText).toContain("[timeline-1]");
@@ -153,6 +154,99 @@ describe("pending update context builder", () => {
       title: "契约代价规则更新",
       riskLevel: "high",
     });
+  });
+
+  it("replaces hallucinated target ids with unique formal-memory ids", () => {
+    const suggestions = parsePendingUpdateSuggestions(
+      JSON.stringify({
+        updates: [
+          {
+            updateType: "update",
+            targetType: "character",
+            targetId: "hallucinated-character-id",
+            targetName: "周医生",
+            title: "更新周医生",
+            content: "周医生仍然存活。",
+          },
+          {
+            updateType: "create",
+            targetType: "character",
+            targetId: "hallucinated-create-id",
+            targetName: "新角色",
+            title: "新增角色",
+            content: "首次登场。",
+          },
+        ],
+      }),
+    );
+
+    const normalized = normalizePendingUpdateSuggestionTargetIds(
+      suggestions,
+      baseInput,
+    );
+
+    expect(normalized[0].targetId).toBe("character-1");
+    expect(normalized[1].targetId).toBeUndefined();
+  });
+
+  it("drops an unverified target id when no unique formal target matches", () => {
+    const suggestions = parsePendingUpdateSuggestions(
+      JSON.stringify({
+        updates: [
+          {
+            updateType: "update",
+            targetType: "character",
+            targetId: "hallucinated-character-id",
+            targetName: "同名角色",
+            title: "更新同名角色",
+            content: "新信息。",
+          },
+        ],
+      }),
+    );
+
+    const normalized = normalizePendingUpdateSuggestionTargetIds(
+      suggestions,
+      {
+        ...baseInput,
+        characters: [
+          { id: "character-1", name: "同名角色" },
+          { id: "character-2", name: "同名角色" },
+        ],
+      },
+    );
+
+    expect(normalized[0].targetId).toBeUndefined();
+  });
+
+  it("prefers a unique formal name when a valid id points at another character", () => {
+    const suggestions = parsePendingUpdateSuggestions(
+      JSON.stringify({
+        updates: [
+          {
+            updateType: "update",
+            targetType: "character",
+            targetId: "character-2",
+            targetName: "周医生",
+            title: "更新周医生",
+            content: "周医生仍然存活。",
+          },
+        ],
+      }),
+    );
+
+    const normalized = normalizePendingUpdateSuggestionTargetIds(
+      suggestions,
+      {
+        ...baseInput,
+        characters: [
+          ...baseInput.characters,
+          { id: "character-2", name: "林野" },
+        ],
+      },
+    );
+
+    expect(normalized[0].targetId).toBe("character-1");
   });
 
   it("salvages updates when optional evidence contains unescaped quote fragments", () => {

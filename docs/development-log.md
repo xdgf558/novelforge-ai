@@ -1,5 +1,34 @@
 # Development Log
 
+## 2026-07-13: Pending Update Target Resolution Hardening
+
+Status: completed.
+
+What was done:
+
+- Fixed pending character-update extraction so formal character IDs are shown
+  in the AI prompt instead of asking the model to return IDs it never received.
+- Added model-output validation before pending updates are stored. Existing IDs
+  are accepted only when they belong to the matching formal-memory type in the
+  supplied context; unique exact names repair invalid IDs, and unverified IDs
+  are discarded.
+- Hardened approval of legacy pending updates. Invalid character, world-rule,
+  foreshadow, and timeline IDs may fall back only to one project-scoped formal
+  target; ambiguous or missing targets still fail without changing memory.
+- Repaired the current `照夜寒舟录` desktop database after a consistent SQLite
+  backup: 10 character update targets and one foreshadow target were corrected,
+  and one create suggestion's invalid target ID was cleared. No suggestion was
+  approved and no formal memory content was changed by the repair.
+
+Verification:
+
+- Targeted pending-update tests passed: 2 files and 16 tests.
+- Full `npm test` passed: 108 files and 598 tests.
+- `npm run typecheck`, `npm run build`, and `npm run mvp:acceptance`
+  passed.
+- The repaired desktop database has zero invalid pending target IDs for the
+  project; SQLite `integrity_check` and `quick_check` both returned `ok`.
+
 ## 2026-07-13: Series Short Story Phase 1
 
 Status: completed for PR review.
