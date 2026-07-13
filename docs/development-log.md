@@ -1,5 +1,49 @@
 # Development Log
 
+## 2026-07-13: 0.1.95 Series DOCX Import Signed macOS Installer
+
+Status: completed.
+
+What was done:
+
+- Merged the approved series DOCX bible import from PR #73 into `main` at
+  merge commit `9e34745`.
+- Bumped the source app/package version from `0.1.94` to `0.1.95`.
+- Built the arm64 macOS app with the local editable-draft DOCX import flow,
+  including the `/series/import` route plus the packaged `mammoth` and
+  `node-html-parser` dependencies.
+- Signed the Electron app with `Developer ID Application: HAO YE
+  (Y35K7AQ974)` and signed the installer with `Developer ID Installer: HAO YE
+  (Y35K7AQ974)` plus a trusted timestamp.
+- Created the formal installer at
+  `release/desktop/NovelForge-AI-0.1.95-mac-arm64.pkg`, targeting
+  `/Applications`.
+- Did not submit the installer to Apple for notarization because that uploads
+  the private build externally and no explicit upload authorization was given.
+  `spctl` therefore reports `Unnotarized Developer ID`, while both installer
+  and app signatures remain valid for the personal local handoff.
+
+Verification:
+
+- Full `npm test` passed: 109 files and 602 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 25 migrations and `prisma/schema.prisma`.
+- The production macOS packaging build passed. Bundle short version and bundle
+  version are both `0.1.95`.
+- `pkgutil --check-signature` confirmed the final PKG's Apple-issued Developer
+  ID Installer chain and trusted timestamp.
+- The app extracted from the final signed PKG passed system-level
+  `codesign --verify --deep --strict`, retained hardened runtime and the
+  required Electron JIT entitlements, and passed packaged
+  `npm run work-types:acceptance`.
+- Expanded-payload inspection confirmed the series import route, both DOCX
+  parser dependencies, and all 25 migrations are present.
+- No real overwrite install into `/Applications` was performed.
+- Final size: `361,539,166` bytes. SHA-256:
+  `234f1eab307b7f057efe543d729dbeb02360973778de919cc798e56fe9800672`.
+
 ## 2026-07-13: Short-Story Series DOCX Bible Import
 
 Status: completed for PR review.
