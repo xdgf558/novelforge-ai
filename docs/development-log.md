@@ -1,5 +1,55 @@
 # Development Log
 
+## 2026-07-13: 0.1.94 Series Memory and Pending Target Fix Installer
+
+Status: completed.
+
+What was done:
+
+- Merged approved PR #72 into `main` at merge commit `1665b47`, following the
+  already merged short-story series Phase 1 work from PR #71.
+- Bumped the source app/package version from `0.1.93` to `0.1.94`.
+- Built the arm64 macOS app payload with the new short-story series memory and
+  pending-update target-ID hardening. The Electron 42.4.1 distribution came
+  from the local cache after its SHA-256 matched the checksum bundled with the
+  installed Electron package.
+- Copied the app into an isolated PKG staging location, cleared inherited
+  metadata, and re-signed the complete Electron bundle ad hoc with hardened
+  runtime plus the required JIT, unsigned executable memory, and
+  library-validation entitlements.
+- Built the formal personal-use installer at
+  `release/desktop/NovelForge-AI-0.1.94-mac-arm64.pkg`, targeting
+  `/Applications`.
+- Removed the `0.1.93` installer and Electron build intermediates so the
+  delivery directory contains only the new verified PKG.
+
+Verification:
+
+- Full `npm test` passed: 108 files and 598 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 25 migrations and `prisma/schema.prisma`.
+- The production build inside the macOS packaging run passed. The original
+  app payload passed Developer ID deep/strict signature verification and
+  reported Bundle version `0.1.94`.
+- The ad-hoc signed staging payload, a second ordinary copy, and the app
+  expanded from the final PKG all passed deep/strict signature verification.
+  The hardened-runtime Electron entitlements remained present.
+- Final PKG metadata uses identifier `com.novelforge.ai`, version `0.1.94`,
+  install location `/Applications`, and Bundle version `0.1.94`.
+- Packaged source inspection confirmed version `0.1.94`, 25 bundled
+  migrations, `runDesktopMigrations`, bundled `migration.sql` loading, no
+  Prisma CLI `migrate deploy` startup path, and the pending target-ID
+  hardening.
+- `npm run work-types:acceptance` passed again using the expanded PKG's
+  `app.asar.unpacked` resources.
+- The PKG itself is unsigned because no Developer ID Installer identity is
+  available; its app payload is verified for personal local use. No real
+  overwrite install into `/Applications` was performed.
+- Final size: `349,597,357` bytes. SHA-256:
+  `00d1ac3102626e76a7e1730b4b56a7b32de8403108d3ca1afb12b3c6b2ad0316`.
+
 ## 2026-07-13: Pending Update Target Resolution Hardening
 
 Status: completed.

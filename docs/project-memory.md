@@ -371,7 +371,7 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - Desktop startup must not run Prisma CLI commands from inside the packaged app bundle. DMG volumes are read-only, and Prisma CLI can try to mutate `node_modules/@prisma/engines` under `app.asar.unpacked`, causing `EROFS`. Use `runDesktopMigrations` in `desktop/runtime.cjs`, which reads bundled `prisma/migrations/*/migration.sql`, applies SQL through Prisma Client to the user data SQLite database, and records `_prisma_migrations`.
 - `npm run desktop:dist:mac` produces the signed local app payload plus DMG/ZIP artifacts and skips notarization; use the app payload to build the formal `/Applications` PKG handoff.
 - `npm run desktop:dist:mac:notarized` exists only for an explicit future public-distribution request; do not use it for normal personal-use rebuilds.
-- Current source app version is `0.1.93`; the latest formal personal-use macOS installer is `release/desktop/NovelForge-AI-0.1.93-mac-arm64.pkg`. Future handoff should leave only the final `release/desktop/NovelForge-AI-<version>-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
+- Current source app version is `0.1.94`; the latest formal personal-use macOS installer is `release/desktop/NovelForge-AI-0.1.94-mac-arm64.pkg`. Future handoff should leave only the final `release/desktop/NovelForge-AI-<version>-mac-arm64.pkg` in the delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
 - Short-story development follows `docs/short-story-development-plan.md`.
   `Project.workType` is `serial_novel` or `short_story`, is selected at project
   creation, and must not be changed by the general edit form. Existing records
