@@ -206,12 +206,16 @@ async function findCharacterTarget(
   targetName: string,
 ) {
   if (pendingUpdate.targetId) {
-    return tx.character.findFirst({
+    const targetById = await tx.character.findFirst({
       where: {
         id: pendingUpdate.targetId,
         projectId: pendingUpdate.projectId,
       },
     });
+
+    if (targetById) {
+      return targetById;
+    }
   }
 
   if (!targetName) {
@@ -239,16 +243,7 @@ async function applyWorldRuleUpdate(
   proposedContent: string,
 ) {
   if (pendingUpdate.updateType !== "create") {
-    if (!pendingUpdate.targetId) {
-      throw new PendingUpdateTargetNotFoundError();
-    }
-
-    const existingRule = await tx.worldRule.findFirst({
-      where: {
-        id: pendingUpdate.targetId,
-        projectId: pendingUpdate.projectId,
-      },
-    });
+    const existingRule = await findWorldRuleTarget(tx, pendingUpdate);
 
     if (!existingRule) {
       throw new PendingUpdateTargetNotFoundError();
@@ -279,6 +274,40 @@ async function applyWorldRuleUpdate(
       pendingUpdateId: pendingUpdate.id,
     },
   });
+}
+
+async function findWorldRuleTarget(
+  tx: Prisma.TransactionClient,
+  pendingUpdate: PendingUpdate,
+) {
+  if (pendingUpdate.targetId) {
+    const targetById = await tx.worldRule.findFirst({
+      where: {
+        id: pendingUpdate.targetId,
+        projectId: pendingUpdate.projectId,
+      },
+    });
+
+    if (targetById) {
+      return targetById;
+    }
+  }
+
+  const targetName = clean(pendingUpdate.targetName);
+
+  if (!targetName) {
+    return null;
+  }
+
+  const candidates = await tx.worldRule.findMany({
+    where: {
+      projectId: pendingUpdate.projectId,
+      title: targetName,
+    },
+    take: 2,
+  });
+
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 async function applyForeshadowUpdate(
@@ -346,12 +375,16 @@ async function findForeshadowTarget(
   pendingUpdate: PendingUpdate,
 ) {
   if (pendingUpdate.targetId) {
-    return tx.foreshadow.findFirst({
+    const targetById = await tx.foreshadow.findFirst({
       where: {
         id: pendingUpdate.targetId,
         projectId: pendingUpdate.projectId,
       },
     });
+
+    if (targetById) {
+      return targetById;
+    }
   }
 
   const targetName = clean(pendingUpdate.targetName);
@@ -382,16 +415,7 @@ async function applyTimelineEventUpdate(
   proposedContent: string,
 ) {
   if (pendingUpdate.updateType !== "create") {
-    if (!pendingUpdate.targetId) {
-      throw new PendingUpdateTargetNotFoundError();
-    }
-
-    const existingEvent = await tx.timelineEvent.findFirst({
-      where: {
-        id: pendingUpdate.targetId,
-        projectId: pendingUpdate.projectId,
-      },
-    });
+    const existingEvent = await findTimelineEventTarget(tx, pendingUpdate);
 
     if (!existingEvent) {
       throw new PendingUpdateTargetNotFoundError();
@@ -426,6 +450,40 @@ async function applyTimelineEventUpdate(
       pendingUpdateId: pendingUpdate.id,
     },
   });
+}
+
+async function findTimelineEventTarget(
+  tx: Prisma.TransactionClient,
+  pendingUpdate: PendingUpdate,
+) {
+  if (pendingUpdate.targetId) {
+    const targetById = await tx.timelineEvent.findFirst({
+      where: {
+        id: pendingUpdate.targetId,
+        projectId: pendingUpdate.projectId,
+      },
+    });
+
+    if (targetById) {
+      return targetById;
+    }
+  }
+
+  const targetName = clean(pendingUpdate.targetName);
+
+  if (!targetName) {
+    return null;
+  }
+
+  const candidates = await tx.timelineEvent.findMany({
+    where: {
+      projectId: pendingUpdate.projectId,
+      title: targetName,
+    },
+    take: 2,
+  });
+
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 function characterMemoryField(fieldName?: string | null): CharacterTextFieldName {

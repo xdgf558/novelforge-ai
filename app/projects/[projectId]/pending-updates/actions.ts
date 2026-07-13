@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import {
   buildPendingUpdateContext,
+  normalizePendingUpdateSuggestionTargetIds,
   parsePendingUpdateSuggestions,
   type PendingUpdateChapterContext,
 } from "@/lib/ai/pending-updates";
@@ -112,7 +113,10 @@ export async function generatePendingUpdates(projectId: string, chapterId: strin
     },
     {
       onCompleted: async (task) => {
-        const suggestions = parsePendingUpdateSuggestions(task.outputText);
+        const suggestions = normalizePendingUpdateSuggestionTargetIds(
+          parsePendingUpdateSuggestions(task.outputText),
+          contextInput,
+        );
 
         if (suggestions.length === 0) {
           return;

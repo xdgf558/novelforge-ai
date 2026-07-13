@@ -53,6 +53,156 @@ describe("pending update approval service", () => {
     expect(tx.character.update).not.toHaveBeenCalled();
   });
 
+  it("falls back to a unique project character when the stored id is invalid", async () => {
+    const existingCharacter = {
+      id: "character_1",
+      projectId: "project_1",
+      name: "沈照夜",
+      status: "active",
+      identity: "大理寺刑狱官",
+    };
+    const tx = {
+      character: {
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => [existingCharacter]),
+        update: vi.fn(async () => ({
+          ...existingCharacter,
+          identity: "大理寺刑狱官\n\n沈家旧案遗孤",
+        })),
+      },
+      characterVersion: {
+        count: vi.fn(async () => 2),
+        create: vi.fn(async () => ({})),
+      },
+    };
+
+    await applyApprovedPendingUpdate(
+      tx as never,
+      pendingCharacterUpdate({
+        targetId: "hallucinated-character-id",
+        targetName: "沈照夜",
+      }),
+      "沈家旧案遗孤",
+    );
+
+    expect(tx.character.findMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        name: "沈照夜",
+      },
+      take: 2,
+    });
+    expect(tx.character.update).toHaveBeenCalledWith({
+      where: { id: "character_1" },
+      data: { identity: "大理寺刑狱官\n\n沈家旧案遗孤" },
+    });
+  });
+
+  it("falls back to a unique foreshadow when its stored id is invalid", async () => {
+    const existingForeshadow = {
+      id: "foreshadow_1",
+      projectId: "project_1",
+      content: "拨单人印鉴断笔中藏有代字。",
+      status: "planted",
+    };
+    const tx = {
+      foreshadow: {
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => [existingForeshadow]),
+        update: vi.fn(async () => ({})),
+      },
+    };
+
+    await applyApprovedPendingUpdate(
+      tx as never,
+      pendingCharacterUpdate({
+        targetType: "foreshadow",
+        targetId: "wrong-type-id",
+        targetName: "拨单人印鉴断笔",
+        title: "推进拨单人伏笔",
+      }),
+      "笔画已重组为代王。",
+    );
+
+    expect(tx.foreshadow.update).toHaveBeenCalledWith({
+      where: { id: "foreshadow_1" },
+      data: expect.objectContaining({
+        status: "advancing",
+        pendingUpdateId: "update_1",
+      }),
+    });
+  });
+
+  it("falls back to a unique world rule title when its stored id is invalid", async () => {
+    const existingRule = {
+      id: "rule_1",
+      projectId: "project_1",
+      title: "内府直拨军饷规则",
+      content: "军饷由内府直拨。",
+    };
+    const tx = {
+      worldRule: {
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => [existingRule]),
+        update: vi.fn(async () => ({})),
+      },
+    };
+
+    await applyApprovedPendingUpdate(
+      tx as never,
+      pendingCharacterUpdate({
+        targetType: "world_rule",
+        targetId: "hallucinated-rule-id",
+        targetName: "内府直拨军饷规则",
+        title: "更新军饷路径",
+      }),
+      "军饷分为三段转拨。",
+    );
+
+    expect(tx.worldRule.update).toHaveBeenCalledWith({
+      where: { id: "rule_1" },
+      data: expect.objectContaining({
+        pendingUpdateId: "update_1",
+        sourceChapterId: "chapter_1",
+      }),
+    });
+  });
+
+  it("falls back to a unique timeline title when its stored id is invalid", async () => {
+    const existingEvent = {
+      id: "timeline_1",
+      projectId: "project_1",
+      title: "沈鹤鸣调阅底册",
+      description: "沈鹤鸣在下狱前调阅底册。",
+    };
+    const tx = {
+      timelineEvent: {
+        findFirst: vi.fn(async () => null),
+        findMany: vi.fn(async () => [existingEvent]),
+        update: vi.fn(async () => ({})),
+      },
+    };
+
+    await applyApprovedPendingUpdate(
+      tx as never,
+      pendingCharacterUpdate({
+        targetType: "timeline_event",
+        targetId: "hallucinated-timeline-id",
+        targetName: "沈鹤鸣调阅底册",
+        title: "更新调阅时间",
+      }),
+      "时间锁定为十月初八。",
+    );
+
+    expect(tx.timelineEvent.update).toHaveBeenCalledWith({
+      where: { id: "timeline_1" },
+      data: expect.objectContaining({
+        pendingUpdateId: "update_1",
+        sourceChapterId: "chapter_1",
+      }),
+    });
+  });
+
   it("builds a setting snapshot from the upsert result", async () => {
     const updatedSetting = {
       id: "setting_1",
