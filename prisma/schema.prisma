@@ -33,6 +33,7 @@ model Project {
 
   setting                     ProjectSetting?
   settingVersions             SettingVersion[]
+  shortStorySeriesEntry       ShortStorySeriesEntry?
   shortStoryBlueprint         ShortStoryBlueprint?
   shortStoryBlueprintVersions ShortStoryBlueprintVersion[]
   characters                  Character[]
@@ -67,6 +68,66 @@ model Project {
   @@index([status])
   @@index([workType, status])
   @@map("projects")
+}
+
+model ShortStorySeries {
+  id                String   @id @default(cuid())
+  title             String
+  status            String   @default("active")
+  premise           String?
+  sharedWorldview   String?
+  continuityRules   String?
+  recurringElements String?
+  longTermMysteries String?
+  futureDirection   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  entries    ShortStorySeriesEntry[]
+  characters ShortStorySeriesCharacter[]
+
+  @@index([status, updatedAt])
+  @@index([title])
+  @@map("short_story_series")
+}
+
+model ShortStorySeriesEntry {
+  id             String   @id @default(cuid())
+  seriesId       String
+  projectId      String   @unique
+  sortOrder      Int      @default(0)
+  continuityNote String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  series  ShortStorySeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([seriesId, sortOrder])
+  @@map("short_story_series_entries")
+}
+
+model ShortStorySeriesCharacter {
+  id                String   @id @default(cuid())
+  seriesId          String
+  name              String
+  status            String   @default("active")
+  sortOrder         Int      @default(0)
+  roleInSeries      String?
+  identity          String?
+  accumulatedState  String?
+  relationshipState String?
+  knownInformation  String?
+  recurringRules    String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now()) @updatedAt
+
+  series ShortStorySeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, name])
+  @@index([seriesId, status, sortOrder])
+  @@map("short_story_series_characters")
 }
 
 model ProjectSetting {

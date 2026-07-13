@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   BookMarked,
+  BookCopy,
   Bot,
   ClipboardCheck,
   FileDown,
@@ -51,6 +52,17 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         shortStoryBlueprint: {
           select: {
             id: true,
+          },
+        },
+        shortStorySeriesEntry: {
+          include: {
+            series: {
+              select: {
+                id: true,
+                title: true,
+                status: true,
+              },
+            },
           },
         },
         _count: {
@@ -467,6 +479,13 @@ type ShortStoryDashboardProject = {
   shortStoryBlueprint: {
     id: string;
   } | null;
+  shortStorySeriesEntry: {
+    series: {
+      id: string;
+      title: string;
+      status: string;
+    };
+  } | null;
   genre: string | null;
   targetAudience: string | null;
   platform: string | null;
@@ -496,6 +515,16 @@ function ShortStoryProjectDashboard({
   project: ShortStoryDashboardProject;
 }) {
   const workspaceLinks = [
+    {
+      href: project.shortStorySeriesEntry
+        ? `/series/${project.shortStorySeriesEntry.series.id}`
+        : "/series",
+      icon: BookCopy,
+      title: "系列归属",
+      detail: project.shortStorySeriesEntry
+        ? `已归入《${project.shortStorySeriesEntry.series.title}》`
+        : "当前为独立短故事，可在系列页加入篇目",
+    },
     {
       href: `/projects/${project.id}/blueprint`,
       icon: MapPinned,
@@ -634,6 +663,12 @@ function ShortStoryProjectDashboard({
           <h2 className="text-sm font-semibold text-ink-950">项目状态</h2>
           <dl className="mt-3 space-y-3 text-sm">
             <Row label="作品类型" value={projectWorkTypeLabel(project.workType)} />
+            <Row
+              label="系列归属"
+              value={
+                project.shortStorySeriesEntry?.series.title || "独立短故事"
+              }
+            />
             <Row label="写作单元" value={`${project._count.chapters} 个`} />
             <Row label="项目创建" value={formatDate(activitySummary.projectCreatedAt)} />
             <Row label="最近活动" value={formatDate(activitySummary.latestActivityAt)} />

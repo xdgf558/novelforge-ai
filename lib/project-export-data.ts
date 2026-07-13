@@ -4,6 +4,46 @@ import type { ProjectExportData } from "./project-export";
 export const projectPublishInclude = {
   setting: true,
   shortStoryBlueprint: true,
+  shortStorySeriesEntry: {
+    include: {
+      series: {
+        include: {
+          entries: {
+            include: {
+              project: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                },
+              },
+            },
+            orderBy: [
+              {
+                sortOrder: "asc",
+              },
+              {
+                createdAt: "asc",
+              },
+            ],
+          },
+          characters: {
+            orderBy: [
+              {
+                status: "asc",
+              },
+              {
+                sortOrder: "asc",
+              },
+              {
+                createdAt: "asc",
+              },
+            ],
+          },
+        },
+      },
+    },
+  },
   characters: {
     orderBy: {
       name: "asc",
@@ -281,6 +321,59 @@ export function buildExportData(project: PublishProject) {
           "updatedAt",
         ])
       : null,
+    shortStorySeries: project.shortStorySeriesEntry
+      ? {
+          ...pickScalarRecord(project.shortStorySeriesEntry.series, [
+            "id",
+            "title",
+            "status",
+            "premise",
+            "sharedWorldview",
+            "continuityRules",
+            "recurringElements",
+            "longTermMysteries",
+            "futureDirection",
+            "createdAt",
+            "updatedAt",
+          ]),
+          membershipId: project.shortStorySeriesEntry.id,
+          membershipSortOrder: project.shortStorySeriesEntry.sortOrder,
+          membershipContinuityNote:
+            project.shortStorySeriesEntry.continuityNote,
+        }
+      : null,
+    shortStorySeriesEntries:
+      project.shortStorySeriesEntry?.series.entries.map((entry, index) => ({
+        ...pickScalarRecord(entry, [
+          "id",
+          "projectId",
+          "sortOrder",
+          "continuityNote",
+          "createdAt",
+          "updatedAt",
+        ]),
+        sequenceNumber: index + 1,
+        projectTitle: entry.project.title,
+        projectStatus: entry.project.status,
+      })) ?? [],
+    shortStorySeriesCharacters:
+      project.shortStorySeriesEntry?.series.characters.map((character) =>
+        pickScalarRecord(character, [
+          "id",
+          "name",
+          "status",
+          "sortOrder",
+          "roleInSeries",
+          "identity",
+          "accumulatedState",
+          "relationshipState",
+          "knownInformation",
+          "recurringRules",
+          "notes",
+          "createdAt",
+          "updatedAt",
+        ]),
+      ) ?? [],
     characters: project.characters.map((character) =>
       pickScalarRecord(character, [
         "id",

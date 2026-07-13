@@ -3,7 +3,7 @@
 ## Product Identity
 
 NovelForge AI is a local single-user writing workbench for serialized-novel and
-complete-short-story authors, especially WeChat public account fiction authors,
+complete-short-story and linked-story-series authors, especially WeChat public account fiction authors,
 web novel writers, and content studios.
 
 The product is not just a text generator. Its core value is helping authors maintain million-word continuity through structured memory, versioned settings, character state tracking, foreshadow management, timeline tracking, AI generation records, pending update review, and continuity checks.
@@ -34,6 +34,13 @@ MVP includes:
 - Short-story complete-manuscript export with deterministic confirmed-unit
   assembly, three unit-boundary strategies, copy/TXT/Markdown output, and a
   visible 6,000-80,000 word-range check. Fanqie upload remains manual.
+- Series-short-story parent workspaces that keep every `short_story` project
+  independently readable while adding ordered membership, shared worldview,
+  continuity rules, recurring elements, long-term mysteries, per-story series
+  progression notes, and accumulated core-character state. Series memory is
+  author-maintained formal context: generation and whole-story review may read
+  it, but AI cannot create or update it silently. Current-story prompts receive
+  only prior confirmed progression notes, never future-entry notes.
 - Cross-work-type lifecycle hardening: short stories expose complete project
   Markdown/JSON backups; local desktop migration preserves existing projects as
   `serial_novel`; backup snapshots retain short-story blueprints, units, formal
@@ -139,6 +146,9 @@ Prioritize these tables early:
 - `setting_versions`
 - `short_story_blueprints`
 - `short_story_blueprint_versions`
+- `short_story_series`
+- `short_story_series_entries`
+- `short_story_series_characters`
 - `characters`
 - `character_versions`
 - `world_rules`
@@ -199,6 +209,9 @@ For chapter generation, assemble only:
 - Current chapter beats
 - Forbidden items
 - Style sample
+- For a short story assigned to a series: bounded shared series rules, active
+  core-character state, and prior-entry progression notes up to the current
+  story. Do not leak later-entry notes into an earlier story.
 
 For chapter summary extraction, confirmed final text is still the only source.
 When final text is too long for stable single-request model calls, pass a

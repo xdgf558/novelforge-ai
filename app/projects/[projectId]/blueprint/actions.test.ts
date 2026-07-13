@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => {
     assertShortStoryProject: vi.fn(),
     ensureDefaultPromptTemplate: vi.fn(),
     expireStaleShortStoryBlueprintTasks: vi.fn(),
+    loadShortStorySeriesContext: vi.fn(),
     startLoggedOpenAITextTask: vi.fn(),
     prisma: {
       $transaction: vi.fn(),
@@ -78,6 +79,10 @@ vi.mock("@/lib/ai/short-story-blueprint-task-maintenance", () => ({
 
 vi.mock("@/lib/ai/task-logger", () => ({
   startLoggedOpenAITextTask: mocks.startLoggedOpenAITextTask,
+}));
+
+vi.mock("@/lib/short-story-series/context", () => ({
+  loadShortStorySeriesContext: mocks.loadShortStorySeriesContext,
 }));
 
 function blueprintFormData() {
@@ -141,6 +146,7 @@ describe("short-story blueprint actions", () => {
     mocks.prisma.aiTask.updateMany.mockResolvedValue({ count: 1 });
     mocks.expireStaleShortStoryBlueprintTasks.mockResolvedValue(undefined);
     mocks.startLoggedOpenAITextTask.mockResolvedValue({ id: "task_1" });
+    mocks.loadShortStorySeriesContext.mockResolvedValue(null);
   });
 
   it("saves a formal blueprint and creates a manual version", async () => {

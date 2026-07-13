@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => ({
     timelineEvent: {
       findMany: vi.fn(),
     },
+    shortStorySeriesEntry: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -46,6 +49,7 @@ describe("short-story whole review records", () => {
     mocks.prisma.character.findMany.mockResolvedValue([]);
     mocks.prisma.foreshadow.findMany.mockResolvedValue([]);
     mocks.prisma.timelineEvent.findMany.mockResolvedValue([]);
+    mocks.prisma.shortStorySeriesEntry.findUnique.mockResolvedValue(null);
   });
 
   it("persists only suggestions that target a confirmed input unit", async () => {

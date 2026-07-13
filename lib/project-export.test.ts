@@ -22,6 +22,31 @@ const exportData = {
     ending: "林野公开契约真相并承担最后一次借命代价。",
     requiredPayoffs: "解释死者为何能发短信。",
   },
+  shortStorySeries: {
+    title: "雾城异闻录",
+    status: "active",
+    premise: "每篇调查一个独立异常案件。",
+    sharedWorldview: "异常事件会留下只有调查员可见的灰痕。",
+    longTermMysteries: "林野为什么失去了三年记忆。",
+    membershipContinuityNote: "林野第一次确认灰痕来自同一组织。",
+  },
+  shortStorySeriesEntries: [
+    {
+      sequenceNumber: 1,
+      projectTitle: "借命人",
+      projectStatus: "active",
+      continuityNote: "林野第一次确认灰痕来自同一组织。",
+    },
+  ],
+  shortStorySeriesCharacters: [
+    {
+      name: "林野",
+      status: "active",
+      roleInSeries: "固定调查员",
+      accumulatedState: "已失去两年寿命。",
+      knownInformation: "知道灰痕属于同一组织，但不知道组织名称。",
+    },
+  ],
   characters: [
     {
       name: "林野",
@@ -134,6 +159,9 @@ describe("project export builders", () => {
     expect(parsed.shortStoryBlueprint.openingHook).toBe(
       "短信准确预告下一名死者。",
     );
+    expect(parsed.shortStorySeries.title).toBe("雾城异闻录");
+    expect(parsed.shortStorySeriesEntries[0].sequenceNumber).toBe(1);
+    expect(parsed.shortStorySeriesCharacters[0].name).toBe("林野");
     expect(parsed.chapters[0].unitWordTarget).toBe(5000);
     expect(parsed.chapters[0].unitTurn).toBe("病历上的签名来自林野本人。");
     expect(parsed.aiTasks[0].taskType).toBe("wechat_publish_packaging");
@@ -160,6 +188,11 @@ describe("project export builders", () => {
     expect(markdown).toContain("寿命交易带来高压反转");
     expect(markdown).toContain("## 短故事蓝图");
     expect(markdown).toContain("林野收到死者发来的借命短信");
+    expect(markdown).toContain("## 系列短故事");
+    expect(markdown).toContain("雾城异闻录");
+    expect(markdown).toContain("第 1 篇 · 借命人");
+    expect(markdown).toContain("林野第一次确认灰痕来自同一组织");
+    expect(markdown).toContain("核心人物 · 林野");
     expect(markdown).toContain("## 角色库");
     expect(markdown).toContain("林野");
     expect(markdown).toContain("## 人物关系网络");

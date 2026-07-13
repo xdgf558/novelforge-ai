@@ -89,6 +89,7 @@ export type ChapterBeatContextInput = {
   characters: readonly ChapterBeatCharacterContext[];
   recentChapters: readonly ChapterBeatChapterContext[];
   previousChapter?: ChapterBeatChapterContext | null;
+  seriesContext?: string | null;
   dueForeshadows?: readonly ChapterBeatForeshadowContext[];
 };
 
@@ -143,6 +144,7 @@ export function buildChapterBeatContext(
   const inputJson = {
     project: normalizeProject(input.project),
     blueprint: shortStoryProject ? blueprint : null,
+    seriesContext: shortStoryProject ? clipText(input.seriesContext, 12000) : null,
     setting: Object.fromEntries(settingItems),
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
@@ -237,7 +239,13 @@ export function buildChapterBeatContext(
       : "未填写项目设定。",
     "",
     ...(shortStoryProject
-      ? ["# 正式短故事蓝图", blueprintText || "尚未建立正式蓝图。"]
+      ? [
+          "# 系列短故事连续性",
+          clipText(input.seriesContext, 12000) || "当前为独立短故事，没有系列级约束。",
+          "",
+          "# 正式短故事蓝图",
+          blueprintText || "尚未建立正式蓝图。",
+        ]
       : [
           "# 当前大纲",
           outlineItems.length > 0
@@ -283,6 +291,11 @@ export function buildChapterBeatContext(
     ...(shortStoryProject
       ? [
           "- 必须落实正式蓝图的反转链、情绪曲线和必须兑现事项，不得另开与单篇闭环无关的支线。",
+          ...(input.seriesContext
+            ? [
+                "- 遵守系列共享世界观、人物累计状态和已知信息边界；本篇仍须独立完成起因、调查、真相与结局，长期谜团只能按本篇推进目标前进一步。",
+              ]
+            : []),
           "- 内部单元不是公开章节：禁止为了切分而添加重复标题、总结段、下回预告或人工追读钩子。",
         ]
       : []),

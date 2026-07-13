@@ -24,6 +24,7 @@ import {
   type ShortStoryBlueprintFieldName,
   type ShortStoryBlueprintValues,
 } from "@/lib/short-stories/blueprint-fields";
+import { loadShortStorySeriesContext } from "@/lib/short-story-series/context";
 
 const blueprintText = z
   .preprocess(
@@ -134,7 +135,7 @@ export async function generateShortStoryBlueprintDraft(projectId: string) {
     redirect(`/projects/${projectId}/blueprint`);
   }
 
-  const [project, characters] = await Promise.all([
+  const [project, characters, seriesContext] = await Promise.all([
     prisma.project.findFirst({
       where: {
         id: projectId,
@@ -160,6 +161,7 @@ export async function generateShortStoryBlueprintDraft(projectId: string) {
       ],
       take: 12,
     }),
+    loadShortStorySeriesContext(projectId),
   ]);
 
   if (!project) {
@@ -174,6 +176,7 @@ export async function generateShortStoryBlueprintDraft(projectId: string) {
     project,
     setting: project.setting,
     characters,
+    seriesContext,
     blueprint: project.shortStoryBlueprint,
   });
 

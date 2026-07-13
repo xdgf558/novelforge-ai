@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   Activity,
   BookOpenText,
+  BookCopy,
   Clock3,
   Plus,
   Target,
@@ -48,6 +49,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             },
       orderBy: {
         updatedAt: "desc",
+      },
+      include: {
+        shortStorySeriesEntry: {
+          select: {
+            series: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        },
       },
     }),
     prisma.project.count({
@@ -194,6 +207,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <span className="w-fit rounded-full border border-[#58d7c7]/25 bg-[#58d7c7]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#8be7dd]">
                     {project.status === "active" ? "进行中" : "已归档"}
                   </span>
+                  {project.shortStorySeriesEntry ? (
+                    <span className="inline-flex w-fit items-center gap-1 rounded-full border border-[#ce8f48]/25 bg-[#ce8f48]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#f0c98b]">
+                      <BookCopy aria-hidden="true" className="h-3 w-3" />
+                      {project.shortStorySeriesEntry.series.title}
+                    </span>
+                  ) : null}
                 </div>
               </div>
 

@@ -114,6 +114,7 @@ describe("chapter beat context builder", () => {
         totalWordTarget: 30000,
       },
       blueprint: shortStoryBlueprint,
+      seriesContext: "系列：雾城异闻录\n累计状态：林野已失去两年寿命。",
       chapter: {
         ...baseInput.chapter,
         chapterNumber: 2,
@@ -135,6 +136,8 @@ describe("chapter beat context builder", () => {
 
     expect(context.inputText).toContain("为写作单元 2《病历上的签名》");
     expect(context.inputText).toContain("# 正式短故事蓝图");
+    expect(context.inputText).toContain("# 系列短故事连续性");
+    expect(context.inputText).toContain("林野已失去两年寿命");
     expect(context.inputText).toContain("死者不是受害者；短信来自未来的林野");
     expect(context.inputText).toContain("目标字数: 约 5,200 字");
     expect(context.inputText).toContain("给出 5-8 个顺序节拍");
@@ -197,6 +200,7 @@ describe("chapter beat context builder", () => {
     expect(context.inputJson.outputRequirements).not.toContain(
       "承接前序单元，包含场景推进、冲突升级、关键转折和兑现推进。",
     );
+    expect(context.inputJson.outputRequirements).not.toContain("");
   });
 
   it("summarizes context scope for ai task records", () => {

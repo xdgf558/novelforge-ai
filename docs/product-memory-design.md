@@ -28,6 +28,17 @@ snapshots. AI generation only creates a logged review draft; formal blueprint
 fields change only after explicit author adoption. Restoring an old snapshot
 creates a new rollback version so history remains append-only.
 
+Independent short-story projects may optionally belong to one
+`ShortStorySeries`. The parent series does not merge prose or replace a story's
+blueprint. It stores the recommended reading order, shared worldview,
+cross-story continuity rules, recurring people/organizations/technology,
+long-term mysteries, future direction, each story's series-progression note,
+and accumulated core-character state. These are formal author-controlled
+records. AI generation and review may read a bounded snapshot, but no AI task
+may silently assign projects, reorder stories, or update series memory. Context
+for the current story includes prior progression notes and excludes later story
+notes so future disclosures cannot leak backward.
+
 After writing units have confirmed final text, short-story projects can run a
 whole-story closure review. The review assembles every confirmed unit under a
 bounded prompt budget, retaining full text where possible and otherwise using
@@ -220,6 +231,25 @@ Every AI call should be saved:
 - Whether the user adopted the output
 
 This lets future development debug model behavior and compare prompt versions.
+
+### 9. Short Story Series Memory
+
+Stores continuity shared by independently complete short stories:
+
+- Series premise and reader promise
+- Shared worldview and immutable rules
+- Recurring people, organizations, locations, and technology
+- Long-term mysteries and disclosure boundaries
+- Recommended story order
+- Per-story series progression note
+- Core-character accumulated experience and current condition
+- Cross-story relationship state
+- Character known-information boundaries
+- Recurring behavior and ability rules
+
+Each short story remains a normal `short_story` project and can be exported on
+its own. Deleting a story removes only its membership; deleting a series removes
+the parent memory and memberships but never deletes member projects.
 
 ## Pending Update Rule
 

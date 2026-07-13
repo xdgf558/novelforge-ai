@@ -62,6 +62,7 @@ export type ChapterPolishContextInput = {
   setting?: ChapterPolishSettingContext | null;
   chapter: ChapterPolishChapterContext;
   characters: readonly ChapterPolishCharacterContext[];
+  seriesContext?: string | null;
 };
 
 export type BuiltChapterPolishContext = {
@@ -141,6 +142,7 @@ export function buildChapterPolishContext(
   const inputJson = {
     project: shared.projectJson,
     blueprint: shared.shortStoryProject ? shared.blueprintJson : null,
+    seriesContext: shared.shortStoryProject ? shared.seriesContext : null,
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
@@ -181,6 +183,11 @@ export function buildChapterPolishContext(
             "删除内部单元标题、重复开篇、前情回顾、角色重复介绍、总结段和下回预告。",
             "不得为了单元边界制造独立章末追读钩子，结尾应自然接入下一单元或整篇收束。",
             "不得偏离正式蓝图的反转链、情绪曲线和必须兑现事项。",
+            ...(input.seriesContext
+              ? [
+                  "不得改坏系列共享世界观、人物累计状态、关系状态或已知信息边界。",
+                ]
+              : []),
           ]
         : []),
     ],
@@ -211,6 +218,9 @@ export function buildChapterPolishContext(
     "",
     ...(shared.shortStoryProject
       ? [
+          "# 系列短故事连续性",
+          shared.seriesContext || "当前为独立短故事，没有系列级约束。",
+          "",
           "# 正式短故事蓝图",
           shared.blueprintText || "尚未建立正式蓝图。",
           "",
@@ -263,6 +273,11 @@ export function buildChapterPolishContext(
       ? [
           "- 把所有写作单元视为一篇连续正文：删除重复开篇、前情回顾、人物重复介绍、单元标题、总结段和下回预告。",
           "- 不得为内部切分强造章末追读钩子；结尾只能服务下一单元的自然承接或整篇结局。",
+          ...(input.seriesContext
+            ? [
+                "- 精修不得改变系列人物累计经历、关系和已知信息边界，也不得把长期谜团提前解释完。",
+              ]
+            : []),
         ]
       : []),
   ].join("\n");
@@ -293,6 +308,7 @@ export function buildSegmentedChapterPolishContext(
     inputJson: {
       project: shared.projectJson,
       blueprint: shared.shortStoryProject ? shared.blueprintJson : null,
+      seriesContext: shared.shortStoryProject ? shared.seriesContext : null,
       chapter: {
         chapterNumber: input.chapter.chapterNumber,
         title: input.chapter.title,
@@ -334,6 +350,9 @@ export function buildSegmentedChapterPolishContext(
           ? [
               "把分段视为同一篇短故事正文，不得补写重复开篇、前情回顾、人物介绍或独立章末钩子。",
               "删除内部单元标题、总结和下回预告，不得偏离正式蓝图。",
+              ...(input.seriesContext
+                ? ["不得改变系列共享连续性或提前揭示长期谜团。"]
+                : []),
             ]
           : []),
       ],
@@ -369,6 +388,11 @@ export function buildChapterPolishContextSummary(
       : "缺少可精修正文",
     `角色 ${input.characters.length} 个`,
     input.setting ? "包含项目设定" : "无项目设定",
+    shortStoryProject
+      ? input.seriesContext
+        ? "包含系列连续性"
+        : "独立短故事"
+      : "",
     platformTemplate.template === "fanqie"
       ? `平台模板：${platformTemplate.label}`
       : "",
@@ -399,6 +423,11 @@ export function buildSegmentedChapterPolishContextSummary(
       : "缺少可精修正文",
     `角色 ${input.characters.length} 个`,
     input.setting ? "包含项目设定" : "无项目设定",
+    shortStoryProject
+      ? input.seriesContext
+        ? "包含系列连续性"
+        : "独立短故事"
+      : "",
     platformTemplate.template === "fanqie"
       ? `平台模板：${platformTemplate.label}`
       : "",
@@ -588,6 +617,7 @@ function buildChapterPolishSegmentContext(
   const inputJson = {
     project: shared.projectJson,
     blueprint: shared.shortStoryProject ? shared.blueprintJson : null,
+    seriesContext: shared.shortStoryProject ? shared.seriesContext : null,
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
@@ -632,6 +662,9 @@ function buildChapterPolishSegmentContext(
     "",
     ...(shared.shortStoryProject
       ? [
+          "# 系列短故事连续性",
+          shared.seriesContext || "当前为独立短故事，没有系列级约束。",
+          "",
           "# 正式短故事蓝图",
           shared.blueprintText || "尚未建立正式蓝图。",
           "",
@@ -715,6 +748,7 @@ type ChapterPolishSharedContext = {
   shortStoryProject: boolean;
   blueprintJson: ReturnType<typeof shortStoryBlueprintValuesFromRecord>;
   blueprintText: string;
+  seriesContext: string;
 };
 
 function buildChapterPolishSharedContext(
@@ -777,6 +811,7 @@ function buildChapterPolishSharedContext(
     shortStoryProject,
     blueprintJson,
     blueprintText,
+    seriesContext: shortStoryProject ? clipText(input.seriesContext, 12000) : "",
   };
 }
 
