@@ -1,5 +1,45 @@
 # Development Log
 
+## 2026-07-13: Series Short Story Phase 1
+
+Status: completed for PR review.
+
+What was done:
+
+- Added `ShortStorySeries`, `ShortStorySeriesEntry`, and
+  `ShortStorySeriesCharacter` with a forward SQLite migration. A short-story
+  project can belong to at most one series; deleting either side cascades only
+  the membership relation required by that ownership boundary.
+- Added a global series workspace with create, edit, delete confirmation,
+  ordered episode membership, per-story series-progression notes, and manual
+  core-character accumulated-state management.
+- Added series membership signals to the project list and short-story dashboard.
+- Added bounded read-only series context to short-story blueprint, unit beat,
+  draft, polish, segmented polish, and whole-story review prompts. Only prior
+  episode progression notes are included; future episode notes are excluded.
+- Extended Markdown/JSON project exports with the series profile, ordered story
+  catalog, membership note, and core-character state.
+- Extended work-type lifecycle acceptance so full SQLite backups retain series
+  memory and hard deletion of one member project removes its membership while
+  preserving the parent series and shared character memory.
+- Added `docs/short-story-series-development-plan.md` to preserve the next
+  author-approved handoff and series-audit phases.
+
+Verification:
+
+- Full `npm run test` passed: 108 files and 585 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 25 migrations and `prisma/schema.prisma`.
+- An isolated migrated SQLite database and local browser session verified the
+  series list, series detail, ordered story cards, assignment control, shared
+  memory, core-character states, and editor at 1440x1000 and 390x844. No
+  horizontal overflow, offscreen controls, browser warnings, or browser errors
+  were found. The series route now hides unrelated project-level tool links.
+- The source version remains `0.1.93`; no installer is created before review and
+  merge.
+
 ## 2026-07-12: 0.1.93 Outline Lifecycle Personal macOS Installer
 
 Status: completed.

@@ -54,6 +54,7 @@ export type ShortStoryBlueprintGenerationInput = {
     characterArc?: Scalar;
     behaviorRules?: Scalar;
   }>;
+  seriesContext?: string | null;
   blueprint?: Partial<Record<ShortStoryBlueprintFieldName, string | null>> | null;
 };
 
@@ -84,7 +85,7 @@ export function buildShortStoryBlueprintGenerationContext(
   ).length;
 
   return {
-    inputContextSummary: `${projectTitle} 短故事蓝图生成；目标 ${numberValue(input.project.totalWordTarget) ?? "未设置"} 字；角色 ${characters.length} 个；已有蓝图字段 ${completedBlueprintFields} 个`,
+    inputContextSummary: `${projectTitle} 短故事蓝图生成；目标 ${numberValue(input.project.totalWordTarget) ?? "未设置"} 字；角色 ${characters.length} 个；${input.seriesContext ? "包含系列连续性" : "独立短故事"}；已有蓝图字段 ${completedBlueprintFields} 个`,
     inputJson: {
       project: {
         title: projectTitle,
@@ -101,6 +102,7 @@ export function buildShortStoryBlueprintGenerationContext(
       },
       setting: compactSetting,
       characters,
+      seriesContext: clipText(input.seriesContext, 12000),
       currentBlueprint,
       allowedFields: shortStoryBlueprintFieldNames,
     },
@@ -120,6 +122,9 @@ export function buildShortStoryBlueprintGenerationContext(
       "# 已确认角色",
       formatCharacters(characters) || "暂无角色资料，请只使用项目中已经明确的信息。",
       "",
+      "# 系列短故事连续性",
+      clipText(input.seriesContext, 12000) || "当前为独立短故事，没有系列级约束。",
+      "",
       "# 当前正式蓝图",
       formatBlueprint(currentBlueprint) || "尚未建立正式蓝图。",
       "",
@@ -127,6 +132,9 @@ export function buildShortStoryBlueprintGenerationContext(
       "生成一份可在目标篇幅内完成、开篇承诺与结局兑现相互闭合的短故事蓝图。",
       "反转必须由前置信息和人物选择触发，不能靠突然出现的新设定解决冲突。",
       "情绪曲线要对应具体事件压力与选择代价，结局必须回答核心冲突。",
+      input.seriesContext
+        ? "本篇必须具备独立完整的起因、调查、真相和结局；系列长期谜团只能按已确认方向推进一小步，不得取代本篇闭环或提前揭晓未公开答案。"
+        : "",
       "已有正式蓝图内容应被尊重；如需优化，只在不改变已确认方向的前提下补强。",
       "",
       "# 输出要求",

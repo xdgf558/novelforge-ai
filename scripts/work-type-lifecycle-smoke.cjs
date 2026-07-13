@@ -283,6 +283,31 @@ async function createShortStoryLifecycle(prisma) {
       status: "pending",
     },
   });
+  const series = await prisma.shortStorySeries.create({
+    data: {
+      title: "Phase 1 系列短故事",
+      premise: "每篇独立查清一宗旧案，主角记忆持续累积。",
+      sharedWorldview: "所有旧案都发生在同一座沿海小城。",
+      longTermMysteries: "七年前是谁删除了主角的档案。",
+      entries: {
+        create: {
+          projectId: project.id,
+          sortOrder: 10,
+          continuityNote: "主角确认死者来信来自同一批旧档案。",
+        },
+      },
+      characters: {
+        create: {
+          name: "林晚",
+          roleInSeries: "固定调查员",
+          accumulatedState: "已收到第七封死者来信。",
+          knownInformation: "知道旧案互有关联，但不知道删档者身份。",
+        },
+      },
+    },
+  });
+
+  assert.ok(series.id);
 
   return project;
 }
@@ -310,6 +335,15 @@ async function assertBackupSnapshot(prisma, tempRoot, projectId) {
       include: {
         shortStoryBlueprint: true,
         shortStoryBlueprintVersions: true,
+        shortStorySeriesEntry: {
+          include: {
+            series: {
+              include: {
+                characters: true,
+              },
+            },
+          },
+        },
         chapters: true,
         aiTasks: true,
         pendingUpdates: true,
@@ -320,6 +354,8 @@ async function assertBackupSnapshot(prisma, tempRoot, projectId) {
     assert.equal(project.workType, "short_story");
     assert.ok(project.shortStoryBlueprint);
     assert.equal(project.shortStoryBlueprintVersions.length, 1);
+    assert.equal(project.shortStorySeriesEntry.series.title, "Phase 1 系列短故事");
+    assert.equal(project.shortStorySeriesEntry.series.characters.length, 1);
     assert.equal(project.chapters[0].unitWordTarget, 8000);
     assert.equal(project.aiTasks.length, 2);
     assert.equal(project.pendingUpdates.length, 1);
@@ -330,6 +366,15 @@ async function assertBackupSnapshot(prisma, tempRoot, projectId) {
 }
 
 async function assertShortStoryHardDelete(prisma, projectId) {
+  const membership = await prisma.shortStorySeriesEntry.findUniqueOrThrow({
+    where: {
+      projectId,
+    },
+    select: {
+      seriesId: true,
+    },
+  });
+
   await prisma.project.delete({
     where: {
       id: projectId,
@@ -345,9 +390,28 @@ async function assertShortStoryHardDelete(prisma, projectId) {
     prisma.aiTask.count({ where: { projectId } }),
     prisma.pendingUpdate.count({ where: { projectId } }),
     prisma.continuityReport.count({ where: { projectId } }),
+    prisma.shortStorySeriesEntry.count({ where: { projectId } }),
   ]);
 
-  assert.deepEqual(deletedCounts, [0, 0, 0, 0, 0, 0, 0, 0]);
+  assert.deepEqual(deletedCounts, [0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  assert.equal(
+    await prisma.shortStorySeries.count({
+      where: {
+        id: membership.seriesId,
+      },
+    }),
+    1,
+    "hard deletion must preserve the parent series",
+  );
+  assert.equal(
+    await prisma.shortStorySeriesCharacter.count({
+      where: {
+        seriesId: membership.seriesId,
+      },
+    }),
+    1,
+    "hard deletion must preserve shared series character memory",
+  );
   assert.equal(
     await prisma.project.count({ where: { id: legacyProjectId } }),
     1,

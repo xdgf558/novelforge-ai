@@ -71,6 +71,7 @@ export type ShortStoryWholeReviewInput = {
     storyTime?: string | null;
     location?: string | null;
   }>;
+  seriesContext?: string | null;
   units: readonly ShortStoryWholeReviewUnit[];
 };
 
@@ -172,6 +173,7 @@ export function buildShortStoryWholeReviewContext(
         : `模型审校文本 ${promptTextLength} 字`,
       `角色 ${characters.length} 个`,
       `未结伏笔 ${foreshadows.length} 条`,
+      input.seriesContext ? "包含系列连续性" : "独立短故事",
     ].join("；"),
     inputJson: {
       project: {
@@ -183,6 +185,7 @@ export function buildShortStoryWholeReviewContext(
         description: clipText(stringValue(input.project.description), 1200),
       },
       blueprint,
+      seriesContext: clipText(input.seriesContext, 12000),
       setting,
       characters,
       foreshadows,
@@ -234,6 +237,9 @@ export function buildShortStoryWholeReviewContext(
       "# 正式短故事蓝图",
       formatShortStoryBlueprintForContext(blueprint, 1800) || "未建立正式蓝图。",
       "",
+      "# 系列短故事连续性",
+      clipText(input.seriesContext, 12000) || "当前为独立短故事，没有系列级约束。",
+      "",
       "# 正式设定摘要",
       formatRecord(setting) || "暂无相关正式设定。",
       "",
@@ -262,6 +268,9 @@ export function buildShortStoryWholeReviewContext(
       "- targetUnitId 和 relatedUnitIds 只能引用上方索引中的 ID。",
       "- suggestedFix 只能描述修改目的、位置和核对点，不得输出整段替换稿。",
       "- 单元正文若标记为摘录，不能断言省略部分不存在某个信息。",
+      input.seriesContext
+        ? "- 同时核对系列共享世界观、核心人物累计状态、关系与已知信息边界；本篇长期谜团推进不能破坏独立结局。"
+        : "",
       "- issues 为空数组表示当前输入中没有明确的闭环问题。",
       "- 只输出 JSON，不要输出 Markdown。",
     ].join("\n"),

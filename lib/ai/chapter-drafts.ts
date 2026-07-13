@@ -69,6 +69,7 @@ export type ChapterDraftContextInput = {
   outlines?: readonly OutlineLike[];
   characters: readonly ChapterDraftCharacterContext[];
   previousChapter?: ChapterDraftChapterContext | null;
+  seriesContext?: string | null;
 };
 
 export type BuiltChapterDraftContext = {
@@ -159,6 +160,7 @@ export function buildChapterDraftContext(
       description: clipText(input.project.description),
     },
     blueprint: shortStoryProject ? blueprint : null,
+    seriesContext: shortStoryProject ? clipText(input.seriesContext, 12000) : null,
     chapter: {
       chapterNumber: input.chapter.chapterNumber,
       title: input.chapter.title,
@@ -200,6 +202,9 @@ export function buildChapterDraftContext(
             "禁止复述上一单元；直接承接上一单元的动作后果、情绪余波或新压力。",
             "禁止为了内部切分添加独立章节标题、总结、下回预告或人工章末追读钩子。",
             "必须推进正式蓝图的反转链、情绪曲线和必须兑现事项。",
+            input.seriesContext
+              ? "必须继承系列共享世界观、核心人物累计状态、关系和已知信息边界；本篇仍要独立闭环。"
+              : "",
           ]
         : []),
     ],
@@ -227,7 +232,13 @@ export function buildChapterDraftContext(
     confirmedBeats || "未填写已确认节拍。禁止在没有节拍时自由生成正文。",
     "",
     ...(shortStoryProject
-      ? ["# 正式短故事蓝图", blueprintText || "尚未建立正式蓝图。"]
+      ? [
+          "# 系列短故事连续性",
+          clipText(input.seriesContext, 12000) || "当前为独立短故事，没有系列级约束。",
+          "",
+          "# 正式短故事蓝图",
+          blueprintText || "尚未建立正式蓝图。",
+        ]
       : [
           "# 当前大纲",
           outlineItems.length > 0
@@ -273,6 +284,9 @@ export function buildChapterDraftContext(
       ? [
           "- 禁止输出内部单元标题、章节编号、上回提要、结尾总结或下回预告。",
           "- 必须推动正式蓝图中的反转链、情绪曲线或必须兑现事项；不得新增无法在本篇收束的支线。",
+          input.seriesContext
+            ? "- 继承系列人物累计经历、关系状态和已知信息边界；系列长期谜团只能按本篇推进目标前进一步，不能替代本篇真相与结局。"
+            : "",
         ]
       : []),
   ].join("\n");
@@ -302,6 +316,11 @@ export function buildChapterDraftContextSummary(
     shortStoryProject
       ? `蓝图 ${input.blueprint ? "已建立" : "未建立"}`
       : `大纲 ${(input.outlines ?? []).length} 条`,
+    shortStoryProject
+      ? input.seriesContext
+        ? "包含系列连续性"
+        : "独立短故事"
+      : "",
     `角色 ${input.characters.length} 个`,
     input.previousChapter
       ? `包含上一${shortStoryProject ? "单元" : "章"}结尾`

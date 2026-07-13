@@ -6,9 +6,10 @@ import {
 } from "@/lib/ai/short-story-whole-review";
 import { chapterFinalTextHash } from "@/lib/chapters/source-text";
 import { prisma } from "@/lib/prisma";
+import { loadShortStorySeriesContext } from "@/lib/short-story-series/context";
 
 export async function loadShortStoryWholeReviewContext(projectId: string) {
-  const [project, units, characters, foreshadows, timelineEvents] =
+  const [project, units, characters, foreshadows, timelineEvents, seriesContext] =
     await Promise.all([
       prisma.project.findFirst({
         where: {
@@ -103,6 +104,7 @@ export async function loadShortStoryWholeReviewContext(projectId: string) {
           location: true,
         },
       }),
+      loadShortStorySeriesContext(projectId),
     ]);
 
   if (!project) {
@@ -123,6 +125,7 @@ export async function loadShortStoryWholeReviewContext(projectId: string) {
     characters,
     foreshadows,
     timelineEvents,
+    seriesContext,
     units: units.filter((unit) => Boolean(unit.finalText?.trim())),
   };
 }

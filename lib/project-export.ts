@@ -2,6 +2,10 @@ import {
   isShortStoryProject,
   projectWorkTypeLabel,
 } from "./projects/work-types";
+import {
+  shortStorySeriesCharacterStatusLabel,
+  shortStorySeriesStatusLabel,
+} from "./short-story-series/fields";
 
 type Scalar = string | number | boolean | Date | null | undefined;
 type StructuredExportItem = Record<string, Scalar>;
@@ -12,6 +16,9 @@ export type ProjectExportData = {
   project: ProjectExportRecord;
   setting?: ProjectExportRecord | null;
   shortStoryBlueprint?: ProjectExportRecord | null;
+  shortStorySeries?: ProjectExportRecord | null;
+  shortStorySeriesEntries?: readonly ProjectExportRecord[];
+  shortStorySeriesCharacters?: readonly ProjectExportRecord[];
   characters?: readonly ProjectExportRecord[];
   characterRelationships?: readonly ProjectExportRecord[];
   outlines?: readonly ProjectExportRecord[];
@@ -59,6 +66,13 @@ export function buildProjectMarkdownExport(data: ProjectExportData) {
     ]),
     buildSettingSection(data.setting),
     shortStory ? buildShortStoryBlueprintSection(data.shortStoryBlueprint) : "",
+    shortStory
+      ? buildShortStorySeriesSection(
+          data.shortStorySeries,
+          data.shortStorySeriesEntries,
+          data.shortStorySeriesCharacters,
+        )
+      : "",
     buildRecordSection("角色库", data.characters, (character) => [
       `### ${formatScalar(character.name) || "未命名角色"}`,
       buildKeyValueList([
@@ -301,6 +315,72 @@ function buildShortStoryBlueprintSection(
       ["必须兑现", blueprint.requiredPayoffs],
       ["禁止偏离", blueprint.forbiddenDeviations],
     ]),
+  ].join("\n\n");
+}
+
+function buildShortStorySeriesSection(
+  series?: ProjectExportRecord | null,
+  entries?: readonly ProjectExportRecord[],
+  characters?: readonly ProjectExportRecord[],
+) {
+  if (!series) {
+    return "## 系列短故事\n\n当前为独立短故事，未归入系列。";
+  }
+
+  const entryBlocks =
+    entries && entries.length > 0
+      ? entries.map((entry) =>
+          [
+            `### 第 ${formatScalar(entry.sequenceNumber) || "?"} 篇 · ${formatScalar(entry.projectTitle) || "未命名短故事"}`,
+            buildKeyValueList([
+              ["项目状态", entry.projectStatus],
+              ["系列推进", entry.continuityNote],
+            ]),
+          ].join("\n\n"),
+        )
+      : ["### 系列篇目\n\n暂无记录。"];
+  const characterBlocks =
+    characters && characters.length > 0
+      ? characters.map((character) =>
+          [
+            `### 核心人物 · ${formatScalar(character.name) || "未命名人物"}`,
+            buildKeyValueList([
+              [
+                "状态",
+                shortStorySeriesCharacterStatusLabel(
+                  formatScalar(character.status),
+                ),
+              ],
+              ["系列职责", character.roleInSeries],
+              ["稳定身份", character.identity],
+              ["累计状态", character.accumulatedState],
+              ["关系状态", character.relationshipState],
+              ["已知信息边界", character.knownInformation],
+              ["复现规则", character.recurringRules],
+              ["备注", character.notes],
+            ]),
+          ].join("\n\n"),
+        )
+      : ["### 核心人物\n\n暂无记录。"];
+
+  return [
+    "## 系列短故事",
+    buildKeyValueList([
+      ["系列名称", series.title],
+      [
+        "系列状态",
+        shortStorySeriesStatusLabel(formatScalar(series.status)),
+      ],
+      ["系列定位", series.premise],
+      ["共享世界观", series.sharedWorldview],
+      ["跨篇连续性规则", series.continuityRules],
+      ["复现人物 / 组织 / 技术", series.recurringElements],
+      ["长期谜团", series.longTermMysteries],
+      ["后续推进方向", series.futureDirection],
+      ["本篇对系列线的推进", series.membershipContinuityNote],
+    ]),
+    ...entryBlocks,
+    ...characterBlocks,
   ].join("\n\n");
 }
 

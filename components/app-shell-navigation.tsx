@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpenText,
+  BookCopy,
   ClipboardList,
   FileDown,
   GitBranch,
@@ -33,6 +34,11 @@ const mainNavItems = [
     href: "/projects/new",
     label: "新建",
     icon: Plus,
+  },
+  {
+    href: "/series",
+    label: "系列",
+    icon: BookCopy,
   },
 ];
 
@@ -112,6 +118,7 @@ export function AppShellNavigation({
   projects = [],
 }: AppShellNavigationProps) {
   const pathname = usePathname();
+  const seriesWorkspace = pathname.startsWith("/series");
   const routeProjectId = currentProjectId(pathname);
   const projectId = routeProjectId ?? fallbackProjectId ?? null;
   const projectLandingPath = routeProjectId ? `/projects/${routeProjectId}` : null;
@@ -132,7 +139,9 @@ export function AppShellNavigation({
             item.href === "/"
               ? pathname === "/" ||
                 (!shortStoryProject && pathname === projectLandingPath)
-              : pathname === item.href;
+              : item.href === "/series"
+                ? pathname.startsWith("/series")
+                : pathname === item.href;
 
           return (
             <Link
@@ -147,14 +156,15 @@ export function AppShellNavigation({
         })}
       </nav>
 
-      <div className="hidden px-4 lg:block">
-        <div className="mb-3 h-px bg-gradient-to-r from-transparent via-[#a87943]/25 to-transparent" />
-        <p className="mb-2 flex items-center gap-2 px-1 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-[#8b765b]">
-          <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
-          {shortStoryProject ? "短故事工具" : "创作工具"}
-        </p>
-        <div className="grid grid-cols-2 gap-1.5">
-          {projectToolItems
+      {seriesWorkspace ? null : (
+        <div className="hidden px-4 lg:block">
+          <div className="mb-3 h-px bg-gradient-to-r from-transparent via-[#a87943]/25 to-transparent" />
+          <p className="mb-2 flex items-center gap-2 px-1 text-[0.68rem] font-medium uppercase tracking-[0.18em] text-[#8b765b]">
+            <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
+            {shortStoryProject ? "短故事工具" : "创作工具"}
+          </p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {projectToolItems
             .filter((item) => visibleToolPaths.has(item.path))
             .map((item) => {
               const Icon = item.icon;
@@ -198,9 +208,10 @@ export function AppShellNavigation({
                   {label}
                 </Link>
               );
-            })}
+              })}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

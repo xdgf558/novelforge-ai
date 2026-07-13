@@ -139,6 +139,7 @@ describe("chapter draft context builder", () => {
         totalWordTarget: 30000,
       },
       blueprint: shortStoryBlueprint,
+      seriesContext: "系列：雾城异闻录\n已知边界：林野不知道组织名称。",
       chapter: {
         ...baseInput.chapter,
         chapterNumber: 2,
@@ -159,6 +160,9 @@ describe("chapter draft context builder", () => {
 
     expect(context.inputText).toContain("写作单元 2《病历上的签名》");
     expect(context.inputText).toContain("# 正式短故事蓝图");
+    expect(context.inputText).toContain("# 系列短故事连续性");
+    expect(context.inputText).toContain("林野不知道组织名称");
+    expect(context.inputContextSummary).toContain("包含系列连续性");
     expect(context.inputText).toContain("约 5,200 字");
     expect(context.inputText).toContain("不重复开篇、不复述前文");
     expect(context.inputText).toContain("禁止输出内部单元标题");

@@ -128,6 +128,7 @@ describe("chapter polish context builder", () => {
         workType: "short_story",
       },
       blueprint: shortStoryBlueprint,
+      seriesContext: "系列：雾城异闻录\n关系状态：林野仍不信任搭档。",
       chapter: {
         ...baseInput.chapter,
         chapterNumber: 2,
@@ -142,6 +143,9 @@ describe("chapter polish context builder", () => {
 
     expect(context.inputText).toContain("精修写作单元 2《病历上的签名》");
     expect(context.inputText).toContain("# 正式短故事蓝图");
+    expect(context.inputText).toContain("# 系列短故事连续性");
+    expect(context.inputText).toContain("林野仍不信任搭档");
+    expect(context.inputContextSummary).toContain("包含系列连续性");
     expect(context.inputText).toContain("约 5,200 字");
     expect(context.inputText).toContain("删除重复开篇、前情回顾");
     expect(context.inputText).toContain("不得为内部切分强造章末追读钩子");
@@ -170,6 +174,7 @@ describe("chapter polish context builder", () => {
         workType: "short_story",
       },
       blueprint: shortStoryBlueprint,
+      seriesContext: "系列：雾城异闻录\n累计状态：林野已失去两年寿命。",
       chapter: {
         ...baseInput.chapter,
         chapterNumber: 3,
@@ -180,6 +185,7 @@ describe("chapter polish context builder", () => {
 
     expect(context.segments.length).toBeGreaterThan(1);
     expect(context.segments[0].inputText).toContain("# 正式短故事蓝图");
+    expect(context.segments[0].inputText).toContain("# 系列短故事连续性");
     expect(context.segments[0].inputText).toContain("删除重复开篇、前情回顾");
     expect(context.segments[0].inputText).toContain(
       "不得为内部单元强造章末追读钩子",

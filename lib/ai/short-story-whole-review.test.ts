@@ -47,6 +47,7 @@ function input() {
         storyTime: "周五夜",
       },
     ],
+    seriesContext: "系列：雾城异闻录\n跨篇规则：人物认知必须持续累积。",
     units: [
       {
         id: "unit_1",
@@ -77,6 +78,8 @@ describe("short-story whole review", () => {
     expect(context.inputText).toContain("人物动机");
     expect(context.inputText).toContain("信息重复");
     expect(context.inputText).toContain("开篇承诺");
+    expect(context.inputText).toContain("# 系列短故事连续性");
+    expect(context.inputText).toContain("人物认知必须持续累积");
     expect(context.inputText).toContain("[unit_1]");
     expect(units[0]).toMatchObject({
       id: "unit_1",

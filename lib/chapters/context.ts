@@ -19,6 +19,7 @@ import { findForeshadowRecoveryReminders } from "@/lib/foreshadows/recovery-remi
 import { selectForeshadowsForChapterRecoveryAudit } from "@/lib/foreshadows/recovery-audit";
 import { selectRelevantOutlinesForChapter } from "@/lib/outline-fields";
 import { prisma } from "@/lib/prisma";
+import { loadShortStorySeriesContext } from "@/lib/short-story-series/context";
 
 export class ChapterContextNotFoundError extends Error {
   constructor(message = "章节不存在。") {
@@ -67,6 +68,7 @@ export async function loadChapterBeatContext(
     recentChapters,
     previousChapter,
     dueForeshadows,
+    seriesContext,
   ] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
@@ -127,6 +129,9 @@ export async function loadChapterBeatContext(
       projectId,
       currentChapterNumber: chapter.chapterNumber,
     }),
+    shortStoryProject
+      ? loadShortStorySeriesContext(projectId)
+      : Promise.resolve(null),
   ]);
 
   return {
@@ -143,6 +148,7 @@ export async function loadChapterBeatContext(
     recentChapters: recentChapters.map(pickChapterContext).reverse(),
     previousChapter: previousChapter ? pickChapterContext(previousChapter) : null,
     dueForeshadows,
+    seriesContext,
   };
 }
 
@@ -179,51 +185,55 @@ export async function loadChapterDraftContext(
   }
   const shortStoryProject = chapter.project.workType === "short_story";
 
-  const [setting, outlines, characters, previousChapter] = await Promise.all([
-    prisma.projectSetting.findUnique({
-      where: {
-        projectId,
-      },
-    }),
-    shortStoryProject
-      ? Promise.resolve([])
-      : prisma.outline.findMany({
-          where: {
-            projectId,
-            status: {
-              not: "archived",
-            },
-          },
-          orderBy: [
-            {
-              level: "asc",
-            },
-            {
-              sortOrder: "asc",
-            },
-            {
-              createdAt: "asc",
-            },
-          ],
-        }),
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-    }),
-    prisma.chapter.findFirst({
-      where: {
-        projectId,
-        chapterNumber: {
-          lt: chapter.chapterNumber,
+  const [setting, outlines, characters, previousChapter, seriesContext] =
+    await Promise.all([
+      prisma.projectSetting.findUnique({
+        where: {
+          projectId,
         },
-      },
-      orderBy: {
-        chapterNumber: "desc",
-      },
-    }),
-  ]);
+      }),
+      shortStoryProject
+        ? Promise.resolve([])
+        : prisma.outline.findMany({
+            where: {
+              projectId,
+              status: {
+                not: "archived",
+              },
+            },
+            orderBy: [
+              {
+                level: "asc",
+              },
+              {
+                sortOrder: "asc",
+              },
+              {
+                createdAt: "asc",
+              },
+            ],
+          }),
+      prisma.character.findMany({
+        where: {
+          projectId,
+          status: "active",
+        },
+      }),
+      prisma.chapter.findFirst({
+        where: {
+          projectId,
+          chapterNumber: {
+            lt: chapter.chapterNumber,
+          },
+        },
+        orderBy: {
+          chapterNumber: "desc",
+        },
+      }),
+      shortStoryProject
+        ? loadShortStorySeriesContext(projectId)
+        : Promise.resolve(null),
+    ]);
 
   return {
     project: chapter.project,
@@ -239,6 +249,7 @@ export async function loadChapterDraftContext(
     previousChapter: previousChapter
       ? pickChapterDraftContext(previousChapter)
       : null,
+    seriesContext,
   };
 }
 
@@ -273,7 +284,7 @@ export async function loadChapterPolishContext(
     throw new ChapterContextNotFoundError();
   }
 
-  const [setting, characters] = await Promise.all([
+  const [setting, characters, seriesContext] = await Promise.all([
     prisma.projectSetting.findUnique({
       where: {
         projectId,
@@ -285,6 +296,9 @@ export async function loadChapterPolishContext(
         status: "active",
       },
     }),
+    chapter.project.workType === "short_story"
+      ? loadShortStorySeriesContext(projectId)
+      : Promise.resolve(null),
   ]);
 
   return {
@@ -297,6 +311,7 @@ export async function loadChapterPolishContext(
       chapterRelevanceText(chapter),
       12,
     ),
+    seriesContext,
   };
 }
 

@@ -31,6 +31,7 @@ describe("short-story blueprint AI context", () => {
           secret: "他删除了关键记忆",
         },
       ],
+      seriesContext: "系列：雾城异闻录\n长期谜团：主角为什么失去三年记忆。",
       blueprint: {
         premise: "陈默收到自己死后的遗书。",
       },
@@ -41,6 +42,9 @@ describe("short-story blueprint AI context", () => {
     expect(context.inputJson.characters).toHaveLength(1);
     expect(context.inputJson.currentBlueprint.premise).toContain("遗书");
     expect(context.inputText).toContain("# 当前正式蓝图");
+    expect(context.inputText).toContain("# 系列短故事连续性");
+    expect(context.inputText).toContain("主角为什么失去三年记忆");
+    expect(context.inputContextSummary).toContain("包含系列连续性");
     expect(context.inputText).toContain("不能用梦境解释全部谜题");
   });
 
