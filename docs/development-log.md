@@ -1,5 +1,30 @@
 # Development Log
 
+## 2026-07-13: Title-Only Short-Story Creation Fix
+
+Status: completed for review.
+
+What was done:
+
+- Fixed new short-story creation when the author fills only the required title.
+  The form intentionally hides `updateFrequency` for short stories, so
+  `FormData.get()` returns `null`; the shared optional-text parser previously
+  rejected that missing value before Prisma could create the project.
+- Normalized missing optional text fields to `undefined`, matching the existing
+  handling for blank strings and optional numeric fields.
+- Updated the project-action regression test to submit the real browser shape:
+  `short_story`, a title, blank visible optional fields, and no
+  `updateFrequency` entry.
+- Confirmed the failed installed-app submission did not create a partial or
+  duplicate project in the desktop database.
+
+Verification:
+
+- Targeted project-action tests passed: 1 file and 6 tests.
+- Full `npm test` passed: 109 files and 602 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+
 ## 2026-07-13: 0.1.95 Series DOCX Import Signed macOS Installer
 
 Status: completed.

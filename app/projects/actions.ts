@@ -12,7 +12,10 @@ import {
 } from "@/lib/projects/work-types";
 
 const optionalText = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  (value) =>
+    value == null || (typeof value === "string" && value.trim() === "")
+      ? undefined
+      : value,
   z.string().trim().max(2000).optional(),
 );
 
