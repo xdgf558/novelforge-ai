@@ -94,18 +94,20 @@ describe("project actions", () => {
     );
   });
 
-  it("creates a short-story project with an explicit work type", async () => {
+  it("creates a title-only short story when its hidden update frequency is absent", async () => {
+    const formData = buildProjectFormData({
+      title: "《永生者档案：坠星瓶》",
+      workType: "short_story",
+    });
+    formData.delete("updateFrequency");
+
     await expect(
-      createProject(
-        buildProjectFormData({
-          workType: "short_story",
-        }),
-      ),
+      createProject(formData),
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mocks.prisma.project.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        title: "离线未来",
+        title: "《永生者档案：坠星瓶》",
         workType: "short_story",
       }),
     });
