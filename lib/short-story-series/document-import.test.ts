@@ -60,6 +60,30 @@ describe("short-story series document import", () => {
     expect(draft.warnings.join(" ")).toContain("长期谜团");
   });
 
+  it("assigns each section to one best field without duplicating parent matches", () => {
+    const draft = buildShortStorySeriesImportDraftFromHtml(
+      [
+        "<p>《单一归属测试》</p>",
+        "<h1>世界观</h1>",
+        "<p>基础世界事实。</p>",
+        "<h2>永生规则</h2>",
+        "<p>每次复生都会遗失一段记忆。</p>",
+        "<h1>第一季故事规划</h1>",
+        "<h2>主角阶段变化</h2>",
+        "<p>阿德里安开始怀疑自己的来历。</p>",
+        "<h2>01《坠星瓶》</h2>",
+        "<p>第一篇独立故事。</p>",
+      ].join(""),
+      "exclusive.docx",
+    );
+
+    expect(draft.values.continuityRules).toContain("每次复生都会遗失");
+    expect(draft.values.sharedWorldview).not.toContain("每次复生都会遗失");
+    expect(draft.values.recurringElements).toContain("开始怀疑自己的来历");
+    expect(draft.values.futureDirection).not.toContain("开始怀疑自己的来历");
+    expect(draft.values.futureDirection).toContain("第一篇独立故事");
+  });
+
   it("caps imported field values at the series form limit", () => {
     const longText = "世界规则。".repeat(4000);
     const draft = buildShortStorySeriesImportDraftFromHtml(

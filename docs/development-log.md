@@ -13,6 +13,10 @@ What was done:
   `node-html-parser`. Headings, paragraphs, lists, and tables are grouped into
   the existing series fields: premise, shared worldview, continuity rules,
   recurring elements, long-term mysteries, and future direction.
+- Hardened field assignment after review so each document section belongs to
+  one best field. A section's own heading takes precedence over its parent
+  heading, and overlapping rules use an explicit priority instead of copying
+  the same content into several draft fields.
 - Kept author control explicit: import produces an editable draft and does not
   create or change formal series memory until the author clicks the existing
   create action. No AI request, token usage, or external upload is involved.
@@ -25,8 +29,8 @@ What was done:
 
 Verification:
 
-- Targeted import tests passed: 1 file and 3 tests.
-- Full `npm test` passed: 109 files and 601 tests.
+- Targeted import tests passed: 1 file and 4 tests.
+- Full `npm test` passed: 109 files and 602 tests.
 - `npm run typecheck`, `npm run build`, and `git diff --check` passed.
 - A real import smoke test against
   `永生者系列_科幻短故事创作圣经.docx` parsed 11,341 characters, 53 headings,

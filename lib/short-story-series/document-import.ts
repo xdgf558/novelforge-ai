@@ -47,16 +47,12 @@ const fieldRules: readonly FieldRule[] = [
     pattern: /使用说明|项目定位|核心卖点|故事引擎|创作北极星|系列承诺|一句话提案/,
   },
   {
-    name: "sharedWorldview",
-    pattern: /世界观|外星科学|架空世界|真相层|能力规则|永生规则|千年时间线|时代书写/,
-  },
-  {
     name: "continuityRules",
     pattern: /科幻表达原则|永生规则|戏剧边界|禁止临时加码|单元故事|连续性管理|创作约束|检查表|硬约束|开写前|完稿后/,
   },
   {
-    name: "recurringElements",
-    pattern: /主角|配角|人物|角色|组织|声音与习惯|反复意象|象征物|道具/,
+    name: "sharedWorldview",
+    pattern: /世界观|外星科学|架空世界|真相层|能力规则|永生规则|千年时间线|时代书写/,
   },
   {
     name: "longTermMysteries",
@@ -65,6 +61,10 @@ const fieldRules: readonly FieldRule[] = [
   {
     name: "futureDirection",
     pattern: /第一季|第二季|篇故事规划|篇目规划|故事规划|下一步|发布策略|开发顺序|节奏复盘|后续方向/,
+  },
+  {
+    name: "recurringElements",
+    pattern: /主角|配角|人物|角色|组织|声音与习惯|反复意象|象征物|道具/,
   },
 ] as const;
 
@@ -112,21 +112,12 @@ export function buildShortStorySeriesImportDraftFromHtml(
     throw new Error("文档中没有可读取的正文、列表或表格。");
   }
 
-  const introSection = sections.find((section) => section.level === 0);
+  const sectionsByField = groupSectionsByField(sections);
   const warnings: string[] = [];
   const truncatedFields: string[] = [];
   const fieldValues = Object.fromEntries(
     fieldRules.map((rule) => {
-      const selectedSections = sections.filter((section) => {
-        if (section.level === 0) {
-          return rule.name === "premise";
-        }
-
-        const label = `${section.parentHeading} ${section.heading}`;
-        return !ignoredSectionPattern.test(label) && rule.pattern.test(label);
-      });
-      const fallback = fallbackSections(rule.name, sections, introSection);
-      const rendered = (selectedSections.length > 0 ? selectedSections : fallback)
+      const rendered = (sectionsByField.get(rule.name) || [])
         .map((section) => renderSection(section))
         .filter(Boolean)
         .join("\n\n");
@@ -300,28 +291,59 @@ function renderSection(section: DocumentSection) {
   return `## ${heading}\n${content}`;
 }
 
-function fallbackSections(
-  fieldName: FieldRule["name"],
-  sections: DocumentSection[],
-  introSection?: DocumentSection,
-) {
-  const contentSections = sections.filter(
-    (section) =>
-      section.blocks.length > 0 &&
-      !ignoredSectionPattern.test(`${section.parentHeading} ${section.heading}`),
+function groupSectionsByField(sections: DocumentSection[]) {
+  const grouped = new Map<FieldRule["name"], DocumentSection[]>(
+    fieldRules.map((rule) => [rule.name, []]),
   );
+  const introSection = sections.find(
+    (section) => section.level === 0 && section.blocks.length > 0,
+  );
+  const unassignedSections: DocumentSection[] = [];
 
-  if (fieldName === "premise") {
-    return [introSection, contentSections[0]].filter(
-      (section): section is DocumentSection => Boolean(section?.blocks.length),
+  if (introSection) {
+    grouped.get("premise")?.push(introSection);
+  }
+
+  for (const section of sections) {
+    if (section.level === 0 || section.blocks.length === 0) {
+      continue;
+    }
+
+    const label = `${section.parentHeading} ${section.heading}`;
+
+    if (ignoredSectionPattern.test(label)) {
+      continue;
+    }
+
+    const headingRule = fieldRules.find((rule) =>
+      rule.pattern.test(section.heading),
     );
+    const parentRule = section.parentHeading
+      ? fieldRules.find((rule) => rule.pattern.test(section.parentHeading))
+      : undefined;
+    const matchedRule = headingRule || parentRule;
+
+    if (matchedRule) {
+      grouped.get(matchedRule.name)?.push(section);
+    } else {
+      unassignedSections.push(section);
+    }
   }
 
-  if (fieldName === "sharedWorldview") {
-    return contentSections.slice(0, 4);
+  if (grouped.get("premise")?.length === 0 && unassignedSections.length > 0) {
+    grouped.get("premise")?.push(unassignedSections.shift()!);
   }
 
-  return [];
+  if (
+    grouped.get("sharedWorldview")?.length === 0 &&
+    unassignedSections.length > 0
+  ) {
+    grouped
+      .get("sharedWorldview")
+      ?.push(...unassignedSections.splice(0, 4));
+  }
+
+  return grouped;
 }
 
 function detectSeriesTitle(documentText: string, fileName: string) {
