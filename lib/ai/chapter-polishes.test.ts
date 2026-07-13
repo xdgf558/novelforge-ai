@@ -166,6 +166,20 @@ describe("chapter polish context builder", () => {
     expect(context.inputContextSummary).toContain("写作单元 2");
   });
 
+  it("does not add empty requirements for an independent short story", () => {
+    const context = buildChapterPolishContext({
+      ...baseInput,
+      project: {
+        ...baseInput.project,
+        workType: "short_story",
+      },
+      blueprint: shortStoryBlueprint,
+      seriesContext: null,
+    });
+
+    expect(context.inputJson.outputRequirements).not.toContain("");
+  });
+
   it("keeps short-story continuity guardrails in segmented polish tasks", () => {
     const context = buildSegmentedChapterPolishContext({
       ...baseInput,

@@ -200,6 +200,7 @@ describe("chapter beat context builder", () => {
     expect(context.inputJson.outputRequirements).not.toContain(
       "承接前序单元，包含场景推进、冲突升级、关键转折和兑现推进。",
     );
+    expect(context.inputJson.outputRequirements).not.toContain("");
   });
 
   it("summarizes context scope for ai task records", () => {

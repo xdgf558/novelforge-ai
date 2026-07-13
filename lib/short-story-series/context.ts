@@ -20,6 +20,7 @@ type SeriesContextCharacter = {
 
 export type ShortStorySeriesContextRecord = {
   id: string;
+  sequenceNumber?: number | null;
   project: {
     title: string;
   };
@@ -50,23 +51,6 @@ export async function loadShortStorySeriesContext(projectId: string) {
       },
       series: {
         include: {
-          entries: {
-            orderBy: [
-              {
-                sortOrder: "asc",
-              },
-              {
-                createdAt: "asc",
-              },
-            ],
-            include: {
-              project: {
-                select: {
-                  title: true,
-                },
-              },
-            },
-          },
           characters: {
             where: {
               status: "active",
@@ -86,7 +70,81 @@ export async function loadShortStorySeriesContext(projectId: string) {
     },
   });
 
-  return membership ? formatShortStorySeriesContext(membership) : null;
+  if (!membership) {
+    return null;
+  }
+
+  const earlierEntryWhere = {
+    seriesId: membership.seriesId,
+    OR: [
+      {
+        sortOrder: {
+          lt: membership.sortOrder,
+        },
+      },
+      {
+        sortOrder: membership.sortOrder,
+        createdAt: {
+          lt: membership.createdAt,
+        },
+      },
+      {
+        sortOrder: membership.sortOrder,
+        createdAt: membership.createdAt,
+        id: {
+          lt: membership.id,
+        },
+      },
+    ],
+  };
+  const [previousEntriesDescending, previousEntryCount] = await Promise.all([
+    prisma.shortStorySeriesEntry.findMany({
+      where: earlierEntryWhere,
+      orderBy: [
+        {
+          sortOrder: "desc",
+        },
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      take: 12,
+      select: {
+        id: true,
+        continuityNote: true,
+        project: {
+          select: {
+            title: true,
+          },
+        },
+      },
+    }),
+    prisma.shortStorySeriesEntry.count({
+      where: earlierEntryWhere,
+    }),
+  ]);
+  const previousEntries = previousEntriesDescending.reverse();
+
+  return formatShortStorySeriesContext({
+    id: membership.id,
+    sequenceNumber: previousEntryCount + 1,
+    project: membership.project,
+    continuityNote: membership.continuityNote,
+    series: {
+      ...membership.series,
+      entries: [
+        ...previousEntries,
+        {
+          id: membership.id,
+          continuityNote: membership.continuityNote,
+          project: membership.project,
+        },
+      ],
+    },
+  });
 }
 
 export function formatShortStorySeriesContext(
@@ -95,7 +153,8 @@ export function formatShortStorySeriesContext(
   const currentIndex = membership.series.entries.findIndex(
     (entry) => entry.id === membership.id,
   );
-  const sequenceNumber = currentIndex >= 0 ? currentIndex + 1 : null;
+  const sequenceNumber =
+    membership.sequenceNumber ?? (currentIndex >= 0 ? currentIndex + 1 : null);
   const previousEntries =
     currentIndex > 0
       ? membership.series.entries.slice(Math.max(0, currentIndex - 12), currentIndex)
@@ -104,7 +163,7 @@ export function formatShortStorySeriesContext(
     .map((entry, index) => {
       const note = clip(entry.continuityNote, 900);
       return note
-        ? `- 第 ${Math.max(1, currentIndex - previousEntries.length + index + 1)} 篇《${clip(entry.project.title, 120)}》：${note}`
+        ? `- 第 ${Math.max(1, (sequenceNumber ?? 1) - previousEntries.length + index)} 篇《${clip(entry.project.title, 120)}》：${note}`
         : "";
     })
     .filter(Boolean);

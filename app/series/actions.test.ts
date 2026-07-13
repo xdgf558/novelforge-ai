@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addProjectToShortStorySeries,
+  createShortStorySeriesCharacter,
   createShortStorySeries,
   deleteShortStorySeries,
+  updateShortStorySeriesCharacter,
 } from "./actions";
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +24,12 @@ const mocks = vi.hoisted(() => ({
     shortStorySeriesEntry: {
       create: vi.fn(),
       findMany: vi.fn(),
+    },
+    shortStorySeriesCharacter: {
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
     },
   },
 }));
@@ -71,6 +79,14 @@ describe("short story series actions", () => {
       { sortOrder: 20 },
     ]);
     mocks.prisma.shortStorySeriesEntry.create.mockResolvedValue({ id: "entry_1" });
+    mocks.prisma.shortStorySeriesCharacter.findFirst.mockResolvedValue(null);
+    mocks.prisma.shortStorySeriesCharacter.findMany.mockResolvedValue([]);
+    mocks.prisma.shortStorySeriesCharacter.create.mockResolvedValue({
+      id: "series_character_1",
+    });
+    mocks.prisma.shortStorySeriesCharacter.update.mockResolvedValue({
+      id: "series_character_1",
+    });
   });
 
   it("creates a manual series profile", async () => {
@@ -128,6 +144,68 @@ describe("short story series actions", () => {
       "/series/series_1?seriesError=invalid-project",
     );
     expect(mocks.prisma.shortStorySeriesEntry.create).not.toHaveBeenCalled();
+  });
+
+  it("maps a concurrent project assignment conflict to the existing message", async () => {
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      id: "project_1",
+      workType: "short_story",
+      shortStorySeriesEntry: null,
+    });
+    mocks.prisma.shortStorySeriesEntry.create.mockRejectedValue({
+      code: "P2002",
+    });
+    const formData = new FormData();
+    formData.set("projectId", "project_1");
+
+    await expect(
+      addProjectToShortStorySeries("series_1", formData),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/series/series_1?seriesError=already-assigned",
+    );
+  });
+
+  it("maps a concurrent character creation conflict to the duplicate message", async () => {
+    mocks.prisma.shortStorySeriesCharacter.create.mockRejectedValue({
+      code: "P2002",
+    });
+    const formData = new FormData();
+    formData.set("name", "林野");
+    formData.set("status", "active");
+
+    await expect(
+      createShortStorySeriesCharacter("series_1", formData),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/series/series_1?seriesError=duplicate-character",
+    );
+  });
+
+  it("maps a concurrent character rename conflict to the edit message", async () => {
+    mocks.prisma.shortStorySeriesCharacter.findFirst
+      .mockResolvedValueOnce({ id: "series_character_1" })
+      .mockResolvedValueOnce(null);
+    mocks.prisma.shortStorySeriesCharacter.update.mockRejectedValue({
+      code: "P2002",
+    });
+    const formData = new FormData();
+    formData.set("name", "林野");
+    formData.set("status", "active");
+
+    await expect(
+      updateShortStorySeriesCharacter(
+        "series_1",
+        "series_character_1",
+        formData,
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/series/series_1/characters/series_character_1/edit?seriesError=duplicate-character",
+    );
   });
 
   it("deletes the parent series without issuing a project deletion", async () => {

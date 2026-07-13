@@ -176,13 +176,22 @@ export async function addProjectToShortStorySeries(
     },
   });
 
-  await prisma.shortStorySeriesEntry.create({
-    data: {
-      seriesId,
-      projectId,
-      sortOrder: nextSeriesSortOrder(existingEntries),
-    },
-  });
+  try {
+    await prisma.shortStorySeriesEntry.create({
+      data: {
+        seriesId,
+        projectId,
+        sortOrder: nextSeriesSortOrder(existingEntries),
+      },
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    revalidateSeriesPaths(seriesId);
+    redirect(`/series/${seriesId}?seriesError=already-assigned`);
+  }
   await touchSeries(seriesId);
 
   revalidateProjectSeriesPaths(seriesId, projectId);
@@ -301,13 +310,22 @@ export async function createShortStorySeriesCharacter(
     },
   });
 
-  await prisma.shortStorySeriesCharacter.create({
-    data: {
-      seriesId,
-      ...data,
-      sortOrder: nextSeriesSortOrder(existingCharacters),
-    },
-  });
+  try {
+    await prisma.shortStorySeriesCharacter.create({
+      data: {
+        seriesId,
+        ...data,
+        sortOrder: nextSeriesSortOrder(existingCharacters),
+      },
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    revalidateSeriesPaths(seriesId);
+    redirect(`/series/${seriesId}?seriesError=duplicate-character`);
+  }
   await touchSeries(seriesId);
 
   revalidateSeriesPaths(seriesId);
@@ -341,12 +359,23 @@ export async function updateShortStorySeriesCharacter(
     );
   }
 
-  await prisma.shortStorySeriesCharacter.update({
-    where: {
-      id: characterId,
-    },
-    data,
-  });
+  try {
+    await prisma.shortStorySeriesCharacter.update({
+      where: {
+        id: characterId,
+      },
+      data,
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
+    }
+
+    revalidateSeriesPaths(seriesId);
+    redirect(
+      `/series/${seriesId}/characters/${characterId}/edit?seriesError=duplicate-character`,
+    );
+  }
   await touchSeries(seriesId);
 
   revalidateSeriesPaths(seriesId);
@@ -435,6 +464,15 @@ async function touchSeries(seriesId: string) {
       updatedAt: new Date(),
     },
   });
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
+  );
 }
 
 function revalidateSeriesPaths(seriesId: string) {

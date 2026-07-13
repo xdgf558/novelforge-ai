@@ -186,6 +186,21 @@ describe("chapter draft context builder", () => {
     expect(context.inputContextSummary).toContain("蓝图 已建立");
   });
 
+  it("does not add empty requirements for an independent short story", () => {
+    const context = buildChapterDraftContext({
+      ...baseInput,
+      project: {
+        ...baseInput.project,
+        workType: "short_story",
+      },
+      blueprint: shortStoryBlueprint,
+      seriesContext: null,
+      outlines: [],
+    });
+
+    expect(context.inputJson.outputRequirements).not.toContain("");
+  });
+
   it("summarizes draft context scope and detects confirmed beats", () => {
     expect(buildChapterDraftContextSummary(baseInput)).toBe(
       "第 4 章《死者发来的短信》章节草稿生成；包含已确认节拍；大纲 1 条；角色 1 个；包含上一章结尾",

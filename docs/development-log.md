@@ -17,6 +17,12 @@ What was done:
 - Added bounded read-only series context to short-story blueprint, unit beat,
   draft, polish, segmented polish, and whole-story review prompts. Only prior
   episode progression notes are included; future episode notes are excluded.
+- Hardened the review findings before merge: concurrent membership and
+  core-character name conflicts now reuse the existing friendly redirects,
+  independent-story prompt requirement arrays no longer contain empty items,
+  and series generation context loads at most the latest 12 prior entries plus
+  a lightweight count so real sequence numbers remain accurate without
+  fetching an entire long-running series.
 - Extended Markdown/JSON project exports with the series profile, ordered story
   catalog, membership note, and core-character state.
 - Extended work-type lifecycle acceptance so full SQLite backups retain series
@@ -27,7 +33,7 @@ What was done:
 
 Verification:
 
-- Full `npm run test` passed: 108 files and 585 tests.
+- Full `npm run test` passed: 108 files and 591 tests.
 - `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
   `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
 - `npx prisma validate` passed, and `prisma migrate diff` reported no
