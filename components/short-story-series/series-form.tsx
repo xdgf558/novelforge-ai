@@ -2,9 +2,11 @@ import type { ShortStorySeries } from "@prisma/client";
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
 import { shortStorySeriesStatusOptions } from "@/lib/short-story-series/fields";
+import type { ShortStorySeriesImportValues } from "@/lib/short-story-series/document-import";
 
 type SeriesFormProps = {
   action: (formData: FormData) => Promise<void>;
+  initialValues?: Partial<ShortStorySeriesImportValues>;
   series?: ShortStorySeries;
   submitLabel: string;
   title: string;
@@ -55,6 +57,7 @@ const textFields = [
 
 export function SeriesForm({
   action,
+  initialValues,
   series,
   submitLabel,
   title,
@@ -84,7 +87,7 @@ export function SeriesForm({
             <span className="text-sm font-medium text-ink-800">系列名称</span>
             <input
               className={inputClass}
-              defaultValue={series?.title ?? ""}
+              defaultValue={series?.title ?? initialValues?.title ?? ""}
               maxLength={120}
               name="title"
               placeholder="例如：雾城异闻录"
@@ -96,7 +99,7 @@ export function SeriesForm({
             <span className="text-sm font-medium text-ink-800">系列状态</span>
             <select
               className={inputClass}
-              defaultValue={series?.status ?? "active"}
+              defaultValue={series?.status ?? initialValues?.status ?? "active"}
               name="status"
             >
               {shortStorySeriesStatusOptions.map((option) => (
@@ -120,7 +123,9 @@ export function SeriesForm({
               </span>
               <textarea
                 className={`${inputClass} min-h-28 py-3 leading-6`}
-                defaultValue={series?.[field.name] ?? ""}
+                defaultValue={
+                  series?.[field.name] ?? initialValues?.[field.name] ?? ""
+                }
                 name={field.name}
                 placeholder={field.placeholder}
               />

@@ -41,6 +41,14 @@ MVP includes:
   author-maintained formal context: generation and whole-story review may read
   it, but AI cannot create or update it silently. Current-story prompts receive
   only prior confirmed progression notes, never future-entry notes.
+- Series creative-bible DOCX import is local and deterministic. It reads
+  headings, paragraphs, lists, and tables into an editable draft for the six
+  existing series fields; only the normal explicit create action makes that
+  draft formal series memory. The business file limit is 10 MiB, the Server
+  Action transport limit is 12 MiB for multipart overhead, and imported fields
+  are capped at 12,000 characters with visible warnings. The current import
+  does not call AI or automatically create characters, member projects, or
+  individual story records from planned-story sections.
 - Cross-work-type lifecycle hardening: short stories expose complete project
   Markdown/JSON backups; local desktop migration preserves existing projects as
   `serial_novel`; backup snapshots retain short-story blueprints, units, formal

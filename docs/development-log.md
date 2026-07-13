@@ -1,5 +1,46 @@
 # Development Log
 
+## 2026-07-13: Short-Story Series DOCX Bible Import
+
+Status: completed for PR review.
+
+What was done:
+
+- Added a `series/import` workspace and entry points from the series list so an
+  author can select a DOCX creative bible instead of manually transcribing the
+  series profile.
+- Added local deterministic DOCX extraction with `mammoth` and
+  `node-html-parser`. Headings, paragraphs, lists, and tables are grouped into
+  the existing series fields: premise, shared worldview, continuity rules,
+  recurring elements, long-term mysteries, and future direction.
+- Hardened field assignment after review so each document section belongs to
+  one best field. A section's own heading takes precedence over its parent
+  heading, and overlapping rules use an explicit priority instead of copying
+  the same content into several draft fields.
+- Kept author control explicit: import produces an editable draft and does not
+  create or change formal series memory until the author clicks the existing
+  create action. No AI request, token usage, or external upload is involved.
+- Added DOCX-only validation, a 10 MiB business limit, per-field length limits,
+  missing-section/truncation warnings, and a 12 MiB Server Action transport
+  limit to leave room for multipart overhead.
+- Kept the initial scope at the series-bible level. Planned story cards found in
+  the document are preserved in the imported future-direction text; the import
+  does not silently create member projects, characters, or formal story memory.
+
+Verification:
+
+- Targeted import tests passed: 1 file and 4 tests.
+- Full `npm test` passed: 109 files and 602 tests.
+- `npm run typecheck`, `npm run build`, and `git diff --check` passed.
+- A real import smoke test against
+  `永生者系列_科幻短故事创作圣经.docx` parsed 11,341 characters, 53 headings,
+  23 tables, and all six series fields with no warnings; the detected title was
+  `永生者档案`.
+- An isolated fully migrated SQLite database and local browser session verified
+  the series-list import entry and `/series/import` route at the default desktop
+  viewport and 390x844. The source version remains `0.1.94`; no installer is
+  created before review and merge.
+
 ## 2026-07-13: 0.1.94 Series Memory and Pending Target Fix Installer
 
 Status: completed.
