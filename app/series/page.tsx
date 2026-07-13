@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookCopy, Plus, Users } from "lucide-react";
+import { BookCopy, FileUp, Plus, Users } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { shortStorySeriesStatusLabel } from "@/lib/short-story-series/fields";
@@ -56,10 +56,19 @@ export default async function ShortStorySeriesPage() {
             每一篇仍是可以独立阅读的完整短故事；系列层只维护共享世界、长期谜团、核心人物累计状态和篇目顺序。
           </p>
         </div>
-        <Link className="nf-primary-button w-fit" href="/series/new">
-          <Plus aria-hidden="true" className="h-4 w-4" />
-          新建系列
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#ce8f48]/30 bg-[#ce8f48]/10 px-3 py-2 text-sm font-semibold text-[#f0c98b] transition hover:bg-[#ce8f48]/15"
+            href="/series/import"
+          >
+            <FileUp aria-hidden="true" className="h-4 w-4" />
+            导入创作文档
+          </Link>
+          <Link className="nf-primary-button" href="/series/new">
+            <Plus aria-hidden="true" className="h-4 w-4" />
+            新建系列
+          </Link>
+        </div>
       </header>
 
       {seriesList.length === 0 ? (
@@ -74,10 +83,19 @@ export default async function ShortStorySeriesPage() {
           <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-[#b7a286]">
             先建立系列档案，再把现有短故事按顺序加入。单篇蓝图、正文、审校和成稿不会被合并或改写。
           </p>
-          <Link className="nf-primary-button mt-6" href="/series/new">
-            <Plus aria-hidden="true" className="h-4 w-4" />
-            建立第一个系列
-          </Link>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Link
+              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#ce8f48]/30 bg-[#ce8f48]/10 px-3 py-2 text-sm font-semibold text-[#f0c98b] transition hover:bg-[#ce8f48]/15"
+              href="/series/import"
+            >
+              <FileUp aria-hidden="true" className="h-4 w-4" />
+              导入创作文档
+            </Link>
+            <Link className="nf-primary-button" href="/series/new">
+              <Plus aria-hidden="true" className="h-4 w-4" />
+              建立第一个系列
+            </Link>
+          </div>
         </section>
       ) : (
         <section className="grid gap-3 lg:grid-cols-2">

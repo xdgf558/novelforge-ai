@@ -43,6 +43,18 @@ Status: planned.
 - Apply only after author review; stale source text must block approval.
 - Keep episode project memory and series memory as separate approval targets.
 
+## Series Bible DOCX Import
+
+Status: implemented for PR review after Phase 1.
+
+- Read a local DOCX series bible without an AI request or external upload.
+- Map document headings, lists, paragraphs, and tables into the existing six
+  series profile fields and derive a proposed title.
+- Present the result as an editable draft; only explicit author confirmation
+  creates formal series memory.
+- Preserve planned story material inside future-direction text without
+  automatically creating member projects, characters, or story records.
+
 ## Phase 3: Next-Story Planning and Series Audit
 
 Status: planned.
