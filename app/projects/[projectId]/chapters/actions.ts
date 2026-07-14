@@ -6,6 +6,7 @@ import { z } from "zod";
 import {
   isExcerptedChapterPolishInputJson,
 } from "@/lib/ai/chapter-polishes";
+import { shortStoryUnitPlanTaskType } from "@/lib/ai/short-story-unit-plans";
 import {
   startChapterBeatGeneration,
   startChapterDraftGeneration,
@@ -89,6 +90,12 @@ const changeReasonSchema = z
     z.string().trim().max(1000).optional(),
   );
 
+const sourceUnitPlanTaskIdSchema = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim() ? value.trim() : undefined,
+  z.string().max(128).optional(),
+);
+
 function parseChapterForm(formData: FormData) {
   const parsedValues = chapterSchema.parse(
     Object.fromEntries(
@@ -136,6 +143,9 @@ function parseChapterForm(formData: FormData) {
     values,
     changeReason,
     finalizeError,
+    sourceUnitPlanTaskId: sourceUnitPlanTaskIdSchema.parse(
+      formData.get("sourceUnitPlanTaskId"),
+    ),
   };
 }
 
@@ -173,7 +183,8 @@ export async function createChapter(projectId: string, formData: FormData) {
   const project = await assertProject(projectId);
   const serialProject = !isShortStoryProject(project.workType);
 
-  const { values, changeReason } = parseChapterForm(formData);
+  const { values, changeReason, sourceUnitPlanTaskId } =
+    parseChapterForm(formData);
   let createResult: Awaited<ReturnType<typeof createChapterRecord>>;
 
   try {
@@ -182,6 +193,14 @@ export async function createChapter(projectId: string, formData: FormData) {
       values,
       changeReason,
       linkStorylines: serialProject,
+      sourceAiTask:
+        !serialProject && sourceUnitPlanTaskId
+          ? {
+              id: sourceUnitPlanTaskId,
+              taskType: shortStoryUnitPlanTaskType,
+              sourceType: "ai_short_story_unit_plan",
+            }
+          : undefined,
     });
   } catch (error) {
     if (error instanceof DuplicateChapterNumberError) {

@@ -1,5 +1,43 @@
 # Development Log
 
+## 2026-07-14: AI Short-Story Writing-Unit Plan Drafts
+
+Status: completed for review.
+
+What was done:
+
+- Added a one-click `AI 生成单元规划` action to the new short-story writing-
+  unit form. It generates only the current unit's editable title, scene
+  movement, core conflict, key turn, blueprint payoff movement, and unit goal.
+- Built the prompt from the formal short-story blueprint, bounded series
+  continuity, project setting, active characters, prior writing units, current
+  position, target word count, and any author hints already present in the
+  form. Later units are excluded from context.
+- Logged generation as the structured
+  `short_story_unit_plan_generation` task, added a five-minute planning
+  timeout, and covered stale active-task cleanup.
+- Auto-refreshes while generation is active and pre-fills the form after a
+  complete reviewable result. Authors can edit every field before creating the
+  formal writing unit.
+- Kept formal-memory control explicit: generation never creates a writing
+  unit. The source task is marked adopted and linked to the new unit only when
+  the author submits a valid form and the chapter transaction succeeds.
+
+Verification:
+
+- Full `npm test` passed: 111 files and 609 tests.
+- `npm run typecheck`, `npm run build`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
+- Targeted unit-plan, prompt-template, timeout, chapter-action, and chapter-
+  record tests passed: 6 files and 43 tests.
+- A local preview used an isolated copy of the desktop database plus a fake
+  completed AI task, so no real model call or formal desktop data was touched.
+  The generated values filled all six fields at 1280x900 and 390x844 with no
+  horizontal overflow or browser-console errors.
+- Creating the unit in that isolated copy atomically linked the task to the
+  new chapter, set its adoption state to `adopted`, and recorded the first
+  version source as `ai_short_story_unit_plan`.
+
 ## 2026-07-13: 0.1.97 Compact Series Memory Installer
 
 Status: completed.

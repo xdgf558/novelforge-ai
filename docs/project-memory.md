@@ -28,6 +28,12 @@ MVP includes:
   projects default to long-form serials.
 - Short-story blueprint workspace with ten formal planning fields, review-only
   AI generation, explicit adoption, and blueprint version history.
+- Short-story writing-unit planning can generate one review-only editable
+  draft for the current unit from the formal blueprint, bounded series memory,
+  setting, characters, and prior units. It pre-fills the unit title plus five
+  planning fields; no formal unit is written until the author reviews and
+  submits the normal create form, which atomically adopts and links the source
+  AI task.
 - Short-story whole-story review workspace with bounded confirmed-unit context,
   seven closure dimensions, unit-bound suggestions, source-text staleness
   checks, and manual-only author resolution.
@@ -188,6 +194,7 @@ Prioritize these tables early:
   - Project setting generation
   - Character generation
   - Short-story blueprint generation
+  - Short-story writing-unit plan generation
   - Chapter summary extraction
   - Pending update extraction
   - Continuity checking
@@ -220,6 +227,9 @@ For chapter generation, assemble only:
 - For a short story assigned to a series: bounded shared series rules, active
   core-character state, and prior-entry progression notes up to the current
   story. Do not leak later-entry notes into an earlier story.
+- For short-story writing-unit planning: the formal blueprint, bounded series
+  context, relevant setting and characters, and prior units only. Generate one
+  editable unit at a time and never read later units into an earlier plan.
 
 For chapter summary extraction, confirmed final text is still the only source.
 When final text is too long for stable single-request model calls, pass a

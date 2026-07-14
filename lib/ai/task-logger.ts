@@ -261,6 +261,7 @@ export function resolveAiTaskRequestTimeoutMs(taskType: string) {
     taskType === "outline_generation" ||
     taskType === "ending_planning_generation" ||
     taskType === "short_story_blueprint_generation" ||
+    taskType === "short_story_unit_plan_generation" ||
     taskType === "short_story_whole_review" ||
     taskType === "pending_update_extraction"
   ) {

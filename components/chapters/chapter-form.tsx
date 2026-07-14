@@ -1,6 +1,6 @@
 import type { Chapter, Project } from "@prisma/client";
 import Link from "next/link";
-import { ArrowLeft, History, Save } from "lucide-react";
+import { ArrowLeft, History, Save, Sparkles } from "lucide-react";
 import {
   chapterFieldGroups,
   chapterTextFields,
@@ -25,7 +25,15 @@ type ChapterFormProps = {
   project: Project;
   submitLabel: string;
   subtitle: string;
+  sourceUnitPlanTaskId?: string;
   title: string;
+  unitPlanGeneration?: {
+    action: (formData: FormData) => Promise<void>;
+    canGenerate: boolean;
+    hasActiveTask: boolean;
+    hasDraft: boolean;
+    statusMessage?: string;
+  };
   versionCount?: number;
 };
 
@@ -43,7 +51,9 @@ export function ChapterForm({
   project,
   submitLabel,
   subtitle,
+  sourceUnitPlanTaskId,
   title,
+  unitPlanGeneration,
   versionCount,
 }: ChapterFormProps) {
   const values = chapterValuesFromRecord(chapter ?? initialValues);
@@ -124,8 +134,21 @@ export function ChapterForm({
             <input
               name="changeReason"
               type="hidden"
-              value={shortStoryProject ? "初始写作单元" : "初始章节壳子"}
+              value={
+                sourceUnitPlanTaskId
+                  ? "采用 AI 单元规划草案并创建写作单元"
+                  : shortStoryProject
+                    ? "初始写作单元"
+                    : "初始章节壳子"
+              }
             />
+            {sourceUnitPlanTaskId ? (
+              <input
+                name="sourceUnitPlanTaskId"
+                type="hidden"
+                value={sourceUnitPlanTaskId}
+              />
+            ) : null}
             {createHiddenTextFields.map((field) => (
               <input
                 key={field.name}
@@ -222,15 +245,42 @@ export function ChapterForm({
 
         {shortStoryProject ? (
           <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                单元规划
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                把这个内部单元的场景功能、冲突、转折和蓝图兑现写清楚。AI
-                节拍会优先遵守这些确认内容。
-              </p>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-ink-950">
+                  单元规划
+                </h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-ink-700">
+                  把这个内部单元的场景功能、冲突、转折和蓝图兑现写清楚。AI
+                  节拍会优先遵守这些确认内容。
+                </p>
+              </div>
+
+              {isCreateForm && unitPlanGeneration ? (
+                <button
+                  className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-signal-500/35 bg-signal-500/10 px-3 py-2 text-sm font-semibold text-signal-700 transition hover:bg-signal-500/15 disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={!unitPlanGeneration.canGenerate}
+                  formAction={unitPlanGeneration.action}
+                  type="submit"
+                >
+                  <Sparkles aria-hidden="true" className="h-4 w-4" />
+                  {unitPlanGeneration.hasActiveTask
+                    ? "生成中"
+                    : unitPlanGeneration.hasDraft
+                      ? "重新生成单元规划"
+                      : "AI 生成单元规划"}
+                </button>
+              ) : null}
             </div>
+
+            {isCreateForm && unitPlanGeneration?.statusMessage ? (
+              <p
+                className="mt-4 rounded-md border border-ink-950/10 bg-paper-50 px-3 py-2 text-sm leading-6 text-ink-700"
+                role="status"
+              >
+                {unitPlanGeneration.statusMessage}
+              </p>
+            ) : null}
 
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
               <label className="flex flex-col gap-2 lg:col-span-2 lg:max-w-xs">

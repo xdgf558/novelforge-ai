@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => ({
       count: vi.fn(),
       create: vi.fn(),
     },
+    aiTask: {
+      updateMany: vi.fn(),
+    },
   },
   createMissingStorylineChapterRelationsForChapter: vi.fn(),
 }));
@@ -69,6 +72,7 @@ describe("chapter record services", () => {
     });
     mocks.tx.chapterVersion.count.mockResolvedValue(2);
     mocks.tx.chapterVersion.create.mockResolvedValue({});
+    mocks.tx.aiTask.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.chapter.update.mockResolvedValue({});
     mocks.createMissingStorylineChapterRelationsForChapter.mockResolvedValue(
       undefined,
@@ -145,6 +149,38 @@ describe("chapter record services", () => {
         versionNumber: 3,
         changeReason: "manual update",
         sourceType: "manual",
+      }),
+    });
+  });
+
+  it("adopts a reviewed AI unit plan atomically with the new writing unit", async () => {
+    await createChapterRecord({
+      projectId: "project_1",
+      values: baseValues,
+      changeReason: "采用 AI 单元规划草案并创建写作单元",
+      sourceAiTask: {
+        id: "unit_plan_task_1",
+        taskType: "short_story_unit_plan_generation",
+        sourceType: "ai_short_story_unit_plan",
+      },
+    });
+
+    expect(mocks.tx.aiTask.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "unit_plan_task_1",
+        projectId: "project_1",
+        taskType: "short_story_unit_plan_generation",
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      data: {
+        adoptionState: "adopted",
+        chapterId: "chapter_7",
+      },
+    });
+    expect(mocks.tx.chapterVersion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        sourceType: "ai_short_story_unit_plan",
       }),
     });
   });

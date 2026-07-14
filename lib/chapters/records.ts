@@ -41,11 +41,17 @@ export async function createChapterRecord({
   changeReason,
   linkStorylines = true,
   projectId,
+  sourceAiTask,
   values,
 }: {
   changeReason?: string;
   linkStorylines?: boolean;
   projectId: string;
+  sourceAiTask?: {
+    id: string;
+    taskType: string;
+    sourceType: string;
+  };
   values: ChapterValues;
 }) {
   const snapshot = chapterSnapshot(values);
@@ -59,6 +65,22 @@ export async function createChapterRecord({
         },
       });
 
+      const adoptedSourceTask = sourceAiTask
+        ? await tx.aiTask.updateMany({
+            where: {
+              id: sourceAiTask.id,
+              projectId,
+              taskType: sourceAiTask.taskType,
+              status: "completed",
+              adoptionState: "not_reviewed",
+            },
+            data: {
+              adoptionState: "adopted",
+              chapterId: createdChapter.id,
+            },
+          })
+        : null;
+
       await tx.chapterVersion.create({
         data: {
           projectId,
@@ -66,7 +88,10 @@ export async function createChapterRecord({
           versionNumber: 1,
           snapshotJson: JSON.stringify(snapshot),
           changeReason,
-          sourceType: "manual",
+          sourceType:
+            adoptedSourceTask?.count === 1
+              ? sourceAiTask?.sourceType
+              : "manual",
         },
       });
 
