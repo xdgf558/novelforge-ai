@@ -63,9 +63,11 @@ Current personal-use rebuild policy:
 - Build a clean `.pkg` that installs `NovelForge AI.app` into `/Applications`.
 - Leave only the final versioned PKG in `release/desktop/` for normal handoff.
 - Keep `desktop:dist:mac:notarized` only for an explicit future public-distribution request.
-- The current keychain has no Developer ID Installer identity, so the PKG is
-  unsigned. Re-sign and verify its staged app payload with hardened runtime and
-  `build/entitlements.mac.plist`; macOS may require a one-time right-click Open
+- The current keychain has both Developer ID Application and Developer ID
+  Installer identities. Sign the app payload and the final PKG, then verify the
+  PKG certificate chain and the app expanded from that final PKG. Personal
+  local builds remain unnotarized unless external Apple upload is explicitly
+  authorized, so Gatekeeper may still require a one-time right-click Open
   confirmation.
 
 ## Packaging Notes
