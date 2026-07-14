@@ -360,6 +360,9 @@ describe("AI task logger", () => {
     expect(
       resolveAiTaskRequestTimeoutMs("short_story_blueprint_generation"),
     ).toBe(longPlanningAiRequestTimeoutMs);
+    expect(
+      resolveAiTaskRequestTimeoutMs("short_story_unit_plan_generation"),
+    ).toBe(longPlanningAiRequestTimeoutMs);
     expect(resolveAiTaskRequestTimeoutMs("short_story_whole_review")).toBe(
       longPlanningAiRequestTimeoutMs,
     );

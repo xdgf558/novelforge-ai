@@ -28,6 +28,14 @@ snapshots. AI generation only creates a logged review draft; formal blueprint
 fields change only after explicit author adoption. Restoring an old snapshot
 creates a new rollback version so history remains append-only.
 
+Before a short-story writing unit exists, the new-unit form may request one
+review-only AI planning draft. The task reads the formal blueprint, bounded
+series context, relevant setting and characters, and prior units only, then
+prefills the unit title, scene movement, conflict, turn, payoff movement, and
+goal. Every field remains editable. Generation itself creates no formal unit;
+the task is adopted and linked atomically only when the author submits the
+normal create form successfully.
+
 Independent short-story projects may optionally belong to one
 `ShortStorySeries`. The parent series does not merge prose or replace a story's
 blueprint. It stores the recommended reading order, shared worldview,

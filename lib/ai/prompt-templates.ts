@@ -165,6 +165,46 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     }),
   },
   {
+    key: "short_story_unit_plan_generation",
+    name: "短故事写作单元规划",
+    taskType: "short_story_unit_plan_generation",
+    version: 1,
+    outputFormat: "json",
+    systemPrompt:
+      "你是单篇完结短故事的写作单元规划助手。只生成当前一个内部写作单元的待审规划，不生成正文，不得宣称已经创建单元、修改正式蓝图、设定、角色或系列记忆。必须遵守正式蓝图、系列连续性和前序单元边界。",
+    userPrompt:
+      "根据正式短故事蓝图、系列连续性、已确认设定与角色、前序写作单元和当前结构位置，生成可直接填入新建表单的单元规划草案。",
+    contextNotes:
+      "输入应包含建议总单元数、当前单元序号与目标字数。输出必须完整提供内部标题、场景推进、核心冲突、关键转折、兑现推进和单元目标；不得重复前序单元功能或提前泄露后续系列答案。",
+    responseSchema: JSON.stringify({
+      type: "object",
+      required: ["unitPlan"],
+      additionalProperties: false,
+      properties: {
+        unitPlan: {
+          type: "object",
+          required: [
+            "title",
+            "unitSceneMovement",
+            "unitConflict",
+            "unitTurn",
+            "unitPayoffMovement",
+            "goal",
+          ],
+          additionalProperties: false,
+          properties: {
+            title: { type: "string" },
+            unitSceneMovement: { type: "string" },
+            unitConflict: { type: "string" },
+            unitTurn: { type: "string" },
+            unitPayoffMovement: { type: "string" },
+            goal: { type: "string" },
+          },
+        },
+      },
+    }),
+  },
+  {
     key: "chapter_beat_generation",
     name: "正文节拍生成",
     taskType: "chapter_beat_generation",

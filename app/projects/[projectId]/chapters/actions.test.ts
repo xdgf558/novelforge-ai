@@ -314,6 +314,7 @@ describe("chapter actions", () => {
           unitTurn: "病历上的签名来自主角本人。",
           unitPayoffMovement: "兑现死者短信的预告能力。",
           unitWordTarget: 5200,
+          sourceUnitPlanTaskId: "unit_plan_task_1",
         }),
       ),
     ).rejects.toThrow("NEXT_REDIRECT");
@@ -327,6 +328,19 @@ describe("chapter actions", () => {
     });
     expect(mocks.tx.storyline.findMany).not.toHaveBeenCalled();
     expect(mocks.prisma.outline.findMany).not.toHaveBeenCalled();
+    expect(mocks.tx.aiTask.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "unit_plan_task_1",
+        projectId: "project_1",
+        taskType: "short_story_unit_plan_generation",
+        status: "completed",
+        adoptionState: "not_reviewed",
+      },
+      data: {
+        adoptionState: "adopted",
+        chapterId: "chapter_new",
+      },
+    });
   });
 
   it("does not duplicate existing storyline chapter relations", async () => {

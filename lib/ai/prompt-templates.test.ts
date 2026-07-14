@@ -19,6 +19,7 @@ describe("default AI prompt templates", () => {
         "project_setting_completion",
         "project_setting_optimization",
         "short_story_blueprint_generation",
+        "short_story_unit_plan_generation",
         "short_story_whole_review",
         "outline_generation",
         "character_relationship_generation",
@@ -84,6 +85,26 @@ describe("default AI prompt templates", () => {
         "forbiddenDeviations",
       ]),
     );
+  });
+
+  it("requires every editable short-story unit plan field in its schema", () => {
+    const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
+      (item) => item.key === "short_story_unit_plan_generation",
+    );
+    const schema = JSON.parse(template?.responseSchema ?? "{}");
+
+    expect(template?.outputFormat).toBe("json");
+    expect(schema.properties.unitPlan.required).toEqual(
+      expect.arrayContaining([
+        "title",
+        "unitSceneMovement",
+        "unitConflict",
+        "unitTurn",
+        "unitPayoffMovement",
+        "goal",
+      ]),
+    );
+    expect(template?.systemPrompt).toContain("不得宣称已经创建单元");
   });
 
   it("keeps prose generation templates guarded against repetitive AI phrasing", () => {
