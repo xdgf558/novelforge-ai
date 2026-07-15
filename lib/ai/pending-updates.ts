@@ -328,6 +328,7 @@ export function normalizePendingUpdateSuggestionTargetIds(
     ["foreshadow", idsFrom(context.foreshadows)],
     ["timeline_event", idsFrom(context.timelineEvents)],
   ]);
+  const targetTypesById = uniqueTargetTypesById(validIds);
   const idsByName = new Map<PendingUpdateTargetType, Map<string, string>>([
     ["character", uniqueIdsByName(context.characters, (item) => item.name)],
     ["world_rule", uniqueIdsByName(context.worldRules, (item) => item.title)],
@@ -362,6 +363,16 @@ export function normalizePendingUpdateSuggestionTargetIds(
 
     if (targetId && typeIds?.has(targetId)) {
       return suggestion;
+    }
+
+    const resolvedTargetType = targetTypesById.get(targetId);
+
+    if (targetId && resolvedTargetType) {
+      return {
+        ...suggestion,
+        targetId,
+        targetType: resolvedTargetType,
+      };
     }
 
     return targetId ? { ...suggestion, targetId: undefined } : suggestion;
@@ -738,6 +749,24 @@ function buildCharacterLine(character: PendingUpdateCharacterContext) {
 function idsFrom(items?: readonly { id?: string | null }[]) {
   return new Set(
     (items ?? []).map((item) => clean(item.id)).filter(Boolean),
+  );
+}
+
+function uniqueTargetTypesById(
+  idsByType: ReadonlyMap<PendingUpdateTargetType, ReadonlySet<string>>,
+) {
+  const types = new Map<string, PendingUpdateTargetType | null>();
+
+  for (const [targetType, ids] of idsByType) {
+    for (const id of ids) {
+      types.set(id, types.has(id) ? null : targetType);
+    }
+  }
+
+  return new Map(
+    [...types.entries()].filter(
+      (entry): entry is [string, PendingUpdateTargetType] => Boolean(entry[1]),
+    ),
   );
 }
 

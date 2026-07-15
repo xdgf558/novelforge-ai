@@ -203,6 +203,56 @@ describe("pending update approval service", () => {
     });
   });
 
+  it("recovers a real cross-type target id from the stored audit payload", async () => {
+    const existingEvent = {
+      id: "timeline_1",
+      projectId: "project_1",
+      title: "沈鹤鸣调阅底册",
+      description: "沈鹤鸣在下狱前调阅底册。",
+    };
+    const tx = {
+      character: {
+        findFirst: vi.fn(async () => null),
+      },
+      worldRule: {
+        findFirst: vi.fn(async () => null),
+      },
+      foreshadow: {
+        findFirst: vi.fn(async () => null),
+      },
+      timelineEvent: {
+        findFirst: vi.fn(async () => existingEvent),
+        update: vi.fn(async () => ({})),
+      },
+    };
+
+    const appliedTarget = await applyApprovedPendingUpdate(
+      tx as never,
+      pendingCharacterUpdate({
+        targetType: "foreshadow",
+        targetId: null,
+        targetName: "沈鹤鸣调阅底册并下狱",
+        payloadJson: JSON.stringify({
+          targetType: "foreshadow",
+          targetId: "timeline_1",
+        }),
+      }),
+      "时间锁定为十月初八。",
+    );
+
+    expect(appliedTarget).toEqual({
+      targetId: "timeline_1",
+      targetType: "timeline_event",
+    });
+    expect(tx.timelineEvent.update).toHaveBeenCalledWith({
+      where: { id: "timeline_1" },
+      data: expect.objectContaining({
+        description: "沈鹤鸣在下狱前调阅底册。\n\n时间锁定为十月初八。",
+        pendingUpdateId: "update_1",
+      }),
+    });
+  });
+
   it("builds a setting snapshot from the upsert result", async () => {
     const updatedSetting = {
       id: "setting_1",
