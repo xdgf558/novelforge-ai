@@ -1,5 +1,54 @@
 # Development Log
 
+## 2026-07-16: 0.1.101 Narrative-Perspective Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged approved PR #75 into `main` at merge commit `aa1f0ae` and pushed the
+  merge to GitHub.
+- Bumped the source app/package version from `0.1.100` to `0.1.101`.
+- Rebuilt the arm64 macOS app with independent short-story narrative
+  perspectives, stable id-based preset markers, backward-compatible legacy
+  label recognition, and whole-story viewpoint violation metrics.
+- `security find-identity` reported no currently valid code-signing identities.
+  The initial builder payload passed deep verification but Gatekeeper's signing
+  subsystem returned an internal error, so the final personal-use payload was
+  copied and re-signed ad hoc with hardened runtime and the required Electron
+  entitlements. The final PKG is unsigned and unnotarized and must not be
+  represented as a Developer ID distribution artifact.
+- Created
+  `release/desktop/NovelForge-AI-0.1.101-mac-arm64.pkg`, targeting
+  `/Applications`, and removed the previous `0.1.100` installer plus Electron
+  build intermediates after the new package passed final verification.
+
+Verification:
+
+- Full `npm test` passed: 113 files and 625 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 26 migrations and `prisma/schema.prisma`.
+- The production build inside `npm run desktop:pack:mac` passed. Final PKG
+  metadata reports identifier `com.novelforge.ai`, version `0.1.101`, install
+  location `/Applications`, and matching bundle short/build versions.
+- The staged app, app expanded from the final PKG, and a second ordinary copy
+  all passed system-level `codesign --verify --deep --strict`. The final app
+  retains hardened runtime plus Electron JIT, unsigned executable memory, and
+  disabled library validation entitlements.
+- The packaged runtime contains `runDesktopMigrations`, reads bundled
+  `migration.sql`, contains no Prisma CLI `migrate deploy` startup path, and
+  retains all 26 migrations. Packaged-root work-type lifecycle acceptance
+  passed.
+- A real launch from the final expanded payload used an isolated data directory,
+  returned HTTP 200 from the local server, applied all 26 migrations, and
+  returned `ok` from SQLite `PRAGMA quick_check`. No real overwrite install into
+  `/Applications` was performed.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the
+  approved personal-use fallback. Final size: `374,575,638` bytes. SHA-256:
+  `08faf34667aac511b59f0ed5a4cf677d3b984a39c8d37bcedb814a7a68f3ccdb`.
+
 ## 2026-07-15: Explainable Short-Story Narrative Perspectives
 
 Status: completed for review.
