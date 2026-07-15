@@ -1,5 +1,49 @@
 # Development Log
 
+## 2026-07-15: 0.1.99 Short-Story Writing-Style Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged the approved explainable short-story writing-style presets into
+  `main` at merge commit `620af7a` and pushed the feature merge to GitHub.
+- Bumped the source app/package version from `0.1.98` to `0.1.99`.
+- Rebuilt the arm64 macOS application with the four short-story-only style
+  directions and the saved generic style guide in blueprint, unit-planning,
+  drafting, polishing, and whole-story-review context.
+- Developer ID identities were visible in the login keychain, but command-line
+  signing repeatedly failed with `errSecInternalComponent` even after the
+  author unlocked the keychain and updated private-key access control.
+- With explicit author approval, completed this release as a personal local
+  fallback: the app payload is ad-hoc signed with hardened runtime, the PKG is
+  unsigned and unnotarized, and Gatekeeper will require manual trust on first
+  use. This package must not be represented as a Developer ID release.
+- Created the installer at
+  `release/desktop/NovelForge-AI-0.1.99-mac-arm64.pkg`, targeting
+  `/Applications`.
+
+Verification:
+
+- Full `npm test` passed: 112 files and 613 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 25 migrations and `prisma/schema.prisma`.
+- The production macOS build passed. Bundle short version, bundle version, and
+  packaged `package.json` version are all `0.1.99`.
+- The app expanded from the final PKG passed system-level
+  `codesign --verify --deep --strict`, retained all 25 migrations, and contains
+  `runDesktopMigrations` with no Prisma CLI `migrate deploy` startup path.
+- Packaged-root `npm run work-types:acceptance` passed against an isolated
+  SQLite database.
+- `pkgutil --check-signature` reports `Status: no signature`, and `spctl`
+  rejects the package as `source=no usable signature`, matching the explicitly
+  approved personal fallback.
+- No real overwrite install into `/Applications` was performed.
+- Final size: `375,374,224` bytes. SHA-256:
+  `fd8d885236dd650ea1e15875b9940c33135d8eb1f80621a39a5ee4ee634aa2cc`.
+
 ## 2026-07-15: Explainable Short-Story Writing Style Presets
 
 Status: completed for review.
