@@ -1,5 +1,47 @@
 # Development Log
 
+## 2026-07-15: 0.1.100 Pending-Memory Recovery Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged the approved pending-memory cross-type target recovery into `main` at
+  merge commit `c0c84ec`.
+- Bumped the source app/package version from `0.1.99` to `0.1.100`.
+- Rebuilt the arm64 macOS application so existing stuck pending suggestions can
+  recover their original formal-memory target from the immutable AI payload.
+  Authors can retry approval after installing this build; re-running the
+  pending-update extraction is not required.
+- Used the explicitly approved personal local distribution path: the app
+  payload is ad-hoc signed with hardened runtime, while the PKG is unsigned and
+  unnotarized. Gatekeeper may require right-clicking the app and choosing Open
+  on first use.
+- Created the installer at
+  `release/desktop/NovelForge-AI-0.1.100-mac-arm64.pkg`, targeting
+  `/Applications`.
+
+Verification:
+
+- Full `npm test` passed: 112 files and 616 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 25 migrations and `prisma/schema.prisma`.
+- The production macOS build passed. Bundle short version, bundle version, and
+  packaged `package.json` version are all `0.1.100`.
+- The app expanded from the final PKG passed system-level
+  `codesign --verify --deep --strict`, retained all 25 migrations, and contains
+  `runDesktopMigrations` with no Prisma CLI `migrate deploy` startup path.
+- Packaged-root `npm run work-types:acceptance` passed against an isolated
+  SQLite database.
+- `pkgutil --check-signature` reports `Status: no signature`; Gatekeeper cannot
+  establish a usable distribution signature, matching the approved personal
+  fallback.
+- No real overwrite install into `/Applications` was performed.
+- Final size: `374,958,597` bytes. SHA-256:
+  `f5c0b5463f55ad53cc5499bea4da00f3c0c1f0042c048eaffd0bbae75c8d8dae`.
+
 ## 2026-07-15: Pending Memory Cross-Type Target Recovery
 
 Status: completed for review.
