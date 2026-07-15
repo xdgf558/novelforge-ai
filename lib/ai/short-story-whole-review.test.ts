@@ -17,7 +17,9 @@ function input() {
     },
     setting: {
       mainConflict: "主角必须在真相和家人之间选择。",
-      styleSample: "采用受限视角，让官方记录与私人记忆彼此冲突。",
+      narrativePerspective:
+        "【短故事叙事视角：沉浸式第三人称限制】\n主角看不见的，读者不能直接看见。",
+      styleSample: "让官方记录与私人记忆彼此冲突。",
     },
     blueprint: {
       premise: "一封来自死者的信迫使主角重查旧案。",
@@ -82,6 +84,11 @@ describe("short-story whole review", () => {
     expect(context.inputText).toContain("# 系列短故事连续性");
     expect(context.inputText).toContain("人物认知必须持续累积");
     expect(context.inputText).toContain("官方记录与私人记忆彼此冲突");
+    expect(context.inputText).toContain("主角看不见的，读者不能直接看见");
+    expect(context.inputText).toContain("跳入他人内心");
+    expect(context.inputJson.reviewDimensions).toContain(
+      "narrative_perspective",
+    );
     expect(context.inputText).toContain("[unit_1]");
     expect(units[0]).toMatchObject({
       id: "unit_1",

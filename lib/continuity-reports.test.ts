@@ -38,5 +38,8 @@ describe("continuity report helpers", () => {
     expect(normalizeContinuityCategory("重复信息过多")).toBe(
       "repeated_information",
     );
+    expect(normalizeContinuityCategory("段落中途跳视角进入配角内心")).toBe(
+      "narrative_perspective",
+    );
   });
 });

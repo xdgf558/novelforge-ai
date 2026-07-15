@@ -57,7 +57,10 @@ const changeReasonSchema = z
 function parseSettingForm(formData: FormData) {
   const values = settingSchema.parse(
     Object.fromEntries(
-      projectSettingFields.map((field) => [field.name, formData.get(field.name)]),
+      projectSettingFields.map((field) => [
+        field.name,
+        formData.get(field.name) ?? "",
+      ]),
     ),
   ) as ProjectSettingValues;
 

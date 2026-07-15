@@ -43,6 +43,7 @@ const unitPlanSettingFieldNames = [
   "emotionalTone",
   "forbiddenItems",
   "sensitiveContentRules",
+  "narrativePerspective",
   "styleSample",
 ] as const satisfies readonly ProjectSettingFieldName[];
 
@@ -199,6 +200,9 @@ export function buildShortStoryUnitPlanGenerationContext(
       "关键转折必须由已知信息、行动后果或人物选择触发；兑现推进必须指出本单元推进了蓝图中的哪项承诺、反转、关系或情绪债。",
       "不得重复前序单元已经完成的功能，不得引入与正式蓝图、系列规则或已确认角色相冲突的新设定。",
       "作者已有提示属于优先约束；可以补强表达，但不能无故改向。",
+      compactSetting.narrativePerspective
+        ? "当前单元的场景安排必须服从已确认叙事视角的信息边界与切换规则；不得依靠视角人物无法感知的事实推进。"
+        : "",
       "",
       "# 输出要求",
       "只输出 JSON 对象，不要输出 Markdown、代码围栏或解释文字。",

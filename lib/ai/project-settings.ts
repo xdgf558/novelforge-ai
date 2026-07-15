@@ -1,5 +1,7 @@
 import {
-  projectSettingFields,
+  projectSettingAiFields,
+  projectSettingAiFieldsForWorkType,
+  projectSettingFieldsForWorkType,
   projectSettingValuesFromRecord,
   type ProjectSettingFieldName,
   type ProjectSettingValues,
@@ -9,6 +11,7 @@ type Scalar = string | number | boolean | Date | null | undefined;
 
 export type ProjectSettingGenerationProjectContext = {
   title?: Scalar;
+  workType?: Scalar;
   genre?: Scalar;
   targetAudience?: Scalar;
   platform?: Scalar;
@@ -32,11 +35,17 @@ export function buildProjectSettingGenerationContext(
   mode: ProjectSettingGenerationMode = "generation",
 ) {
   const currentSetting = projectSettingValuesFromRecord(input.setting);
-  const filledSettingFields = projectSettingFields.filter((field) =>
+  const applicableSettingFields = projectSettingFieldsForWorkType(
+    stringValue(input.project.workType),
+  );
+  const aiSettingFields = projectSettingAiFieldsForWorkType(
+    stringValue(input.project.workType),
+  );
+  const filledSettingFields = aiSettingFields.filter((field) =>
     currentSetting[field.name].trim(),
   );
   const projectTitle = stringValue(input.project.title) || "未命名项目";
-  const emptySettingFields = projectSettingFields.filter(
+  const emptySettingFields = aiSettingFields.filter(
     (field) => !currentSetting[field.name].trim(),
   );
   const modeLabel = projectSettingModeLabel(mode);
@@ -48,6 +57,7 @@ export function buildProjectSettingGenerationContext(
       mode,
       project: {
         title: stringValue(input.project.title),
+        workType: stringValue(input.project.workType),
         genre: stringValue(input.project.genre),
         targetAudience: stringValue(input.project.targetAudience),
         platform: stringValue(input.project.platform),
@@ -55,12 +65,17 @@ export function buildProjectSettingGenerationContext(
         description: stringValue(input.project.description),
         wechatPositioning: stringValue(input.project.wechatPositioning),
       },
-      currentSetting,
+      currentSetting: Object.fromEntries(
+        applicableSettingFields.map((field) => [
+          field.name,
+          currentSetting[field.name],
+        ]),
+      ),
       emptyFields: emptySettingFields.map((field) => ({
         name: field.name,
         label: field.label,
       })),
-      allowedFields: projectSettingFields.map((field) => ({
+      allowedFields: aiSettingFields.map((field) => ({
         name: field.name,
         label: field.label,
       })),
@@ -76,7 +91,8 @@ export function buildProjectSettingGenerationContext(
       `公众号定位：${stringValue(input.project.wechatPositioning) || "未设置"}`,
       "",
       "# 已有总设定档",
-      formatSettingValues(currentSetting) || "当前总设定档为空，请生成完整初稿。",
+      formatSettingValues(currentSetting, applicableSettingFields) ||
+        "当前总设定档为空，请生成完整初稿。",
       "",
       "# 本次任务",
       modeRequirement,
@@ -84,7 +100,8 @@ export function buildProjectSettingGenerationContext(
       "# 输出要求",
       "请只输出 JSON 对象，不要输出 Markdown。",
       "JSON 字段名只能使用下列总设定字段名；没有把握的字段可以留空字符串。",
-      projectSettingFields.map((field) => `- ${field.name}：${field.label}`).join("\n"),
+      aiSettingFields.map((field) => `- ${field.name}：${field.label}`).join("\n"),
+      "叙事视角属于作者控制项：可以读取已有规则，但不得生成、替换或删除 narrativePerspective。",
       "所有内容都只是供作者审核的草案，不得宣称已经写入正式设定。",
     ].join("\n"),
   };
@@ -140,7 +157,7 @@ export function parseProjectSettingGenerationOutput(
     return values;
   }
 
-  for (const field of projectSettingFields) {
+  for (const field of projectSettingAiFields) {
     const value = stringifyDraftValue(record[field.name]);
 
     if (value) {
@@ -157,8 +174,11 @@ export function hasProjectSettingDraftValues(
   return Object.values(values).some((value) => Boolean(value?.trim()));
 }
 
-function formatSettingValues(values: ProjectSettingValues) {
-  return projectSettingFields
+function formatSettingValues(
+  values: ProjectSettingValues,
+  fields = projectSettingAiFields,
+) {
+  return fields
     .map((field) => {
       const value = values[field.name].trim();
 

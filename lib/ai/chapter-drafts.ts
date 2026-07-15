@@ -85,6 +85,7 @@ export type BuildChapterDraftContextOptions = {
 type DraftSettingField = readonly [ProjectSettingFieldName, string];
 
 const draftStyleSettingFields = [
+  ["narrativePerspective", "叙事视角规则"],
   ["styleSample", "文风样例"],
   ["emotionalTone", "情绪基调"],
   ["readerExpectation", "读者期待"],
@@ -127,7 +128,14 @@ export function buildChapterDraftContext(
     .map(buildCharacterRuleLine)
     .filter(Boolean);
   const styleConstraints = [
-    ...buildLabeledSettingLines(input.setting, draftStyleSettingFields),
+    ...buildLabeledSettingLines(
+      input.setting,
+      shortStoryProject
+        ? draftStyleSettingFields
+        : draftStyleSettingFields.filter(
+            ([fieldName]) => fieldName !== "narrativePerspective",
+          ),
+    ),
     input.project.wechatPositioning
       ? `公众号定位：${input.project.wechatPositioning}`
       : "",
@@ -192,6 +200,9 @@ export function buildChapterDraftContext(
       `输出完整${unitLabel}草稿正文。`,
       `严格遵循已确认${shortStoryProject ? "单元" : "章节"}节拍。`,
       "保持角色说话规则和世界观边界。",
+      ...(shortStoryProject && input.setting?.narrativePerspective
+        ? ["严格遵守正式叙事视角的信息边界、内心权限和场景切换规则。"]
+        : []),
       "硬性压低模板腔：全章“不是……而是……”/“不是……是……”二元对照表达最多保留 1 处，输出前必须自检并改写多余句式。",
       "硬性避免逐日流水账：不要把正文写成第一天、第二天、第三天或早中晚日程；跳过没有新信息的过渡日。",
       "每个场景都要推进至少一种有效信息：冲突、线索、选择、代价、人物关系、风险升级或伏笔回收。",
@@ -276,6 +287,11 @@ export function buildChapterDraftContext(
     `- 直接输出${unitLabel}草稿正文，不要输出分析过程。`,
     "- 按已确认节拍推进，不要新增未经作者确认的核心设定。",
     "- 保持人物语气、行动边界、世界观规则和禁写事项。",
+    ...(shortStoryProject && input.setting?.narrativePerspective
+      ? [
+          "- 严格执行已确认叙事视角：不得跳入无权限人物内心，不得由旁白提前泄露视角人物尚不知道的事实。",
+        ]
+      : []),
     shortStoryProject
       ? "- 把本单元写成整篇正文的连续片段：不重复开篇、不复述前文、不重新介绍已登场人物，结尾只服从整篇自然节奏。"
       : "- 使用适合连载阅读的开场推进、段落节奏和章末钩子。",

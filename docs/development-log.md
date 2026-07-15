@@ -1,5 +1,49 @@
 # Development Log
 
+## 2026-07-15: Explainable Short-Story Narrative Perspectives
+
+Status: completed for review.
+
+What was done:
+
+- Added a short-story-only `narrativePerspective` formal setting with four
+  explainable options: immersive third-person limited, first-person
+  experiential, multi-character limited, and objective-camera narration.
+- Kept narrative perspective independent from writing style. Style presets now
+  describe pacing, sentence rhythm, scientific explanation, suspense, character
+  interaction, and ending tendency without prescribing first/third person or
+  viewpoint access.
+- Implemented the requested immersive third-person-limited rules: one viewpoint
+  anchor, protagonist-bounded information, no direct access to other minds,
+  sensory and bodily immediacy, reduced perception-filter phrasing, no
+  head-hopping, and a first-person substitution self-check.
+- Applying a perspective changes only the editable form. It preserves author
+  supplements and becomes formal memory only through the normal versioned save.
+  Project-setting AI may read the saved rule but cannot generate, replace, or
+  delete it.
+- Injected the saved rule into short-story blueprint generation, writing-unit
+  planning, beats, drafting, normal and segmented polishing, and whole-story
+  review. Whole-story review can now classify viewpoint violations as
+  `narrative_perspective` continuity issues.
+- Added version-history and JSON/Markdown export coverage while keeping the
+  selector, field, and AI constraints absent from serial-novel workflows.
+- Fixed the writing-style and perspective selectors so long option labels shrink
+  correctly instead of being clipped in narrow desktop windows or mobile-width
+  layouts.
+
+Verification:
+
+- Full `npm test` passed: 113 files and 623 tests.
+- `npm run typecheck`, `npm run build`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 26 migrations and `prisma/schema.prisma`.
+- Browser verification used an isolated SQLite database. Applying and saving a
+  perspective created a setting-history version; a serial project exposed no
+  short-story style or perspective controls. Desktop 1280x900 and narrow
+  390x844 layouts had no horizontal overflow after the responsive fix, and the
+  browser console reported no warnings or errors.
+
 ## 2026-07-15: 0.1.100 Pending-Memory Recovery Personal Installer
 
 Status: completed.
@@ -133,9 +177,11 @@ What was done:
   editor: rational urban mystery, engineering adventure and personal choice,
   logical thought experiment, and reality dislocation / identity doubt.
 - Kept author and franchise names as UI-only inspiration labels. Model context
-  receives explicit rules for viewpoint, sentence rhythm, scientific
-  explanation density, suspense construction, character interaction, ending
-  tendency, and originality boundaries instead of a direct imitation request.
+  receives explicit rules for sentence rhythm, scientific-explanation density,
+  suspense construction, character interaction, ending tendency, and
+  originality boundaries instead of a direct imitation request. Viewpoint was
+  later moved into the independent narrative-perspective setting described
+  above.
 - Applying a preset only fills the existing editable `styleSample` and
   `emotionalTone` form fields. Existing custom guidance is retained under an
   author-supplement section, changing presets replaces the old generated block,

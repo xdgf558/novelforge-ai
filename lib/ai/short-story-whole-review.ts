@@ -101,6 +101,7 @@ const reviewSettingFields = [
   "protagonistDesire",
   "protagonistFlaw",
   "villainLogic",
+  "narrativePerspective",
   "styleSample",
   "emotionalTone",
   "readerExpectation",
@@ -128,7 +129,9 @@ export function buildShortStoryWholeReviewContext(
       fieldName,
       clipText(
         stringValue(input.setting?.[fieldName]),
-        fieldName === "styleSample" ? 1600 : 800,
+        fieldName === "styleSample" || fieldName === "narrativePerspective"
+          ? 1600
+          : 800,
       ),
     ]),
   );
@@ -214,6 +217,7 @@ export function buildShortStoryWholeReviewContext(
         "opening_promise",
         "reversal_setup",
         "unresolved_payoff",
+        "narrative_perspective",
       ],
     },
     inputText: [
@@ -230,6 +234,9 @@ export function buildShortStoryWholeReviewContext(
       "5. 开篇承诺：开头提出的异常、危险、关系和阅读期待是否得到回应。",
       "6. 反转铺垫：每次反转是否可由前文信息和人物选择回溯验证。",
       "7. 未兑现项：蓝图必须兑现、正式伏笔和情绪债是否仍悬而未决。",
+      setting.narrativePerspective
+        ? "8. 叙事视角：是否出现跳入他人内心、旁白泄露越权信息、场内无标记切换视角，或违反已确认感官距离的段落。"
+        : "",
       "",
       "# 项目",
       `标题：${projectTitle}`,

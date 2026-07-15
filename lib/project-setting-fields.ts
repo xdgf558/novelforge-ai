@@ -1,3 +1,5 @@
+import { isShortStoryProject } from "./projects/work-types";
+
 export const projectSettingFieldNames = [
   "genre",
   "targetAudience",
@@ -13,6 +15,7 @@ export const projectSettingFieldNames = [
   "pleasureMechanism",
   "longTermForeshadowing",
   "endingDirection",
+  "narrativePerspective",
   "styleSample",
   "wechatPositioning",
   "emotionalTone",
@@ -29,6 +32,8 @@ type ProjectSettingField = {
   label: string;
   placeholder: string;
   rows: number;
+  shortStoryOnly?: boolean;
+  aiDraftable?: boolean;
 };
 
 type ProjectSettingGroup = {
@@ -145,6 +150,14 @@ export const projectSettingGroups: readonly ProjectSettingGroup[] = [
     description: "面向公众号发布、文风稳定和敏感内容规避。",
     fields: [
       {
+        name: "narrativePerspective",
+        label: "叙事视角规则",
+        placeholder: "选择上方叙事视角，或自行填写信息边界、感官距离和视角切换规则。",
+        rows: 6,
+        shortStoryOnly: true,
+        aiDraftable: false,
+      },
+      {
         name: "styleSample",
         label: "文风样例",
         placeholder: "可以粘贴一小段期望文风，后续生成正文时作为风格参考。",
@@ -193,6 +206,30 @@ export const projectSettingGroups: readonly ProjectSettingGroup[] = [
 export const projectSettingFields: readonly ProjectSettingField[] = projectSettingGroups.flatMap(
   (group) => group.fields,
 );
+
+export const projectSettingAiFields: readonly ProjectSettingField[] =
+  projectSettingFields.filter((field) => field.aiDraftable !== false);
+
+export function projectSettingFieldsForWorkType(workType?: string | null) {
+  return projectSettingFields.filter(
+    (field) => !field.shortStoryOnly || isShortStoryProject(workType),
+  );
+}
+
+export function projectSettingGroupsForWorkType(workType?: string | null) {
+  return projectSettingGroups.map((group) => ({
+    ...group,
+    fields: group.fields.filter(
+      (field) => !field.shortStoryOnly || isShortStoryProject(workType),
+    ),
+  }));
+}
+
+export function projectSettingAiFieldsForWorkType(workType?: string | null) {
+  return projectSettingFieldsForWorkType(workType).filter(
+    (field) => field.aiDraftable !== false,
+  );
+}
 
 export type ProjectSettingValues = Record<ProjectSettingFieldName, string>;
 

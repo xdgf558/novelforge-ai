@@ -1,24 +1,25 @@
 import {
   emptyProjectSettingValues,
-  projectSettingGroups,
+  projectSettingGroupsForWorkType,
   type ProjectSettingFieldName,
-  type ProjectSettingValues,
 } from "@/lib/project-setting-fields";
 
 type SettingSnapshotProps = {
   values: Partial<Record<ProjectSettingFieldName, string>>;
+  workType?: string | null;
 };
 
-export function SettingSnapshot({ values }: SettingSnapshotProps) {
+export function SettingSnapshot({ values, workType }: SettingSnapshotProps) {
   const normalizedValues = emptyProjectSettingValues();
+  const settingGroups = projectSettingGroupsForWorkType(workType);
 
-  for (const field of projectSettingGroups.flatMap((group) => group.fields)) {
+  for (const field of settingGroups.flatMap((group) => group.fields)) {
     normalizedValues[field.name] = values[field.name] ?? "";
   }
 
   return (
     <div className="space-y-5">
-      {projectSettingGroups.map((group) => (
+      {settingGroups.map((group) => (
         <section
           className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
           key={group.title}

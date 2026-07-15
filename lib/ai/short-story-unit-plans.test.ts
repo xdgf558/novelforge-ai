@@ -27,6 +27,8 @@ describe("short-story unit plan generation", () => {
       setting: {
         mainConflict: "王室与雇佣兵争夺坠毁物。",
         worldviewRules: "中世纪人物不能直接使用现代科学术语。",
+        narrativePerspective:
+          "【短故事叙事视角：沉浸式第三人称限制】\n不得直接进入其他人物内心。",
       },
       characters: [
         {
@@ -68,6 +70,8 @@ describe("short-story unit plan generation", () => {
     expect(context.inputText).toContain("系列长期谜团");
     expect(context.inputText).toContain("单元 1：荒原测绘");
     expect(context.inputText).toContain("保住安瓿，同时救下受伤同僚");
+    expect(context.inputText).toContain("不得直接进入其他人物内心");
+    expect(context.inputText).toContain("视角人物无法感知的事实");
     expect(context.inputText).not.toContain("未来单元标题不得出现");
     expect(context.inputText).not.toContain("未来单元内容不得出现");
     expect(context.inputJson.target).toEqual({

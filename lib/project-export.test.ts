@@ -13,6 +13,7 @@ const exportData = {
   },
   setting: {
     sellingPoint: "寿命交易带来高压反转。",
+    narrativePerspective: "沉浸式第三人称限制",
     forbiddenItems: "不能自动发布。",
   },
   shortStoryBlueprint: {
@@ -159,6 +160,7 @@ describe("project export builders", () => {
     expect(parsed.shortStoryBlueprint.openingHook).toBe(
       "短信准确预告下一名死者。",
     );
+    expect(parsed.setting.narrativePerspective).toBe("沉浸式第三人称限制");
     expect(parsed.shortStorySeries.title).toBe("雾城异闻录");
     expect(parsed.shortStorySeriesEntries[0].sequenceNumber).toBe(1);
     expect(parsed.shortStorySeriesCharacters[0].name).toBe("林野");
@@ -186,6 +188,7 @@ describe("project export builders", () => {
     expect(markdown).toContain("作品类型: 短故事");
     expect(markdown).toContain("## 项目设定");
     expect(markdown).toContain("寿命交易带来高压反转");
+    expect(markdown).toContain("沉浸式第三人称限制");
     expect(markdown).toContain("## 短故事蓝图");
     expect(markdown).toContain("林野收到死者发来的借命短信");
     expect(markdown).toContain("## 系列短故事");

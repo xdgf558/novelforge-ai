@@ -37,15 +37,23 @@ MVP includes:
 - Short-story project settings provide explainable writing-style presets for
   rational urban mystery, engineering adventure, logical thought experiment,
   and reality-dislocation stories. Reference-author names remain UI-only;
-  model context receives generic rules for viewpoint, rhythm, explanation
-  density, suspense, dialogue, and ending shape plus an originality boundary.
+  model context receives generic rules for rhythm, explanation density,
+  suspense, dialogue, and ending shape plus an originality boundary.
   Applying a preset only fills the existing editable `styleSample` and
   `emotionalTone` fields, preserves custom author notes, and becomes formal
   only through the normal versioned setting save. No separate preset table or
   automatic formal-memory write exists.
+- Short-story narrative perspective is an independent formal setting with
+  immersive third-person limited, first-person experiential, multi-character
+  limited, and objective-camera options. It controls viewpoint access and
+  information boundaries without changing writing style, remains editable
+  before the normal versioned save, and is read by every short-story planning,
+  prose, polish, and whole-review path. Project-setting AI cannot draft or
+  overwrite it, and serial projects do not expose it.
 - Short-story whole-story review workspace with bounded confirmed-unit context,
-  seven closure dimensions, unit-bound suggestions, source-text staleness
-  checks, and manual-only author resolution.
+  seven closure dimensions plus saved-perspective consistency when configured,
+  unit-bound suggestions, source-text staleness checks, and manual-only author
+  resolution.
 - Short-story complete-manuscript export with deterministic confirmed-unit
   assembly, three unit-boundary strategies, copy/TXT/Markdown output, and a
   visible 6,000-80,000 word-range check. Fanqie upload remains manual.
@@ -334,6 +342,15 @@ Recommended implementation order:
   foreign-key/database health. `npm run responsive:smoke` covers the key export
   and destructive-management layouts at desktop and mobile viewport sizes.
   Final installer creation remains a post-review, post-merge release step.
+- Short-story narrative-perspective follow-up: `ProjectSetting` now stores one
+  short-story-only `narrativePerspective` rule independently from
+  `styleSample`. Four explainable options cover immersive third-person limited,
+  first-person experiential, multi-character limited, and objective-camera
+  narration. Applying a choice only edits the browser form and the normal
+  versioned setting save remains the formal-write boundary. Project-setting AI
+  may read but cannot draft or overwrite the field; blueprint, unit-plan, beat,
+  draft, polish, and whole-story-review prompts consume it. Serial projects do
+  not expose or receive the field.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
@@ -414,6 +431,13 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
   from an explainable UI preset. The saved generic guide is included in
   blueprint generation, unit planning, drafting, polishing, and whole-story
   review; inspiration-author labels must not be copied into model prompts.
+  Writing-style presets must remain free of viewpoint instructions. A separate
+  short-story-only `narrativePerspective` field controls viewpoint anchor,
+  information access, other-character interiority, experiential distance, and
+  scene-switch rules. Its four explainable options can be combined with any
+  style preset, are stored through the same versioned author save, and are read
+  by every short-story generation/review path. Setting AI must never generate,
+  replace, or delete this author-controlled field.
   `/projects/[projectId]/story-review` is short-story-only and uses the shared
   AI-task/continuity-report infrastructure. It requires a formal blueprint and
   at least two confirmed units, preserves unit source hashes for stale-result
