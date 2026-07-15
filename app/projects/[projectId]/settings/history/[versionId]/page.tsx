@@ -30,6 +30,7 @@ export default async function SettingVersionPage({
         select: {
           id: true,
           title: true,
+          workType: true,
         },
       },
     },
@@ -99,7 +100,7 @@ export default async function SettingVersionPage({
         </div>
       </div>
 
-      <SettingSnapshot values={snapshot} />
+      <SettingSnapshot values={snapshot} workType={version.project.workType} />
     </div>
   );
 }

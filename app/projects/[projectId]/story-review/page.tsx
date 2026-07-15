@@ -388,6 +388,16 @@ export default async function ShortStoryWholeReviewPage({
                       ) : null}
                     </div>
                   ) : null}
+                  {task.status === "completed" && result.viewpointAudit.checked ? (
+                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-ink-950/10 pt-3 text-xs font-semibold text-ink-700">
+                      <span>
+                        视角违规 {formatNumber(result.viewpointAudit.viewpointViolationCount)} 处
+                      </span>
+                      <span>
+                        其中越权信息泄露 {formatNumber(result.viewpointAudit.unauthorizedKnowledgeLeakCount)} 处
+                      </span>
+                    </div>
+                  ) : null}
                   {task.errorMessage ? (
                     <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-red-700">
                       {task.errorMessage}

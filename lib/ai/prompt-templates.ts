@@ -606,12 +606,12 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "short_story_whole_review",
     name: "短故事整篇闭环审校",
     taskType: "short_story_whole_review",
-    version: 1,
+    version: 3,
     outputFormat: "json",
     systemPrompt:
       "你是短故事整篇审校编辑。只生成绑定具体写作单元的审阅建议，不得重写、替换或宣称已经修改任何定稿正文、正式蓝图或故事记忆。",
     userPrompt:
-      "对全部已确认写作单元进行整篇闭环审校，检查人物动机、时间顺序、信息重复、节奏缺口、开篇承诺、反转铺垫和未兑现项。",
+      "对全部已确认写作单元进行整篇闭环审校，检查人物动机、时间顺序、信息重复、节奏缺口、开篇承诺、反转铺垫、未兑现项，以及已确认叙事视角的一致性。",
     contextNotes:
       "输入包含正式蓝图、角色动机、正式伏笔、时间线、单元规划和有界定稿正文。每条问题必须引用输入中提供的 targetUnitId；跨单元问题可提供 relatedUnitIds。suggestedFix 只能给修改目的、位置和核对点，不能输出整段替换稿。",
     responseSchema: JSON.stringify({
@@ -621,6 +621,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
         "summary",
         "strengths",
         "priority",
+        "viewpointAudit",
         "issues",
       ],
       properties: {
@@ -631,6 +632,22 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
         summary: { type: "string" },
         strengths: { type: "array", items: { type: "string" } },
         priority: { type: "string" },
+        viewpointAudit: {
+          type: "object",
+          required: [
+            "checked",
+            "viewpointViolationCount",
+            "unauthorizedKnowledgeLeakCount",
+          ],
+          properties: {
+            checked: { type: "boolean" },
+            viewpointViolationCount: { type: "integer", minimum: 0 },
+            unauthorizedKnowledgeLeakCount: {
+              type: "integer",
+              minimum: 0,
+            },
+          },
+        },
         issues: {
           type: "array",
           items: {
@@ -664,6 +681,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
                   "opening_promise",
                   "reversal_setup",
                   "unresolved_payoff",
+                  "narrative_perspective",
                 ],
               },
               severity: {

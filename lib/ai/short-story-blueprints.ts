@@ -24,6 +24,7 @@ const blueprintSettingFieldNames = [
   "protagonistDesire",
   "protagonistFlaw",
   "villainLogic",
+  "narrativePerspective",
   "styleSample",
   "emotionalTone",
   "readerExpectation",
@@ -133,6 +134,9 @@ export function buildShortStoryBlueprintGenerationContext(
       "生成一份可在目标篇幅内完成、开篇承诺与结局兑现相互闭合的短故事蓝图。",
       "反转必须由前置信息和人物选择触发，不能靠突然出现的新设定解决冲突。",
       "情绪曲线要对应具体事件压力与选择代价，结局必须回答核心冲突。",
+      compactSetting.narrativePerspective
+        ? "蓝图必须服从已确认叙事视角的信息边界和切换规则，不得把视角人物无法得知的事实当作直接叙述。"
+        : "",
       input.seriesContext
         ? "本篇必须具备独立完整的起因、调查、真相和结局；系列长期谜团只能按已确认方向推进一小步，不得取代本篇闭环或提前揭晓未公开答案。"
         : "",

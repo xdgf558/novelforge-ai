@@ -146,6 +146,7 @@ model ProjectSetting {
   timeline              String?
   pleasureMechanism     String?
   forbiddenItems        String?
+  narrativePerspective  String?
   styleSample           String?
   wechatPositioning     String?
   emotionalTone         String?

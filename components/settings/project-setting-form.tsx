@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Bot,
   CheckCircle2,
+  Eye,
   History,
   Save,
   Sparkles,
@@ -22,7 +23,7 @@ import {
   parseProjectSettingGenerationOutput,
 } from "@/lib/ai/project-settings";
 import {
-  projectSettingGroups,
+  projectSettingGroupsForWorkType,
   projectSettingValuesFromRecord,
   type ProjectSettingValues,
 } from "@/lib/project-setting-fields";
@@ -35,6 +36,13 @@ import {
   shortStoryWritingStylePresets,
   type ShortStoryWritingStylePresetId,
 } from "@/lib/short-stories/writing-style-presets";
+import {
+  appliedShortStoryNarrativePerspectiveId,
+  applyShortStoryNarrativePerspective,
+  shortStoryNarrativePerspectiveById,
+  shortStoryNarrativePerspectives,
+  type ShortStoryNarrativePerspectiveId,
+} from "@/lib/short-stories/narrative-perspectives";
 
 type ProjectSettingFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -102,6 +110,18 @@ export function ProjectSettingForm({
   const appliedStylePresetId = appliedShortStoryWritingStylePresetId(
     values.styleSample,
   );
+  const [selectedNarrativePerspectiveId, setSelectedNarrativePerspectiveId] =
+    useState<ShortStoryNarrativePerspectiveId | "">(
+      () =>
+        appliedShortStoryNarrativePerspectiveId(values.narrativePerspective) ??
+        "",
+    );
+  const selectedNarrativePerspective = shortStoryNarrativePerspectiveById(
+    selectedNarrativePerspectiveId,
+  );
+  const appliedNarrativePerspectiveId =
+    appliedShortStoryNarrativePerspectiveId(values.narrativePerspective);
+  const settingGroups = projectSettingGroupsForWorkType(project.workType);
 
   function applySelectedStylePreset() {
     if (!selectedStylePresetId) {
@@ -120,6 +140,26 @@ export function ProjectSettingForm({
             ...applied,
           }
         : current;
+    });
+  }
+
+  function applySelectedNarrativePerspective() {
+    if (!selectedNarrativePerspectiveId) {
+      return;
+    }
+
+    setValues((current) => {
+      const narrativePerspective = applyShortStoryNarrativePerspective(
+        current.narrativePerspective,
+        selectedNarrativePerspectiveId,
+      );
+
+      return narrativePerspective === null
+        ? current
+        : {
+            ...current,
+            narrativePerspective,
+          };
     });
   }
 
@@ -176,16 +216,16 @@ export function ProjectSettingForm({
                   短故事写作风格
                 </h2>
                 <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
-                  选择后会把可解释的写作规则填入下方文风与情绪字段。作者姓名只用于说明灵感方向，不会写入模型上下文，也不会复制参考作品的角色、情节或原句。
+                  选择后会把节奏、科学解释、悬疑组织和结局倾向填入下方文风与情绪字段。叙事视角由独立选项控制；作者姓名只用于说明灵感方向，不会写入模型上下文。
                 </p>
               </div>
             </div>
 
             <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-              <label className="flex flex-col gap-1.5">
+              <label className="flex min-w-0 flex-col gap-1.5">
                 <span className={labelClass}>风格方向</span>
                 <select
-                  className={`${inputClass} min-h-10 py-2`}
+                  className={`${inputClass} min-h-10 w-full min-w-0 py-2`}
                   onChange={(event) =>
                     setSelectedStylePresetId(
                       event.target.value as ShortStoryWritingStylePresetId | "",
@@ -257,7 +297,98 @@ export function ProjectSettingForm({
           </section>
         ) : null}
 
-        {projectSettingGroups.map((group) => (
+        {isShortStory ? (
+          <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
+                <Eye aria-hidden="true" className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-ink-950">
+                  短故事叙事视角
+                </h2>
+                <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
+                  单独决定读者跟随谁、能知道什么，以及何时允许切换认知中心。它可以和任意写作风格组合，不会覆盖文风规则。
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <label className="flex min-w-0 flex-col gap-1.5">
+                <span className={labelClass}>叙事镜头</span>
+                <select
+                  className={`${inputClass} min-h-10 w-full min-w-0 py-2`}
+                  onChange={(event) =>
+                    setSelectedNarrativePerspectiveId(
+                      event.target.value as ShortStoryNarrativePerspectiveId | "",
+                    )
+                  }
+                  value={selectedNarrativePerspectiveId}
+                >
+                  <option value="">选择一种叙事视角</option>
+                  {shortStoryNarrativePerspectives.map((perspective) => (
+                    <option key={perspective.id} value={perspective.id}>
+                      {perspective.label}
+                      {perspective.recommended ? "（推荐）" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100 disabled:cursor-not-allowed disabled:opacity-45"
+                disabled={!selectedNarrativePerspective}
+                onClick={applySelectedNarrativePerspective}
+                type="button"
+              >
+                <Eye aria-hidden="true" className="h-4 w-4" />
+                应用到视角字段
+              </button>
+            </div>
+
+            {selectedNarrativePerspective ? (
+              <div className="mt-4 border-t border-ink-950/10 pt-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-ink-950">
+                      {selectedNarrativePerspective.label}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-ink-700">
+                      {selectedNarrativePerspective.summary}
+                    </p>
+                  </div>
+                  {appliedNarrativePerspectiveId ===
+                  selectedNarrativePerspective.id ? (
+                    <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-signal-700">
+                      <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                      已填入，保存后生效
+                    </span>
+                  ) : null}
+                </div>
+                <dl className="mt-3 grid gap-x-5 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {selectedNarrativePerspective.dimensions.map((dimension) => (
+                    <div key={dimension.label}>
+                      <dt className="text-xs font-semibold text-ink-700">
+                        {dimension.label}
+                      </dt>
+                      <dd className="mt-0.5 text-xs leading-5 text-ink-900">
+                        {dimension.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-3 text-xs leading-5 text-ink-700">
+                  应用时会替换旧视角预设，并保留手工补充。下方规则仍可编辑；只有点击“保存并记录版本”后才进入正式设定。
+                </p>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs leading-5 text-ink-700">
+                推荐网文和强代入短故事使用“沉浸式第三人称限制”；也可以直接在下方填写自定义视角规则。
+              </p>
+            )}
+          </section>
+        ) : null}
+
+        {settingGroups.map((group) => (
           <section
             className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
             key={group.title}
@@ -290,7 +421,7 @@ export function ProjectSettingForm({
                     }
                     placeholder={
                       isShortStory && field.name === "styleSample"
-                        ? "可选择上方预设，也可填写叙事视角、句式节奏、解释密度、悬疑方式和结局倾向。"
+                        ? "可选择上方预设，也可填写句式节奏、解释密度、悬疑方式和结局倾向。叙事视角请使用独立字段。"
                         : field.placeholder
                     }
                     rows={Math.min(field.rows, 3)}

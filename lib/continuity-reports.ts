@@ -12,6 +12,7 @@ export const continuityStatusOptions = [
 
 export const continuityCategoryOptions = [
   { value: "character_knowledge", label: "人物认知" },
+  { value: "narrative_perspective", label: "叙事视角" },
   { value: "character_behavior", label: "人物性格" },
   { value: "world_rule", label: "世界规则" },
   { value: "timeline", label: "时间线" },
@@ -106,6 +107,14 @@ export function normalizeContinuityCategory(
 
   if (/unresolved_payoff|payoff|未兑现|未闭环|悬而未决/.test(cleaned)) {
     return "unresolved_payoff";
+  }
+
+  if (
+    /narrative_perspective|point.?of.?view|pov|叙事视角|跳视角|跳头|越权信息|全知旁白/.test(
+      cleaned,
+    )
+  ) {
+    return "narrative_perspective";
   }
 
   if (/knowledge|认知|知道|信息边界/.test(cleaned)) {

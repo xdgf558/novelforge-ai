@@ -109,6 +109,7 @@ const polishPromptMaxLength = 18000;
 export const polishSegmentSourceMaxLength = 9000;
 
 const polishStyleSettingFields = [
+  ["narrativePerspective", "叙事视角规则"],
   ["styleSample", "文风样例"],
   ["emotionalTone", "情绪基调"],
   ["readerExpectation", "读者期待"],
@@ -174,6 +175,9 @@ export function buildChapterPolishContext(
         : "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
       "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
       "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
+      ...(shared.shortStoryProject && input.setting?.narrativePerspective
+        ? ["精修必须修正并避免新增跳视角、越权信息或无依据的他人内心直写。"]
+        : []),
       "硬性压低模板腔：全章“不是……而是……”/“不是……是……”二元对照表达最多保留 1 处，输出前必须自检并改写多余句式。",
       "硬性压缩逐日流水账：在不改变剧情事实和必要时间锚点的前提下，合并没有新信息的过渡日。",
       "保留或强化每个场景的叙事功能：冲突、线索、选择、代价、人物关系、风险升级或伏笔回收。",
@@ -266,6 +270,11 @@ export function buildChapterPolishContext(
       : "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
     "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
+    ...(shared.shortStoryProject && input.setting?.narrativePerspective
+      ? [
+          "- 遵守已确认叙事视角，修正跳视角、越权信息和无依据的他人内心直写；不得借精修改变视角方案。",
+        ]
+      : []),
     "- 反模板腔硬性自检：全章“不是……而是……”“不是因为……而是因为……”“真正的……不是……而是……”和“不是……是……”这类二元对照表达最多保留 1 处；如果原文有多处，必须先改成更自然的动作、细节、台词或因果推进，再输出正文。",
     "- 反流水账精修：如果原文按“第一天/第二天/第三天”或“早上/中午/晚上”逐日打卡推进，在不改变事实、必要时间锚点和因果的前提下，压缩无冲突过渡日，改成冲突链、线索链或人物选择链。",
     "- 每个保留下来的场景都应承担至少一个叙事功能：冲突、线索、选择、代价、关系变化、风险升级或伏笔回收；纯日常过渡可以合并成简短转场。",
@@ -717,6 +726,11 @@ function buildChapterPolishSegmentContext(
       : "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
     "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
+    ...(shared.shortStoryProject && input.setting?.narrativePerspective
+      ? [
+          "- 遵守已确认叙事视角，修正本段中的跳视角、越权信息和无依据的他人内心直写；不得借分段精修改变视角方案。",
+        ]
+      : []),
     "- 反模板腔硬性自检：本段“不是……而是……”“不是因为……而是因为……”“真正的……不是……而是……”和“不是……是……”这类二元对照表达最多保留 1 处；如果本段有多处，必须先改成更自然的动作、细节、台词或因果推进，再输出正文。",
     "- 反流水账精修：如果本段按“第一天/第二天/第三天”或“早上/中午/晚上”逐日打卡推进，在不改变事实、必要时间锚点和因果的前提下，压缩无冲突过渡日，改成冲突链、线索链或人物选择链。",
     "- 不要输出“本段精修如下”“第 X 段”等说明文字。",
@@ -772,7 +786,14 @@ function buildChapterPolishSharedContext(
           input.project.chapterWordMax,
         );
   const styleConstraints = [
-    ...buildLabeledSettingLines(input.setting, polishStyleSettingFields),
+    ...buildLabeledSettingLines(
+      input.setting,
+      shortStoryProject
+        ? polishStyleSettingFields
+        : polishStyleSettingFields.filter(
+            ([fieldName]) => fieldName !== "narrativePerspective",
+          ),
+    ),
     input.project.wechatPositioning
       ? `公众号定位：${input.project.wechatPositioning}`
       : "",

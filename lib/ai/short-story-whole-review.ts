@@ -88,11 +88,18 @@ export type ShortStoryWholeReviewIssue = {
   suggestedFix?: string;
 };
 
+export type ShortStoryWholeReviewViewpointAudit = {
+  checked: boolean;
+  viewpointViolationCount: number;
+  unauthorizedKnowledgeLeakCount: number;
+};
+
 export type ShortStoryWholeReviewResult = {
   overallRiskLevel: ContinuitySeverity;
   summary: string;
   strengths: string[];
   priority: string;
+  viewpointAudit: ShortStoryWholeReviewViewpointAudit;
   issues: ShortStoryWholeReviewIssue[];
 };
 
@@ -101,6 +108,7 @@ const reviewSettingFields = [
   "protagonistDesire",
   "protagonistFlaw",
   "villainLogic",
+  "narrativePerspective",
   "styleSample",
   "emotionalTone",
   "readerExpectation",
@@ -128,7 +136,9 @@ export function buildShortStoryWholeReviewContext(
       fieldName,
       clipText(
         stringValue(input.setting?.[fieldName]),
-        fieldName === "styleSample" ? 1600 : 800,
+        fieldName === "styleSample" || fieldName === "narrativePerspective"
+          ? 1600
+          : 800,
       ),
     ]),
   );
@@ -214,6 +224,11 @@ export function buildShortStoryWholeReviewContext(
         "opening_promise",
         "reversal_setup",
         "unresolved_payoff",
+        "narrative_perspective",
+      ],
+      viewpointAuditMetrics: [
+        "viewpointViolationCount",
+        "unauthorizedKnowledgeLeakCount",
       ],
     },
     inputText: [
@@ -230,6 +245,9 @@ export function buildShortStoryWholeReviewContext(
       "5. 开篇承诺：开头提出的异常、危险、关系和阅读期待是否得到回应。",
       "6. 反转铺垫：每次反转是否可由前文信息和人物选择回溯验证。",
       "7. 未兑现项：蓝图必须兑现、正式伏笔和情绪债是否仍悬而未决。",
+      setting.narrativePerspective
+        ? "8. 叙事视角：逐处检查跳入他人内心、旁白泄露越权信息、场内无标记切换视角，或违反已确认感官距离的段落。"
+        : "",
       "",
       "# 项目",
       `标题：${projectTitle}`,
@@ -275,6 +293,10 @@ export function buildShortStoryWholeReviewContext(
       input.seriesContext
         ? "- 同时核对系列共享世界观、核心人物累计状态、关系与已知信息边界；本篇长期谜团推进不能破坏独立结局。"
         : "",
+      setting.narrativePerspective
+        ? "- viewpointAudit.checked 必须为 true；viewpointViolationCount 统计有正文证据的叙事视角违规总数，unauthorizedKnowledgeLeakCount 只统计其中由旁白或错误视角直接泄露当前视角人物无权知道事实的次数，且后者不得大于前者。"
+        : "- 当前没有正式叙事视角：viewpointAudit.checked 必须为 false，两个计数必须为 0。",
+      "- 任一视角计数非零时，issues 中至少要有一条 category 为 narrative_perspective 的建议，并在 evidence 中定位可核验正文；不要为了凑指标重复计算同一处问题。",
       "- issues 为空数组表示当前输入中没有明确的闭环问题。",
       "- 只输出 JSON，不要输出 Markdown。",
     ].join("\n"),
@@ -290,6 +312,9 @@ export function parseShortStoryWholeReviewOutput(
         .map(normalizeIssue)
         .filter((issue): issue is ShortStoryWholeReviewIssue => Boolean(issue))
     : [];
+  const viewpointAudit = normalizeViewpointAudit(
+    parsed?.viewpointAudit ?? parsed?.viewpoint_audit,
+  );
 
   return {
     overallRiskLevel: normalizeContinuitySeverity(
@@ -298,7 +323,37 @@ export function parseShortStoryWholeReviewOutput(
     summary: limitText(stringValue(parsed?.summary ?? parsed?.overallAssessment), 2000),
     strengths: stringArray(parsed?.strengths).map((item) => limitText(item, 500)),
     priority: limitText(stringValue(parsed?.priority ?? parsed?.revisionPriority), 1200),
+    viewpointAudit,
     issues,
+  };
+}
+
+function normalizeViewpointAudit(
+  value: unknown,
+): ShortStoryWholeReviewViewpointAudit {
+  if (!isRecord(value) || !booleanValue(value.checked)) {
+    return {
+      checked: false,
+      viewpointViolationCount: 0,
+      unauthorizedKnowledgeLeakCount: 0,
+    };
+  }
+
+  const viewpointViolationCount = nonNegativeInteger(
+    value.viewpointViolationCount ?? value.viewpoint_violation_count,
+  );
+  const unauthorizedKnowledgeLeakCount = Math.min(
+    viewpointViolationCount,
+    nonNegativeInteger(
+      value.unauthorizedKnowledgeLeakCount ??
+        value.unauthorized_knowledge_leak_count,
+    ),
+  );
+
+  return {
+    checked: true,
+    viewpointViolationCount,
+    unauthorizedKnowledgeLeakCount,
   };
 }
 
@@ -566,6 +621,16 @@ function positiveInteger(value: unknown) {
   const number = typeof value === "number" ? value : Number(stringValue(value));
 
   return Number.isInteger(number) && number > 0 ? number : undefined;
+}
+
+function nonNegativeInteger(value: unknown) {
+  const number = typeof value === "number" ? value : Number(stringValue(value));
+
+  return Number.isInteger(number) && number >= 0 ? Math.min(number, 10_000) : 0;
+}
+
+function booleanValue(value: unknown) {
+  return value === true || stringValue(value).toLowerCase() === "true";
 }
 
 function limitText(value: string, maxLength: number) {

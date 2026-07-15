@@ -21,6 +21,8 @@ describe("short-story blueprint AI context", () => {
       setting: {
         sellingPoint: "未来遗书与现实谋杀互相验证。",
         mainConflict: "主角必须证明寄信者就是未来的自己。",
+        narrativePerspective:
+          "【短故事叙事视角：沉浸式第三人称限制】\n主角看不见的，读者不能直接看见。",
         styleSample: "规则先行，通过对话推演并让反转来自既有条件。",
         forbiddenItems: "不能用梦境解释全部谜题。",
       },
@@ -48,6 +50,8 @@ describe("short-story blueprint AI context", () => {
     expect(context.inputContextSummary).toContain("包含系列连续性");
     expect(context.inputText).toContain("不能用梦境解释全部谜题");
     expect(context.inputText).toContain("反转来自既有条件");
+    expect(context.inputText).toContain("主角看不见的，读者不能直接看见");
+    expect(context.inputText).toContain("视角人物无法得知的事实");
   });
 
   it("parses fenced JSON and keeps only allowed bounded fields", () => {

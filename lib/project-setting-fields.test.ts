@@ -3,6 +3,8 @@ import {
   emptyProjectSettingValues,
   projectSettingFieldNames,
   projectSettingFields,
+  projectSettingAiFieldsForWorkType,
+  projectSettingFieldsForWorkType,
   projectSettingSnapshot,
   projectSettingValuesFromRecord,
 } from "./project-setting-fields";
@@ -46,5 +48,17 @@ describe("project setting fields", () => {
     expect(Object.keys(projectSettingSnapshot(values)).sort()).toEqual(
       [...projectSettingFieldNames].sort(),
     );
+  });
+
+  it("scopes narrative perspective to short stories and author control", () => {
+    expect(
+      projectSettingFieldsForWorkType("short_story").map((field) => field.name),
+    ).toContain("narrativePerspective");
+    expect(
+      projectSettingFieldsForWorkType("serial_novel").map((field) => field.name),
+    ).not.toContain("narrativePerspective");
+    expect(
+      projectSettingAiFieldsForWorkType("short_story").map((field) => field.name),
+    ).not.toContain("narrativePerspective");
   });
 });

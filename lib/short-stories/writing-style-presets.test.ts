@@ -35,6 +35,14 @@ describe("short-story writing style presets", () => {
     }
   });
 
+  it("keeps narrative perspective independent from writing style", () => {
+    for (const preset of shortStoryWritingStylePresets) {
+      expect(preset.styleGuide).not.toMatch(
+        /叙事视角|第一人称|第三人称|受限视角|全知视角/,
+      );
+    }
+  });
+
   it("applies a preset while preserving existing custom guidance", () => {
     const applied = applyShortStoryWritingStylePreset(
       "对白需要保持克制，不使用网络流行语。",

@@ -45,6 +45,15 @@ describe("default AI prompt templates", () => {
     const issueSchema = schema.properties.issues.items;
 
     expect(template?.outputFormat).toBe("json");
+    expect(template?.version).toBe(3);
+    expect(schema.required).toContain("viewpointAudit");
+    expect(schema.properties.viewpointAudit.required).toEqual(
+      expect.arrayContaining([
+        "checked",
+        "viewpointViolationCount",
+        "unauthorizedKnowledgeLeakCount",
+      ]),
+    );
     expect(issueSchema.required).toEqual(
       expect.arrayContaining([
         "targetUnitId",

@@ -295,6 +295,7 @@ export function buildExportData(project: PublishProject) {
           "timeline",
           "pleasureMechanism",
           "forbiddenItems",
+          "narrativePerspective",
           "styleSample",
           "wechatPositioning",
           "emotionalTone",

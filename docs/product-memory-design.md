@@ -38,14 +38,32 @@ normal create form successfully.
 
 Short-story project settings may use an explainable writing-style preset to
 fill the shared `styleSample` and `emotionalTone` fields. Presets describe
-viewpoint, sentence rhythm, scientific-explanation density, suspense method,
-character interaction, and ending tendency. Inspiration-author labels are
-presentation metadata only and must not enter AI prompts; model guidance also
-states that reference characters, worlds, names, plots, signature expressions,
-and original sentences must not be copied. Applying a preset changes only the
-editable browser form, preserves existing custom guidance as an author
-supplement, and becomes formal memory only when the author submits the normal
-versioned project-setting save.
+sentence rhythm, scientific-explanation density, suspense method, character
+interaction, and ending tendency, but do not prescribe viewpoint access or
+first/third person. Inspiration-author labels are presentation metadata only
+and must not enter AI prompts; model guidance also states that reference
+characters, worlds, names, plots, signature expressions, and original sentences
+must not be copied. Applying a preset changes only the editable browser form,
+preserves existing custom guidance as an author supplement, and becomes formal
+memory only when the author submits the normal versioned project-setting save.
+
+Narrative perspective is a separate short-story-only formal setting. The
+explainable options cover immersive third-person limited, first-person
+experiential, multi-character limited, and objective-camera narration. This
+setting controls the viewpoint anchor, information boundary, access to other
+minds, experiential distance, and scene-switch rules, so any perspective may be
+combined with any writing style. Applying an option only fills an editable form
+and preserves author supplements; the normal versioned save remains the only
+formal write. Project-setting AI may read the saved rule for context but cannot
+generate, replace, or delete it. Blueprint, unit-plan, beat, draft, polish, and
+whole-story-review tasks must obey the saved rule. Applied presets carry a
+stable machine id marker while preserving explicit aliases for the original
+Chinese label markers, so UI copy can change without breaking saved settings or
+version-history detection. Whole-story review may report viewpoint violations
+without rewriting confirmed prose and returns two evidence-backed quality
+metrics: total viewpoint violations and the subset that directly leaks
+knowledge unavailable to the active viewpoint. Any nonzero count must be
+represented by a unit-bound report with source evidence.
 
 Independent short-story projects may optionally belong to one
 `ShortStorySeries`. The parent series does not merge prose or replace a story's
@@ -121,6 +139,7 @@ Stores the stable global foundation:
 - Timeline
 - Pleasure mechanism
 - Forbidden items
+- Narrative perspective (short-story only)
 - Style sample
 - WeChat positioning
 - Ending direction
