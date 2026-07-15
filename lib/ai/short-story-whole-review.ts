@@ -101,6 +101,7 @@ const reviewSettingFields = [
   "protagonistDesire",
   "protagonistFlaw",
   "villainLogic",
+  "styleSample",
   "emotionalTone",
   "readerExpectation",
   "endingDirection",
@@ -125,7 +126,10 @@ export function buildShortStoryWholeReviewContext(
   const setting = Object.fromEntries(
     reviewSettingFields.map((fieldName) => [
       fieldName,
-      clipText(stringValue(input.setting?.[fieldName]), 800),
+      clipText(
+        stringValue(input.setting?.[fieldName]),
+        fieldName === "styleSample" ? 1600 : 800,
+      ),
     ]),
   );
   const characters = input.characters.slice(0, 16).map((character) => ({

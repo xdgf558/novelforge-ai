@@ -24,6 +24,7 @@ const blueprintSettingFieldNames = [
   "protagonistDesire",
   "protagonistFlaw",
   "villainLogic",
+  "styleSample",
   "emotionalTone",
   "readerExpectation",
   "commercialHook",
@@ -67,7 +68,7 @@ export function buildShortStoryBlueprintGenerationContext(
   const compactSetting = Object.fromEntries(
     blueprintSettingFieldNames.map((fieldName) => [
       fieldName,
-      clipText(setting[fieldName], 1200),
+      clipText(setting[fieldName], fieldName === "styleSample" ? 1600 : 1200),
     ]),
   ) as Record<(typeof blueprintSettingFieldNames)[number], string>;
   const characters = input.characters.slice(0, 12).map((character) => ({

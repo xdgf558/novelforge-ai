@@ -34,6 +34,15 @@ MVP includes:
   planning fields; no formal unit is written until the author reviews and
   submits the normal create form, which atomically adopts and links the source
   AI task.
+- Short-story project settings provide explainable writing-style presets for
+  rational urban mystery, engineering adventure, logical thought experiment,
+  and reality-dislocation stories. Reference-author names remain UI-only;
+  model context receives generic rules for viewpoint, rhythm, explanation
+  density, suspense, dialogue, and ending shape plus an originality boundary.
+  Applying a preset only fills the existing editable `styleSample` and
+  `emotionalTone` fields, preserves custom author notes, and becomes formal
+  only through the normal versioned setting save. No separate preset table or
+  automatic formal-memory write exists.
 - Short-story whole-story review workspace with bounded confirmed-unit context,
   seven closure dimensions, unit-bound suggestions, source-text staleness
   checks, and manual-only author resolution.
@@ -401,6 +410,10 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
   `unitWordTarget`; their beat, draft, and polish contexts use the formal
   blueprint and continuous-prose safeguards instead of serial outlines,
   storylines, repeated openings, or artificial chapter hooks.
+  Short-story setting pages may also fill `styleSample` and `emotionalTone`
+  from an explainable UI preset. The saved generic guide is included in
+  blueprint generation, unit planning, drafting, polishing, and whole-story
+  review; inspiration-author labels must not be copied into model prompts.
   `/projects/[projectId]/story-review` is short-story-only and uses the shared
   AI-task/continuity-report infrastructure. It requires a formal blueprint and
   at least two confirmed units, preserves unit source hashes for stale-result

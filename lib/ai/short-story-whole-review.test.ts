@@ -17,6 +17,7 @@ function input() {
     },
     setting: {
       mainConflict: "主角必须在真相和家人之间选择。",
+      styleSample: "采用受限视角，让官方记录与私人记忆彼此冲突。",
     },
     blueprint: {
       premise: "一封来自死者的信迫使主角重查旧案。",
@@ -80,6 +81,7 @@ describe("short-story whole review", () => {
     expect(context.inputText).toContain("开篇承诺");
     expect(context.inputText).toContain("# 系列短故事连续性");
     expect(context.inputText).toContain("人物认知必须持续累积");
+    expect(context.inputText).toContain("官方记录与私人记忆彼此冲突");
     expect(context.inputText).toContain("[unit_1]");
     expect(units[0]).toMatchObject({
       id: "unit_1",

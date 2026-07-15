@@ -1,3 +1,5 @@
+"use client";
+
 import type { ProjectSetting } from "@prisma/client";
 import Link from "next/link";
 import {
@@ -8,6 +10,7 @@ import {
   Save,
   Sparkles,
 } from "lucide-react";
+import { useState } from "react";
 import {
   aiTaskAdoptionLabel,
   aiTaskStatusLabel,
@@ -24,6 +27,14 @@ import {
   type ProjectSettingValues,
 } from "@/lib/project-setting-fields";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
+import { isShortStoryProject } from "@/lib/projects/work-types";
+import {
+  appliedShortStoryWritingStylePresetId,
+  applyShortStoryWritingStylePreset,
+  shortStoryWritingStylePresetById,
+  shortStoryWritingStylePresets,
+  type ShortStoryWritingStylePresetId,
+} from "@/lib/short-stories/writing-style-presets";
 
 type ProjectSettingFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -36,6 +47,7 @@ type ProjectSettingFormProps = {
   project: {
     id: string;
     title: string;
+    workType: string;
   };
   setting?: ProjectSetting | null;
   versionCount: number;
@@ -77,7 +89,39 @@ export function ProjectSettingForm({
   setting,
   versionCount,
 }: ProjectSettingFormProps) {
-  const values = valuesFromSetting(setting);
+  const [values, setValues] = useState<ProjectSettingValues>(() =>
+    valuesFromSetting(setting),
+  );
+  const isShortStory = isShortStoryProject(project.workType);
+  const [selectedStylePresetId, setSelectedStylePresetId] = useState<
+    ShortStoryWritingStylePresetId | ""
+  >(() => appliedShortStoryWritingStylePresetId(values.styleSample) ?? "");
+  const selectedStylePreset = shortStoryWritingStylePresetById(
+    selectedStylePresetId,
+  );
+  const appliedStylePresetId = appliedShortStoryWritingStylePresetId(
+    values.styleSample,
+  );
+
+  function applySelectedStylePreset() {
+    if (!selectedStylePresetId) {
+      return;
+    }
+
+    setValues((current) => {
+      const applied = applyShortStoryWritingStylePreset(
+        current.styleSample,
+        selectedStylePresetId,
+      );
+
+      return applied
+        ? {
+            ...current,
+            ...applied,
+          }
+        : current;
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -121,6 +165,98 @@ export function ProjectSettingForm({
       />
 
       <form action={action} className="space-y-4">
+        {isShortStory ? (
+          <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
+                <Sparkles aria-hidden="true" className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-ink-950">
+                  短故事写作风格
+                </h2>
+                <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
+                  选择后会把可解释的写作规则填入下方文风与情绪字段。作者姓名只用于说明灵感方向，不会写入模型上下文，也不会复制参考作品的角色、情节或原句。
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <label className="flex flex-col gap-1.5">
+                <span className={labelClass}>风格方向</span>
+                <select
+                  className={`${inputClass} min-h-10 py-2`}
+                  onChange={(event) =>
+                    setSelectedStylePresetId(
+                      event.target.value as ShortStoryWritingStylePresetId | "",
+                    )
+                  }
+                  value={selectedStylePresetId}
+                >
+                  <option value="">选择一个写作风格</option>
+                  {shortStoryWritingStylePresets.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label} · {preset.referenceLabel.replace("灵感参考：", "")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100 disabled:cursor-not-allowed disabled:opacity-45"
+                disabled={!selectedStylePreset}
+                onClick={applySelectedStylePreset}
+                type="button"
+              >
+                <Sparkles aria-hidden="true" className="h-4 w-4" />
+                应用到文风字段
+              </button>
+            </div>
+
+            {selectedStylePreset ? (
+              <div className="mt-4 border-t border-ink-950/10 pt-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-ink-950">
+                      {selectedStylePreset.label}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-700">
+                      {selectedStylePreset.referenceLabel}
+                    </p>
+                  </div>
+                  {appliedStylePresetId === selectedStylePreset.id ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-signal-700">
+                      <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                      已填入，保存后生效
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-sm leading-6 text-ink-700">
+                  {selectedStylePreset.summary}
+                </p>
+                <dl className="mt-3 grid gap-x-5 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {selectedStylePreset.dimensions.map((dimension) => (
+                    <div key={dimension.label}>
+                      <dt className="text-xs font-semibold text-ink-700">
+                        {dimension.label}
+                      </dt>
+                      <dd className="mt-0.5 text-xs leading-5 text-ink-900">
+                        {dimension.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="mt-3 text-xs leading-5 text-ink-700">
+                  应用时会替换旧预设，并把原有自定义文风保留为“作者补充”。下方内容仍可继续修改；只有点击“保存并记录版本”后才进入正式设定。
+                </p>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs leading-5 text-ink-700">
+                也可以不选预设，直接在下方填写自己的文风规则与样例。
+              </p>
+            )}
+          </section>
+        ) : null}
+
         {projectSettingGroups.map((group) => (
           <section
             className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
@@ -138,13 +274,27 @@ export function ProjectSettingForm({
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
               {group.fields.map((field) => (
                 <label className="flex flex-col gap-1.5" key={field.name}>
-                  <span className={labelClass}>{field.label}</span>
+                  <span className={labelClass}>
+                    {isShortStory && field.name === "styleSample"
+                      ? "文风规则与样例"
+                      : field.label}
+                  </span>
                   <textarea
                     className={`${inputClass} py-2 leading-5`}
-                    defaultValue={values[field.name]}
                     name={field.name}
-                    placeholder={field.placeholder}
+                    onChange={(event) =>
+                      setValues((current) => ({
+                        ...current,
+                        [field.name]: event.target.value,
+                      }))
+                    }
+                    placeholder={
+                      isShortStory && field.name === "styleSample"
+                        ? "可选择上方预设，也可填写叙事视角、句式节奏、解释密度、悬疑方式和结局倾向。"
+                        : field.placeholder
+                    }
                     rows={Math.min(field.rows, 3)}
+                    value={values[field.name]}
                   />
                 </label>
               ))}
