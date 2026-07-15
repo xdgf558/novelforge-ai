@@ -30,6 +30,16 @@ What was done:
 - Fixed the writing-style and perspective selectors so long option labels shrink
   correctly instead of being clipped in narrow desktop windows or mobile-width
   layouts.
+- Review follow-up replaced the persisted preset marker's mutable Chinese label
+  with a stable perspective id such as
+  `【短故事叙事视角:immersive-third-person-limited】`. Existing label-based
+  markers remain recognizable through explicit legacy-label aliases, so saved
+  settings and setting-history snapshots need no data migration.
+- Whole-story review template v3 now returns a structured viewpoint audit with
+  an evidence-backed total violation count and an unauthorized-knowledge-leak
+  subset. Nonzero counts require at least one unit-bound
+  `narrative_perspective` report with source evidence; the review page displays
+  both metrics without changing confirmed prose.
 
 Verification:
 
@@ -43,6 +53,12 @@ Verification:
   short-story style or perspective controls. Desktop 1280x900 and narrow
   390x844 layouts had no horizontal overflow after the responsive fix, and the
   browser console reported no warnings or errors.
+- Review-follow-up targeted tests passed: 4 files and 23 tests covering stable
+  markers, legacy recognition, viewpoint-audit parsing, prompt schema, and
+  report persistence compatibility.
+- Post-review full verification passed: `npm test` completed 113 files and 625
+  tests; `npm run typecheck`, `npm run build`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` also passed.
 
 ## 2026-07-15: 0.1.100 Pending-Memory Recovery Personal Installer
 

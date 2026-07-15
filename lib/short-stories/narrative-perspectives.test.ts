@@ -17,9 +17,11 @@ describe("short-story narrative perspectives", () => {
 
     for (const perspective of shortStoryNarrativePerspectives) {
       expect(perspective.label).toBeTruthy();
+      expect(perspective.legacyLabels.length).toBeGreaterThan(0);
       expect(perspective.summary).toBeTruthy();
       expect(perspective.dimensions).toHaveLength(4);
-      expect(perspective.guide).toContain(`【短故事叙事视角：${perspective.label}】`);
+      expect(perspective.guide).toContain(`【短故事叙事视角:${perspective.id}】`);
+      expect(perspective.guide).toContain(`视角名称：${perspective.label}`);
       expect(perspective.guide).toMatch(/信息|观察/);
     }
   });
@@ -42,7 +44,9 @@ describe("short-story narrative perspectives", () => {
       "immersive-third-person-limited",
     );
 
-    expect(applied).toContain("【短故事叙事视角：沉浸式第三人称限制】");
+    expect(applied).toContain(
+      "【短故事叙事视角:immersive-third-person-limited】",
+    );
     expect(applied).toContain("【作者补充】");
     expect(applied).toContain("强化听觉细节");
     expect(appliedShortStoryNarrativePerspectiveId(applied)).toBe(
@@ -60,8 +64,18 @@ describe("short-story narrative perspectives", () => {
       "multi-character-limited",
     );
 
-    expect(second).toContain("【短故事叙事视角：多人物限制视角】");
-    expect(second).not.toContain("【短故事叙事视角：沉浸式第三人称限制】");
+    expect(second).toContain("【短故事叙事视角:multi-character-limited】");
+    expect(second).not.toContain(
+      "【短故事叙事视角:immersive-third-person-limited】",
+    );
     expect(second).toContain("空间方位清楚");
+  });
+
+  it("recognizes legacy label markers without depending on the current label", () => {
+    expect(
+      appliedShortStoryNarrativePerspectiveId(
+        "【短故事叙事视角：多人物限制视角】\n旧版正式规则。",
+      ),
+    ).toBe("multi-character-limited");
   });
 });

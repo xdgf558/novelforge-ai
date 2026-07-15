@@ -11,6 +11,7 @@ export type ShortStoryNarrativePerspectiveId =
 export type ShortStoryNarrativePerspective = {
   id: ShortStoryNarrativePerspectiveId;
   label: string;
+  legacyLabels: readonly string[];
   recommended?: boolean;
   summary: string;
   dimensions: readonly {
@@ -20,13 +21,15 @@ export type ShortStoryNarrativePerspective = {
   guide: string;
 };
 
-const perspectiveMarkerPrefix = "【短故事叙事视角：";
+const perspectiveMarkerPrefix = "【短故事叙事视角:";
+const legacyPerspectiveMarkerPrefix = "【短故事叙事视角：";
 const authorSupplementMarker = "【作者补充】";
 
 export const shortStoryNarrativePerspectives: readonly ShortStoryNarrativePerspective[] = [
   {
     id: "immersive-third-person-limited",
     label: "沉浸式第三人称限制",
+    legacyLabels: ["沉浸式第三人称限制"],
     recommended: true,
     summary: "人称使用“他/她”，但感知、判断和信息边界始终锁定在一个主视角人物身上。",
     dimensions: [
@@ -35,7 +38,8 @@ export const shortStoryNarrativePerspectives: readonly ShortStoryNarrativePerspe
       { label: "内心", value: "禁止直接进入其他人物意识" },
       { label: "沉浸", value: "感官、身体反应、即时判断和动作优先" },
     ],
-    guide: `【短故事叙事视角：沉浸式第三人称限制】
+    guide: `【短故事叙事视角:immersive-third-person-limited】
+视角名称：沉浸式第三人称限制
 视角锚点：全篇使用第三人称，但叙事体验锁定在单一主视角人物；语法上写“他/她”，信息距离接近第一人称亲历。
 信息边界：只呈现主视角人物当下能够感知、回忆、联想或合理推断的内容。主角看不见的，读者不能直接看见；主角尚不知道的，旁白不能提前揭示。
 他人内心：不得直接进入其他人物的思想、情绪或真实动机。只能通过表情、动作、语气、停顿和主视角人物的判断来推测，并允许判断出错。
@@ -47,6 +51,7 @@ export const shortStoryNarrativePerspectives: readonly ShortStoryNarrativePerspe
   {
     id: "first-person-experiential",
     label: "第一人称亲历",
+    legacyLabels: ["第一人称亲历"],
     summary: "由“我”直接经历事件，让声音、误判和认知盲区共同构成叙事。",
     dimensions: [
       { label: "人称", value: "第一人称“我”" },
@@ -54,7 +59,8 @@ export const shortStoryNarrativePerspectives: readonly ShortStoryNarrativePerspe
       { label: "内心", value: "他人动机只能观察和推断" },
       { label: "声音", value: "叙述语言保持角色身份与认知水平" },
     ],
-    guide: `【短故事叙事视角：第一人称亲历】
+    guide: `【短故事叙事视角:first-person-experiential】
+视角名称：第一人称亲历
 视角锚点：全篇由一个“我”亲历和讲述，叙述声音必须符合该人物的身份、知识、性格与当下情绪。
 信息边界：只呈现叙述者在事件当时能够感知、回忆或推断的信息；除非蓝图明确建立回忆体结构，不得用事后全知口吻提前泄露答案。
 他人内心：不得把他人的真实思想和动机当作事实，只能写“我”观察到的动作、表情、语气和由此产生的判断。
@@ -65,6 +71,7 @@ export const shortStoryNarrativePerspectives: readonly ShortStoryNarrativePerspe
   {
     id: "multi-character-limited",
     label: "多人物限制视角",
+    legacyLabels: ["多人物限制视角"],
     summary: "允许不同场景采用不同视角人物，但每个场景内部只保留一个认知中心。",
     dimensions: [
       { label: "人称", value: "通常第三人称" },
@@ -72,7 +79,8 @@ export const shortStoryNarrativePerspectives: readonly ShortStoryNarrativePerspe
       { label: "切换", value: "只能在清晰场景边界切换" },
       { label: "辨识", value: "新场景尽早建立新的感知锚点" },
     ],
-    guide: `【短故事叙事视角：多人物限制视角】
+    guide: `【短故事叙事视角:multi-character-limited】
+视角名称：多人物限制视角
 视角锚点：每个场景只能有一个明确的视角人物，场景中的感知、内心和信息边界全部服从该人物。
 切换规则：只允许在清晰的场景分隔、时间切换或地点切换后更换视角；新场景开头应尽早通过人物动作或感官建立新锚点。
 禁止跳头：同一场景不得在多个人物内心之间来回切换。其他人物的想法只能通过可观察行为和当前视角人物的推断呈现。
@@ -82,6 +90,7 @@ export const shortStoryNarrativePerspectives: readonly ShortStoryNarrativePerspe
   {
     id: "objective-camera",
     label: "客观镜头视角",
+    legacyLabels: ["客观镜头视角"],
     summary: "只呈现可被观察或记录的行动、对话和环境，不由旁白直接解释任何人的内心。",
     dimensions: [
       { label: "人称", value: "第三人称外部观察" },
@@ -89,7 +98,8 @@ export const shortStoryNarrativePerspectives: readonly ShortStoryNarrativePerspe
       { label: "内心", value: "不直接书写任何人物心理" },
       { label: "情绪", value: "通过行为、语言和生理细节外化" },
     ],
-    guide: `【短故事叙事视角：客观镜头视角】
+    guide: `【短故事叙事视角:objective-camera】
+视角名称：客观镜头视角
 观察边界：只呈现现场可见、可听或可被设备记录的行动、对话、环境和物理变化。
 心理边界：不得直接书写任何人物的思想、感受、记忆或真实动机，也不得使用全知旁白替人物下结论。
 情绪外化：通过动作迟疑、语速、呼吸、姿势、沉默、选择和物件互动表现情绪，让读者自行判断。
@@ -113,7 +123,15 @@ export function appliedShortStoryNarrativePerspectiveId(
   const normalized = value?.trim() ?? "";
 
   for (const perspective of shortStoryNarrativePerspectives) {
-    if (normalized.startsWith(`${perspectiveMarkerPrefix}${perspective.label}】`)) {
+    if (normalized.startsWith(`${perspectiveMarkerPrefix}${perspective.id}】`)) {
+      return perspective.id;
+    }
+
+    if (
+      perspective.legacyLabels.some((label) =>
+        normalized.startsWith(`${legacyPerspectiveMarkerPrefix}${label}】`),
+      )
+    ) {
       return perspective.id;
     }
   }
@@ -158,7 +176,7 @@ function extractAuthorSupplement(value: string) {
       .trim();
   }
 
-  if (normalized.startsWith(perspectiveMarkerPrefix)) {
+  if (appliedShortStoryNarrativePerspectiveId(normalized)) {
     return "";
   }
 

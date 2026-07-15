@@ -86,6 +86,8 @@ describe("short-story whole review", () => {
     expect(context.inputText).toContain("官方记录与私人记忆彼此冲突");
     expect(context.inputText).toContain("主角看不见的，读者不能直接看见");
     expect(context.inputText).toContain("跳入他人内心");
+    expect(context.inputText).toContain("viewpointViolationCount");
+    expect(context.inputText).toContain("unauthorizedKnowledgeLeakCount");
     expect(context.inputJson.reviewDimensions).toContain(
       "narrative_perspective",
     );
@@ -121,6 +123,11 @@ describe("short-story whole review", () => {
       summary: "反转成立，但开篇承诺尚未完全兑现。",
       strengths: ["人物选择有代价"],
       priority: "先补足第二单元的信件来源。",
+      viewpointAudit: {
+        checked: true,
+        viewpointViolationCount: 3,
+        unauthorizedKnowledgeLeakCount: 1,
+      },
       issues: [
         {
           targetUnitId: "unit_2",
@@ -142,11 +149,55 @@ describe("short-story whole review", () => {
     })}\n\`\`\``);
 
     expect(result.overallRiskLevel).toBe("high");
+    expect(result.viewpointAudit).toEqual({
+      checked: true,
+      viewpointViolationCount: 3,
+      unauthorizedKnowledgeLeakCount: 1,
+    });
     expect(result.issues).toHaveLength(1);
     expect(result.issues[0]).toMatchObject({
       targetUnitId: "unit_2",
       category: "opening_promise",
       severity: "high",
+    });
+  });
+
+  it("normalizes missing or inconsistent viewpoint metrics safely", () => {
+    expect(parseShortStoryWholeReviewOutput("{}").viewpointAudit).toEqual({
+      checked: false,
+      viewpointViolationCount: 0,
+      unauthorizedKnowledgeLeakCount: 0,
+    });
+    expect(
+      parseShortStoryWholeReviewOutput(
+        JSON.stringify({
+          viewpointAudit: {
+            checked: false,
+            viewpointViolationCount: 5,
+            unauthorizedKnowledgeLeakCount: 3,
+          },
+        }),
+      ).viewpointAudit,
+    ).toEqual({
+      checked: false,
+      viewpointViolationCount: 0,
+      unauthorizedKnowledgeLeakCount: 0,
+    });
+
+    expect(
+      parseShortStoryWholeReviewOutput(
+        JSON.stringify({
+          viewpointAudit: {
+            checked: true,
+            viewpointViolationCount: 2,
+            unauthorizedKnowledgeLeakCount: 7,
+          },
+        }),
+      ).viewpointAudit,
+    ).toEqual({
+      checked: true,
+      viewpointViolationCount: 2,
+      unauthorizedKnowledgeLeakCount: 2,
     });
   });
 

@@ -56,8 +56,14 @@ combined with any writing style. Applying an option only fills an editable form
 and preserves author supplements; the normal versioned save remains the only
 formal write. Project-setting AI may read the saved rule for context but cannot
 generate, replace, or delete it. Blueprint, unit-plan, beat, draft, polish, and
-whole-story-review tasks must obey the saved rule, and whole-story review may
-report viewpoint violations without rewriting confirmed prose.
+whole-story-review tasks must obey the saved rule. Applied presets carry a
+stable machine id marker while preserving explicit aliases for the original
+Chinese label markers, so UI copy can change without breaking saved settings or
+version-history detection. Whole-story review may report viewpoint violations
+without rewriting confirmed prose and returns two evidence-backed quality
+metrics: total viewpoint violations and the subset that directly leaks
+knowledge unavailable to the active viewpoint. Any nonzero count must be
+represented by a unit-bound report with source evidence.
 
 Independent short-story projects may optionally belong to one
 `ShortStorySeries`. The parent series does not merge prose or replace a story's

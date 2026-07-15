@@ -350,7 +350,12 @@ Recommended implementation order:
   versioned setting save remains the formal-write boundary. Project-setting AI
   may read but cannot draft or overwrite the field; blueprint, unit-plan, beat,
   draft, polish, and whole-story-review prompts consume it. Serial projects do
-  not expose or receive the field.
+  not expose or receive the field. Applied presets use a stable id marker rather
+  than the mutable display label; explicit legacy-label aliases keep existing
+  setting text and setting-history snapshots recognizable without rewriting
+  them. Whole-story review exposes evidence-backed viewpoint-violation and
+  unauthorized-knowledge-leak counts, while all resulting reports remain
+  advisory and manual-only.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
@@ -437,11 +442,16 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
   scene-switch rules. Its four explainable options can be combined with any
   style preset, are stored through the same versioned author save, and are read
   by every short-story generation/review path. Setting AI must never generate,
-  replace, or delete this author-controlled field.
+  replace, or delete this author-controlled field. Machine recognition uses a
+  stable id marker with backward-compatible legacy label aliases, so later UI
+  label changes cannot invalidate saved preset detection.
   `/projects/[projectId]/story-review` is short-story-only and uses the shared
   AI-task/continuity-report infrastructure. It requires a formal blueprint and
   at least two confirmed units, preserves unit source hashes for stale-result
-  detection, and never writes confirmed prose automatically.
+  detection, and never writes confirmed prose automatically. When a formal
+  narrative perspective exists, review output also records total viewpoint
+  violations and the unauthorized-knowledge-leak subset; nonzero metrics must
+  be backed by a unit-bound report and source evidence.
   `/projects/[projectId]/manuscript` is also short-story-only. It is a pure local
   export surface: only confirmed `finalText` is eligible, output cleanup is
   deterministic and in-memory, and missing/unconfirmed units remain visible

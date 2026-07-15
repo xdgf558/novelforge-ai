@@ -606,7 +606,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "short_story_whole_review",
     name: "短故事整篇闭环审校",
     taskType: "short_story_whole_review",
-    version: 2,
+    version: 3,
     outputFormat: "json",
     systemPrompt:
       "你是短故事整篇审校编辑。只生成绑定具体写作单元的审阅建议，不得重写、替换或宣称已经修改任何定稿正文、正式蓝图或故事记忆。",
@@ -621,6 +621,7 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
         "summary",
         "strengths",
         "priority",
+        "viewpointAudit",
         "issues",
       ],
       properties: {
@@ -631,6 +632,22 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
         summary: { type: "string" },
         strengths: { type: "array", items: { type: "string" } },
         priority: { type: "string" },
+        viewpointAudit: {
+          type: "object",
+          required: [
+            "checked",
+            "viewpointViolationCount",
+            "unauthorizedKnowledgeLeakCount",
+          ],
+          properties: {
+            checked: { type: "boolean" },
+            viewpointViolationCount: { type: "integer", minimum: 0 },
+            unauthorizedKnowledgeLeakCount: {
+              type: "integer",
+              minimum: 0,
+            },
+          },
+        },
         issues: {
           type: "array",
           items: {
