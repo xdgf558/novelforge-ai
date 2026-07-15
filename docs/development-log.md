@@ -1,5 +1,44 @@
 # Development Log
 
+## 2026-07-15: Explainable Short-Story Writing Style Presets
+
+Status: completed for review.
+
+What was done:
+
+- Added four short-story-only writing style directions to the project setting
+  editor: rational urban mystery, engineering adventure and personal choice,
+  logical thought experiment, and reality dislocation / identity doubt.
+- Kept author and franchise names as UI-only inspiration labels. Model context
+  receives explicit rules for viewpoint, sentence rhythm, scientific
+  explanation density, suspense construction, character interaction, ending
+  tendency, and originality boundaries instead of a direct imitation request.
+- Applying a preset only fills the existing editable `styleSample` and
+  `emotionalTone` form fields. Existing custom guidance is retained under an
+  author-supplement section, changing presets replaces the old generated block,
+  and no formal setting changes until the author uses the normal versioned save
+  action.
+- Reused the existing formal project-setting and version-history model rather
+  than adding a parallel table or migration. Long-form projects do not show the
+  preset selector.
+- Added the formal style guide to short-story blueprint generation and
+  whole-story review context. Unit planning, prose drafting, and polishing
+  already consumed these fields.
+
+Verification:
+
+- Targeted preset, blueprint, whole-story review, and chapter-draft tests
+  passed: 4 files and 17 tests.
+- Full `npm test` passed: 112 files and 613 tests.
+- `npm run typecheck`, `npm run build`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
+- An isolated copy of the desktop database verified that selecting a preset
+  fills both controlled fields, retains the existing custom sample as an
+  author supplement, and exposes a visible “save to take effect” status without
+  submitting the form. The short-story settings page had no horizontal or
+  interactive-label overflow at 1280x900 or 390x844, no browser-console errors,
+  and a serial-novel settings page did not render the short-story selector.
+
 ## 2026-07-14: 0.1.98 AI Writing-Unit Planning Installer
 
 Status: completed.

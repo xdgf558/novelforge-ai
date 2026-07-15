@@ -21,6 +21,7 @@ describe("short-story blueprint AI context", () => {
       setting: {
         sellingPoint: "未来遗书与现实谋杀互相验证。",
         mainConflict: "主角必须证明寄信者就是未来的自己。",
+        styleSample: "规则先行，通过对话推演并让反转来自既有条件。",
         forbiddenItems: "不能用梦境解释全部谜题。",
       },
       characters: [
@@ -46,6 +47,7 @@ describe("short-story blueprint AI context", () => {
     expect(context.inputText).toContain("主角为什么失去三年记忆");
     expect(context.inputContextSummary).toContain("包含系列连续性");
     expect(context.inputText).toContain("不能用梦境解释全部谜题");
+    expect(context.inputText).toContain("反转来自既有条件");
   });
 
   it("parses fenced JSON and keeps only allowed bounded fields", () => {

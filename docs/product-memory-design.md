@@ -36,6 +36,17 @@ goal. Every field remains editable. Generation itself creates no formal unit;
 the task is adopted and linked atomically only when the author submits the
 normal create form successfully.
 
+Short-story project settings may use an explainable writing-style preset to
+fill the shared `styleSample` and `emotionalTone` fields. Presets describe
+viewpoint, sentence rhythm, scientific-explanation density, suspense method,
+character interaction, and ending tendency. Inspiration-author labels are
+presentation metadata only and must not enter AI prompts; model guidance also
+states that reference characters, worlds, names, plots, signature expressions,
+and original sentences must not be copied. Applying a preset changes only the
+editable browser form, preserves existing custom guidance as an author
+supplement, and becomes formal memory only when the author submits the normal
+versioned project-setting save.
+
 Independent short-story projects may optionally belong to one
 `ShortStorySeries`. The parent series does not merge prose or replace a story's
 blueprint. It stores the recommended reading order, shared worldview,
