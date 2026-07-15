@@ -195,7 +195,7 @@ export async function approvePendingUpdate(
 
   try {
     await prisma.$transaction(async (tx) => {
-      await applyApprovedPendingUpdate(
+      const appliedTarget = await applyApprovedPendingUpdate(
         tx,
         pendingUpdate,
         parsed.proposedContent,
@@ -209,6 +209,8 @@ export async function approvePendingUpdate(
           status: "approved",
           proposedContent: parsed.proposedContent,
           resolutionNote: parsed.resolutionNote,
+          targetId: appliedTarget.targetId,
+          targetType: appliedTarget.targetType,
           appliedAt: new Date(),
         },
       });

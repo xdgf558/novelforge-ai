@@ -3,6 +3,9 @@ import { chapterFinalTextHash } from "@/lib/chapters/source-text";
 
 const mocks = vi.hoisted(() => {
   const tx = {
+    character: {
+      findFirst: vi.fn(),
+    },
     foreshadow: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -11,6 +14,13 @@ const mocks = vi.hoisted(() => {
     },
     pendingUpdate: {
       update: vi.fn(),
+    },
+    timelineEvent: {
+      findFirst: vi.fn(),
+      update: vi.fn(),
+    },
+    worldRule: {
+      findFirst: vi.fn(),
     },
   };
 
@@ -99,6 +109,9 @@ describe("pending update approval", () => {
       content: "旧印来源不明。",
       status: "planted",
     });
+    mocks.tx.character.findFirst.mockResolvedValue(null);
+    mocks.tx.timelineEvent.findFirst.mockResolvedValue(null);
+    mocks.tx.worldRule.findFirst.mockResolvedValue(null);
     mocks.approveAutomaticForeshadowRecoveries.mockResolvedValue({
       approvedCount: 3,
       skippedCount: 1,
@@ -154,6 +167,54 @@ describe("pending update approval", () => {
 
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.tx.foreshadow.update).not.toHaveBeenCalled();
+  });
+
+  it("persists a recovered cross-type target in the approval audit record", async () => {
+    const timelineEvent = {
+      id: "timeline_1",
+      projectId: "project_1",
+      title: "沈鹤鸣调阅底册",
+      description: "沈鹤鸣在下狱前调阅底册。",
+    };
+    mocks.prisma.pendingUpdate.findFirst.mockResolvedValue(
+      pendingForeshadowUpdate({
+        targetId: null,
+        targetName: "沈鹤鸣调阅底册并下狱",
+        payloadJson: JSON.stringify({
+          targetType: "foreshadow",
+          targetId: "timeline_1",
+        }),
+      }),
+    );
+    mocks.tx.foreshadow.findFirst.mockImplementation(async ({ where }) =>
+      where.id === "foreshadow_1"
+        ? {
+            id: "foreshadow_1",
+            content: "旧印来源不明。",
+            status: "planted",
+          }
+        : null,
+    );
+    mocks.tx.timelineEvent.findFirst.mockResolvedValue(timelineEvent);
+    const formData = new FormData();
+    formData.set("proposedContent", "时间锁定为十月初八。");
+
+    await approvePendingUpdate("project_1", "update_1", formData);
+
+    expect(mocks.tx.timelineEvent.update).toHaveBeenCalledWith({
+      where: { id: "timeline_1" },
+      data: expect.objectContaining({
+        pendingUpdateId: "update_1",
+      }),
+    });
+    expect(mocks.tx.pendingUpdate.update).toHaveBeenCalledWith({
+      where: { id: "update_1" },
+      data: expect.objectContaining({
+        status: "approved",
+        targetId: "timeline_1",
+        targetType: "timeline_event",
+      }),
+    });
   });
 
   it("batch-confirms only the automatic recovery candidates returned by the service", async () => {

@@ -1,5 +1,42 @@
 # Development Log
 
+## 2026-07-15: Pending Memory Cross-Type Target Recovery
+
+Status: completed for review.
+
+What was done:
+
+- Diagnosed a real pending update in `照夜寒舟录` that could not be approved:
+  the AI returned a valid formal timeline-event ID but labeled the suggestion
+  as a foreshadow. Extraction normalization correctly rejected the ID as not
+  belonging to the claimed layer, but the resulting ID-less foreshadow update
+  could never find a formal target by its approximate name.
+- Updated extraction normalization to correct a mismatched target type when a
+  returned ID belongs to exactly one formal memory layer in the bounded current
+  project context. Ambiguous or unknown IDs are still removed.
+- Added approval-time recovery for already-stored pending suggestions whose
+  normalized `targetId` is empty but whose immutable audit payload retains the
+  original ID. Recovery rechecks character, world-rule, foreshadow, and
+  timeline tables inside the current project transaction and proceeds only
+  when exactly one formal target exists.
+- Approval now stores the recovered canonical `targetType` and `targetId` back
+  on the processed pending-update record, keeping the audit trail aligned with
+  the formal memory row that was actually changed.
+- Preserved author control and transactional safety: no pending suggestion is
+  approved automatically, create suggestions are never retargeted, and missing
+  or ambiguous targets still produce the existing target-not-found result.
+
+Verification:
+
+- Targeted pending-update parsing, approval-service, and server-action tests
+  passed: 3 files and 22 tests.
+- Full `npm test` passed: 112 files and 616 tests.
+- `npm run typecheck`, `npm run build`, and `npm run mvp:acceptance` passed.
+- Read-only inspection of the affected desktop database confirmed that the
+  stuck row's audit payload retains timeline event
+  `cmrh6s5v6003v8zut9r82l0r7`, so the existing suggestion becomes approvable
+  after installing this fix and does not require re-running extraction.
+
 ## 2026-07-15: 0.1.99 Short-Story Writing-Style Personal Installer
 
 Status: completed.

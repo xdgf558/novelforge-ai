@@ -219,6 +219,33 @@ describe("pending update context builder", () => {
     expect(normalized[0].targetId).toBeUndefined();
   });
 
+  it("corrects a target type when a real formal id belongs to another memory layer", () => {
+    const suggestions = parsePendingUpdateSuggestions(
+      JSON.stringify({
+        updates: [
+          {
+            updateType: "update",
+            targetType: "foreshadow",
+            targetId: "timeline-1",
+            targetName: "倒计时相关旧记录",
+            title: "补充倒计时事件",
+            content: "倒计时起点得到确认。",
+          },
+        ],
+      }),
+    );
+
+    const normalized = normalizePendingUpdateSuggestionTargetIds(
+      suggestions,
+      baseInput,
+    );
+
+    expect(normalized[0]).toMatchObject({
+      targetId: "timeline-1",
+      targetType: "timeline_event",
+    });
+  });
+
   it("prefers a unique formal name when a valid id points at another character", () => {
     const suggestions = parsePendingUpdateSuggestions(
       JSON.stringify({

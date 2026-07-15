@@ -10,6 +10,7 @@ import {
   inferProjectSettingFieldName,
   isCharacterFieldName,
   isProjectSettingFieldName,
+  type PendingUpdateTargetType,
 } from "@/lib/pending-updates";
 import {
   projectSettingSnapshot,
@@ -29,39 +30,139 @@ export async function applyApprovedPendingUpdate(
   pendingUpdate: PendingUpdate,
   proposedContent: string,
 ) {
-  switch (pendingUpdate.targetType) {
+  const resolvedUpdate = await recoverMissingTargetFromPayload(
+    tx,
+    pendingUpdate,
+  );
+
+  switch (resolvedUpdate.targetType) {
     case "character":
-      await applyCharacterUpdate(tx, pendingUpdate, proposedContent);
-      return;
+      await applyCharacterUpdate(tx, resolvedUpdate, proposedContent);
+      break;
     case "world_rule":
-      await applyWorldRuleUpdate(tx, pendingUpdate, proposedContent);
-      return;
+      await applyWorldRuleUpdate(tx, resolvedUpdate, proposedContent);
+      break;
     case "foreshadow":
-      await applyForeshadowUpdate(tx, pendingUpdate, proposedContent);
-      return;
+      await applyForeshadowUpdate(tx, resolvedUpdate, proposedContent);
+      break;
     case "timeline_event":
-      await applyTimelineEventUpdate(tx, pendingUpdate, proposedContent);
-      return;
+      await applyTimelineEventUpdate(tx, resolvedUpdate, proposedContent);
+      break;
     case "location":
       await applyProjectSettingUpdate(
         tx,
-        pendingUpdate,
+        resolvedUpdate,
         proposedContent,
         "worldviewRules",
       );
-      return;
+      break;
     case "organization":
       await applyProjectSettingUpdate(
         tx,
-        pendingUpdate,
+        resolvedUpdate,
         proposedContent,
         "factions",
       );
-      return;
+      break;
     case "project_setting":
     default:
-      await applyProjectSettingUpdate(tx, pendingUpdate, proposedContent);
+      await applyProjectSettingUpdate(tx, resolvedUpdate, proposedContent);
   }
+
+  return {
+    targetId: resolvedUpdate.targetId,
+    targetType: resolvedUpdate.targetType,
+  };
+}
+
+async function recoverMissingTargetFromPayload(
+  tx: Prisma.TransactionClient,
+  pendingUpdate: PendingUpdate,
+): Promise<PendingUpdate> {
+  if (
+    pendingUpdate.updateType === "create" ||
+    clean(pendingUpdate.targetId) ||
+    !pendingUpdate.payloadJson
+  ) {
+    return pendingUpdate;
+  }
+
+  const payload = parsePayload(pendingUpdate.payloadJson);
+  const payloadTargetId = clean(
+    stringValue(payload?.targetId) ?? stringValue(payload?.target_id),
+  );
+
+  if (!payloadTargetId) {
+    return pendingUpdate;
+  }
+
+  const matches: Array<PendingUpdateTargetType | null> = await Promise.all([
+    tx.character
+      .findFirst({
+        where: {
+          id: payloadTargetId,
+          projectId: pendingUpdate.projectId,
+        },
+        select: { id: true },
+      })
+      .then((record) => (record ? "character" : null)),
+    tx.worldRule
+      .findFirst({
+        where: {
+          id: payloadTargetId,
+          projectId: pendingUpdate.projectId,
+        },
+        select: { id: true },
+      })
+      .then((record) => (record ? "world_rule" : null)),
+    tx.foreshadow
+      .findFirst({
+        where: {
+          id: payloadTargetId,
+          projectId: pendingUpdate.projectId,
+        },
+        select: { id: true },
+      })
+      .then((record) => (record ? "foreshadow" : null)),
+    tx.timelineEvent
+      .findFirst({
+        where: {
+          id: payloadTargetId,
+          projectId: pendingUpdate.projectId,
+        },
+        select: { id: true },
+      })
+      .then((record) => (record ? "timeline_event" : null)),
+  ]);
+  const resolvedTypes = matches.filter(
+    (targetType): targetType is PendingUpdateTargetType => Boolean(targetType),
+  );
+
+  if (resolvedTypes.length !== 1) {
+    return pendingUpdate;
+  }
+
+  return {
+    ...pendingUpdate,
+    targetId: payloadTargetId,
+    targetType: resolvedTypes[0],
+  };
+}
+
+function parsePayload(value: string) {
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value : undefined;
 }
 
 async function applyProjectSettingUpdate(
