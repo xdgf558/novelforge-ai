@@ -1,5 +1,68 @@
 # Development Log
 
+## 2026-07-17: Kimi K3 Deep-Polish Routing
+
+Status: completed for review.
+
+Scope:
+
+- Keep Kimi K2.6 as the suggested chapter-draft model while introducing Kimi
+  K3 as the suggested deep-polish and short-story whole-review model.
+- Reuse one author-approved Kimi connection without duplicating API secrets.
+- Preserve existing saved K2.6 polish routes and the default-model fallback.
+
+What was done:
+
+- Added task-specific Kimi defaults: blank draft routes suggest `kimi-k2.6`,
+  while blank polish routes suggest `kimi-k3`. Explicitly saved model ids are
+  preserved, so an existing K2.6 polish route does not switch silently.
+- Added an explicit "reuse chapter-draft Kimi connection" option for polish.
+  When enabled and no dedicated polish key is present, chapter polish and
+  short-story whole review reuse the draft route's API Key and Base URL while
+  retaining their own K3 model id. A dedicated polish key still takes
+  precedence.
+- Routed `short_story_whole_review` through the polish route and updated its
+  readiness check accordingly. Other structural and continuity tasks remain on
+  the default AI connection.
+- Added Kimi K3 request capability detection. Chat Completions payloads for
+  `kimi-k3` and K3-prefixed model ids now include top-level
+  `reasoning_effort: "max"`; K2.6 and other OpenAI-compatible models keep their
+  prior payload shape.
+- Increased short-story whole-review requests to the existing 10-minute long
+  writing timeout so K3 deep reasoning is not cut off by the former 5-minute
+  planning limit.
+- Upgraded the default chapter-polish prompt to version 5 with hard boundaries:
+  no new plot, characters, objects, clues, or settings; no changed facts,
+  causality, foreshadow state, dialogue intent, or confirmed story choices;
+  preserve ambiguous source content and output only the complete polished prose.
+- Updated the local settings UI with K2.6/K3 model suggestions, shared-connection
+  status, and responsive explanatory controls. Existing task audit snapshots
+  continue to record the actual task type, model, and Base URL without secrets.
+
+Verification:
+
+- Focused Vitest passed: 4 files and 63 tests.
+- Full `npm test` passed: 113 files and 632 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `npm run mvp:acceptance` passed.
+- `npm run work-types:acceptance` passed.
+- `/ai-settings` was visually checked at the default desktop viewport and a
+  390 x 844 mobile viewport; K3 controls remained readable without overlap or
+  horizontal overflow.
+
+Notes:
+
+- Existing saved K2.6 polish settings remain K2.6 until the author changes the
+  model id. The K3 default applies only when the polish model is blank.
+- Sharing is opt-in so an upgrade cannot silently activate a new paid model
+  route. To replace an existing dedicated polish key with the shared route, the
+  author enables sharing and clears the dedicated polish key in the same save.
+- Source development logs exposed a pre-existing TTS Server Action hydration
+  warning and an unmigrated source `.env` database missing `Project.workType`.
+  Neither is introduced by this phase; packaged desktop databases continue to
+  use the desktop migration runner.
+
 ## 2026-07-16: Long-Form Narrative Perspective
 
 Status: completed for review.

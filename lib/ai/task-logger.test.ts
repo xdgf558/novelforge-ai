@@ -364,7 +364,7 @@ describe("AI task logger", () => {
       resolveAiTaskRequestTimeoutMs("short_story_unit_plan_generation"),
     ).toBe(longPlanningAiRequestTimeoutMs);
     expect(resolveAiTaskRequestTimeoutMs("short_story_whole_review")).toBe(
-      longPlanningAiRequestTimeoutMs,
+      longWritingAiRequestTimeoutMs,
     );
     expect(resolveAiTaskRequestTimeoutMs("pending_update_extraction")).toBe(
       longPlanningAiRequestTimeoutMs,
@@ -420,6 +420,41 @@ describe("AI task logger", () => {
       OPENAI_API_KEY: "new-kimi-key",
       OPENAI_MODEL: "kimi-k2.6",
       OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+    });
+  });
+
+  it("records short-story whole review against the K3 polish route", async () => {
+    mocks.getConfiguredOpenAIModelForTaskType.mockReturnValue("kimi-k3");
+    mocks.readAiTaskModelRouteSecrets.mockReturnValue({
+      taskType: "short_story_whole_review",
+      apiKey: "shared-kimi-key",
+      model: "kimi-k3",
+      baseUrl: "https://api.moonshot.cn/v1",
+      isActive: true,
+    });
+    mocks.aiTaskCreate.mockResolvedValueOnce({
+      id: "task_review",
+      projectId: "project_1",
+      taskType: "short_story_whole_review",
+      model: "kimi-k3",
+      status: "pending",
+    });
+
+    await createAiTask({
+      projectId: "project_1",
+      taskType: "short_story_whole_review",
+      inputContextSummary: "短故事整篇审校",
+    });
+
+    const createCall = mocks.aiTaskCreate.mock.calls.at(-1)?.[0];
+    const inputJson = JSON.parse(createCall.data.inputJson);
+    expect(createCall.data.model).toBe("kimi-k3");
+    expect(inputJson.aiExecutionRoute).toEqual({
+      kind: "task_model_route",
+      routeSource: "task_route",
+      taskType: "short_story_whole_review",
+      model: "kimi-k3",
+      baseUrl: "https://api.moonshot.cn/v1",
     });
   });
 

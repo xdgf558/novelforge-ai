@@ -220,7 +220,7 @@ export default async function AiSettingsPage({
               章节写作模型路由
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-              章节草稿和正文精修可使用独立模型。未配置对应 API Key 时，仍使用上方默认接入；大纲、节拍和连续性检查保持默认模型。
+              章节草稿默认使用 Kimi K2.6，正文精修与短故事整篇审校默认使用 Kimi K3。两条路由可共享同一套 Kimi API Key 和 Base URL，也可为精修单独配置。大纲、节拍和普通连续性检查保持默认模型。
             </p>
           </div>
         </div>
@@ -239,6 +239,7 @@ export default async function AiSettingsPage({
               baseUrlName="polishBaseUrl"
               clearKeyName="clearPolishApiKey"
               modelName="polishModel"
+              allowDraftConnectionReuse
               route={writingModelRouteSettings.routes.chapterPolish}
             />
           </div>
@@ -1036,20 +1037,31 @@ function AiTaskRouteFields({
   baseUrlName,
   clearKeyName,
   modelName,
+  allowDraftConnectionReuse = false,
 }: {
   route: AiTaskModelRouteSetting;
   apiKeyName: string;
   baseUrlName: string;
   clearKeyName: string;
   modelName: string;
+  allowDraftConnectionReuse?: boolean;
 }) {
+  const routeStatus = route.isUsingSharedConnection
+    ? `已复用草稿 Kimi 接入 · ${route.model}`
+    : route.isActive
+      ? `已启用 ${route.model}`
+      : route.useDraftConnection
+        ? `等待草稿 Kimi Key · ${route.model}`
+        : `未配置 Key，暂用默认模型`;
+  const modelListId = `${modelName}-options`;
+
   return (
     <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-semibold text-ink-950">{route.label}</p>
           <p className="mt-1 text-xs leading-5 text-ink-700">
-            {route.isActive ? `已启用 ${route.model}` : "未配置 Key，暂用默认模型"}
+            {routeStatus}
           </p>
         </div>
         <span className="rounded-md border border-ink-950/10 bg-white px-2 py-1 text-xs font-semibold text-ink-700">
@@ -1058,16 +1070,39 @@ function AiTaskRouteFields({
       </div>
 
       <div className="mt-4 space-y-4">
+        {allowDraftConnectionReuse ? (
+          <label className="flex items-start gap-3 rounded-md border border-signal-600/20 bg-signal-600/5 p-3 text-sm text-ink-700">
+            <input
+              className="mt-1 h-4 w-4 rounded border-ink-950/20 text-signal-600"
+              defaultChecked={route.useDraftConnection}
+              name="polishUseDraftConnection"
+              type="checkbox"
+            />
+            <span>
+              <span className="block font-semibold text-ink-950">
+                复用章节草稿的 Kimi 接入
+              </span>
+              <span className="mt-1 block leading-6">
+                使用同一 API Key 和 Base URL，只把精修模型切换为 K3。下方若填入独立 Key，会优先使用独立接入。
+              </span>
+            </span>
+          </label>
+        ) : null}
+
         <label className="block space-y-2">
           <span className="text-sm font-semibold text-ink-800">
-            Kimi API Key
+            {allowDraftConnectionReuse ? "独立 Kimi API Key（可选）" : "Kimi API Key"}
           </span>
           <input
             autoComplete="off"
             className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
             name={apiKeyName}
             placeholder={
-              route.hasApiKey ? "留空则保留当前 Key" : "输入 Kimi API Key"
+              route.isUsingSharedConnection
+                ? "留空则继续复用草稿 Key"
+                : route.hasApiKey
+                  ? "留空则保留当前 Key"
+                  : "输入 Kimi API Key"
             }
             type="password"
           />
@@ -1078,10 +1113,20 @@ function AiTaskRouteFields({
           <input
             className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
             defaultValue={route.model}
+            list={modelListId}
             name={modelName}
-            placeholder="kimi-k2.6"
+            placeholder={allowDraftConnectionReuse ? "kimi-k3" : "kimi-k2.6"}
             type="text"
           />
+          <datalist id={modelListId}>
+            <option value="kimi-k2.6" />
+            <option value="kimi-k3" />
+          </datalist>
+          <span className="block text-xs leading-5 text-ink-600">
+            {allowDraftConnectionReuse
+              ? "K3 适合整章精修、视角与文风校正、短故事整篇审校。"
+              : "K2.6 适合正文初稿与快速生成。"}
+          </span>
         </label>
 
         <label className="block space-y-2">
@@ -1108,7 +1153,9 @@ function AiTaskRouteFields({
               清除已保存的 Kimi API Key
             </span>
             <span className="mt-1 block leading-6">
-              勾选后会移除此任务路由的 Key，模型和接口地址仍会保存。
+              {allowDraftConnectionReuse
+                ? "勾选后会移除精修的独立 Key；若已开启复用，之后继续使用草稿 Key。"
+                : "勾选后会移除此任务路由的 Key，模型和接口地址仍会保存。"}
             </span>
           </span>
         </label>
@@ -1118,7 +1165,13 @@ function AiTaskRouteFields({
 }
 
 function routeStatusText(route: AiTaskModelRouteSetting) {
-  return route.isActive ? route.model : "默认模型";
+  if (!route.isActive) {
+    return "默认模型";
+  }
+
+  return route.isUsingSharedConnection
+    ? `${route.model}（复用草稿接入）`
+    : route.model;
 }
 
 function sourceLabel(source: "file" | "environment" | "default") {

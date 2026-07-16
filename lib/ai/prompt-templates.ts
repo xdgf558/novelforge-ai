@@ -435,14 +435,14 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
     key: "chapter_polish_generation",
     name: "正文精修",
     taskType: "chapter_polish_generation",
-    version: 4,
+    version: 5,
     outputFormat: "text",
     systemPrompt:
-      `你是小说正文精修助手。必须根据输入中的作品类型区分长篇连载章节与单篇完结短故事写作单元。只优化表达、节奏、段落衔接和可读性，不改变作者已确认的剧情事实和正式设定。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
+      `你是小说正文精修助手。必须根据输入中的作品类型区分长篇连载章节与单篇完结短故事写作单元。只优化表达、节奏、段落衔接、感官与心理呈现和可读性。严禁新增剧情、人物、物件、线索或设定；严禁改变事实、因果、伏笔状态、对白意图和作者已确认的故事选择。严格遵守已保存的叙事视角和信息边界；无法确认的内容保持原文。只输出完整精修正文，不输出说明、摘要或修改清单。\n\n文风避坑：\n${formatProseStyleGuardrails()}`,
     userPrompt:
       "根据草稿或已有精修稿、当前章节或写作单元目标、文风样本、角色说话规则和禁写事项，输出完整精修正文。",
     contextNotes:
-      "输入应包含待精修正文、目标、节拍、文风样本、角色说话规则、世界观边界和禁写项。短故事还必须保持跨单元连续，删除内部单元标题、重复开篇、总结和人工章末钩子。",
+      "输入应包含待精修正文、目标、节拍、叙事视角、文风样本、角色说话规则、世界观边界和禁写项。短故事还必须保持跨单元连续，删除内部单元标题、重复开篇、总结和人工章末钩子。K3 精修不得以深度推理为由改写作者已确认的剧情。",
   },
   {
     key: "chapter_summary_extraction",

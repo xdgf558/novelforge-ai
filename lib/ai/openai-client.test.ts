@@ -104,6 +104,28 @@ describe("OpenAI client helpers", () => {
     });
   });
 
+  it("adds K3 max reasoning effort without changing K2.6 payloads", () => {
+    expect(
+      buildOpenAIChatCompletionsPayload({
+        model: "kimi-k3",
+        input: "深度精修章节",
+      }),
+    ).toEqual({
+      model: "kimi-k3",
+      messages: [{ role: "user", content: "深度精修章节" }],
+      reasoning_effort: "max",
+    });
+    expect(
+      buildOpenAIChatCompletionsPayload({
+        model: "kimi-k2.6",
+        input: "生成章节草稿",
+      }),
+    ).toEqual({
+      model: "kimi-k2.6",
+      messages: [{ role: "user", content: "生成章节草稿" }],
+    });
+  });
+
   it("extracts output text from current and nested response shapes", () => {
     expect(extractOpenAIOutputText({ output_text: "直接文本" })).toBe("直接文本");
     expect(

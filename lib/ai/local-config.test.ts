@@ -12,6 +12,7 @@ import {
   DEFAULT_GLM_TTS_VOICE_ID,
   DEFAULT_KIMI_API_BASE_URL,
   DEFAULT_KIMI_K2_6_MODEL,
+  DEFAULT_KIMI_K3_MODEL,
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_MODEL,
   DEFAULT_STATION_CAT_API_BASE_URL,
@@ -20,6 +21,7 @@ import {
   DEFAULT_TTS_LANGUAGE_CODE,
   DEFAULT_TTS_MODEL,
   getAiRuntimeEnv,
+  getAiRuntimeEnvForTaskType,
   maskApiKey,
   parseAiEnv,
   parseAiTaskModelRouteEnv,
@@ -52,6 +54,8 @@ const originalEnv = {
   CHAPTER_POLISH_API_KEY: process.env.CHAPTER_POLISH_API_KEY,
   CHAPTER_POLISH_MODEL: process.env.CHAPTER_POLISH_MODEL,
   CHAPTER_POLISH_BASE_URL: process.env.CHAPTER_POLISH_BASE_URL,
+  CHAPTER_POLISH_USE_DRAFT_CONNECTION:
+    process.env.CHAPTER_POLISH_USE_DRAFT_CONNECTION,
   IMAGE_API_KEY: process.env.IMAGE_API_KEY,
   IMAGE_API_BASE_URL: process.env.IMAGE_API_BASE_URL,
   IMAGE_MODEL: process.env.IMAGE_MODEL,
@@ -93,6 +97,8 @@ afterEach(() => {
   process.env.CHAPTER_POLISH_API_KEY = originalEnv.CHAPTER_POLISH_API_KEY;
   process.env.CHAPTER_POLISH_MODEL = originalEnv.CHAPTER_POLISH_MODEL;
   process.env.CHAPTER_POLISH_BASE_URL = originalEnv.CHAPTER_POLISH_BASE_URL;
+  process.env.CHAPTER_POLISH_USE_DRAFT_CONNECTION =
+    originalEnv.CHAPTER_POLISH_USE_DRAFT_CONNECTION;
   process.env.IMAGE_API_KEY = originalEnv.IMAGE_API_KEY;
   process.env.IMAGE_API_BASE_URL = originalEnv.IMAGE_API_BASE_URL;
   process.env.IMAGE_MODEL = originalEnv.IMAGE_MODEL;
@@ -254,6 +260,7 @@ describe("AI task model route config", () => {
           "CHAPTER_POLISH_API_KEY=kimi-polish",
           "CHAPTER_POLISH_MODEL=kimi-k2.6-polish",
           "CHAPTER_POLISH_BASE_URL=https://kimi.example/v1",
+          "CHAPTER_POLISH_USE_DRAFT_CONNECTION=1",
           "OPENAI_API_KEY=ignored",
         ].join("\n"),
       ),
@@ -264,6 +271,7 @@ describe("AI task model route config", () => {
       CHAPTER_POLISH_API_KEY: "kimi-polish",
       CHAPTER_POLISH_MODEL: "kimi-k2.6-polish",
       CHAPTER_POLISH_BASE_URL: "https://kimi.example/v1",
+      CHAPTER_POLISH_USE_DRAFT_CONNECTION: "1",
     });
   });
 
@@ -282,12 +290,80 @@ describe("AI task model route config", () => {
     });
     expect(settings.routes.chapterPolish).toMatchObject({
       taskType: "chapter_polish_generation",
-      model: DEFAULT_KIMI_K2_6_MODEL,
+      model: DEFAULT_KIMI_K3_MODEL,
       baseUrl: DEFAULT_KIMI_API_BASE_URL,
       hasApiKey: false,
       isActive: false,
+      useDraftConnection: false,
+      isUsingSharedConnection: false,
       source: "default",
     });
+  });
+
+  it("keeps an explicitly saved K2.6 polish model after the K3 default upgrade", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "CHAPTER_POLISH_API_KEY=kimi-polish",
+        "CHAPTER_POLISH_MODEL=kimi-k2.6",
+        "CHAPTER_POLISH_BASE_URL=https://api.moonshot.cn/v1",
+      ].join("\n"),
+    );
+
+    const settings = readAiTaskModelRouteSettings({
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+    });
+
+    expect(settings.routes.chapterPolish).toMatchObject({
+      model: "kimi-k2.6",
+      hasApiKey: true,
+      isActive: true,
+      isUsingSharedConnection: false,
+    });
+  });
+
+  it("lets K3 polish and whole-story review reuse the draft Kimi connection", () => {
+    const configPath = makeTempConfigPath();
+    const settings = saveAiTaskModelRouteSettings(
+      {
+        draftApiKey: "shared-kimi-key",
+        draftModel: "kimi-k2.6",
+        draftBaseUrl: "https://kimi-gateway.example/v1",
+        polishApiKey: "",
+        polishModel: "",
+        polishBaseUrl: "https://unused.example/v1",
+        polishUseDraftConnection: true,
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const wholeReviewEnv = getAiRuntimeEnvForTaskType(
+      "short_story_whole_review",
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const savedContent = fs.readFileSync(configPath, "utf8");
+
+    expect(settings.routes.chapterPolish).toMatchObject({
+      model: DEFAULT_KIMI_K3_MODEL,
+      baseUrl: "https://kimi-gateway.example/v1",
+      hasApiKey: true,
+      isActive: true,
+      useDraftConnection: true,
+      isUsingSharedConnection: true,
+      maskedApiKey: "shared...-key",
+    });
+    expect(wholeReviewEnv).toMatchObject({
+      OPENAI_API_KEY: "shared-kimi-key",
+      OPENAI_MODEL: DEFAULT_KIMI_K3_MODEL,
+      OPENAI_BASE_URL: "https://kimi-gateway.example/v1",
+    });
+    expect(savedContent).toContain(
+      'CHAPTER_POLISH_USE_DRAFT_CONNECTION="1"',
+    );
   });
 
   it("saves task-level Kimi route settings while preserving existing keys", () => {

@@ -156,10 +156,13 @@ describe("default AI prompt templates", () => {
 
     expect(beatTemplate?.version).toBeGreaterThanOrEqual(3);
     expect(draftTemplate?.version).toBeGreaterThanOrEqual(4);
-    expect(polishTemplate?.version).toBeGreaterThanOrEqual(4);
+    expect(polishTemplate?.version).toBeGreaterThanOrEqual(5);
     expect(beatTemplate?.systemPrompt).toContain("作品类型");
     expect(draftTemplate?.contextNotes).toContain("短故事");
     expect(polishTemplate?.contextNotes).toContain("跨单元连续");
+    expect(polishTemplate?.systemPrompt).toContain("严禁新增剧情");
+    expect(polishTemplate?.systemPrompt).toContain("对白意图");
+    expect(polishTemplate?.systemPrompt).toContain("只输出完整精修正文");
   });
 
   it("keeps foreshadow recovery ids in summary and pending-update schemas", () => {

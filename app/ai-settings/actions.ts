@@ -69,6 +69,8 @@ export async function saveAiTaskModelRouteSettingsAction(formData: FormData) {
       clearPolishApiKey: formData.get("clearPolishApiKey") === "on",
       polishModel: formData.get("polishModel")?.toString(),
       polishBaseUrl: formData.get("polishBaseUrl")?.toString(),
+      polishUseDraftConnection:
+        formData.get("polishUseDraftConnection") === "on",
     });
   } catch {
     revalidatePath("/ai-settings");
