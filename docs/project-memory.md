@@ -43,13 +43,15 @@ MVP includes:
   `emotionalTone` fields, preserves custom author notes, and becomes formal
   only through the normal versioned setting save. No separate preset table or
   automatic formal-memory write exists.
-- Short-story narrative perspective is an independent formal setting with
+- Narrative perspective is an independent formal setting shared by long-form
+  serials and short stories, with
   immersive third-person limited, first-person experiential, multi-character
   limited, and objective-camera options. It controls viewpoint access and
   information boundaries without changing writing style, remains editable
-  before the normal versioned save, and is read by every short-story planning,
-  prose, polish, and whole-review path. Project-setting AI cannot draft or
-  overwrite it, and serial projects do not expose it.
+  before the normal versioned save, and is read by the applicable planning,
+  prose, polish, and review paths for both work types. Project-setting AI
+  cannot draft or overwrite it, and existing projects remain unset until the
+  author explicitly chooses or writes a rule.
 - Short-story whole-story review workspace with bounded confirmed-unit context,
   seven closure dimensions plus saved-perspective consistency when configured,
   unit-bound suggestions, source-text staleness checks, and manual-only author
@@ -342,20 +344,23 @@ Recommended implementation order:
   foreign-key/database health. `npm run responsive:smoke` covers the key export
   and destructive-management layouts at desktop and mobile viewport sizes.
   Final installer creation remains a post-review, post-merge release step.
-- Short-story narrative-perspective follow-up: `ProjectSetting` now stores one
-  short-story-only `narrativePerspective` rule independently from
-  `styleSample`. Four explainable options cover immersive third-person limited,
-  first-person experiential, multi-character limited, and objective-camera
-  narration. Applying a choice only edits the browser form and the normal
-  versioned setting save remains the formal-write boundary. Project-setting AI
-  may read but cannot draft or overwrite the field; blueprint, unit-plan, beat,
-  draft, polish, and whole-story-review prompts consume it. Serial projects do
-  not expose or receive the field. Applied presets use a stable id marker rather
-  than the mutable display label; explicit legacy-label aliases keep existing
-  setting text and setting-history snapshots recognizable without rewriting
-  them. Whole-story review exposes evidence-backed viewpoint-violation and
-  unauthorized-knowledge-leak counts, while all resulting reports remain
-  advisory and manual-only.
+- Narrative-perspective follow-up: `ProjectSetting` stores one
+  `narrativePerspective` rule independently from `styleSample` for both long-form
+  serials and short stories. Four explainable options cover immersive
+  third-person limited, first-person experiential, multi-character limited, and
+  objective-camera narration. Applying a choice only edits the browser form and
+  the normal versioned setting save remains the formal-write boundary.
+  Project-setting AI may read but cannot draft or overwrite the field. Serial
+  outline, beat, draft, normal/segmented polish, and chapter-continuity prompts
+  consume it; short-story blueprint, unit-plan, beat, draft, polish, and
+  whole-story-review prompts continue to consume it. Applied presets use a
+  stable generic id marker; the prior short-story id and label markers remain
+  recognizable without rewriting existing setting text or history snapshots.
+  Whole-story review exposes evidence-backed viewpoint-violation and
+  unauthorized-knowledge-leak counts, while serial continuity checks classify
+  evidence-backed violations as `narrative_perspective`. All reports remain
+  advisory and manual-only. No schema migration was required because the
+  nullable formal field already existed.
 - Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
@@ -437,14 +442,15 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
   blueprint generation, unit planning, drafting, polishing, and whole-story
   review; inspiration-author labels must not be copied into model prompts.
   Writing-style presets must remain free of viewpoint instructions. A separate
-  short-story-only `narrativePerspective` field controls viewpoint anchor,
-  information access, other-character interiority, experiential distance, and
-  scene-switch rules. Its four explainable options can be combined with any
-  style preset, are stored through the same versioned author save, and are read
-  by every short-story generation/review path. Setting AI must never generate,
-  replace, or delete this author-controlled field. Machine recognition uses a
-  stable id marker with backward-compatible legacy label aliases, so later UI
-  label changes cannot invalidate saved preset detection.
+  `narrativePerspective` field controls viewpoint anchor, information access,
+  other-character interiority, experiential distance, and scene-switch rules
+  for both work types. Its four explainable options can be combined with any
+  style, are stored through the same versioned author save, and are read by
+  long-form outline/chapter generation plus continuity checks as well as every
+  short-story generation/review path. Setting AI must never generate, replace,
+  or delete this author-controlled field. Machine recognition uses a stable
+  generic id marker with backward-compatible legacy short-story markers, so
+  later UI label changes cannot invalidate saved preset detection.
   `/projects/[projectId]/story-review` is short-story-only and uses the shared
   AI-task/continuity-report infrastructure. It requires a formal blueprint and
   at least two confirmed units, preserves unit source hashes for stale-result

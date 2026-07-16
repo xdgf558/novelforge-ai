@@ -17,6 +17,8 @@ const baseInput = {
   setting: {
     sellingPoint: "未来信息差 + 草根逆袭。",
     mainConflict: "历史大势不会被轻易改变。",
+    narrativePerspective:
+      "【叙事视角:multi-character-limited】\n每个场景只保留一个认知中心。",
     forbiddenItems: "不要写成纯技术说明书。",
   },
   outlines: [
@@ -58,6 +60,8 @@ describe("outline generation context builder", () => {
     expect(context.inputText).toContain("陈远");
     expect(context.inputText).toContain("不要写成纯技术说明书");
     expect(context.inputText).toContain("只生成第 3 章的一条章节大纲");
+    expect(context.inputText).toContain("每个场景只保留一个认知中心");
+    expect(context.inputText).toContain("必须服从已确认叙事视角");
     expect(context.inputText).not.toContain("3 个章节级条目");
     expect(context.inputJson.request).toMatchObject({
       targetLevel: "chapter",

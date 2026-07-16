@@ -24,6 +24,8 @@ const baseInput = {
     description: "寿命可以被交易，主角被迫调查第一份契约。",
   },
   setting: {
+    narrativePerspective:
+      "【叙事视角:immersive-third-person-limited】\n不得直接进入其他人物内心。",
     styleSample: "短句推进，悬疑压迫感强。",
     emotionalTone: "冷峻、压迫。",
     forbiddenItems: "不能让 AI 直接改写正式设定。",
@@ -80,6 +82,8 @@ describe("chapter polish context builder", () => {
       ]),
     );
     expect(context.inputText).toContain("不能让 AI 直接改写正式设定");
+    expect(context.inputText).toContain("不得直接进入其他人物内心");
+    expect(context.inputText).toContain("修正跳视角");
     expect(context.inputJson.chapter).toMatchObject({
       chapterNumber: 4,
       title: "死者发来的短信",
@@ -292,6 +296,9 @@ describe("chapter polish context builder", () => {
     );
     expect(context.segments[0].inputText).toContain("不是……而是……");
     expect(context.segments[0].inputText).toContain("反流水账精修");
+    expect(context.segments[0].inputText).toContain(
+      "不得借分段精修改变视角方案",
+    );
     expect(context.inputContextSummary).toContain("自动分段精修");
     expect(isExcerptedChapterPolishInputJson(JSON.stringify(context.inputJson))).toBe(
       false,

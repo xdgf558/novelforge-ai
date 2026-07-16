@@ -64,36 +64,41 @@ describe("project setting AI helpers", () => {
     expect(values.worldviewRules).toContain("不能直接联网");
   });
 
-  it("reads but does not let AI replace an author-selected narrative perspective", () => {
-    const narrativePerspective =
-      "【短故事叙事视角：沉浸式第三人称限制】\n主角看不见的，读者不能直接看见。";
-    const context = buildProjectSettingGenerationContext({
-      project: {
-        title: "坠星瓶",
-        workType: "short_story",
-      },
-      setting: {
-        narrativePerspective,
-      },
-    });
-    const allowedFields = context.inputJson.allowedFields as Array<{
-      name: string;
-    }>;
+  it.each(["short_story", "serial_novel"])(
+    "reads but does not let AI replace an author-selected narrative perspective for %s",
+    (workType) => {
+      const narrativePerspective =
+        "【叙事视角:immersive-third-person-limited】\n主角看不见的，读者不能直接看见。";
+      const context = buildProjectSettingGenerationContext({
+        project: {
+          title: "坠星瓶",
+          workType,
+        },
+        setting: {
+          narrativePerspective,
+        },
+      });
+      const allowedFields = context.inputJson.allowedFields as Array<{
+        name: string;
+      }>;
 
-    expect(context.inputText).toContain(narrativePerspective);
-    expect(context.inputText).toContain("不得生成、替换或删除 narrativePerspective");
-    expect(allowedFields.map((field) => field.name)).not.toContain(
-      "narrativePerspective",
-    );
-    expect(
-      parseProjectSettingGenerationOutput(
-        JSON.stringify({
-          narrativePerspective: "AI 不得采用这个替换值",
-          mainConflict: "作者仍可采用的冲突建议",
-        }),
-      ),
-    ).toEqual({
-      mainConflict: "作者仍可采用的冲突建议",
-    });
-  });
+      expect(context.inputText).toContain(narrativePerspective);
+      expect(context.inputText).toContain(
+        "不得生成、替换或删除 narrativePerspective",
+      );
+      expect(allowedFields.map((field) => field.name)).not.toContain(
+        "narrativePerspective",
+      );
+      expect(
+        parseProjectSettingGenerationOutput(
+          JSON.stringify({
+            narrativePerspective: "AI 不得采用这个替换值",
+            mainConflict: "作者仍可采用的冲突建议",
+          }),
+        ),
+      ).toEqual({
+        mainConflict: "作者仍可采用的冲突建议",
+      });
+    },
+  );
 });

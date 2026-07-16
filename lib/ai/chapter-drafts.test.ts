@@ -17,6 +17,8 @@ const baseInput = {
   setting: {
     sellingPoint: "寿命交易带来高压反转。",
     mainConflict: "主角要查清借命契约来源。",
+    narrativePerspective:
+      "【叙事视角:immersive-third-person-limited】\n不得直接进入其他人物内心。",
     styleSample: "短句推进，悬疑压迫感强。",
     forbiddenItems: "不能让 AI 直接改写正式设定。",
     sensitiveContentRules: "避免血腥细节。",
@@ -90,6 +92,8 @@ describe("chapter draft context builder", () => {
     expect(context.inputText).toContain("死亡合同调查");
     expect(context.inputText).toContain("医院旧档案");
     expect(context.inputText).toContain("不能让 AI 直接改写正式设定");
+    expect(context.inputText).toContain("不得直接进入其他人物内心");
+    expect(context.inputText).toContain("不得跳入无权限人物内心");
     expect(context.inputJson.chapter).toMatchObject({
       chapterNumber: 4,
       title: "死者发来的短信",
@@ -206,6 +210,23 @@ describe("chapter draft context builder", () => {
     });
 
     expect(context.inputJson.outputRequirements).not.toContain("");
+  });
+
+  it("keeps an existing serial project unchanged when no perspective is saved", () => {
+    const context = buildChapterDraftContext({
+      ...baseInput,
+      setting: {
+        ...baseInput.setting,
+        narrativePerspective: undefined,
+      },
+    });
+
+    expect(context.inputText).not.toContain(
+      "严格执行已确认叙事视角",
+    );
+    expect(context.inputJson.styleConstraints).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("叙事视角规则")]),
+    );
   });
 
   it("summarizes draft context scope and detects confirmed beats", () => {

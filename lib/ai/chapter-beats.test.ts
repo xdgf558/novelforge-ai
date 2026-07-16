@@ -16,6 +16,8 @@ const baseInput = {
   },
   setting: {
     sellingPoint: "寿命交易带来高压反转。",
+    narrativePerspective:
+      "【叙事视角:immersive-third-person-limited】\n不得直接进入其他人物内心。",
     forbiddenItems: "不能让 AI 直接改写正式设定。",
     sensitiveContentRules: "避免血腥细节。",
   },
@@ -89,6 +91,8 @@ describe("chapter beat context builder", () => {
     expect(context.inputText).toContain("第一卷 县城起势");
     expect(context.inputText).toContain("短信来源指向旧医院");
     expect(context.inputText).toContain("不能让 AI 直接改写正式设定");
+    expect(context.inputText).toContain("不得直接进入其他人物内心");
+    expect(context.inputText).toContain("不得依靠当前视角人物无法感知");
     expect(context.inputJson.chapter).toMatchObject({
       chapterNumber: 3,
       title: "合同上的第三个名字",

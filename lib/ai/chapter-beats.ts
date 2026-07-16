@@ -185,7 +185,7 @@ export function buildChapterBeatContext(
       "每个节拍都必须提供新线索、新阻碍、新选择、新代价、关系变化、风险升级或伏笔回收；无功能的过渡日要合并或跳过。",
       `如果本${shortStoryProject ? "单元" : "章"}建议处理伏笔列表有条目，节拍中必须安排回收、推进或说明暂缓理由；不得直接标记正式伏笔状态。`,
       "不要宣称已经修改正式设定或角色记忆。",
-      ...(shortStoryProject && input.setting?.narrativePerspective
+      ...(input.setting?.narrativePerspective
         ? ["节拍必须服从正式叙事视角的信息边界和切换规则。"]
         : []),
       ...(shortStoryProject
@@ -287,7 +287,7 @@ export function buildChapterBeatContext(
         : "- 直接承接前序单元，不重复开篇、背景说明、角色介绍或已呈现的信息；结尾只保留整篇需要的自然转折。"
       : "- 明确标出开场钩子、关键转折、章末钩子。",
     "- 保持既有设定与角色边界，不新增未经作者确认的正式设定。",
-    ...(shortStoryProject && input.setting?.narrativePerspective
+    ...(input.setting?.narrativePerspective
       ? [
           "- 节拍必须遵守已确认叙事视角，不得依靠当前视角人物无法感知或尚未得知的事实推进。",
         ]

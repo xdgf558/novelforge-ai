@@ -154,7 +154,6 @@ export const projectSettingGroups: readonly ProjectSettingGroup[] = [
         label: "叙事视角规则",
         placeholder: "选择上方叙事视角，或自行填写信息边界、感官距离和视角切换规则。",
         rows: 6,
-        shortStoryOnly: true,
         aiDraftable: false,
       },
       {
