@@ -189,6 +189,11 @@ export function buildContinuityContext(
       "只报告真实连续性风险，不要为了凑数编造问题。",
       "不要自动修改正式记忆；修复建议只能供作者审阅。",
       "issues 为空数组代表未发现明确问题。",
+      ...(input.setting?.narrativePerspective
+        ? [
+            "已设置正式叙事视角时，必须检查跳视角和越权信息；相关问题使用 issue_type=narrative_perspective。",
+          ]
+        : []),
     ],
   };
 
@@ -206,6 +211,11 @@ export function buildContinuityContext(
     "6. 伏笔是否重复、断裂、过期或被错误回收。",
     "7. 反派是否明显降智，主角是否突然获得未经铺垫的能力。",
     "8. 是否存在公众号发布风险。",
+    ...(input.setting?.narrativePerspective
+      ? [
+          "9. 是否违反正式叙事视角：同场景跳入其他人物内心，或由旁白泄露当前视角人物无权知道的信息。",
+        ]
+      : []),
     "",
     "# 项目基础信息",
     lines([
@@ -261,6 +271,11 @@ export function buildContinuityContext(
     "- overall_risk_level: low, medium, high, critical。",
     "- issues: 问题数组；如果没有明确问题，返回空数组。",
     "- 每个 issue 包含 issue_type, severity, description, evidence, related_characters, related_rules, fix_suggestion。",
+    ...(input.setting?.narrativePerspective
+      ? [
+          "- 叙事视角问题的 issue_type 必须为 narrative_perspective，并引用可核验正文作为 evidence。",
+        ]
+      : []),
   ].join("\n");
 
   return {

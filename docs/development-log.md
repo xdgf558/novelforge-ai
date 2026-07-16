@@ -1,5 +1,48 @@
 # Development Log
 
+## 2026-07-16: Long-Form Narrative Perspective
+
+Status: completed for review.
+
+What was done:
+
+- Extended the existing author-controlled `narrativePerspective` formal setting
+  from short stories to long-form serial novels without adding a schema
+  migration. Existing projects remain unset until the author explicitly chooses
+  a preset or writes a custom rule and saves a normal setting version.
+- Promoted the four explainable perspective definitions to a shared module.
+  Newly applied rules use a stable generic marker such as
+  `【叙事视角:immersive-third-person-limited】`; existing stable-id and
+  label-based short-story markers remain recognized and can be replaced without
+  stacking generated guides or losing author supplements.
+- Exposed the independent perspective selector and editable formal field on
+  both work types while keeping inspiration-based writing-style presets
+  short-story-only. Style and viewpoint remain combinable and do not overwrite
+  each other.
+- Injected a saved long-form perspective into outline generation, chapter beat
+  planning, chapter drafting, normal polishing, and segmented polishing.
+- Extended long-form chapter continuity checks with explicit head-hopping and
+  unauthorized-knowledge-leak checks. Evidence-backed findings use the existing
+  `narrative_perspective` category and remain manual-only.
+- Kept project-setting AI read-only for this field: it can see the saved rule as
+  context but cannot generate, replace, or delete it.
+
+Verification:
+
+- Targeted Vitest coverage passed: 9 files and 54 tests covering shared/legacy
+  preset markers, both work-type setting fields, setting-AI author control,
+  long-form outline/beat/draft/polish injection, segmented polishing, and
+  continuity-review instructions.
+- Full `npm test` passed: 113 files and 628 tests.
+- `npm run typecheck`, `npm run build`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed. `npx prisma validate` also passed.
+- Browser verification used a fresh isolated SQLite database with all 26
+  migrations. A serial-novel setting page exposed the saved perspective and
+  editable rule, selected the matching stable-id preset, omitted the
+  short-story writing-style card, and logged no browser errors. Desktop
+  1280x900 and mobile 390x844 layouts had no horizontal overflow or overlapping
+  controls.
+
 ## 2026-07-16: 0.1.101 Narrative-Perspective Personal Installer
 
 Status: completed.

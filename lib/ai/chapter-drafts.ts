@@ -128,14 +128,7 @@ export function buildChapterDraftContext(
     .map(buildCharacterRuleLine)
     .filter(Boolean);
   const styleConstraints = [
-    ...buildLabeledSettingLines(
-      input.setting,
-      shortStoryProject
-        ? draftStyleSettingFields
-        : draftStyleSettingFields.filter(
-            ([fieldName]) => fieldName !== "narrativePerspective",
-          ),
-    ),
+    ...buildLabeledSettingLines(input.setting, draftStyleSettingFields),
     input.project.wechatPositioning
       ? `公众号定位：${input.project.wechatPositioning}`
       : "",
@@ -200,7 +193,7 @@ export function buildChapterDraftContext(
       `输出完整${unitLabel}草稿正文。`,
       `严格遵循已确认${shortStoryProject ? "单元" : "章节"}节拍。`,
       "保持角色说话规则和世界观边界。",
-      ...(shortStoryProject && input.setting?.narrativePerspective
+      ...(input.setting?.narrativePerspective
         ? ["严格遵守正式叙事视角的信息边界、内心权限和场景切换规则。"]
         : []),
       "硬性压低模板腔：全章“不是……而是……”/“不是……是……”二元对照表达最多保留 1 处，输出前必须自检并改写多余句式。",
@@ -287,7 +280,7 @@ export function buildChapterDraftContext(
     `- 直接输出${unitLabel}草稿正文，不要输出分析过程。`,
     "- 按已确认节拍推进，不要新增未经作者确认的核心设定。",
     "- 保持人物语气、行动边界、世界观规则和禁写事项。",
-    ...(shortStoryProject && input.setting?.narrativePerspective
+    ...(input.setting?.narrativePerspective
       ? [
           "- 严格执行已确认叙事视角：不得跳入无权限人物内心，不得由旁白提前泄露视角人物尚不知道的事实。",
         ]

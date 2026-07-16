@@ -229,6 +229,7 @@ describe("project export builders", () => {
     });
 
     expect(markdown).toContain("作品类型: 长篇连载");
+    expect(markdown).toContain("沉浸式第三人称限制");
     expect(markdown).toContain("## 章节");
     expect(markdown).toContain("### 第 1 章 第一封短信");
     expect(markdown).not.toContain("## 短故事蓝图");

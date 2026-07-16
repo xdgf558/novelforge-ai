@@ -15,6 +15,8 @@ const baseInput = {
   },
   setting: {
     worldviewRules: "借命契约必须由本人签名确认。",
+    narrativePerspective:
+      "【叙事视角:immersive-third-person-limited】\n不得直接进入其他人物内心。",
     forbiddenItems: "不能让主角无铺垫获得超自然能力。",
   },
   chapter: {
@@ -85,6 +87,11 @@ describe("continuity context builder", () => {
     expect(context.inputText).toContain("只能看见倒计时");
     expect(context.inputText).toContain("契约上的签名不是周医生本人写下的");
     expect(context.inputText).toContain("overall_risk_level");
+    expect(context.inputText).toContain("是否违反正式叙事视角");
+    expect(context.inputText).toContain("issue_type 必须为 narrative_perspective");
+    expect(context.inputJson.outputRequirements).toContain(
+      "已设置正式叙事视角时，必须检查跳视角和越权信息；相关问题使用 issue_type=narrative_perspective。",
+    );
     expect(context.inputJson.chapter).toMatchObject({
       chapterNumber: 8,
       title: "无名签字",
@@ -95,6 +102,21 @@ describe("continuity context builder", () => {
   it("summarizes continuity check scope for AI task records", () => {
     expect(buildContinuityContextSummary(baseInput)).toBe(
       `第 8 章《无名签字》连续性检查；定稿 ${baseInput.chapter.finalText.length} 字；角色 1 个；世界规则 1 条；伏笔 1 条；时间线 1 条；摘要 1 条`,
+    );
+  });
+
+  it("does not invent a viewpoint audit when no perspective is saved", () => {
+    const context = buildContinuityContext({
+      ...baseInput,
+      setting: {
+        ...baseInput.setting,
+        narrativePerspective: undefined,
+      },
+    });
+
+    expect(context.inputText).not.toContain("是否违反正式叙事视角");
+    expect(context.inputJson.outputRequirements).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("narrative_perspective")]),
     );
   });
 

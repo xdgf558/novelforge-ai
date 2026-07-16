@@ -40,25 +40,30 @@ describe("project setting fields", () => {
     const values = emptyProjectSettingValues();
     values.genre = " 都市异能 ";
     values.mainConflict = " 主角与契约组织对抗 ";
+    values.narrativePerspective = " 沉浸式第三人称限制 ";
 
     expect(projectSettingSnapshot(values)).toMatchObject({
       genre: "都市异能",
       mainConflict: "主角与契约组织对抗",
+      narrativePerspective: "沉浸式第三人称限制",
     });
     expect(Object.keys(projectSettingSnapshot(values)).sort()).toEqual(
       [...projectSettingFieldNames].sort(),
     );
   });
 
-  it("scopes narrative perspective to short stories and author control", () => {
+  it("exposes narrative perspective to both work types while keeping it author-controlled", () => {
     expect(
       projectSettingFieldsForWorkType("short_story").map((field) => field.name),
     ).toContain("narrativePerspective");
     expect(
       projectSettingFieldsForWorkType("serial_novel").map((field) => field.name),
-    ).not.toContain("narrativePerspective");
+    ).toContain("narrativePerspective");
     expect(
       projectSettingAiFieldsForWorkType("short_story").map((field) => field.name),
+    ).not.toContain("narrativePerspective");
+    expect(
+      projectSettingAiFieldsForWorkType("serial_novel").map((field) => field.name),
     ).not.toContain("narrativePerspective");
   });
 });

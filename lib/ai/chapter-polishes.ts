@@ -175,7 +175,7 @@ export function buildChapterPolishContext(
         : "保留原剧情事实、人物关系、关键台词含义和章节结尾钩子。",
       "删除创作过程标题，例如“开场钩子”“节拍1”“情绪作用”等。",
       "只做表达、节奏、段落和连贯性精修，不新增正式设定。",
-      ...(shared.shortStoryProject && input.setting?.narrativePerspective
+      ...(input.setting?.narrativePerspective
         ? ["精修必须修正并避免新增跳视角、越权信息或无依据的他人内心直写。"]
         : []),
       "硬性压低模板腔：全章“不是……而是……”/“不是……是……”二元对照表达最多保留 1 处，输出前必须自检并改写多余句式。",
@@ -270,7 +270,7 @@ export function buildChapterPolishContext(
       : "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
     "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
-    ...(shared.shortStoryProject && input.setting?.narrativePerspective
+    ...(input.setting?.narrativePerspective
       ? [
           "- 遵守已确认叙事视角，修正跳视角、越权信息和无依据的他人内心直写；不得借精修改变视角方案。",
         ]
@@ -726,7 +726,7 @@ function buildChapterPolishSegmentContext(
       : "- 不改变主要剧情事实、人物关系、关键伏笔、章节目标和结尾钩子。",
     "- 优化句子节奏、段落衔接、人物台词自然度、场景细节密度和连载阅读爽点。",
     "- 保持作者已有语气，不要把小说改成说明书或创作分析。",
-    ...(shared.shortStoryProject && input.setting?.narrativePerspective
+    ...(input.setting?.narrativePerspective
       ? [
           "- 遵守已确认叙事视角，修正本段中的跳视角、越权信息和无依据的他人内心直写；不得借分段精修改变视角方案。",
         ]
@@ -786,14 +786,7 @@ function buildChapterPolishSharedContext(
           input.project.chapterWordMax,
         );
   const styleConstraints = [
-    ...buildLabeledSettingLines(
-      input.setting,
-      shortStoryProject
-        ? polishStyleSettingFields
-        : polishStyleSettingFields.filter(
-            ([fieldName]) => fieldName !== "narrativePerspective",
-          ),
-    ),
+    ...buildLabeledSettingLines(input.setting, polishStyleSettingFields),
     input.project.wechatPositioning
       ? `公众号定位：${input.project.wechatPositioning}`
       : "",
