@@ -1,5 +1,26 @@
 # Development Log
 
+## 2026-07-17: Outline Draft Goal Copy Fallback
+
+Status: completed for review.
+
+What was done:
+
+- Fixed chapter-outline draft copying when an AI draft expresses the chapter
+  goal inside `节拍总览` instead of emitting a standalone `目标` field.
+- Kept explicit `章节目标` / `目标` fields at the highest priority. When those
+  fields are absent, the parser now copies only the first paragraph of
+  `节拍总览`, `章节总览`, or `章节概览`, avoiding unrelated turn and ending
+  paragraphs. `核心事件` remains a final structured fallback.
+- Added regression coverage based on the actual chapter 24 draft shape and a
+  precedence test ensuring explicit goals are never replaced by overview text.
+
+Verification:
+
+- Focused outline-copy tests passed: 11 tests.
+- Full `npm test` passed: 113 files and 634 tests.
+- `npm run typecheck`, `npm run build`, and `git diff --check` passed.
+
 ## 2026-07-17: 0.1.103 Kimi K3 Deep-Polish Personal Installer
 
 Status: completed.

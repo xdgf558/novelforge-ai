@@ -155,6 +155,11 @@ function parseChapterSuggestion(
   const goal =
     firstBlockLabel(block, ["章节目标", "目标"]) ||
     firstHeadingSection(block, ["章节目标", "目标"]) ||
+    firstHeadingSection(block, ["节拍总览", "章节总览", "章节概览"], {
+      firstParagraphOnly: true,
+    }) ||
+    firstBlockLabel(block, ["核心事件"]) ||
+    firstHeadingSection(block, ["核心事件"]) ||
     "";
   const chapterNumber =
     firstPositiveInteger(firstBlockLabel(block, ["章节号"]) || "") ||
@@ -311,7 +316,13 @@ function markdownTableCells(line: string) {
   return cells;
 }
 
-function firstHeadingSection(text: string, labels: readonly string[]) {
+function firstHeadingSection(
+  text: string,
+  labels: readonly string[],
+  options: {
+    firstParagraphOnly?: boolean;
+  } = {},
+) {
   const lines = text.split(/\r?\n/);
 
   for (let index = 0; index < lines.length; index += 1) {
@@ -341,9 +352,15 @@ function firstHeadingSection(text: string, labels: readonly string[]) {
 
       const cleanedLine = cleanInlineText(nextLine);
 
-      if (cleanedLine) {
-        collected.push(cleanedLine);
+      if (!cleanedLine) {
+        if (options.firstParagraphOnly && collected.length > 0) {
+          break;
+        }
+
+        continue;
       }
+
+      collected.push(cleanedLine);
     }
 
     return collected.join("\n").trim();
