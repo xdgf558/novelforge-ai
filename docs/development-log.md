@@ -1,5 +1,53 @@
 # Development Log
 
+## 2026-07-17: 0.1.103 Kimi K3 Deep-Polish Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged approved PR #77 into `main` at merge commit `30628e6` and bumped the
+  source app/package version from `0.1.102` to `0.1.103`.
+- Rebuilt the arm64 macOS application with Kimi K2.6 retained as the suggested
+  draft route and Kimi K3 available for chapter deep polish and short-story
+  whole review. Connection sharing remains explicit and existing saved K2.6
+  polish routes remain unchanged.
+- `security find-identity` reported no valid code-signing identities. The
+  builder's configured Developer ID attempt again produced an unavailable
+  authority, so the final personal-use payload was explicitly re-signed ad hoc
+  with hardened runtime and the required Electron entitlements. The final PKG
+  is unsigned and unnotarized and is not a Developer ID distribution artifact.
+- Created
+  `release/desktop/NovelForge-AI-0.1.103-mac-arm64.pkg`, targeting
+  `/Applications`, then removed the previous `0.1.102` installer and Electron
+  build intermediates after final verification.
+
+Verification:
+
+- Full `npm test` passed: 113 files and 632 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`,
+  and source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 26 migrations and `prisma/schema.prisma`.
+- The production build inside `npm run desktop:pack:mac` passed. Final PKG
+  metadata reports identifier `com.novelforge.ai`, version `0.1.103`, install
+  location `/Applications`, and matching bundle short/build versions.
+- The staged app, the app expanded from the final PKG, and a second ordinary
+  copy all passed system-level `codesign --verify --deep --strict`. The final
+  app reports `adhoc,runtime` and retains Electron JIT, unsigned executable
+  memory, and disabled library validation entitlements.
+- The packaged `app.asar` contains `runDesktopMigrations` and
+  `migration.sql`, contains no Prisma CLI `migrate deploy` startup path, and
+  the unpacked payload retains all 26 migrations. Packaged-root work-type
+  lifecycle acceptance passed.
+- A real launch from the final expanded payload used an isolated data
+  directory, returned HTTP 200 from the local server, applied all 26
+  migrations, and returned `ok` from SQLite `PRAGMA quick_check`. No real
+  overwrite install into `/Applications` was performed.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the
+  approved personal-use fallback. Final size: `386,360,801` bytes. SHA-256:
+  `6f5e4cad157e67d31e3c31ef094878cb6372bc50c8944c24b642824529ed5c36`.
+
 ## 2026-07-17: Kimi K3 Deep-Polish Routing
 
 Status: completed for review.
@@ -62,6 +110,57 @@ Notes:
   warning and an unmigrated source `.env` database missing `Project.workType`.
   Neither is introduced by this phase; packaged desktop databases continue to
   use the desktop migration runner.
+
+## 2026-07-16: 0.1.102 Long-Form Narrative-Perspective Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged approved PR #76 into `main` at merge commit `452df0d` and bumped the
+  source app/package version from `0.1.101` to `0.1.102`.
+- Rebuilt the arm64 macOS application with author-controlled narrative
+  perspectives available to both serialized novels and short stories. Saved
+  long-form rules now flow through outline, chapter planning, drafting,
+  polishing, segmented polishing, and continuity review while writing-style
+  presets remain independent.
+- `security find-identity` again reported no valid code-signing identities. The
+  builder's configured Developer ID attempt produced an unusable signature
+  (`Authority=(unavailable)`, invalid entitlements, and a Code Signing subsystem
+  error), so the final personal-use payload was explicitly re-signed ad hoc
+  with hardened runtime and the required Electron entitlements. The final PKG
+  is unsigned and unnotarized and must not be represented as a Developer ID
+  distribution artifact.
+- Created
+  `release/desktop/NovelForge-AI-0.1.102-mac-arm64.pkg`, targeting
+  `/Applications`, then removed the previous `0.1.101` installer and Electron
+  build intermediates after final verification.
+
+Verification:
+
+- Full `npm test` passed: 113 files and 628 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 26 migrations and `prisma/schema.prisma`.
+- The production build inside `npm run desktop:pack:mac` passed. Final PKG
+  metadata reports identifier `com.novelforge.ai`, version `0.1.102`, install
+  location `/Applications`, and matching bundle short/build versions.
+- The staged app, the app expanded from the final PKG, and a second ordinary
+  copy all passed system-level `codesign --verify --deep --strict`. The final
+  app reports `adhoc,runtime` and retains Electron JIT, unsigned executable
+  memory, and disabled library validation entitlements.
+- The packaged runtime contains `runDesktopMigrations`, reads bundled
+  `migration.sql`, contains no Prisma CLI `migrate deploy` startup path, and
+  retains all 26 migrations. Packaged-root work-type lifecycle acceptance
+  passed.
+- A real launch from the final expanded payload used an isolated data
+  directory, returned HTTP 200 from the local server, applied all 26
+  migrations, and returned `ok` from SQLite `PRAGMA quick_check`. No real
+  overwrite install into `/Applications` was performed.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the
+  approved personal-use fallback. Final size: `373,810,442` bytes. SHA-256:
+  `427b567bab13a9a7f434fc46e5585aa5d25d0904b965739c521d88158e327008`.
 
 ## 2026-07-16: Long-Form Narrative Perspective
 
