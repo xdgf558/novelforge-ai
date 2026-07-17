@@ -1,5 +1,56 @@
 # Development Log
 
+## 2026-07-17: 0.1.104 Outline Draft Goal Copy Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged the approved outline-draft goal-copy fix into `main` at merge commit
+  `feb1312` and bumped the source app/package version from `0.1.103` to
+  `0.1.104`.
+- Rebuilt the arm64 macOS application. Chapter outline drafts now keep explicit
+  `章节目标` / `目标` fields at highest priority and otherwise copy only the
+  first paragraph of `节拍总览`, `章节总览`, or `章节概览` into the quick-create
+  goal field, with `核心事件` as the final structured fallback.
+- `security find-identity` reported no valid code-signing identities. The
+  builder's configured Developer ID payload verified only in its source build
+  directory and became invalid after an ordinary copy, so the final personal
+  payload was re-signed ad hoc with hardened runtime and the required Electron
+  entitlements. The final PKG is unsigned and unnotarized and is not a
+  Developer ID distribution artifact.
+- Created
+  `release/desktop/NovelForge-AI-0.1.104-mac-arm64.pkg`, targeting
+  `/Applications`, and removed the previous `0.1.103` installer and Electron
+  build intermediates after final verification.
+
+Verification:
+
+- Full `npm test` passed: 113 files and 634 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`,
+  and source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 26 migrations and `prisma/schema.prisma`.
+- The production build inside `npm run desktop:pack:mac` passed. Final PKG
+  metadata reports identifier `com.novelforge.ai`, version `0.1.104`, install
+  location `/Applications`, and matching bundle short/build versions.
+- The ad-hoc-signed staged app, a second ordinary copy, and the app expanded
+  from the final PKG all passed system-level
+  `codesign --verify --deep --strict`. The final app reports `adhoc,runtime`
+  and retains Electron JIT, unsigned executable memory, and disabled library
+  validation entitlements.
+- The packaged `app.asar` reports version `0.1.104`, contains
+  `runDesktopMigrations` and `migration.sql`, contains no Prisma CLI
+  `migrate deploy` startup path, and the unpacked payload retains all 26
+  migrations. Packaged-root work-type lifecycle acceptance passed.
+- A real launch from the final expanded payload used an isolated data
+  directory, returned HTTP 200 from the local server, applied all 26
+  migrations, and returned `ok` from SQLite `PRAGMA quick_check`. No real
+  overwrite install into `/Applications` was performed.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the
+  approved personal-use fallback. Final size: `386,418,036` bytes. SHA-256:
+  `1f0963b4a5c899fa38aaf4e3ee969fc6cfaf5429a4258a8ca987e3ca518d512a`.
+
 ## 2026-07-17: Outline Draft Goal Copy Fallback
 
 Status: completed for review.
