@@ -111,9 +111,12 @@ export function buildOpenAIInputMessages(request: OpenAITextRequest) {
 }
 
 export function buildOpenAIChatCompletionsPayload(request: OpenAITextRequest) {
+  const model = request.model?.trim() || getConfiguredOpenAIModel();
+
   return {
-    model: request.model?.trim() || getConfiguredOpenAIModel(),
+    model,
     messages: buildOpenAIChatMessages(request),
+    ...(isKimiK3Model(model) ? { reasoning_effort: "max" as const } : {}),
   };
 }
 
@@ -340,6 +343,12 @@ function parseOpenAIResponseBody(responseText: string, status: number) {
 
 function shouldUseResponsesApi(baseUrl: string) {
   return baseUrl === DEFAULT_OPENAI_BASE_URL;
+}
+
+function isKimiK3Model(model: string) {
+  const normalized = model.trim().toLowerCase();
+
+  return normalized === "kimi-k3" || normalized.startsWith("kimi-k3-");
 }
 
 function formatOpenAIRequestFailure(

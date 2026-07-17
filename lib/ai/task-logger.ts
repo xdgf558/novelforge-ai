@@ -248,7 +248,8 @@ export function resolveAiTaskExecutionEnv(task: {
 export function resolveAiTaskRequestTimeoutMs(taskType: string) {
   if (
     taskType === "chapter_draft_generation" ||
-    taskType === "chapter_polish_generation"
+    taskType === "chapter_polish_generation" ||
+    taskType === "short_story_whole_review"
   ) {
     return longWritingAiRequestTimeoutMs;
   }
@@ -262,7 +263,6 @@ export function resolveAiTaskRequestTimeoutMs(taskType: string) {
     taskType === "ending_planning_generation" ||
     taskType === "short_story_blueprint_generation" ||
     taskType === "short_story_unit_plan_generation" ||
-    taskType === "short_story_whole_review" ||
     taskType === "pending_update_extraction"
   ) {
     return longPlanningAiRequestTimeoutMs;
@@ -358,7 +358,8 @@ function isAiTaskModelRouteTaskType(
 ): taskType is AiTaskModelRouteTaskType {
   return (
     taskType === "chapter_draft_generation" ||
-    taskType === "chapter_polish_generation"
+    taskType === "chapter_polish_generation" ||
+    taskType === "short_story_whole_review"
   );
 }
 

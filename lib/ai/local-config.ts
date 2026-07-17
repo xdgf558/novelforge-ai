@@ -14,6 +14,7 @@ export type AiRuntimeEnv = {
   CHAPTER_POLISH_API_KEY?: string;
   CHAPTER_POLISH_MODEL?: string;
   CHAPTER_POLISH_BASE_URL?: string;
+  CHAPTER_POLISH_USE_DRAFT_CONNECTION?: string;
   IMAGE_API_KEY?: string;
   IMAGE_API_BASE_URL?: string;
   IMAGE_MODEL?: string;
@@ -62,7 +63,8 @@ export type SaveAiConnectionSettingsInput = {
 
 export type AiTaskModelRouteTaskType =
   | "chapter_draft_generation"
-  | "chapter_polish_generation";
+  | "chapter_polish_generation"
+  | "short_story_whole_review";
 
 export type AiTaskModelRouteSettings = {
   configPath: string;
@@ -81,6 +83,8 @@ export type AiTaskModelRouteSetting = {
   model: string;
   baseUrl: string;
   isActive: boolean;
+  useDraftConnection: boolean;
+  isUsingSharedConnection: boolean;
   source: "file" | "environment" | "default";
 };
 
@@ -101,6 +105,7 @@ export type SaveAiTaskModelRouteSettingsInput = {
   clearPolishApiKey?: boolean;
   polishModel?: string | null;
   polishBaseUrl?: string | null;
+  polishUseDraftConnection?: boolean;
 };
 
 export type NetworkProxySettings = {
@@ -227,6 +232,7 @@ export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 export const DEFAULT_KIMI_API_BASE_URL = "https://api.moonshot.cn/v1";
 export const DEFAULT_KIMI_K2_6_MODEL = "kimi-k2.6";
+export const DEFAULT_KIMI_K3_MODEL = "kimi-k3";
 export const DEFAULT_IMAGE_API_BASE_URL = "https://api.ppq.ai/v1";
 export const DEFAULT_IMAGE_MODEL = "qwen-image-2";
 export const DEFAULT_IMAGE_SIZE = "default";
@@ -261,6 +267,7 @@ export const aiTaskRouteConfigKeys = [
   "CHAPTER_POLISH_API_KEY",
   "CHAPTER_POLISH_MODEL",
   "CHAPTER_POLISH_BASE_URL",
+  "CHAPTER_POLISH_USE_DRAFT_CONNECTION",
 ] as const;
 export const imageConfigKeys = [
   "IMAGE_API_KEY",
@@ -448,8 +455,14 @@ export function saveAiTaskModelRouteSettings(
     CHAPTER_DRAFT_MODEL: normalizeKimiModel(input.draftModel),
     CHAPTER_DRAFT_BASE_URL: normalizeKimiBaseUrl(input.draftBaseUrl),
     CHAPTER_POLISH_API_KEY: nextPolishApiKey,
-    CHAPTER_POLISH_MODEL: normalizeKimiModel(input.polishModel),
+    CHAPTER_POLISH_MODEL: normalizeKimiModelForTaskType(
+      input.polishModel,
+      "chapter_polish_generation",
+    ),
     CHAPTER_POLISH_BASE_URL: normalizeKimiBaseUrl(input.polishBaseUrl),
+    CHAPTER_POLISH_USE_DRAFT_CONNECTION: input.polishUseDraftConnection
+      ? "1"
+      : "0",
   };
 
   writeLocalConfigFile(configPath, nextEnv, aiTaskRouteConfigKeys);
@@ -460,6 +473,8 @@ export function saveAiTaskModelRouteSettings(
   process.env.CHAPTER_POLISH_API_KEY = nextPolishApiKey || "";
   process.env.CHAPTER_POLISH_MODEL = nextEnv.CHAPTER_POLISH_MODEL;
   process.env.CHAPTER_POLISH_BASE_URL = nextEnv.CHAPTER_POLISH_BASE_URL;
+  process.env.CHAPTER_POLISH_USE_DRAFT_CONNECTION =
+    nextEnv.CHAPTER_POLISH_USE_DRAFT_CONNECTION;
 
   return readAiTaskModelRouteSettings(env);
 }
@@ -1345,7 +1360,14 @@ function detectAiTaskRouteSource(
   env: AiRuntimeEnv,
 ) {
   const keys = routeConfigKeysForTaskType(taskType);
-  const routeKeys = [keys.apiKey, keys.model, keys.baseUrl] as const;
+  const routeKeys = [
+    keys.apiKey,
+    keys.model,
+    keys.baseUrl,
+    ...(isPolishRouteTaskType(taskType)
+      ? (["CHAPTER_POLISH_USE_DRAFT_CONNECTION"] as const)
+      : []),
+  ] as const;
 
   if (routeKeys.some((key) => fileEnv[key]?.trim())) {
     return "file";
@@ -1481,7 +1503,8 @@ function isAiTaskModelRouteTaskType(
 ): taskType is AiTaskModelRouteTaskType {
   return (
     taskType === "chapter_draft_generation" ||
-    taskType === "chapter_polish_generation"
+    taskType === "chapter_polish_generation" ||
+    taskType === "short_story_whole_review"
   );
 }
 
@@ -1496,16 +1519,18 @@ function readAiTaskModelRouteSetting(
     ...compactAiTaskRouteEnv(fileEnv),
   };
   const keys = routeConfigKeysForTaskType(taskType);
-  const apiKey = runtimeEnv[keys.apiKey]?.trim() ?? "";
+  const connection = resolveAiTaskRouteConnection(taskType, runtimeEnv);
 
   return {
     taskType,
     label: aiTaskModelRouteLabel(taskType),
-    hasApiKey: Boolean(apiKey),
-    maskedApiKey: maskSecret(apiKey),
-    model: normalizeKimiModel(runtimeEnv[keys.model]),
-    baseUrl: normalizeKimiBaseUrl(runtimeEnv[keys.baseUrl]),
-    isActive: Boolean(apiKey),
+    hasApiKey: Boolean(connection.apiKey),
+    maskedApiKey: maskSecret(connection.apiKey),
+    model: normalizeKimiModelForTaskType(runtimeEnv[keys.model], taskType),
+    baseUrl: normalizeKimiBaseUrl(connection.baseUrl),
+    isActive: Boolean(connection.apiKey),
+    useDraftConnection: connection.useDraftConnection,
+    isUsingSharedConnection: connection.isUsingSharedConnection,
     source: detectAiTaskRouteSource(taskType, fileEnv, env),
   };
 }
@@ -1520,9 +1545,8 @@ function readRouteApiKey(
     ...env,
     ...compactAiTaskRouteEnv(fileEnv),
   };
-  const keys = routeConfigKeysForTaskType(taskType);
 
-  return runtimeEnv[keys.apiKey]?.trim() ?? "";
+  return resolveAiTaskRouteConnection(taskType, runtimeEnv).apiKey;
 }
 
 function routeConfigKeysForTaskType(taskType: AiTaskModelRouteTaskType) {
@@ -1541,10 +1565,68 @@ function routeConfigKeysForTaskType(taskType: AiTaskModelRouteTaskType) {
   } as const;
 }
 
+function resolveAiTaskRouteConnection(
+  taskType: AiTaskModelRouteTaskType,
+  runtimeEnv: AiRuntimeEnv,
+) {
+  const keys = routeConfigKeysForTaskType(taskType);
+  const dedicatedApiKey = runtimeEnv[keys.apiKey]?.trim() ?? "";
+  const useDraftConnection =
+    isPolishRouteTaskType(taskType) &&
+    normalizeBooleanConfig(runtimeEnv.CHAPTER_POLISH_USE_DRAFT_CONNECTION);
+  const isUsingSharedConnection = useDraftConnection && !dedicatedApiKey;
+
+  if (isUsingSharedConnection) {
+    return {
+      apiKey: runtimeEnv.CHAPTER_DRAFT_API_KEY?.trim() ?? "",
+      baseUrl: runtimeEnv.CHAPTER_DRAFT_BASE_URL,
+      useDraftConnection,
+      isUsingSharedConnection,
+    };
+  }
+
+  return {
+    apiKey: dedicatedApiKey,
+    baseUrl: runtimeEnv[keys.baseUrl],
+    useDraftConnection,
+    isUsingSharedConnection: false,
+  };
+}
+
+function normalizeKimiModelForTaskType(
+  model: string | null | undefined,
+  taskType: AiTaskModelRouteTaskType,
+) {
+  const normalized = model?.trim();
+
+  if (normalized) {
+    return normalized;
+  }
+
+  return isPolishRouteTaskType(taskType)
+    ? DEFAULT_KIMI_K3_MODEL
+    : DEFAULT_KIMI_K2_6_MODEL;
+}
+
+function isPolishRouteTaskType(taskType: AiTaskModelRouteTaskType) {
+  return (
+    taskType === "chapter_polish_generation" ||
+    taskType === "short_story_whole_review"
+  );
+}
+
+function normalizeBooleanConfig(value?: string | null) {
+  return ["1", "true", "yes", "on"].includes(value?.trim().toLowerCase() ?? "");
+}
+
 function aiTaskModelRouteLabel(taskType: AiTaskModelRouteTaskType) {
   if (taskType === "chapter_draft_generation") {
     return "章节草稿生成";
   }
 
-  return "正文精修";
+  if (taskType === "short_story_whole_review") {
+    return "整篇审校";
+  }
+
+  return "正文精修与整篇审校";
 }

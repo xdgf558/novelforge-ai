@@ -16,6 +16,7 @@ import {
 import { AutoRefresh } from "@/components/auto-refresh";
 import { FormActionButton } from "@/components/form-action-button";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
+import { getAiRuntimeEnvForTaskType } from "@/lib/ai/local-config";
 import {
   parseShortStoryWholeReviewOutput,
   shortStoryWholeReviewMinimumUnits,
@@ -128,8 +129,11 @@ export default async function ShortStoryWholeReviewPage({
     0,
   );
   const hasActiveTask = tasks.some((task) => isActiveAiTaskStatus(task.status));
+  const hasWholeReviewApiKey = hasConfiguredOpenAIKey(
+    getAiRuntimeEnvForTaskType(shortStoryWholeReviewTaskType),
+  );
   const canGenerate =
-    hasConfiguredOpenAIKey() &&
+    hasWholeReviewApiKey &&
     hasShortStoryBlueprintContent(project.shortStoryBlueprint) &&
     confirmedUnits.length >= shortStoryWholeReviewMinimumUnits &&
     !hasActiveTask;
@@ -197,7 +201,7 @@ export default async function ShortStoryWholeReviewPage({
         </p>
       ) : null}
 
-      {!hasConfiguredOpenAIKey() ? (
+      {!hasWholeReviewApiKey ? (
         <ReadinessNote text="未配置 API Key，暂不能运行整篇审校。已有建议仍可继续处理。" />
       ) : !hasShortStoryBlueprintContent(project.shortStoryBlueprint) ? (
         <ReadinessNote text="请先建立正式短故事蓝图，整篇审校才能核对开篇承诺、反转链和必须兑现项。" />
