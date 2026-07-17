@@ -172,6 +172,60 @@ describe("outline draft copy helpers", () => {
     });
   });
 
+  it("uses the first beat-overview paragraph when a chapter draft omits an explicit goal", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary:
+        "《照夜寒舟录》章节大纲生成；已有大纲 27 条；角色 12 个；已有章节 5 个；目标第 24 章；固定 1 条章节大纲",
+      outputText: `
+# 第24章《酉位移库》章节大纲草案
+
+**状态：待作者审核，未写入正式故事记忆**
+
+---
+
+## 节拍总览
+
+本章承接第23章结尾沈照夜与裴寒舟识破崔晏的布局，近午时分做出三入宗正寺后仓的决定，目标锁定酉位架第七格的移库令底档。
+
+核心场景压缩在天黑后一个时辰内，关键转折发生在酉位架第七格。
+
+章末以灰衣人换防提前的脚步声收束，为下一章埋下钩子。
+
+---
+
+## 节拍序列
+
+### 节拍一：三入后仓
+沈裴二人确认行动路线。
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "chapter",
+      title: "酉位移库",
+      goal:
+        "本章承接第23章结尾沈照夜与裴寒舟识破崔晏的布局，近午时分做出三入宗正寺后仓的决定，目标锁定酉位架第七格的移库令底档。",
+      chapterNumber: 24,
+    });
+  });
+
+  it("prefers an explicit chapter goal over the beat-overview fallback", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary: "《照夜寒舟录》章节大纲生成；目标第 24 章",
+      outputText: `
+# 第24章《酉位移库》章节大纲草案
+
+**目标：** 取得酉位架第七格的移库令底档。
+
+## 节拍总览
+
+这里是更长的章节背景与节拍说明。
+`,
+    });
+
+    expect(suggestion?.goal).toBe("取得酉位架第七格的移库令底档。");
+  });
+
   it("does not treat ordinary chapter-related section headings as chapter titles", () => {
     const suggestion = parseOutlineDraftCopySuggestion({
       inputContextSummary:
