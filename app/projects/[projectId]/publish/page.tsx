@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
-  CheckCircle2,
   Download,
   FileJson,
   FileText,
@@ -11,45 +10,26 @@ import {
   type LucideIcon,
   KeyRound,
   PackageCheck,
-  Sparkles,
   Trash2,
   UploadCloud,
-  XCircle,
 } from "lucide-react";
 import {
-  adoptGeneratedProjectCover,
-  generateProjectCoverImage,
   generateWechatLayoutCandidates,
   prepareGlobalStationCatPublishRun,
   preparePublishRun,
-  rejectGeneratedProjectCover,
   removeProjectCover,
   savePublishTarget,
   uploadProjectCover,
 } from "@/app/projects/[projectId]/publish/actions";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { CopyExportPanel } from "@/components/copy-export-panel";
-import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import { PublishSubmitButton } from "@/components/publish-submit-button";
 import { FanqieLayoutExportPanel } from "@/components/publish/fanqie-layout-export-panel";
 import { WechatLayoutExportPanel } from "@/components/publish/wechat-layout-export-panel";
-import { expireStaleCoverImageTasks } from "@/lib/ai/cover-image-task-maintenance";
-import {
-  readImageGenerationSettings,
-  readStationCatPublishSettings,
-} from "@/lib/ai/local-config";
+import { readStationCatPublishSettings } from "@/lib/ai/local-config";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
 import { hasConfirmedChapterText } from "@/lib/ai/chapter-summaries";
-import {
-  aiTaskAdoptionLabel,
-  aiTaskStatusLabel,
-  isActiveAiTaskStatus,
-} from "@/lib/ai/status";
-import {
-  coverImageGenerationTaskType,
-  coverImageTargets,
-  parseCoverImageTaskOutput,
-} from "@/lib/ai/cover-images";
+import { isActiveAiTaskStatus } from "@/lib/ai/status";
 import { wechatLayoutCandidateTaskType } from "@/lib/ai/wechat-layout-candidates";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
@@ -85,7 +65,6 @@ type PublishPageProps = {
     projectId: string;
   }>;
   searchParams?: Promise<{
-    coverImageError?: string;
     fanqieChapterId?: string | string[];
     wechatChapterId?: string;
   }>;
@@ -97,8 +76,6 @@ export default async function PublishPage({
 }: PublishPageProps) {
   const { projectId } = await params;
   const resolvedSearchParams = await searchParams;
-
-  await expireStaleCoverImageTasks(projectId);
 
   const project = await prisma.project.findUnique({
     where: {
@@ -112,7 +89,6 @@ export default async function PublishPage({
   }
 
   const hasApiKey = hasConfiguredOpenAIKey();
-  const imageSettings = readImageGenerationSettings();
   const stationCatSettings = readStationCatPublishSettings();
   const canUseGlobalStationCat = Boolean(
     stationCatSettings.apiBaseUrl && stationCatSettings.hasToken,
@@ -125,14 +101,7 @@ export default async function PublishPage({
     publishPackageForExport,
   );
   const cover = publishPackageForExport.cover;
-  const coverPromptDefault =
-    cover.prompt ||
-    project.description ||
-    project.title;
   const baseFilename = safeFilename(project.title || "novelforge-project");
-  const coverImageTasks = project.aiTasks
-    .filter((task) => task.taskType === coverImageGenerationTaskType)
-    .slice(0, 5);
   const wechatLayoutCandidateTasks = project.aiTasks
     .filter((task) => task.taskType === wechatLayoutCandidateTaskType)
     .slice(0, 12)
@@ -147,9 +116,6 @@ export default async function PublishPage({
       promptTemplate: task.promptTemplate,
       status: task.status,
     }));
-  const hasActiveCoverImageTask = coverImageTasks.some((task) =>
-    isActiveAiTaskStatus(task.status),
-  );
   const hasActiveWechatLayoutCandidateTask = wechatLayoutCandidateTasks.some(
     (task) => isActiveAiTaskStatus(task.status),
   );
@@ -190,10 +156,7 @@ export default async function PublishPage({
   return (
     <div className="min-w-0 space-y-4">
       <AutoRefresh
-        enabled={
-          hasActiveCoverImageTask ||
-          hasActiveWechatLayoutCandidateTask
-        }
+        enabled={hasActiveWechatLayoutCandidateTask}
       />
 
       <Link
@@ -280,7 +243,7 @@ export default async function PublishPage({
 
           <div className="space-y-3">
             <h2 className="text-base font-semibold text-ink-950">
-              上传或生成封面
+              上传封面
             </h2>
 
             <div className="grid gap-2 text-sm text-ink-700 sm:grid-cols-4">
@@ -342,134 +305,6 @@ export default async function PublishPage({
                 ) : null}
               </div>
             </form>
-
-            <div className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
-              <div className="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-ink-950">
-                    AI 生成封面候选图
-                  </h2>
-                  <p className="mt-1 text-xs leading-5 text-ink-700">
-                    生成结果只作为候选图展示。点击“采用为封面”后，才会写入项目封面并随 Station Cat 发布包上传。
-                  </p>
-                </div>
-                <Link
-                  className="inline-flex min-h-9 items-center justify-center rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                  href="/ai-settings"
-                >
-                  图片模型设置
-                </Link>
-              </div>
-
-              <div className="mt-3 grid gap-2 text-sm text-ink-700 sm:grid-cols-2">
-                <InfoBlock compact label="图片模型" value={imageSettings.model} />
-                <InfoBlock
-                  compact
-                  label="图片 API"
-                  value={
-                    imageSettings.hasApiKey
-                      ? `${imageSettings.apiBaseUrl} / ${imageSettings.maskedApiKey}`
-                      : "未配置"
-                  }
-                />
-              </div>
-
-              {coverImageErrorMessage(resolvedSearchParams?.coverImageError) ? (
-                <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-6 text-red-700">
-                  {coverImageErrorMessage(resolvedSearchParams?.coverImageError)}
-                </p>
-              ) : null}
-
-              {!imageSettings.hasApiKey ? (
-                <p className="mt-3 rounded-md bg-white px-3 py-2 text-sm leading-6 text-ink-700">
-                  未配置图片生成 API Key，暂不能生成新的封面图。你仍然可以上传本机封面。
-                </p>
-              ) : null}
-
-              <PreserveScrollForm
-                action={generateProjectCoverImage.bind(null, project.id)}
-                className="mt-4 grid gap-3"
-                preserveKey={`cover-image-generation-${project.id}`}
-                statusText="已开始生成封面候选图，页面会留在当前位置并自动刷新结果。"
-              >
-                <label className="space-y-1.5">
-                  <span className="text-xs font-semibold text-ink-700">
-                    封面提示词
-                  </span>
-                  <textarea
-                    className="min-h-20 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm leading-6 text-ink-950"
-                    defaultValue={coverPromptDefault}
-                    maxLength={3000}
-                    name="coverPrompt"
-                    placeholder="可复用已有封面提示词，也可以手动改写。"
-                  />
-                </label>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-semibold text-ink-700">
-                      用途
-                    </span>
-                    <select
-                      className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-                      defaultValue="book_cover"
-                      name="coverTarget"
-                    >
-                      {coverImageTargets.map((target) => (
-                        <option key={target.key} value={target.key}>
-                          {target.label} / {target.aspectRatio}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-semibold text-ink-700">
-                      候选图数量
-                    </span>
-                    <select
-                      className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-                      defaultValue="1"
-                      name="imageCount"
-                    >
-                      {[1, 2, 3, 4].map((count) => (
-                        <option key={count} value={count}>
-                          {count} 张
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    className={`inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md px-3 py-2 text-sm font-semibold transition ${
-                      imageSettings.hasApiKey && !hasActiveCoverImageTask
-                        ? "bg-ink-950 text-white hover:bg-ink-800"
-                        : "cursor-not-allowed border border-ink-950/15 bg-white text-ink-700"
-                    }`}
-                    disabled={!imageSettings.hasApiKey || hasActiveCoverImageTask}
-                    type="submit"
-                  >
-                    <Sparkles aria-hidden="true" className="h-4 w-4" />
-                    {hasActiveCoverImageTask ? "生成中" : "生成候选图"}
-                  </button>
-                </div>
-              </PreserveScrollForm>
-
-              {coverImageTasks.length > 0 ? (
-                <details className="mt-4 rounded-lg border border-ink-950/10 bg-white p-3">
-                  <summary className="cursor-pointer text-sm font-semibold text-ink-950">
-                    最近封面生成任务（{formatNumber(coverImageTasks.length)}）
-                  </summary>
-                  <div className="mt-3 space-y-3">
-                    {coverImageTasks.map((task) => (
-                      <CoverImageTaskCard
-                        key={task.id}
-                        projectId={project.id}
-                        projectTitle={project.title}
-                        task={task}
-                      />
-                    ))}
-                  </div>
-                </details>
-              ) : null}
-            </div>
           </div>
         </div>
       </section>
@@ -913,18 +748,6 @@ function InfoTile({
   );
 }
 
-type CoverImageTaskRecord = {
-  adoptionState?: string | null;
-  createdAt: Date;
-  errorMessage?: string | null;
-  id: string;
-  inputContextSummary?: string | null;
-  model?: string | null;
-  outputJson?: string | null;
-  outputText?: string | null;
-  status?: string | null;
-};
-
 function PublishRunFormControls({
   canSubmit,
   chapters,
@@ -1016,127 +839,6 @@ function PublishRunFormControls({
   );
 }
 
-function CoverImageTaskCard({
-  projectId,
-  projectTitle,
-  task,
-}: {
-  projectId: string;
-  projectTitle: string;
-  task: CoverImageTaskRecord;
-}) {
-  const output = parseCoverImageTaskOutput(task.outputJson);
-  const images = output?.images ?? [];
-  const canAdopt =
-    task.status === "completed" &&
-    task.adoptionState === "not_reviewed" &&
-    images.length > 0;
-
-  return (
-    <article className="rounded-lg border border-ink-950/10 bg-white p-3">
-      <div className="flex flex-col gap-2 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
-            <span className="rounded-md bg-paper-100 px-2 py-0.5">
-              {aiTaskStatusLabel(task.status)}
-            </span>
-            <span className="rounded-md bg-paper-100 px-2 py-0.5">
-              {aiTaskAdoptionLabel(task.adoptionState)}
-            </span>
-            <span>{formatDate(task.createdAt)}</span>
-          </div>
-          <p className="mt-1.5 text-sm font-semibold text-ink-950">
-            {task.model || "未记录模型"} / 封面图生成
-          </p>
-          <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-700">
-            {task.inputContextSummary || "暂无上下文摘要。"}
-          </p>
-          {task.outputText ? (
-            <p className="mt-1 line-clamp-2 text-xs leading-5 text-ink-700">
-              {task.outputText}
-            </p>
-          ) : null}
-          {task.errorMessage ? (
-            <p className="mt-1 text-xs leading-5 text-red-700">
-              {task.errorMessage}
-            </p>
-          ) : null}
-        </div>
-
-        {canAdopt ? (
-          <form action={rejectGeneratedProjectCover.bind(null, projectId, task.id)}>
-            <button
-              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
-              type="submit"
-            >
-              <XCircle aria-hidden="true" className="h-4 w-4" />
-              拒绝整组
-            </button>
-          </form>
-        ) : null}
-      </div>
-
-      {images.length > 0 ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {images.map((image, index) => {
-            const previewSrc = coverImagePreviewSrc(projectId, image);
-            const canAdoptImage = canAdopt && Boolean(previewSrc);
-
-            return (
-              <div
-                className="rounded-lg border border-ink-950/10 bg-paper-50 p-2"
-                key={`${task.id}:${index}`}
-              >
-                {previewSrc ? (
-                  <img
-                    alt={`封面候选图 ${index + 1}`}
-                    className="aspect-[2/3] w-full rounded-md bg-white object-cover"
-                    src={previewSrc}
-                  />
-                ) : (
-                  <div className="flex aspect-[2/3] items-center justify-center rounded-md bg-white p-3 text-center text-xs text-ink-700">
-                    候选图资产不可预览，请重新生成。
-                  </div>
-                )}
-                {image.revisedPrompt ? (
-                  <p className="mt-2 line-clamp-3 text-xs leading-5 text-ink-700">
-                    {image.revisedPrompt}
-                  </p>
-                ) : null}
-                {canAdoptImage ? (
-                  <form
-                    action={adoptGeneratedProjectCover.bind(
-                      null,
-                      projectId,
-                      task.id,
-                    )}
-                    className="mt-3 space-y-2"
-                  >
-                    <input name="imageIndex" type="hidden" value={index} />
-                    <input
-                      className="min-h-10 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950"
-                      defaultValue={projectTitle}
-                      name="coverAltText"
-                      placeholder="封面说明"
-                    />
-                    <button
-                      className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md bg-ink-950 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-ink-800"
-                      type="submit"
-                    >
-                      <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-                      采用为封面
-                    </button>
-                  </form>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
 function InfoBlock({
   compact = false,
   expandable = false,
@@ -1192,38 +894,6 @@ function InfoBlock({
       </p>
     </div>
   );
-}
-
-function coverImagePreviewSrc(
-  projectId: string,
-  image: {
-  assetPath?: string | null;
-  mimeType?: string | null;
-},
-) {
-  if (!image.assetPath || !image.mimeType) {
-    return null;
-  }
-
-  return `/projects/${projectId}/cover-assets?assetPath=${encodeURIComponent(
-    image.assetPath,
-  )}`;
-}
-
-function coverImageErrorMessage(error?: string | null) {
-  if (error === "missingImageApiKey") {
-    return "图片生成 API Key 尚未配置，请先到本机接入设置里填写。";
-  }
-
-  if (error === "missingGeneratedImage") {
-    return "没有找到可采用的封面候选图，请重新生成。";
-  }
-
-  if (error === "invalidPrompt") {
-    return "封面提示词不能超过 3000 字，请缩短后重新生成。";
-  }
-
-  return null;
 }
 
 function ResultLink({

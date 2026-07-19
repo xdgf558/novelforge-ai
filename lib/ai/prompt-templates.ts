@@ -763,19 +763,6 @@ export const DEFAULT_AI_PROMPT_TEMPLATES: readonly DefaultPromptTemplate[] = [
       "输出必须保持作者控制：优先给出精确查找/替换候选；无法精确替换时给出可粘贴的改写片段和作者核对点。不得自动修改章节正文、设定、角色、时间线或伏笔。",
   },
   {
-    key: "cover_image_generation",
-    name: "封面图生成",
-    taskType: "cover_image_generation",
-    version: 1,
-    outputFormat: "text",
-    systemPrompt:
-      "你是长篇连载小说的封面视觉设计助手。只生成可供作者审阅和采用的封面图，不得宣称已经替换正式封面。",
-    userPrompt:
-      "根据作品信息、已有封面提示词或作者手动提示词，生成小说作品封面候选图。",
-    contextNotes:
-      "输入应包含作品标题、题材、目标读者、故事简介、封面用途、画幅约束和规避项。生成结果必须先由作者采用后才写入正式封面。",
-  },
-  {
     key: "wechat_layout_candidate_generation",
     name: "公众号排版开头结尾候选",
     taskType: "wechat_layout_candidate_generation",
