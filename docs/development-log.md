@@ -1,5 +1,46 @@
 # Development Log
 
+## 2026-07-19: Retire AI Cover Image Generation
+
+Status: completed.
+
+Scope:
+
+- Remove the currently unused AI book-cover generation workflow while keeping
+  author-supplied cover assets and Station Cat cover publishing intact.
+
+What was done:
+
+- Removed the publish-page image-model status, prompt, target, candidate-count,
+  generation button, candidate history, adoption, and rejection controls.
+- Removed the callable server actions that created image tasks or adopted and
+  rejected generated candidates.
+- Removed the image-generation settings card, summary tiles, save action, and
+  result banners from `/ai-settings`.
+- Removed `cover_image_generation` from the shipped default prompt templates
+  and hid any historical cover-generation template from the prompt-template
+  workspace.
+- Kept local cover preview, upload, replacement, deletion, file validation,
+  project cover metadata, exports, and Station Cat payload behavior unchanged.
+- Kept historical AI task records and candidate-asset cleanup compatibility so
+  existing local databases and backups are not destructively rewritten.
+
+Verification:
+
+- `npm run test` passed, 112 files and 631 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Local HTTP smoke against a current database snapshot passed:
+  - `/ai-settings` returned 200 without image model/API controls,
+  - `/projects/[projectId]/publish` returned 200 with manual `上传封面`,
+  - neither page contained the cover-generation panel or image settings.
+
+Notes:
+
+- Existing `IMAGE_*` values may remain dormant in a user's local `.env`; the UI
+  no longer exposes or uses them.
+- Reintroducing AI cover generation requires a new explicit product decision.
+
 ## 2026-07-17: 0.1.104 Outline Draft Goal Copy Personal Installer
 
 Status: completed.

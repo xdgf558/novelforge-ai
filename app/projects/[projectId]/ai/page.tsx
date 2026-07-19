@@ -72,6 +72,9 @@ export default async function AiWorkspacePage({
     prisma.aiPromptTemplate.findMany({
       where: {
         projectId,
+        key: {
+          not: "cover_image_generation",
+        },
       },
       orderBy: [
         {
@@ -267,7 +270,7 @@ export default async function AiWorkspacePage({
             AI 任务记录
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-            管理提示词模板和 AI 调用审计记录。后续大纲草案、人物生成、人物关系草案、章节节拍、草稿、正文精修、摘要、连续性检查、公众号排版候选和封面图生成都会从这里追踪。
+            管理提示词模板和 AI 调用审计记录。后续大纲草案、人物生成、人物关系草案、章节节拍、草稿、正文精修、摘要、连续性检查和公众号排版候选都会从这里追踪。
           </p>
         </div>
 

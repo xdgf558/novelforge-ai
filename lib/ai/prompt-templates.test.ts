@@ -32,7 +32,6 @@ describe("default AI prompt templates", () => {
         "continuity_check",
         "continuity_fix_patch_generation",
         "storyline_generation",
-        "cover_image_generation",
       ]),
     );
   });
