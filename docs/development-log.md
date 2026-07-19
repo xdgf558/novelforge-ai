@@ -1,5 +1,54 @@
 # Development Log
 
+## 2026-07-19: 0.1.105 AI Cover Generation Retirement Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged the approved AI cover-generation retirement into `main` at merge
+  commit `22cc53c` and bumped the source app/package version from `0.1.104` to
+  `0.1.105`.
+- Rebuilt the arm64 macOS application with AI cover generation and its settings
+  removed while retaining manual cover upload, replacement, deletion, preview,
+  export metadata, and Station Cat publishing.
+- `security find-identity` reported no valid code-signing identities. The
+  builder found an unavailable historical Developer ID identity, so the final
+  personal payload was explicitly re-signed ad hoc with hardened runtime and
+  the required Electron entitlements. The final PKG is unsigned and
+  unnotarized and is not a Developer ID distribution artifact.
+- Created
+  `release/desktop/NovelForge-AI-0.1.105-mac-arm64.pkg`, targeting
+  `/Applications`, and removed the previous `0.1.104` installer plus Electron
+  build intermediates after final verification. The release directory now
+  contains only the new versioned PKG.
+
+Verification:
+
+- Full `npm run test` passed: 112 files and 631 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported an empty
+  migration between all 26 migrations and `prisma/schema.prisma`.
+- The production build inside `npm run desktop:pack:mac` passed. Final PKG
+  metadata reports identifier `com.novelforge.ai`, version `0.1.105`, install
+  location `/Applications`, and matching bundle short/build versions.
+- The ad-hoc-signed staged app, a second ordinary copy, and the app expanded
+  from the final PKG all passed system-level
+  `codesign --verify --deep --strict`. The final app reports `adhoc,runtime`
+  and retains Electron JIT, unsigned executable memory, and disabled library
+  validation entitlements.
+- The packaged resources report version `0.1.105`, contain all 26 migrations
+  and the runtime migration path, and contain no Prisma CLI `migrate deploy`
+  startup path. Packaged-root work-type lifecycle acceptance passed.
+- An isolated launch from the final expanded payload returned HTTP 200 from
+  the local server, applied all 26 migrations, and returned `ok` from SQLite
+  `PRAGMA quick_check`. No real overwrite install into `/Applications` was
+  performed.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the
+  approved personal-use fallback. Final size: `390,138,338` bytes. SHA-256:
+  `cc7b226d941b196040236a1e6d3a82b9fd12a7225c5e298d32b97bf6e2dd9d79`.
+
 ## 2026-07-19: Retire AI Cover Image Generation
 
 Status: completed.

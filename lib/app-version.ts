@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.75 番茄草稿精修模板";
+export const appReleaseTitle = "0.1.105 下线 AI 书籍封面生成";
 
 export const appReleaseNotes = [
-  "章节草稿生成新增目标平台选择，可在通用连载和番茄小说模板之间切换。",
-  "正文精修新增同样的目标平台选择；番茄模板会强化开篇钩子、爽点反转、短段落和章末追读感。",
-  "平台模板只影响新的 AI 任务上下文和任务记录，不会自动改写正式正文或上传到番茄。",
+  "项目发布页不再提供 AI 封面候选图生成，界面更简洁。",
+  "设置页移除封面图片模型、接口和密钥配置。",
+  "手动上传、替换、删除封面及 Station Cat 发布能力保持不变。",
 ];
