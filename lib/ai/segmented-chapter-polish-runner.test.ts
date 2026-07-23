@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   createOpenAITextResponse: vi.fn(),
   markAiTaskCompleted: vi.fn(),
   markAiTaskFailed: vi.fn(),
+  createAiTaskStreamHeartbeat: vi.fn(),
   resolveAiTaskExecutionEnv: vi.fn(),
   resolveAiTaskRequestTimeoutMs: vi.fn(),
 }));
@@ -33,6 +34,7 @@ vi.mock("@/lib/ai/openai-client", () => ({
 }));
 
 vi.mock("@/lib/ai/task-logger", () => ({
+  createAiTaskStreamHeartbeat: mocks.createAiTaskStreamHeartbeat,
   markAiTaskCompleted: mocks.markAiTaskCompleted,
   markAiTaskFailed: mocks.markAiTaskFailed,
   resolveAiTaskExecutionEnv: mocks.resolveAiTaskExecutionEnv,
@@ -125,6 +127,7 @@ describe("completeRunningSegmentedChapterPolishTask", () => {
     mockChapter();
     mocks.markAiTaskCompleted.mockResolvedValue({});
     mocks.markAiTaskFailed.mockResolvedValue({});
+    mocks.createAiTaskStreamHeartbeat.mockReturnValue(vi.fn());
     mocks.resolveAiTaskExecutionEnv.mockReturnValue({
       OPENAI_API_KEY: "kimi-key",
       OPENAI_MODEL: "kimi-k2.6",
@@ -189,6 +192,8 @@ describe("completeRunningSegmentedChapterPolishTask", () => {
           OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
         },
         timeoutMs: 600000,
+        stream: true,
+        onStreamProgress: expect.any(Function),
       },
     );
     expect(mocks.createOpenAITextResponse).toHaveBeenNthCalledWith(

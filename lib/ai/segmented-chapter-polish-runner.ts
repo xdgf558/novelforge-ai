@@ -10,6 +10,7 @@ import {
 } from "@/lib/ai/chapter-platform-templates";
 import { createOpenAITextResponse } from "@/lib/ai/openai-client";
 import {
+  createAiTaskStreamHeartbeat,
   markAiTaskCompleted,
   markAiTaskFailed,
   resolveAiTaskExecutionEnv,
@@ -134,6 +135,7 @@ async function runSegmentedChapterPolishTask(
   let tokenInput = 0;
   let tokenOutput = 0;
   let tokenTotal = 0;
+  const onStreamProgress = createAiTaskStreamHeartbeat(task.id);
 
   for (const segment of context.segments) {
     const result = await createOpenAITextResponse({
@@ -144,6 +146,8 @@ async function runSegmentedChapterPolishTask(
     }, {
       env: resolveAiTaskExecutionEnv(task),
       timeoutMs: resolveAiTaskRequestTimeoutMs(task.taskType),
+      stream: true,
+      onStreamProgress,
     });
     const outputText = cleanSegmentedPolishOutput(result.outputText);
 

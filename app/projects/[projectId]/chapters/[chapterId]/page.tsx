@@ -432,19 +432,9 @@ async function expireStaleChapterAiTasks(projectId: string, chapterId: string) {
       status: {
         in: [...activeAiTaskStatuses],
       },
-      OR: [
-        {
-          startedAt: {
-            lt: cutoff,
-          },
-        },
-        {
-          startedAt: null,
-          createdAt: {
-            lt: cutoff,
-          },
-        },
-      ],
+      updatedAt: {
+        lt: cutoff,
+      },
     },
     data: {
       status: "failed",

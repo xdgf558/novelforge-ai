@@ -56,6 +56,7 @@ type AiTaskExecutionRouteSnapshot = {
 
 export const longWritingAiRequestTimeoutMs = 10 * 60 * 1000;
 export const longPlanningAiRequestTimeoutMs = 5 * 60 * 1000;
+export const aiTaskStreamHeartbeatIntervalMs = 30 * 1000;
 
 export function stringifyAiTaskPayload(value: unknown) {
   if (value == null) {
@@ -188,12 +189,19 @@ async function completeRunningOpenAITextTask(
 ) {
   try {
     const timeoutMs = resolveAiTaskRequestTimeoutMs(task.taskType);
+    const stream = shouldStreamAiTaskResponse(task.taskType);
     const result = await createOpenAITextResponse({
       ...request,
       model: task.model,
     }, {
       env: resolveAiTaskExecutionEnv(task),
       ...(timeoutMs ? { timeoutMs } : {}),
+      ...(stream
+        ? {
+            stream: true,
+            onStreamProgress: createAiTaskStreamHeartbeat(task.id),
+          }
+        : {}),
     });
 
     const completedTask = await markAiTaskCompleted(task.id, {
@@ -269,6 +277,45 @@ export function resolveAiTaskRequestTimeoutMs(taskType: string) {
   }
 
   return undefined;
+}
+
+export function shouldStreamAiTaskResponse(taskType: string) {
+  return (
+    taskType === "chapter_draft_generation" ||
+    taskType === "chapter_polish_generation" ||
+    taskType === "short_story_whole_review"
+  );
+}
+
+export function createAiTaskStreamHeartbeat(taskId: string) {
+  let lastHeartbeatAt: number | null = null;
+
+  return async () => {
+    const now = Date.now();
+
+    if (
+      lastHeartbeatAt !== null &&
+      now - lastHeartbeatAt < aiTaskStreamHeartbeatIntervalMs
+    ) {
+      return;
+    }
+
+    lastHeartbeatAt = now;
+
+    try {
+      await prisma.aiTask.updateMany({
+        where: {
+          id: taskId,
+          status: "running",
+        },
+        data: {
+          updatedAt: new Date(now),
+        },
+      });
+    } catch (error) {
+      console.error("Failed to update AI task stream heartbeat:", error);
+    }
+  };
 }
 
 function buildAiTaskExecutionRouteSnapshot(
