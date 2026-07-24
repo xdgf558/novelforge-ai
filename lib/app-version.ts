@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.105 下线 AI 书籍封面生成";
+export const appReleaseTitle = "0.1.106 Kimi 长文本流式生成";
 
 export const appReleaseNotes = [
-  "项目发布页不再提供 AI 封面候选图生成，界面更简洁。",
-  "设置页移除封面图片模型、接口和密钥配置。",
-  "手动上传、替换、删除封面及 Station Cat 发布能力保持不变。",
+  "章节草稿、正文精修和短故事整篇审校改为流式接收长文本。",
+  "生成持续返回内容时不再因总耗时达到 600 秒而失败。",
+  "流式结果只有完整结束后才可采用，断流的半成品不会写入正文。",
 ];

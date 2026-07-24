@@ -1,5 +1,56 @@
 # Development Log
 
+## 2026-07-24: 0.1.106 Kimi Long-Form Streaming Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged the approved Kimi long-form streaming timeout fix into `main` at merge
+  commit `f84455b` and bumped the source app/package version from `0.1.105` to
+  `0.1.106`.
+- Rebuilt the arm64 macOS application so chapter drafts, chapter polishing, and
+  short-story whole-review tasks can receive long Kimi responses as streams
+  without treating ten minutes of active generation as a total timeout.
+- `security find-identity` reported no valid code-signing identities. The
+  builder found an unavailable historical Developer ID identity and failed
+  with `errSecInternalComponent`, so the final personal payload was explicitly
+  re-signed ad hoc with hardened runtime and the required Electron
+  entitlements. The final PKG is unsigned and unnotarized and is not a
+  Developer ID distribution artifact.
+- Created
+  `release/desktop/NovelForge-AI-0.1.106-mac-arm64.pkg`, targeting
+  `/Applications`, and removed the previous `0.1.105` installer plus Electron
+  build intermediates after final verification. The release directory now
+  contains only the new versioned PKG.
+
+Verification:
+
+- Full `npm test` passed: 112 files and 636 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no
+  difference between all 26 migrations and `prisma/schema.prisma`.
+- The production build inside `npm run desktop:pack:mac` passed before the
+  unavailable historical Developer ID failed at its signing step. Final PKG
+  metadata reports identifier `com.novelforge.ai`, version `0.1.106`, install
+  location `/Applications`, and matching bundle short/build versions.
+- The ad-hoc-signed build app, a second ordinary copy, and the app expanded
+  from the final PKG all passed system-level
+  `codesign --verify --deep --strict`. The final app reports `adhoc,runtime`
+  and retains Electron JIT, unsigned executable memory, and disabled library
+  validation entitlements.
+- The packaged resources report version `0.1.106`, contain all 26 migrations
+  and the runtime migration runner, and packaged-root work-type lifecycle
+  acceptance passed.
+- An isolated launch from the final expanded payload returned HTTP 200 from
+  the local server, applied all 26 migrations, and returned `ok` from SQLite
+  `PRAGMA quick_check`. No real overwrite install into `/Applications` was
+  performed.
+- `pkgutil --check-signature` reports `Status: no signature`, matching the
+  approved personal-use fallback. Final size: `391,328,314` bytes. SHA-256:
+  `a67e1a7f21441462830c3f2c1770a9ec5c81a76fa8bd824c75bd0e0f1dd8a21e`.
+
 ## 2026-07-24: Long-Form AI Streaming and Inactivity Timeout
 
 Status: completed for review.
