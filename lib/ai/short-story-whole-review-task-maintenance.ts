@@ -16,19 +16,9 @@ export async function expireStaleShortStoryWholeReviewTasks(
       status: {
         in: [...activeAiTaskStatuses],
       },
-      OR: [
-        {
-          startedAt: {
-            lt: cutoff,
-          },
-        },
-        {
-          startedAt: null,
-          createdAt: {
-            lt: cutoff,
-          },
-        },
-      ],
+      updatedAt: {
+        lt: cutoff,
+      },
     },
     data: {
       status: "failed",

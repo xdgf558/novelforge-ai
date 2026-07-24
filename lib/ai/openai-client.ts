@@ -148,6 +148,8 @@ export async function createOpenAITextResponse(
     env?: EnvLike;
     fetchImpl?: FetchLike;
     timeoutMs?: number;
+    stream?: boolean;
+    onStreamProgress?: () => Promise<void> | void;
   } = {},
 ): Promise<OpenAITextResult> {
   assertServerOnly();
@@ -168,23 +170,46 @@ export async function createOpenAITextResponse(
     model: request.model ?? getConfiguredOpenAIModel(env),
   };
   const useResponsesApi = shouldUseResponsesApi(baseUrl);
-  const payload = useResponsesApi
+  const useStreamingChatCompletions = Boolean(options.stream && !useResponsesApi);
+  const basePayload = useResponsesApi
     ? buildOpenAIResponsesPayload(resolvedRequest)
     : buildOpenAIChatCompletionsPayload(resolvedRequest);
+  const payload = useStreamingChatCompletions
+    ? {
+        ...basePayload,
+        stream: true,
+        ...(isKimiModel(resolvedRequest.model ?? "")
+          ? {
+              stream_options: {
+                include_usage: true,
+              },
+            }
+          : {}),
+      }
+    : basePayload;
   const endpoint = `${baseUrl}/${useResponsesApi ? "responses" : "chat/completions"}`;
   const requestBody = JSON.stringify(payload);
   const abortController = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let rejectTimeout: ((error: Error) => void) | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
+    rejectTimeout = reject;
+  });
+  const resetTimeout = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
     timeoutId = setTimeout(() => {
       abortController.abort();
-      reject(createOpenAIRequestTimeoutError());
+      rejectTimeout?.(createOpenAIRequestTimeoutError());
     }, timeoutMs);
-  });
+  };
   let response: Response;
   let responseText: string;
 
   try {
+    resetTimeout();
     response = await Promise.race([
       fetchImpl(endpoint, {
         method: "POST",
@@ -197,10 +222,30 @@ export async function createOpenAITextResponse(
       }),
       timeoutPromise,
     ]);
+    resetTimeout();
+
+    if (
+      useStreamingChatCompletions &&
+      response.ok &&
+      response.headers.get("content-type")?.includes("text/event-stream")
+    ) {
+      return await readOpenAIChatCompletionStream(response, {
+        onProgress: options.onStreamProgress,
+        resetTimeout,
+        timeoutPromise,
+      });
+    }
+
     responseText = await Promise.race([response.text(), timeoutPromise]);
   } catch (error) {
     throw new Error(
-      formatOpenAIRequestFailure(error, endpoint, requestBody.length, timeoutMs),
+      formatOpenAIRequestFailure(
+        error,
+        endpoint,
+        requestBody.length,
+        timeoutMs,
+        useStreamingChatCompletions,
+      ),
     );
   } finally {
     if (timeoutId) {
@@ -216,6 +261,140 @@ export async function createOpenAITextResponse(
 
   return {
     outputText: extractOpenAIOutputText(responseJson),
+    responseJson,
+    usage: extractOpenAIUsage(responseJson),
+  };
+}
+
+async function readOpenAIChatCompletionStream(
+  response: Response,
+  options: {
+    onProgress?: () => Promise<void> | void;
+    resetTimeout: () => void;
+    timeoutPromise: Promise<never>;
+  },
+): Promise<OpenAITextResult> {
+  if (!response.body) {
+    throw new Error("AI 流式响应没有可读取的正文。");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let pending = "";
+  let outputText = "";
+  let receivedDone = false;
+  let responseId: string | undefined;
+  let responseModel: string | undefined;
+  let responseCreated: number | undefined;
+  let finishReason: unknown = null;
+  let usageJson: Record<string, unknown> | undefined;
+
+  const processData = (data: string) => {
+    if (data === "[DONE]") {
+      receivedDone = true;
+      return;
+    }
+
+    let eventJson: unknown;
+
+    try {
+      eventJson = JSON.parse(data);
+    } catch {
+      throw new Error(`AI 流式响应包含无法解析的数据：${data.slice(0, 200)}`);
+    }
+
+    if (!isRecord(eventJson)) {
+      return;
+    }
+
+    if (isRecord(eventJson.error)) {
+      throw new Error(extractOpenAIErrorMessage(eventJson, response.status));
+    }
+
+    responseId ??=
+      typeof eventJson.id === "string" ? eventJson.id : undefined;
+    responseModel ??=
+      typeof eventJson.model === "string" ? eventJson.model : undefined;
+    responseCreated ??= readNumber(eventJson.created);
+    usageJson = extractStreamingUsage(eventJson) ?? usageJson;
+
+    if (!Array.isArray(eventJson.choices)) {
+      return;
+    }
+
+    for (const choice of eventJson.choices) {
+      if (!isRecord(choice)) {
+        continue;
+      }
+
+      if (choice.finish_reason != null) {
+        finishReason = choice.finish_reason;
+      }
+
+      if (isRecord(choice.delta) && typeof choice.delta.content === "string") {
+        outputText += choice.delta.content;
+      }
+    }
+  };
+
+  while (!receivedDone) {
+    const result = await Promise.race([reader.read(), options.timeoutPromise]);
+
+    if (result.done) {
+      pending += decoder.decode();
+      break;
+    }
+
+    options.resetTimeout();
+    await options.onProgress?.();
+    pending += decoder.decode(result.value, { stream: true });
+
+    const lines = pending.split(/\r?\n/);
+    pending = lines.pop() ?? "";
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+
+      if (!trimmedLine.startsWith("data:")) {
+        continue;
+      }
+
+      processData(trimmedLine.slice(5).trimStart());
+
+      if (receivedDone) {
+        break;
+      }
+    }
+  }
+
+  if (!receivedDone && pending.trim().startsWith("data:")) {
+    processData(pending.trim().slice(5).trimStart());
+  }
+
+  if (!receivedDone) {
+    throw new Error("AI 流式响应提前结束，未收到完整结束标记，已放弃本次半成品。");
+  }
+
+  const responseJson = {
+    ...(responseId ? { id: responseId } : {}),
+    object: "chat.completion",
+    ...(responseCreated != null ? { created: responseCreated } : {}),
+    ...(responseModel ? { model: responseModel } : {}),
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: outputText,
+        },
+        finish_reason: finishReason,
+      },
+    ],
+    ...(usageJson ? { usage: usageJson } : {}),
+  };
+
+  return {
+    outputText,
     responseJson,
     usage: extractOpenAIUsage(responseJson),
   };
@@ -351,13 +530,22 @@ function isKimiK3Model(model: string) {
   return normalized === "kimi-k3" || normalized.startsWith("kimi-k3-");
 }
 
+function isKimiModel(model: string) {
+  return model.trim().toLowerCase().startsWith("kimi-");
+}
+
 function formatOpenAIRequestFailure(
   error: unknown,
   endpoint: string,
   payloadLength: number,
   timeoutMs: number,
+  streaming = false,
 ) {
   if (isAbortError(error)) {
+    if (streaming) {
+      return `AI 接口连续 ${timeoutMs / 1000} 秒未收到新数据：${endpoint}，请求体约 ${formatPayloadLength(payloadLength)}。请稍后重试。`;
+    }
+
     return `AI 接口请求超时（${timeoutMs / 1000} 秒）：${endpoint}，请求体约 ${formatPayloadLength(payloadLength)}。请稍后重试，或缩短本次输入。`;
   }
 
@@ -414,6 +602,26 @@ function formatPayloadLength(length: number) {
   }
 
   return `${(length / 1024).toFixed(1)} KB`;
+}
+
+function extractStreamingUsage(
+  eventJson: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (isRecord(eventJson.usage)) {
+    return eventJson.usage;
+  }
+
+  if (!Array.isArray(eventJson.choices)) {
+    return undefined;
+  }
+
+  for (const choice of eventJson.choices) {
+    if (isRecord(choice) && isRecord(choice.usage)) {
+      return choice.usage;
+    }
+  }
+
+  return undefined;
 }
 
 function assertServerOnly() {

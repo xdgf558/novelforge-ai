@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createAiTask,
+  aiTaskStreamHeartbeatIntervalMs,
   longPlanningAiRequestTimeoutMs,
   longWritingAiRequestTimeoutMs,
   resolveAiTaskExecutionEnv,
   resolveAiTaskRequestTimeoutMs,
+  shouldStreamAiTaskResponse,
   startLoggedOpenAITextTask,
 } from "./task-logger";
 import { createOpenAITextResponse } from "@/lib/ai/openai-client";
@@ -13,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 const mocks = vi.hoisted(() => ({
   aiTaskCreate: vi.fn(),
   aiTaskUpdate: vi.fn(),
+  aiTaskUpdateMany: vi.fn(),
   createOpenAITextResponse: vi.fn(),
   getAiRuntimeEnv: vi.fn(),
   getAiRuntimeEnvForTaskType: vi.fn(),
@@ -27,6 +30,7 @@ vi.mock("@/lib/prisma", () => ({
     aiTask: {
       create: mocks.aiTaskCreate,
       update: mocks.aiTaskUpdate,
+      updateMany: mocks.aiTaskUpdateMany,
     },
   },
 }));
@@ -72,6 +76,7 @@ describe("AI task logger", () => {
       isActive: false,
     });
     mocks.recordAiTaskUsage.mockResolvedValue(undefined);
+    mocks.aiTaskUpdateMany.mockResolvedValue({ count: 1 });
     mocks.aiTaskCreate.mockResolvedValue({
       id: "task_1",
       projectId: "project_1",
@@ -337,8 +342,24 @@ describe("AI task logger", () => {
           OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
         },
         timeoutMs: longWritingAiRequestTimeoutMs,
+        stream: true,
+        onStreamProgress: expect.any(Function),
       },
     );
+
+    const requestOptions = mocks.createOpenAITextResponse.mock.calls.at(-1)?.[1];
+    await requestOptions.onStreamProgress();
+    await requestOptions.onStreamProgress();
+    expect(mocks.aiTaskUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: "task_kimi",
+        status: "running",
+      },
+      data: {
+        updatedAt: expect.any(Date),
+      },
+    });
+    expect(mocks.aiTaskUpdateMany).toHaveBeenCalledTimes(1);
   });
 
   it("uses longer model request timeouts for long-form writing and planning tasks", () => {
@@ -378,6 +399,14 @@ describe("AI task logger", () => {
     expect(resolveAiTaskRequestTimeoutMs("foreshadow_recovery_audit")).toBe(
       longPlanningAiRequestTimeoutMs,
     );
+  });
+
+  it("streams only long-form writing tasks", () => {
+    expect(shouldStreamAiTaskResponse("chapter_draft_generation")).toBe(true);
+    expect(shouldStreamAiTaskResponse("chapter_polish_generation")).toBe(true);
+    expect(shouldStreamAiTaskResponse("short_story_whole_review")).toBe(true);
+    expect(shouldStreamAiTaskResponse("chapter_beat_generation")).toBe(false);
+    expect(aiTaskStreamHeartbeatIntervalMs).toBe(30_000);
   });
 
   it("uses the task route snapshot instead of falling back to the current default env", () => {

@@ -260,6 +260,103 @@ describe("OpenAI client helpers", () => {
     });
   });
 
+  it("streams long Chat Completions responses and waits for the final marker", async () => {
+    const encoder = new TextEncoder();
+    const onStreamProgress = vi.fn();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        [
+          'data: {"id":"chat_1","model":"kimi-k2.6","choices":[{"delta":{"reasoning_content":"推理"}}]}\n\n',
+          'data: {"choices":[{"delta":{"content":"第一段"}}]}\n',
+          '\ndata: {"choices":[{"delta":{"content":"\\n第二段"},"finish_reason":"stop","usage":{"prompt_tokens":11,"completion_tokens":22,"total_tokens":33}}]}\n\n',
+          "data: [DONE]\n\n",
+        ].forEach((chunk) => controller.enqueue(encoder.encode(chunk)));
+        controller.close();
+      },
+    });
+    const fetchImpl = vi.fn(async () => {
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+        },
+      });
+    });
+
+    const result = await createOpenAITextResponse(
+      {
+        model: "kimi-k2.6",
+        input: "生成章节草稿",
+      },
+      {
+        env: {
+          OPENAI_API_KEY: "sk-test",
+          OPENAI_MODEL: "kimi-k2.6",
+          OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+        },
+        fetchImpl,
+        stream: true,
+        onStreamProgress,
+      },
+    );
+
+    const requestInit = (fetchImpl.mock.calls as unknown as [string, RequestInit][])[0][1];
+    expect(JSON.parse(String(requestInit.body))).toMatchObject({
+      model: "kimi-k2.6",
+      stream: true,
+      stream_options: {
+        include_usage: true,
+      },
+    });
+    expect(result.outputText).toBe("第一段\n第二段");
+    expect(result.usage).toEqual({
+      inputTokens: 11,
+      outputTokens: 22,
+      totalTokens: 33,
+    });
+    expect(onStreamProgress).toHaveBeenCalledTimes(4);
+  });
+
+  it("rejects an incomplete stream instead of returning partial prose", async () => {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'data: {"choices":[{"delta":{"content":"未完成正文"}}]}\n\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    const fetchImpl = vi.fn(async () => {
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/event-stream",
+        },
+      });
+    });
+
+    await expect(
+      createOpenAITextResponse(
+        {
+          model: "kimi-k2.6",
+          input: "生成章节草稿",
+        },
+        {
+          env: {
+            OPENAI_API_KEY: "sk-test",
+            OPENAI_MODEL: "kimi-k2.6",
+            OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+          },
+          fetchImpl,
+          stream: true,
+        },
+      ),
+    ).rejects.toThrow("未收到完整结束标记");
+  });
+
   it("adds endpoint and request size details to network failures", async () => {
     const fetchError = Object.assign(new Error("fetch failed"), {
       cause: {
@@ -412,6 +509,109 @@ describe("OpenAI client helpers", () => {
       await vi.advanceTimersByTimeAsync(1000);
       await rejectionExpectation;
       expect(fetchImpl).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("treats the streaming timeout as an inactivity limit", async () => {
+    vi.useFakeTimers();
+    try {
+      const stream = new ReadableStream<Uint8Array>({
+        start() {
+          // Leave the stream open without sending any data.
+        },
+      });
+      const fetchImpl = vi.fn(async () => {
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/event-stream",
+          },
+        });
+      });
+      const responsePromise = createOpenAITextResponse(
+        {
+          model: "kimi-k2.6",
+          input: "生成章节草稿",
+        },
+        {
+          env: {
+            OPENAI_API_KEY: "sk-test",
+            OPENAI_MODEL: "kimi-k2.6",
+            OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+          },
+          fetchImpl,
+          stream: true,
+          timeoutMs: 1000,
+        },
+      );
+      const rejectionExpectation = expect(responsePromise).rejects.toThrow(
+        "AI 接口连续 1 秒未收到新数据",
+      );
+
+      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1000);
+      await rejectionExpectation;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("allows a stream to exceed the timeout window while data keeps arriving", async () => {
+    vi.useFakeTimers();
+    try {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          setTimeout(() => {
+            controller.enqueue(
+              encoder.encode(
+                'data: {"choices":[{"delta":{"content":"第一段"}}]}\n\n',
+              ),
+            );
+          }, 600);
+          setTimeout(() => {
+            controller.enqueue(
+              encoder.encode(
+                'data: {"choices":[{"delta":{"content":"第二段"}}]}\n\ndata: [DONE]\n\n',
+              ),
+            );
+            controller.close();
+          }, 1200);
+        },
+      });
+      const fetchImpl = vi.fn(async () => {
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            "Content-Type": "text/event-stream",
+          },
+        });
+      });
+      const responsePromise = createOpenAITextResponse(
+        {
+          model: "kimi-k2.6",
+          input: "生成章节草稿",
+        },
+        {
+          env: {
+            OPENAI_API_KEY: "sk-test",
+            OPENAI_MODEL: "kimi-k2.6",
+            OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+          },
+          fetchImpl,
+          stream: true,
+          timeoutMs: 1000,
+        },
+      );
+
+      await vi.advanceTimersByTimeAsync(600);
+      await vi.advanceTimersByTimeAsync(600);
+
+      await expect(responsePromise).resolves.toMatchObject({
+        outputText: "第一段第二段",
+      });
     } finally {
       vi.useRealTimers();
     }

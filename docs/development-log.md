@@ -1,5 +1,44 @@
 # Development Log
 
+## 2026-07-24: Long-Form AI Streaming and Inactivity Timeout
+
+Status: completed for review.
+
+What was done:
+
+- Diagnosed three consecutive Kimi K2.6 chapter-draft failures at exactly
+  600 seconds. The saved route, API key, proxy, model availability, and a
+  small streaming inference all succeeded; the failure was the application's
+  non-streaming full-response wait combined with a 10-minute total wall-clock
+  timeout.
+- Enabled Chat Completions SSE streaming for long-form writing tasks:
+  `chapter_draft_generation`, `chapter_polish_generation`, and
+  `short_story_whole_review`. Planning, extraction, and continuity tasks keep
+  their existing non-streaming behavior.
+- Reinterpreted the existing 10-minute writing timeout as an inactivity limit.
+  Every received stream chunk resets the timer, so a healthy long response may
+  exceed 10 minutes while a connection that sends no new data for 10 minutes
+  still fails visibly.
+- Added incremental parsing for content, reasoning-only progress chunks, and
+  top-level or Kimi-style nested token usage. A streamed result is accepted
+  only after the provider sends `data: [DONE]`; truncated partial prose is
+  discarded instead of becoming an adoptable draft.
+- Added throttled `AiTask.updatedAt` heartbeats while streamed tasks receive
+  data. Chapter and short-story whole-review stale-task recovery now uses that
+  activity timestamp, preventing active long generations from being marked
+  failed by the 15-minute cleanup.
+
+Verification:
+
+- Focused OpenAI client, task logger, and segmented-polish tests passed:
+  3 files and 34 tests.
+- Full `npm test` passed: 112 files and 636 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- `git diff --check` passed.
+- The repository has no standalone `npm run lint` script; the Next.js
+  production build's lint/type validation completed successfully.
+
 ## 2026-07-19: 0.1.105 AI Cover Generation Retirement Personal Installer
 
 Status: completed.
