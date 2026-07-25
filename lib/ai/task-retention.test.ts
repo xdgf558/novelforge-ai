@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     aiTask: {
       deleteMany: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
     },
   },
@@ -38,6 +39,7 @@ describe("AI task retention", () => {
     mocks.prisma.aiTask.deleteMany.mockResolvedValue({
       count: 1,
     });
+    mocks.prisma.aiTask.findFirst.mockResolvedValue(null);
   });
 
   it("keeps the newest project task records within the retention limit", () => {
@@ -100,45 +102,15 @@ describe("AI task retention", () => {
       ...task(`task_${index}`, index),
       taskType:
         index === 0 ? "ending_planning_generation" : "outline_generation",
-      adoptionState: "not_reviewed",
-      outputText: index === 0 ? "终局规划正文" : null,
     }));
 
-    expect(aiTaskIdsToPrune(tasks)).toEqual(["task_2", "task_1"]);
-
-    tasks[0].adoptionState = "rejected";
-
+    expect(
+      aiTaskIdsToPrune(tasks, projectAiTaskRetentionLimit, "task_0"),
+    ).toEqual(["task_2", "task_1"]);
     expect(aiTaskIdsToPrune(tasks)).toEqual([
       "task_2",
       "task_1",
       "task_0",
-    ]);
-  });
-
-  it("uses the shared tiebreak and whitelist for the latest ending plan", () => {
-    const createdAt = new Date("2026-07-25T06:41:00.000Z");
-    const tasks = [
-      {
-        id: "ending_a",
-        createdAt,
-        status: "completed",
-        taskType: "ending_planning_generation",
-        adoptionState: "adopted",
-        outputText: "较早的可用规划",
-      },
-      {
-        id: "ending_z",
-        createdAt,
-        status: "completed",
-        taskType: "ending_planning_generation",
-        adoptionState: "superseded",
-        outputText: "同一时间但 id 更新的失效规划",
-      },
-    ];
-
-    expect(aiTaskIdsToPrune(tasks, 0)).toEqual([
-      "ending_z",
-      "ending_a",
     ]);
   });
 
@@ -149,16 +121,12 @@ describe("AI task retention", () => {
         createdAt: new Date("2026-01-01T00:00:02.000Z"),
         status: "completed",
         taskType: "chapter_beat_generation",
-        adoptionState: "not_reviewed",
-        outputText: null,
       },
       {
         id: "task_old_cover",
         createdAt: new Date("2026-01-01T00:00:01.000Z"),
         status: "completed",
         taskType: "cover_image_generation",
-        adoptionState: "not_reviewed",
-        outputText: null,
       },
     ]);
 
@@ -178,18 +146,72 @@ describe("AI task retention", () => {
     });
   });
 
-  it("loads adoption state so retention can preserve the active ending reference", async () => {
+  it("loads only the latest ending-plan output instead of every task output", async () => {
     mocks.prisma.aiTask.findMany.mockResolvedValue([]);
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "ending_plan_1",
+      taskType: "ending_planning_generation",
+      status: "completed",
+      adoptionState: "adopted",
+      outputText: "终局规划正文",
+    });
 
     await expect(pruneProjectAiTasks("project_1")).resolves.toBe(0);
 
-    expect(mocks.prisma.aiTask.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        select: expect.objectContaining({
-          adoptionState: true,
-          outputText: true,
-        }),
-      }),
-    );
+    const findManyArgs = mocks.prisma.aiTask.findMany.mock.calls[0]?.[0];
+    expect(findManyArgs.select).not.toHaveProperty("outputText");
+    expect(mocks.prisma.aiTask.findFirst).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+      },
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      select: {
+        id: true,
+        taskType: true,
+        status: true,
+        adoptionState: true,
+        outputText: true,
+      },
+    });
+  });
+
+  it("does not protect an older ending plan when the latest one is rejected", async () => {
+    mocks.prisma.aiTask.findMany.mockResolvedValue([
+      {
+        ...task("ending_new", 2),
+        taskType: "ending_planning_generation",
+      },
+      {
+        ...task("ending_old", 1),
+        taskType: "ending_planning_generation",
+      },
+    ]);
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "ending_new",
+      taskType: "ending_planning_generation",
+      status: "completed",
+      adoptionState: "rejected",
+      outputText: "已拒绝的新规划",
+    });
+
+    await expect(pruneProjectAiTasks("project_1", 0)).resolves.toBe(1);
+
+    expect(mocks.prisma.aiTask.deleteMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        id: {
+          in: ["ending_new", "ending_old"],
+        },
+      },
+    });
   });
 });

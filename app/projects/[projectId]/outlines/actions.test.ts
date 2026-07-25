@@ -343,7 +343,10 @@ describe("outline actions", () => {
     formData.set("targetLevel", "chapter");
     formData.set("targetChapterNumber", "31");
     mocks.prisma.aiTask.findFirst.mockImplementation((args) => {
-      if (args.where.taskType === "outline_generation") {
+      if (
+        args.where.taskType !== "ending_planning_generation" ||
+        args.where.status !== "completed"
+      ) {
         return Promise.resolve(null);
       }
 
@@ -393,7 +396,10 @@ describe("outline actions", () => {
     formData.set("targetChapterNumber", "31");
     formData.set("skipEndingPlan", "on");
     mocks.prisma.aiTask.findFirst.mockImplementation((args) => {
-      if (args.where.taskType === "outline_generation") {
+      if (
+        args.where.taskType !== "ending_planning_generation" ||
+        args.where.status !== "completed"
+      ) {
         return Promise.resolve(null);
       }
 

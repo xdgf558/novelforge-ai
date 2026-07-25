@@ -38,13 +38,30 @@ What was done:
   task ID as the same deterministic newest-task order. Only that latest usable
   completed plan is protected from normal retention, and an unusable latest
   task never falls back to an older plan.
+- Kept retention cleanup lightweight: its bulk task query no longer selects
+  `outputText` from every chapter draft and polish task. A separate
+  deterministic `findFirst` query reads only the latest completed ending-plan
+  candidate, applies the shared usability rule, and passes the resulting
+  protected ID into the pure pruning helper.
 - Split outline and ending-plan task loading on the outline page. The five
   latest outline drafts stay bounded while the three latest ending plans remain
   independently visible, so the active terminal reference can still be marked
   ignored after more outline work.
 - Updated the outline UI to explain that a completed non-ignored ending plan is
   automatically used only within its estimated chapter window, can be skipped
-  once, and that “标记已整理” and “忽略” have different downstream effects.
+  once, and that “标记已整理” and “忽略” have different downstream effects. A
+  targeted latest-completed-plan query also drives an explicit expired-plan
+  notice that shows the recommended final chapter and directs the author to
+  regenerate the plan.
+- Distinguished a missing total-word target from a manuscript already at or
+  beyond its target. Missing targets use the named ten-chapter neutral
+  estimate plus buffer; over-target manuscripts use the minimum four-chapter
+  planning window instead of receiving the same broad default. Window bounds
+  are named constants and covered independently.
+- Reused one `SkipEndingPlanCheckbox` component across both outline-generation
+  entry points, documented that volume requests are gated from the next
+  unwritten chapter because no generated range exists yet, and avoided
+  rebuilding the ending-plan excerpt solely to produce the task summary.
 - Wrapped model-produced ending-plan text in an explicit untrusted reference
   boundary and told the outline model not to interpret commands embedded in
   that quoted content.
@@ -56,9 +73,8 @@ What was done:
 Verification:
 
 - Focused ending-plan selection, planning-window, outline context, server
-  action, prompt-template store, task-helper, and task-retention tests passed:
-  8 files and 69 tests.
-- Full `npm test` passed: 113 files and 662 tests.
+  action, task-helper, and task-retention tests passed: 6 files and 58 tests.
+- Full `npm test` passed: 113 files and 664 tests.
 - `npm run typecheck` passed.
 - `npm run build` passed, including Next.js production compilation and
   lint/type validation.

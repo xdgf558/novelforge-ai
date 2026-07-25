@@ -1,5 +1,6 @@
 import { projectSettingFields } from "../project-setting-fields";
 import {
+  resolveEndingPlanWindowApplicability,
   usableEndingPlanAdoptionStates,
   type EndingPlanReference,
 } from "./ending-plan-reference";
@@ -246,12 +247,25 @@ export function buildOutlineGenerationContext(
   return {
     inputText,
     inputJson,
-    inputContextSummary: buildOutlineGenerationContextSummary(input),
+    inputContextSummary: formatOutlineGenerationContextSummary(
+      input,
+      endingPlanDecision,
+    ),
   };
 }
 
 export function buildOutlineGenerationContextSummary(
   input: OutlineGenerationContextInput,
+) {
+  return formatOutlineGenerationContextSummary(
+    input,
+    resolveEndingPlanReference(input),
+  );
+}
+
+function formatOutlineGenerationContextSummary(
+  input: OutlineGenerationContextInput,
+  endingPlanDecision: EndingPlanDecision,
 ) {
   const targetLabel = outlineLevelLabel(input.request.targetLevel);
   const count =
@@ -264,7 +278,6 @@ export function buildOutlineGenerationContextSummary(
         ? `；建议起始第 ${input.request.targetChapterNumber} 章`
         : "";
 
-  const endingPlanDecision = resolveEndingPlanReference(input);
   const endingPlanSummary =
     endingPlanDecision.status === "included"
       ? "包含终局规划参考"
@@ -309,6 +322,8 @@ function resolveEndingPlanReference(
     0,
     ...input.recentChapters.map((chapter) => chapter.chapterNumber),
   );
+  // Volume drafts have no explicit range before generation, so eligibility is
+  // anchored to the next unwritten chapter rather than an unknown end chapter.
   const targetChapterNumber =
     input.request.targetChapterNumber ?? currentChapterNumber + 1;
   const base = {
@@ -336,10 +351,12 @@ function resolveEndingPlanReference(
     };
   }
 
-  if (
-    endingPlan.generatedAtChapterNumber != null &&
-    targetChapterNumber <= endingPlan.generatedAtChapterNumber
-  ) {
+  const applicability = resolveEndingPlanWindowApplicability(
+    endingPlan,
+    targetChapterNumber,
+  );
+
+  if (applicability === "historical_target") {
     return {
       ...base,
       status: "historical_target",
@@ -347,10 +364,7 @@ function resolveEndingPlanReference(
     };
   }
 
-  if (
-    endingPlan.validThroughChapterNumber != null &&
-    targetChapterNumber > endingPlan.validThroughChapterNumber
-  ) {
+  if (applicability === "expired") {
     return {
       ...base,
       status: "expired",
@@ -373,7 +387,9 @@ function buildEndingPlanReference(
   if (
     !endingPlan ||
     !outputText ||
-    !usableEndingPlanAdoptionStates.includes(endingPlan.adoptionState)
+    !(usableEndingPlanAdoptionStates as readonly string[]).includes(
+      endingPlan.adoptionState,
+    )
   ) {
     return null;
   }

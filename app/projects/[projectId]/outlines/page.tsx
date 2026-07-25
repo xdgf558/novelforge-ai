@@ -27,6 +27,7 @@ import { FormActionButton } from "@/components/form-action-button";
 import { OutlineAiGenerateForm } from "@/components/outlines/outline-ai-generate-form";
 import { OutlineDraftCopyButton } from "@/components/outlines/outline-draft-copy-button";
 import { OutlineSaveButton } from "@/components/outlines/outline-save-button";
+import { SkipEndingPlanCheckbox } from "@/components/outlines/skip-ending-plan-checkbox";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import {
   calculateEndingReadiness,
@@ -34,6 +35,11 @@ import {
   endingStageLabel,
   type EndingReadinessSnapshot,
 } from "@/lib/ai/ending-planning";
+import {
+  isUsableEndingPlanTask,
+  readEndingPlanPlanningWindow,
+  resolveEndingPlanWindowApplicability,
+} from "@/lib/ai/ending-plan-reference";
 import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
 import {
   aiTaskAdoptionLabel,
@@ -86,7 +92,7 @@ export default async function OutlinesPage({
 
   await expireStaleOutlineAiTasks(projectId);
 
-  const [project, endingPlanTasks] = await Promise.all([
+  const outlinePageData = await Promise.all([
     prisma.project.findUnique({
       where: {
         id: projectId,
@@ -174,12 +180,42 @@ export default async function OutlinesPage({
           },
         },
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
       take: 3,
     }),
+    prisma.aiTask.findFirst({
+      where: {
+        projectId,
+        taskType: endingPlanningTaskType,
+        status: "completed",
+      },
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      select: {
+        id: true,
+        taskType: true,
+        status: true,
+        adoptionState: true,
+        outputText: true,
+        inputJson: true,
+      },
+    }),
   ]);
+  const [project, endingPlanTasks, latestCompletedEndingPlanTask] =
+    outlinePageData;
 
   if (!project) {
     notFound();
@@ -230,6 +266,26 @@ export default async function OutlinesPage({
   const hasActiveEndingPlanTask = endingPlanTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
+  const latestUsableEndingPlanTask =
+    latestCompletedEndingPlanTask &&
+    isUsableEndingPlanTask(latestCompletedEndingPlanTask)
+      ? latestCompletedEndingPlanTask
+      : null;
+  const latestEndingPlanWindow = readEndingPlanPlanningWindow(
+    latestUsableEndingPlanTask?.inputJson,
+  );
+  const expiredEndingPlanReference =
+    latestEndingPlanWindow &&
+    resolveEndingPlanWindowApplicability(
+      latestEndingPlanWindow,
+      defaultTargetChapterNumber,
+    ) === "expired"
+      ? {
+          nextChapterNumber: defaultTargetChapterNumber,
+          validThroughChapterNumber:
+            latestEndingPlanWindow.validThroughChapterNumber,
+        }
+      : null;
   const endingReadiness = calculateEndingReadiness({
     project,
     chapters: project.chapters,
@@ -306,6 +362,7 @@ export default async function OutlinesPage({
       />
 
       <EndingPlanningPanel
+        expiredReference={expiredEndingPlanReference}
         generateAction={generateEndingPlanDraft.bind(null, project.id)}
         hasActiveTask={hasActiveEndingPlanTask}
         hasApiKey={aiSettings.hasApiKey}
@@ -578,14 +635,7 @@ function NextUnitPlanningPanel({
             type="hidden"
             value={reminder.nextChapterNumber}
           />
-          <label className="flex items-center gap-2 text-xs font-medium text-ink-700">
-            <input
-              className="h-4 w-4 rounded border-ink-950/20 text-signal-600"
-              name="skipEndingPlan"
-              type="checkbox"
-            />
-            本次不引用终局规划
-          </label>
+          <SkipEndingPlanCheckbox />
           <FormActionButton
             disabled={!canGenerate}
             icon="play"
@@ -613,6 +663,7 @@ function NextUnitPlanningPanel({
 }
 
 function EndingPlanningPanel({
+  expiredReference,
   generateAction,
   hasActiveTask,
   hasApiKey,
@@ -620,6 +671,10 @@ function EndingPlanningPanel({
   readiness,
   tasks,
 }: {
+  expiredReference: {
+    nextChapterNumber: number;
+    validThroughChapterNumber: number;
+  } | null;
   generateAction: () => Promise<void>;
   hasActiveTask: boolean;
   hasApiKey: boolean;
@@ -720,6 +775,15 @@ function EndingPlanningPanel({
           detail={readiness.recommendation}
         />
       </div>
+
+      {expiredReference ? (
+        <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+          <strong>终局规划已超出建议射程。</strong> 最新规划建议参考至第{" "}
+          {formatNumber(expiredReference.validThroughChapterNumber)} 章；当前下一章是第{" "}
+          {formatNumber(expiredReference.nextChapterNumber)} 章，后续大纲不会再自动引用。
+          请重新生成收尾规划，更新剩余章节和伏笔回收安排。
+        </p>
+      ) : null}
 
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">

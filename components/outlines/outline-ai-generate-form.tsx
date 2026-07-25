@@ -7,6 +7,7 @@ import {
   type OutlineLevel,
 } from "@/lib/outline-fields";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
+import { SkipEndingPlanCheckbox } from "@/components/outlines/skip-ending-plan-checkbox";
 
 type OutlineAiGenerateFormProps = {
   action: (formData: FormData) => Promise<void>;
@@ -63,14 +64,9 @@ export function OutlineAiGenerateForm({
           </span>
         </label>
       ) : null}
-      <label className="mt-5 flex min-h-10 items-center gap-2 text-xs font-medium text-ink-700">
-        <input
-          className="h-4 w-4 rounded border-ink-950/20 text-signal-600"
-          name="skipEndingPlan"
-          type="checkbox"
-        />
-        本次不引用终局规划
-      </label>
+      <div className="mt-5">
+        <SkipEndingPlanCheckbox />
+      </div>
       <button
         className={`mt-5 inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
           canGenerate

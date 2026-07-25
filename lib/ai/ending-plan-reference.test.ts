@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   calculateEndingPlanPlanningWindow,
   compareAiTasksNewestFirst,
+  DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS,
   isUsableEndingPlanTask,
+  MIN_ENDING_PLAN_WINDOW_CHAPTERS,
   readEndingPlanPlanningWindow,
 } from "./ending-plan-reference";
 
@@ -87,6 +89,35 @@ describe("ending plan reference rules", () => {
       validThroughChapterNumber: 38,
       estimatedRemainingChapterCount: 8,
     });
+  });
+
+  it("distinguishes a missing target from a manuscript already over target", () => {
+    const missingTarget = calculateEndingPlanPlanningWindow({
+      latestChapterNumber: 20,
+      currentWords: 100000,
+      targetWords: null,
+      chapterCount: 20,
+      finalChapterCount: 20,
+      chapterWordMin: 5000,
+      chapterWordMax: 8000,
+    });
+    const overTarget = calculateEndingPlanPlanningWindow({
+      latestChapterNumber: 20,
+      currentWords: 110000,
+      targetWords: 100000,
+      chapterCount: 20,
+      finalChapterCount: 20,
+      chapterWordMin: 5000,
+      chapterWordMax: 8000,
+    });
+
+    expect(missingTarget.estimatedRemainingChapterCount).toBe(
+      DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS + 3,
+    );
+    expect(overTarget.estimatedRemainingChapterCount).toBe(
+      MIN_ENDING_PLAN_WINDOW_CHAPTERS,
+    );
+    expect(overTarget.validThroughChapterNumber).toBe(24);
   });
 
   it("reads saved windows and derives a legacy window when needed", () => {

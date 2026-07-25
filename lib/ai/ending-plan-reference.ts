@@ -4,6 +4,9 @@ export const usableEndingPlanAdoptionStates = [
   "not_reviewed",
   "adopted",
 ] as const;
+export const DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS = 10;
+export const MIN_ENDING_PLAN_WINDOW_CHAPTERS = 4;
+export const MAX_ENDING_PLAN_WINDOW_CHAPTERS = 24;
 
 export type UsableEndingPlanAdoptionState =
   (typeof usableEndingPlanAdoptionStates)[number];
@@ -22,6 +25,11 @@ export type EndingPlanReference = {
   generatedAtChapterNumber: number | null;
   validThroughChapterNumber: number | null;
 };
+
+export type EndingPlanWindowApplicability =
+  | "applicable"
+  | "historical_target"
+  | "expired";
 
 type EndingPlanTaskCandidate = {
   id: string;
@@ -45,8 +53,8 @@ export function isUsableEndingPlanTask(
   return (
     task.taskType === endingPlanningTaskType &&
     task.status === "completed" &&
-    usableEndingPlanAdoptionStates.includes(
-      task.adoptionState as UsableEndingPlanAdoptionState,
+    (usableEndingPlanAdoptionStates as readonly string[]).includes(
+      task.adoptionState ?? "",
     ) &&
     Boolean(task.outputText?.trim())
   );
@@ -62,6 +70,30 @@ export function compareAiTasksNewestFirst(
   return createdAtDiff !== 0
     ? createdAtDiff
     : taskB.id.localeCompare(taskA.id);
+}
+
+export function resolveEndingPlanWindowApplicability(
+  reference: Pick<
+    EndingPlanReference,
+    "generatedAtChapterNumber" | "validThroughChapterNumber"
+  >,
+  targetChapterNumber: number,
+): EndingPlanWindowApplicability {
+  if (
+    reference.generatedAtChapterNumber != null &&
+    targetChapterNumber <= reference.generatedAtChapterNumber
+  ) {
+    return "historical_target";
+  }
+
+  if (
+    reference.validThroughChapterNumber != null &&
+    targetChapterNumber > reference.validThroughChapterNumber
+  ) {
+    return "expired";
+  }
+
+  return "applicable";
 }
 
 export function calculateEndingPlanPlanningWindow(input: {
@@ -91,19 +123,23 @@ export function calculateEndingPlanPlanningWindow(input: {
   ]);
   const estimatedChapterWords =
     observedChapterWords ?? configuredChapterWords ?? 5000;
-  const remainingWords =
-    input.targetWords && input.targetWords > input.currentWords
-      ? input.targetWords - input.currentWords
-      : null;
   const estimatedFromWords =
-    remainingWords == null
-      ? 10
-      : Math.ceil(remainingWords / Math.max(1, estimatedChapterWords));
-  const buffer = Math.max(2, Math.ceil(estimatedFromWords * 0.25));
+    input.targetWords == null
+      ? DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS
+      : input.targetWords <= input.currentWords
+        ? 0
+        : Math.ceil(
+            (input.targetWords - input.currentWords) /
+              Math.max(1, estimatedChapterWords),
+          );
+  const buffer =
+    estimatedFromWords > 0
+      ? Math.max(2, Math.ceil(estimatedFromWords * 0.25))
+      : 0;
   const estimatedRemainingChapterCount = clamp(
     estimatedFromWords + buffer,
-    4,
-    24,
+    MIN_ENDING_PLAN_WINDOW_CHAPTERS,
+    MAX_ENDING_PLAN_WINDOW_CHAPTERS,
   );
 
   return {

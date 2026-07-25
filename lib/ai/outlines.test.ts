@@ -152,20 +152,23 @@ describe("outline generation context builder", () => {
     })).toContain("包含终局规划参考");
   });
 
-  it("keeps head, middle and tail excerpts non-overlapping at the old 12001 boundary", () => {
-    const source = Array.from({ length: 12001 }, (_, index) =>
-      String.fromCodePoint(0x1000 + index),
-    ).join("");
-    const excerpt = buildHeadMiddleTailExcerpt(source, 12000);
-    const sections = excerpt.split(ENDING_PLAN_EXCERPT_MARKER);
+  it.each([ENDING_PLAN_CONTEXT_MAX_LENGTH, 12000])(
+    "keeps head, middle and tail excerpts non-overlapping just above a %i-character budget",
+    (maxLength) => {
+      const source = Array.from({ length: maxLength + 1 }, (_, index) =>
+        String.fromCodePoint(0x1000 + index),
+      ).join("");
+      const excerpt = buildHeadMiddleTailExcerpt(source, maxLength);
+      const sections = excerpt.split(ENDING_PLAN_EXCERPT_MARKER);
 
-    expect(excerpt.length).toBeLessThanOrEqual(12000);
-    expect(sections).toHaveLength(3);
-    expect(source.indexOf(sections[1])).toBeGreaterThanOrEqual(
-      sections[0].length,
-    );
-    expect(source.endsWith(sections[2])).toBe(true);
-  });
+      expect(excerpt.length).toBeLessThanOrEqual(maxLength);
+      expect(sections).toHaveLength(3);
+      expect(source.indexOf(sections[1])).toBeGreaterThanOrEqual(
+        sections[0].length,
+      );
+      expect(source.endsWith(sections[2])).toBe(true);
+    },
+  );
 
   it("falls back to a tail-only excerpt when the marker budget cannot fit", () => {
     expect(buildHeadMiddleTailExcerpt("0123456789".repeat(5), 12)).toBe(

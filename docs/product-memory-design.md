@@ -132,7 +132,10 @@ the latest completed, non-empty `not_reviewed` or `adopted` output can guide
 subsequent volume, story-unit, and chapter outline generation. Each plan
 records its generation chapter and an estimated validity window from remaining
 target words and observed chapter pace; historical targets and targets beyond
-that window do not receive the reference. The supplied context is an
+that window do not receive the reference. A missing word target uses a neutral
+ten-chapter estimate plus buffer, while a manuscript already at or beyond its
+target receives the minimum four-chapter window. Expired plans are called out
+on the outline page with guidance to regenerate them. The supplied context is an
 ending-preserving head/middle/tail excerpt capped at 6,000 characters, wrapped
 as untrusted model-output data, and can be skipped for one generation without
 globally rejecting the plan. Marking it organized keeps it active as guidance;
@@ -144,7 +147,8 @@ review. Usability is a fail-closed adoption-state whitelist, and prompt loading
 plus retention use the same deterministic newest-task ordering. Retention
 protects only the latest usable ending plan so guidance survives continued
 generation without accumulating every historical plan; an unusable latest plan
-never falls back to an older one.
+never falls back to an older one. Cleanup discovers that protected plan with a
+targeted one-row query and does not bulk-load every AI task's full output.
 
 ## Memory Layers
 
