@@ -45,6 +45,13 @@ export type OutlineGenerationPreviousChapterContext = {
   endingText: string;
 };
 
+export type OutlineGenerationEndingPlanContext = {
+  taskId: string;
+  adoptionState: string;
+  completedAt?: Date | string | null;
+  outputText: string;
+};
+
 export type OutlineGenerationRequest = {
   targetLevel: OutlineLevel;
   chapterCount?: number | null;
@@ -58,6 +65,7 @@ export type OutlineGenerationContextInput = {
   characters: readonly OutlineGenerationCharacterContext[];
   recentChapters: readonly OutlineGenerationChapterContext[];
   previousChapter?: OutlineGenerationPreviousChapterContext | null;
+  endingPlan?: OutlineGenerationEndingPlanContext | null;
   request: OutlineGenerationRequest;
 };
 
@@ -68,6 +76,7 @@ export type BuiltOutlineGenerationContext = {
 };
 
 const FIELD_MAX_LENGTH = 1200;
+const ENDING_PLAN_MAX_LENGTH = 12000;
 
 const settingFieldLabels = new Map(
   projectSettingFields.map((field) => [field.name, field.label]),
@@ -97,6 +106,7 @@ export function buildOutlineGenerationContext(
           endingText: clipText(input.previousChapter.endingText, 1800),
         }
       : null;
+  const endingPlan = buildEndingPlanReference(input.endingPlan);
   const previousChapterSection =
     input.request.targetLevel !== "volume" && targetChapterNumber
       ? [
@@ -113,6 +123,16 @@ export function buildOutlineGenerationContext(
             : "未找到起始章节的上一章正文结尾；请根据已有章节目标和大纲保持顺序衔接。",
         ]
       : [];
+  const endingPlanSection = endingPlan
+    ? [
+        "",
+        "# 自动纳入的终局规划参考",
+        `来源任务：${endingPlan.taskId}；审阅状态：${endingPlan.adoptionState}；完成时间：${endingPlan.completedAt ?? "未记录"}`,
+        "这是最近一份已完成且未被作者忽略的终局规划草案。请让新的卷、剧情单元或章节大纲朝其中的剩余篇幅、伏笔回收优先级、角色终点和结局方向收束。",
+        "它仍是规划参考，不是正式故事事实；若与正式大纲、正式设定或已定稿正文冲突，以正式内容为准，并在草案中明确提示冲突。",
+        endingPlan.outputText,
+      ]
+    : [];
 
   const inputJson = {
     project: {
@@ -136,6 +156,7 @@ export function buildOutlineGenerationContext(
     characters: characterItems,
     recentChapters: chapterItems,
     previousChapter,
+    endingPlan,
   };
 
   const inputText = [
@@ -181,6 +202,7 @@ export function buildOutlineGenerationContext(
       ? chapterItems.join("\n")
       : "暂无已完成章节，可从开篇规划开始。",
     ...previousChapterSection,
+    ...endingPlanSection,
     "",
     "# 输出要求",
     "- 使用 Markdown 输出。",
@@ -189,6 +211,12 @@ export function buildOutlineGenerationContext(
     "- 如果任务是章节大纲，只输出目标章节这一章，不要输出连续章节列表。",
     "- 如果任务是章节大纲，开篇必须承接上一章最后事件和章末钩子；新增人物只能服务这个承接，不要替换主线衔接。",
     "- 如果任务是下一剧情单元，必须从指定起始章节承接最近正文，并给出不与已有单元重叠的建议结束章节。",
+    ...(endingPlan
+      ? [
+          "- 必须参考已提供的终局规划，让本次大纲服务于剩余篇幅、核心伏笔回收、角色终点和最终结局；不得无故新增会妨碍收束的大型支线。",
+          "- 终局规划是 AI 草案而非正式记忆；它与正式数据冲突时，以正式大纲、正式设定和已定稿正文为准，并明确指出需要作者裁决的冲突。",
+        ]
+      : []),
     ...(input.setting?.narrativePerspective
       ? [
           "- 大纲中的信息揭示、场景安排和悬念设计必须服从已确认叙事视角；不得依靠当前视角人物无法得知的幕后事实推进。",
@@ -226,7 +254,56 @@ export function buildOutlineGenerationContextSummary(
     `已有大纲 ${input.outlines.length} 条`,
     `角色 ${input.characters.length} 个`,
     `已有章节 ${input.recentChapters.length} 个${count}`,
+    ...(input.endingPlan?.outputText?.trim()
+      ? ["包含终局规划参考"]
+      : []),
   ].join("；");
+}
+
+function buildEndingPlanReference(
+  endingPlan?: OutlineGenerationEndingPlanContext | null,
+) {
+  const outputText = clean(endingPlan?.outputText);
+
+  if (!endingPlan || !outputText) {
+    return null;
+  }
+
+  const completedAt =
+    endingPlan.completedAt instanceof Date
+      ? endingPlan.completedAt.toISOString()
+      : clean(endingPlan.completedAt);
+
+  return {
+    taskId: endingPlan.taskId,
+    adoptionState: endingPlan.adoptionState,
+    completedAt: completedAt || null,
+    outputText: buildHeadMiddleTailExcerpt(
+      outputText,
+      ENDING_PLAN_MAX_LENGTH,
+    ),
+  };
+}
+
+function buildHeadMiddleTailExcerpt(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  const marker = "\n\n……终局规划中段节选……\n\n";
+  const availableLength = maxLength - marker.length * 2;
+  const headLength = Math.floor(availableLength * 0.4);
+  const middleLength = Math.floor(availableLength * 0.25);
+  const tailLength = availableLength - headLength - middleLength;
+  const middleStart = Math.floor((value.length - middleLength) / 2);
+
+  return [
+    value.slice(0, headLength),
+    marker,
+    value.slice(middleStart, middleStart + middleLength),
+    marker,
+    value.slice(-tailLength),
+  ].join("");
 }
 
 function buildSettingItems(setting?: OutlineGenerationSettingContext | null) {

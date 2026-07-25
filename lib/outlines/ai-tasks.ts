@@ -35,6 +35,43 @@ export async function findActiveEndingPlanningTask(projectId: string) {
   });
 }
 
+export async function findLatestEndingPlanningReference(projectId: string) {
+  const task = await prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      taskType: endingPlanningGenerationTaskType,
+      status: "completed",
+      outputText: {
+        not: null,
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      id: true,
+      adoptionState: true,
+      completedAt: true,
+      outputText: true,
+    },
+  });
+
+  if (
+    !task ||
+    task.adoptionState === "rejected" ||
+    !task.outputText?.trim()
+  ) {
+    return null;
+  }
+
+  return {
+    taskId: task.id,
+    adoptionState: task.adoptionState,
+    completedAt: task.completedAt,
+    outputText: task.outputText,
+  };
+}
+
 export function buildPreviousChapterEndingContext(
   chapter: {
     chapterNumber: number;

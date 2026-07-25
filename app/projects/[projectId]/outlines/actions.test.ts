@@ -338,6 +338,40 @@ describe("outline actions", () => {
     );
   });
 
+  it("injects the latest completed non-ignored ending plan into new outlines", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "chapter");
+    formData.set("targetChapterNumber", "31");
+    mocks.prisma.aiTask.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "ending_plan_1",
+        adoptionState: "adopted",
+        completedAt: new Date("2026-07-25T06:41:00.000Z"),
+        outputText: "第31至38章完成收束，优先回收军饷底账和录事参军身份。",
+      });
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputJson: expect.objectContaining({
+          endingPlan: expect.objectContaining({
+            taskId: "ending_plan_1",
+            adoptionState: "adopted",
+            outputText: expect.stringContaining("第31至38章完成收束"),
+          }),
+        }),
+        inputContextSummary: expect.stringContaining("包含终局规划参考"),
+      }),
+      expect.objectContaining({
+        input: expect.stringContaining("自动纳入的终局规划参考"),
+      }),
+    );
+  });
+
   it("anchors target chapter outlines to the previous chapter ending", async () => {
     const formData = new FormData();
     formData.set("targetLevel", "chapter");

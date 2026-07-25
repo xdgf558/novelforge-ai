@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { deleteProjectCoverCandidateAssetsForTask } from "../project-cover-assets";
 import { coverImageGenerationTaskType } from "./cover-images";
+import { endingPlanningGenerationTaskType } from "./outline-task-maintenance";
 import { isActiveAiTaskStatus } from "./status";
 
 export const projectAiTaskRetentionLimit = 10;
@@ -10,6 +11,7 @@ type AiTaskRetentionCandidate = {
   createdAt: Date;
   status: string;
   taskType?: string | null;
+  adoptionState?: string | null;
   _count?: {
     pendingUpdates?: number;
     continuityReports?: number;
@@ -34,11 +36,21 @@ export function aiTaskIdsToPrune(
 
     return taskB.id.localeCompare(taskA.id);
   });
+  const latestCompletedEndingPlan = sortedTasks.find(
+    (task) =>
+      task.taskType === endingPlanningGenerationTaskType &&
+      task.status === "completed",
+  );
+  const protectedEndingPlanId =
+    latestCompletedEndingPlan?.adoptionState === "rejected"
+      ? null
+      : (latestCompletedEndingPlan?.id ?? null);
 
   return sortedTasks
     .filter(
       (task) =>
-        !isActiveAiTaskStatus(task.status) && !isProtectedAiTask(task),
+        !isActiveAiTaskStatus(task.status) &&
+        !isProtectedAiTask(task, protectedEndingPlanId),
     )
     .slice(normalizedLimit)
     .map((task) => task.id);
@@ -65,6 +77,7 @@ export async function pruneProjectAiTasks(
       createdAt: true,
       status: true,
       taskType: true,
+      adoptionState: true,
       _count: {
         select: {
           pendingUpdates: true,
@@ -97,8 +110,15 @@ export async function pruneProjectAiTasks(
   return result.count;
 }
 
-function isProtectedAiTask(task: AiTaskRetentionCandidate) {
+function isProtectedAiTask(
+  task: AiTaskRetentionCandidate,
+  protectedEndingPlanId: string | null,
+) {
   if (task.taskType === "chapter_summary_extraction") {
+    return true;
+  }
+
+  if (task.id === protectedEndingPlanId) {
     return true;
   }
 

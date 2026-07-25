@@ -1,5 +1,51 @@
 # Development Log
 
+## 2026-07-25: Ending Plan Continuity for Later Outline Drafts
+
+Status: completed.
+
+What was done:
+
+- Changed volume, story-unit, and chapter outline generation to automatically
+  load the latest completed ending-planning task after a terminal plan exists.
+  Both unreviewed and author-marked-organized plans remain usable; marking the
+  latest completed plan ignored immediately removes it from later outline
+  context.
+- Added a bounded 12,000-character head/middle/tail ending-plan excerpt to the
+  logged outline-generation input JSON and prompt. The prompt requires later
+  outlines to serve the remaining length, foreshadow recovery priorities,
+  character endpoints, and ending direction without treating the AI plan as
+  confirmed story fact.
+- Preserved formal-memory precedence. When the ending plan conflicts with
+  formal outlines, settings, or finalized chapters, the new outline draft must
+  follow formal data and surface the conflict for author review. No ending-plan
+  task creates or mutates formal outlines, foreshadows, timelines, chapters, or
+  story memory.
+- Bumped the default `outline_generation` prompt template to v2 so generated
+  tasks visibly record whether terminal-plan guidance was part of their
+  context.
+- Protected only the latest usable completed ending plan from normal AI-task
+  retention. Older ending plans remain pruneable, and rejecting the latest
+  plan removes that protection.
+- Split outline and ending-plan task loading on the outline page. The five
+  latest outline drafts stay bounded while the three latest ending plans remain
+  independently visible, so the active terminal reference can still be marked
+  ignored after more outline work.
+- Updated the outline UI to explain that a completed non-ignored ending plan is
+  automatically used by later outline generation and that “标记已整理” and
+  “忽略” have different downstream effects.
+
+Verification:
+
+- Focused outline context, server action, prompt-template, task-helper, and
+  task-retention tests passed: 5 files and 44 tests.
+- Full `npm test` passed: 112 files and 643 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed, including Next.js production compilation and
+  lint/type validation.
+- `npm run mvp:acceptance` passed.
+- `git diff --check` passed.
+
 ## 2026-07-24: Long-Form AI Streaming and Inactivity Timeout
 
 Status: completed for review.

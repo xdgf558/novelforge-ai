@@ -97,6 +97,45 @@ describe("outline generation context builder", () => {
     });
   });
 
+  it("automatically includes a bounded latest ending plan in later outline drafts", () => {
+    const longEndingPlan = [
+      "开头：剩余八章进入收束。",
+      "中部：优先回收军饷底账与录事参军身份。",
+      "结尾：沈裴完成选择并关闭旧案。",
+      "补充".repeat(5000),
+    ].join("\n");
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      endingPlan: {
+        taskId: "ending_plan_1",
+        adoptionState: "not_reviewed",
+        completedAt: new Date("2026-07-25T06:41:00.000Z"),
+        outputText: longEndingPlan,
+      },
+    });
+
+    expect(context.inputText).toContain("自动纳入的终局规划参考");
+    expect(context.inputText).toContain("剩余八章进入收束");
+    expect(context.inputText).toContain("核心伏笔回收");
+    expect(context.inputText).toContain("不得无故新增会妨碍收束的大型支线");
+    expect(context.inputJson.endingPlan).toMatchObject({
+      taskId: "ending_plan_1",
+      adoptionState: "not_reviewed",
+      completedAt: "2026-07-25T06:41:00.000Z",
+    });
+    expect(
+      (context.inputJson.endingPlan as { outputText: string }).outputText.length,
+    ).toBeLessThanOrEqual(12000);
+    expect(buildOutlineGenerationContextSummary({
+      ...baseInput,
+      endingPlan: {
+        taskId: "ending_plan_1",
+        adoptionState: "not_reviewed",
+        outputText: "剩余八章。",
+      },
+    })).toContain("包含终局规划参考");
+  });
+
   it("does not include chapter item counts for volume outline requests", () => {
     const context = buildOutlineGenerationContext({
       ...baseInput,

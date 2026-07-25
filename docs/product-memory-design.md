@@ -126,6 +126,18 @@ draft anchored to the previous chapter ending. The draft is only an AI task
 record; it must not create or mutate a formal outline until the author reviews
 and saves it.
 
+Ending planning forms a review-only planning layer between formal memory and
+later AI outline drafts. Once an `ending_planning_generation` task completes,
+its bounded output automatically guides subsequent volume, story-unit, and
+chapter outline generation while it remains the latest completed plan and has
+not been marked ignored. Marking it organized keeps it active as guidance;
+marking it ignored removes it from future outline context. This reuse never
+promotes the plan into formal memory or authorizes direct writes. Formal
+outlines, settings, and finalized prose take precedence over conflicts, and
+the generated outline must surface any unresolved contradiction for author
+review. Retention protects only the latest usable ending plan so guidance
+survives continued generation without accumulating every historical plan.
+
 ## Memory Layers
 
 ### 1. Project Setting Memory

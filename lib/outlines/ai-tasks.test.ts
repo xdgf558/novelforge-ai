@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildPreviousChapterEndingContext,
   findActiveOutlineGenerationTask,
+  findLatestEndingPlanningReference,
   inferNextTargetChapterNumber,
 } from "./ai-tasks";
 
@@ -41,6 +42,57 @@ describe("outline AI task helpers", () => {
         id: true,
       },
     });
+  });
+
+  it("returns the latest completed ending plan while it remains usable", async () => {
+    const completedAt = new Date("2026-07-25T06:41:00.000Z");
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "ending_plan_2",
+      adoptionState: "not_reviewed",
+      completedAt,
+      outputText: "剩余八章，优先回收军饷底账伏笔。",
+    });
+
+    await expect(
+      findLatestEndingPlanningReference("project_1"),
+    ).resolves.toEqual({
+      taskId: "ending_plan_2",
+      adoptionState: "not_reviewed",
+      completedAt,
+      outputText: "剩余八章，优先回收军饷底账伏笔。",
+    });
+    expect(mocks.prisma.aiTask.findFirst).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+        outputText: {
+          not: null,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        adoptionState: true,
+        completedAt: true,
+        outputText: true,
+      },
+    });
+  });
+
+  it("stops using ending planning after the latest completed plan is ignored", async () => {
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "ending_plan_2",
+      adoptionState: "rejected",
+      completedAt: new Date("2026-07-25T06:41:00.000Z"),
+      outputText: "这份规划已经被作者忽略。",
+    });
+
+    await expect(
+      findLatestEndingPlanningReference("project_1"),
+    ).resolves.toBeNull();
   });
 
   it("infers the next target chapter from existing chapters and chapter outlines", () => {

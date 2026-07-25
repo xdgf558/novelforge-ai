@@ -36,6 +36,7 @@ import {
   buildPreviousChapterEndingContext,
   findActiveEndingPlanningTask,
   findActiveOutlineGenerationTask,
+  findLatestEndingPlanningReference,
   inferNextTargetChapterNumber,
 } from "@/lib/outlines/ai-tasks";
 import { findEndingPlanningForeshadows } from "@/lib/outlines/ending-planning";
@@ -315,54 +316,56 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     redirect(`/projects/${projectId}/outlines?outlineTarget=${request.targetLevel}`);
   }
 
-  const [project, outlines, characters, recentChapters] = await Promise.all([
-    prisma.project.findUnique({
-      where: {
-        id: projectId,
-      },
-      include: {
-        setting: true,
-      },
-    }),
-    prisma.outline.findMany({
-      where: {
-        projectId,
-        status: {
-          not: "archived",
+  const [project, outlines, characters, recentChapters, endingPlan] =
+    await Promise.all([
+      prisma.project.findUnique({
+        where: {
+          id: projectId,
         },
-      },
-      orderBy: [
-        {
-          level: "asc",
+        include: {
+          setting: true,
         },
-        {
-          sortOrder: "asc",
+      }),
+      prisma.outline.findMany({
+        where: {
+          projectId,
+          status: {
+            not: "archived",
+          },
         },
-        {
-          createdAt: "asc",
+        orderBy: [
+          {
+            level: "asc",
+          },
+          {
+            sortOrder: "asc",
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
+      }),
+      prisma.character.findMany({
+        where: {
+          projectId,
+          status: "active",
         },
-      ],
-    }),
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 12,
-    }),
-    prisma.chapter.findMany({
-      where: {
-        projectId,
-      },
-      orderBy: {
-        chapterNumber: "desc",
-      },
-      take: 5,
-    }),
-  ]);
+        orderBy: {
+          name: "asc",
+        },
+        take: 12,
+      }),
+      prisma.chapter.findMany({
+        where: {
+          projectId,
+        },
+        orderBy: {
+          chapterNumber: "desc",
+        },
+        take: 5,
+      }),
+      findLatestEndingPlanningReference(projectId),
+    ]);
 
   if (!project) {
     notFound();
@@ -406,6 +409,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     characters,
     recentChapters: recentChapters.reverse(),
     previousChapter: buildPreviousChapterEndingContext(previousChapter),
+    endingPlan,
     request: resolvedRequest,
   });
 

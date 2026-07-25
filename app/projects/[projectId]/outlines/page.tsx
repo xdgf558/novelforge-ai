@@ -86,82 +86,100 @@ export default async function OutlinesPage({
 
   await expireStaleOutlineAiTasks(projectId);
 
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    include: {
-      outlines: {
-        include: {
-          storylineOutlines: {
-            include: {
-              storyline: {
-                select: {
-                  id: true,
-                  name: true,
-                  type: true,
-                  status: true,
+  const [project, endingPlanTasks] = await Promise.all([
+    prisma.project.findUnique({
+      where: {
+        id: projectId,
+      },
+      include: {
+        outlines: {
+          include: {
+            storylineOutlines: {
+              include: {
+                storyline: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    status: true,
+                  },
                 },
               },
+              orderBy: {
+                createdAt: "asc",
+              },
             },
-            orderBy: {
+          },
+          orderBy: [
+            {
+              level: "asc",
+            },
+            {
+              sortOrder: "asc",
+            },
+            {
               createdAt: "asc",
             },
+          ],
+        },
+        chapters: {
+          orderBy: {
+            chapterNumber: "asc",
+          },
+          select: {
+            chapterNumber: true,
+            goal: true,
+            title: true,
+            status: true,
+            wordCount: true,
           },
         },
-        orderBy: [
-          {
-            level: "asc",
-          },
-          {
-            sortOrder: "asc",
-          },
-          {
-            createdAt: "asc",
-          },
-        ],
-      },
-      chapters: {
-        orderBy: {
-          chapterNumber: "asc",
-        },
-        select: {
-          chapterNumber: true,
-          goal: true,
-          title: true,
-          status: true,
-          wordCount: true,
-        },
-      },
-      foreshadows: {
-        select: {
-          content: true,
-          status: true,
-          importance: true,
-          expectedResolveChapter: true,
-        },
-      },
-      aiTasks: {
-        where: {
-          taskType: {
-            in: ["outline_generation", endingPlanningTaskType],
+        foreshadows: {
+          select: {
+            content: true,
+            status: true,
+            importance: true,
+            expectedResolveChapter: true,
           },
         },
-        include: {
-          promptTemplate: {
-            select: {
-              name: true,
-              version: true,
+        aiTasks: {
+          where: {
+            taskType: "outline_generation",
+          },
+          include: {
+            promptTemplate: {
+              select: {
+                name: true,
+                version: true,
+              },
             },
           },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 5,
         },
-        orderBy: {
-          createdAt: "desc",
-        },
-        take: 5,
       },
-    },
-  });
+    }),
+    prisma.aiTask.findMany({
+      where: {
+        projectId,
+        taskType: endingPlanningTaskType,
+      },
+      include: {
+        promptTemplate: {
+          select: {
+            name: true,
+            version: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 3,
+    }),
+  ]);
 
   if (!project) {
     notFound();
@@ -204,16 +222,11 @@ export default async function OutlinesPage({
   const hasActiveOutlineTask = project.aiTasks.some((task) =>
     task.taskType === "outline_generation" && isActiveAiTaskStatus(task.status),
   );
-  const outlineTasks = project.aiTasks.filter(
-    (task) => task.taskType === "outline_generation",
-  );
+  const outlineTasks = project.aiTasks;
   const defaultOutlineTargetLevel =
     outlineTargetLevelFromQuery(query.outlineTarget) ??
     outlineLevelFromTaskSummary(outlineTasks[0]?.inputContextSummary) ??
     "chapter";
-  const endingPlanTasks = project.aiTasks.filter(
-    (task) => task.taskType === endingPlanningTaskType,
-  );
   const hasActiveEndingPlanTask = endingPlanTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
@@ -636,7 +649,10 @@ function EndingPlanningPanel({
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
             系统会结合总目标字数、章节状态、未回收伏笔和大纲进度给出本地判断；AI
-            只生成可审阅的收尾规划草案，不会自动修改正式大纲、伏笔池或时间线。
+            只生成可审阅的收尾规划草案，不会自动修改正式大纲、伏笔池或时间线。最近一份已完成且未被忽略的规划会自动纳入后续大纲生成。
+          </p>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
+            “标记已整理”后仍会继续参考；标记“忽略”后，后续大纲将停止引用这份规划。
           </p>
         </div>
 
@@ -712,7 +728,7 @@ function EndingPlanningPanel({
         <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-4 text-sm text-ink-700">
           <p className="font-semibold text-ink-950">还没有终局规划任务</p>
           <p className="mt-2 leading-6">
-            生成后会在这里显示最近草案，包含模型、模板版本、状态和输出。作者可以把合适内容整理进正式卷大纲、剧情单元大纲或伏笔回收计划。
+            生成后会在这里显示最近草案，包含模型、模板版本、状态和输出，并自动作为后续大纲草案的收束参考。作者仍可把合适内容整理进正式卷大纲、剧情单元大纲或伏笔回收计划。
           </p>
         </div>
       ) : (

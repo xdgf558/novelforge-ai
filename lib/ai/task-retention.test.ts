@@ -95,19 +95,40 @@ describe("AI task retention", () => {
     expect(aiTaskIdsToPrune(tasks)).toEqual(["task_4"]);
   });
 
+  it("protects only the latest completed ending plan while it remains usable", () => {
+    const tasks = Array.from({ length: 13 }, (_, index) => ({
+      ...task(`task_${index}`, index),
+      taskType:
+        index === 0 ? "ending_planning_generation" : "outline_generation",
+      adoptionState: "not_reviewed",
+    }));
+
+    expect(aiTaskIdsToPrune(tasks)).toEqual(["task_2", "task_1"]);
+
+    tasks[0].adoptionState = "rejected";
+
+    expect(aiTaskIdsToPrune(tasks)).toEqual([
+      "task_2",
+      "task_1",
+      "task_0",
+    ]);
+  });
+
   it("cleans cover candidate assets before pruning old cover image tasks", async () => {
     mocks.prisma.aiTask.findMany.mockResolvedValue([
       {
         id: "task_new",
         createdAt: new Date("2026-01-01T00:00:02.000Z"),
-        status: "completed",
-        taskType: "chapter_beat_generation",
+      status: "completed",
+      taskType: "chapter_beat_generation",
+      adoptionState: "not_reviewed",
       },
       {
         id: "task_old_cover",
         createdAt: new Date("2026-01-01T00:00:01.000Z"),
-        status: "completed",
-        taskType: "cover_image_generation",
+      status: "completed",
+      taskType: "cover_image_generation",
+      adoptionState: "not_reviewed",
       },
     ]);
 
@@ -125,5 +146,19 @@ describe("AI task retention", () => {
         projectId: "project_1",
       },
     });
+  });
+
+  it("loads adoption state so retention can preserve the active ending reference", async () => {
+    mocks.prisma.aiTask.findMany.mockResolvedValue([]);
+
+    await expect(pruneProjectAiTasks("project_1")).resolves.toBe(0);
+
+    expect(mocks.prisma.aiTask.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          adoptionState: true,
+        }),
+      }),
+    );
   });
 });
