@@ -118,13 +118,20 @@ export function buildPreviousChapterEndingContext(
 
 export function inferNextTargetChapterNumber(
   chapters: readonly { chapterNumber: number }[],
-  outlines: readonly { level?: string | null; chapterNumber?: number | null }[],
+  outlines: readonly {
+    level?: string | null;
+    chapterNumber?: number | null;
+    status?: string | null;
+  }[],
 ) {
   const maxKnownChapterNumber = Math.max(
     0,
     ...chapters.map((chapter) => chapter.chapterNumber),
     ...outlines
-      .filter((outline) => outline.level === "chapter")
+      .filter(
+        (outline) =>
+          outline.level === "chapter" && outline.status !== "archived",
+      )
       .map((outline) => outline.chapterNumber ?? 0),
   );
 

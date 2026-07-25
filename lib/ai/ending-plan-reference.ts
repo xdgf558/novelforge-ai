@@ -186,6 +186,9 @@ export function readEndingPlanPlanningWindow(
   const readiness = asRecord(payload.readiness);
   const project = asRecord(payload.project);
   const chapterCount = nonNegativeInteger(readiness?.chapterCount) ?? 0;
+  // Legacy readiness snapshots did not store the maximum chapter number.
+  // chapterCount is an approximation and may expire old plans early when
+  // deleted chapters left gaps; regenerating a plan records the exact value.
   const latestChapterNumber =
     nonNegativeInteger(readiness?.latestChapterNumber) ?? chapterCount;
 

@@ -63,6 +63,7 @@ import {
   resolveOutlineLifecycleStatus,
   type OutlineProgress,
 } from "@/lib/outline-progress";
+import { inferNextTargetChapterNumber } from "@/lib/outlines/ai-tasks";
 import {
   findNextUnitPlanningReminder,
   type NextUnitPlanningReminder,
@@ -249,12 +250,10 @@ export default async function OutlinesPage({
     unit: lifecycleOutlines.filter((outline) => outline.level === "unit"),
     chapter: lifecycleOutlines.filter((outline) => outline.level === "chapter"),
   };
-  const defaultTargetChapterNumber =
-    Math.max(
-      0,
-      project.chapters.at(-1)?.chapterNumber ?? 0,
-      ...groupedOutlines.chapter.map((outline) => outline.chapterNumber ?? 0),
-    ) + 1;
+  const defaultTargetChapterNumber = inferNextTargetChapterNumber(
+    project.chapters,
+    project.outlines,
+  );
   const hasActiveOutlineTask = project.aiTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );

@@ -376,20 +376,13 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     notFound();
   }
 
-  const resolvedRequest =
-    request.targetLevel === "chapter"
-      ? {
-          targetLevel: request.targetLevel,
-          chapterCount: request.chapterCount,
-          targetChapterNumber:
-            request.targetChapterNumber ??
-            inferNextTargetChapterNumber(recentChapters, outlines),
-        }
-      : {
-          targetLevel: request.targetLevel,
-          chapterCount: request.chapterCount,
-          targetChapterNumber: request.targetChapterNumber,
-        };
+  const resolvedRequest = {
+    targetLevel: request.targetLevel,
+    chapterCount: request.chapterCount,
+    targetChapterNumber:
+      request.targetChapterNumber ??
+      inferNextTargetChapterNumber(recentChapters, outlines),
+  };
   const previousChapter =
     resolvedRequest.targetLevel !== "volume" &&
     resolvedRequest.targetChapterNumber &&

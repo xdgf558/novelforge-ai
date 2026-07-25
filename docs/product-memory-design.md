@@ -135,8 +135,11 @@ target words and observed chapter pace; historical targets and targets beyond
 that window do not receive the reference. A missing word target uses a neutral
 ten-chapter estimate plus buffer, while a manuscript already at or beyond its
 target receives the minimum four-chapter window. Expired plans are called out
-on the outline page with guidance to regenerate them. The supplied context is an
-ending-preserving head/middle/tail excerpt capped at 6,000 characters, wrapped
+on the outline page with guidance to regenerate them. The page and all outline
+generation levels use the same next-target calculation across written chapters
+and non-archived chapter outlines, so the banner and actual prompt injection
+cannot disagree. The supplied context is an ending-preserving head/middle/tail
+excerpt capped at 6,000 characters, wrapped
 as untrusted model-output data, and can be skipped for one generation without
 globally rejecting the plan. Marking it organized keeps it active as guidance;
 marking it ignored removes it from future outline context. This reuse never

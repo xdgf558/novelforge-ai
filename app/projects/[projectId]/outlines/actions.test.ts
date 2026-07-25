@@ -297,7 +297,7 @@ describe("outline actions", () => {
           request: {
             targetLevel: "volume",
             chapterCount: null,
-            targetChapterNumber: null,
+            targetChapterNumber: 1,
           },
         }),
       }),
@@ -530,6 +530,82 @@ describe("outline actions", () => {
       }),
     );
     expect(mocks.prisma.outline.create).not.toHaveBeenCalled();
+  });
+
+  it("uses the same next chapter for volume ending-plan gating as the outline page", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "volume");
+    mocks.prisma.outline.findMany.mockResolvedValue([
+      {
+        id: "outline_45",
+        level: "chapter",
+        title: "第45章",
+        chapterNumber: 45,
+        goal: null,
+        mainConflict: null,
+        coreEvents: null,
+        endingHook: null,
+      },
+    ]);
+    mocks.prisma.chapter.findMany.mockResolvedValue([
+      {
+        chapterNumber: 30,
+        title: "第30章",
+        goal: null,
+        beats: null,
+        notes: null,
+      },
+    ]);
+    mocks.prisma.aiTask.findFirst.mockImplementation((args) => {
+      if (
+        args.where.taskType !== "ending_planning_generation" ||
+        args.where.status !== "completed"
+      ) {
+        return Promise.resolve(null);
+      }
+
+      return Promise.resolve({
+        id: "ending_plan_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+        adoptionState: "adopted",
+        completedAt: new Date("2026-07-25T06:41:00.000Z"),
+        inputJson: JSON.stringify({
+          planningWindow: {
+            generatedAtChapterNumber: 30,
+            validThroughChapterNumber: 38,
+            estimatedRemainingChapterCount: 8,
+          },
+        }),
+        outputText: "第31至38章完成收束。",
+      });
+    });
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputJson: expect.objectContaining({
+          request: {
+            targetLevel: "volume",
+            chapterCount: null,
+            targetChapterNumber: 46,
+          },
+          endingPlan: null,
+          endingPlanDecision: expect.objectContaining({
+            status: "expired",
+            targetChapterNumber: 46,
+            validThroughChapterNumber: 38,
+          }),
+        }),
+        inputContextSummary: expect.stringContaining("已超出建议射程"),
+      }),
+      expect.objectContaining({
+        input: expect.not.stringContaining("自动纳入的终局规划参考"),
+      }),
+    );
   });
 
   it("starts a draft-only ending planning task without writing formal outline memory", async () => {

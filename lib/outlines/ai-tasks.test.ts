@@ -155,6 +155,11 @@ describe("outline AI task helpers", () => {
             level: "unit",
             chapterNumber: 30,
           },
+          {
+            level: "chapter",
+            chapterNumber: 40,
+            status: "archived",
+          },
         ],
       ),
     ).toBe(9);

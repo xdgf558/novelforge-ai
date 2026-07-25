@@ -97,10 +97,7 @@ export function buildOutlineGenerationContext(
     input.request.targetLevel === "chapter"
       ? 1
       : null;
-  const targetChapterNumber =
-    input.request.targetLevel === "volume"
-      ? null
-      : (input.request.targetChapterNumber ?? null);
+  const targetChapterNumber = input.request.targetChapterNumber ?? null;
   const previousChapter =
     input.request.targetLevel !== "volume" && input.previousChapter
       ? {
@@ -322,8 +319,8 @@ function resolveEndingPlanReference(
     0,
     ...input.recentChapters.map((chapter) => chapter.chapterNumber),
   );
-  // Volume drafts have no explicit range before generation, so eligibility is
-  // anchored to the next unwritten chapter rather than an unknown end chapter.
+  // Server actions resolve this explicitly for every outline level. Keep this
+  // fallback only for legacy callers and direct context-builder use.
   const targetChapterNumber =
     input.request.targetChapterNumber ?? currentChapterNumber + 1;
   const base = {

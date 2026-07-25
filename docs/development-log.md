@@ -59,9 +59,17 @@ What was done:
   planning window instead of receiving the same broad default. Window bounds
   are named constants and covered independently.
 - Reused one `SkipEndingPlanCheckbox` component across both outline-generation
-  entry points, documented that volume requests are gated from the next
-  unwritten chapter because no generated range exists yet, and avoided
-  rebuilding the ending-plan excerpt solely to produce the task summary.
+  entry points and avoided rebuilding the ending-plan excerpt solely to produce
+  the task summary.
+- Unified the "next target chapter" calculation through
+  `inferNextTargetChapterNumber`. The outline page and every generation level
+  now consider both written chapters and non-archived chapter outlines before
+  passing an explicit target into ending-plan gating. Volume requests therefore
+  cannot disagree with the expired-plan banner; the context builder's
+  recent-chapter-only calculation remains only as a defensive legacy fallback.
+- Documented the legacy planning-window approximation: old readiness snapshots
+  without `latestChapterNumber` fall back to chapter count and may expire early
+  when deleted chapters left numbering gaps.
 - Wrapped model-produced ending-plan text in an explicit untrusted reference
   boundary and told the outline model not to interpret commands embedded in
   that quoted content.
@@ -72,9 +80,9 @@ What was done:
 
 Verification:
 
-- Focused ending-plan selection, planning-window, outline context, server
-  action, task-helper, and task-retention tests passed: 6 files and 58 tests.
-- Full `npm test` passed: 113 files and 664 tests.
+- Focused final target-resolution, ending-plan selection, outline context, and
+  task-helper tests passed: 4 files and 48 tests.
+- Full `npm test` passed: 113 files and 665 tests.
 - `npm run typecheck` passed.
 - `npm run build` passed, including Next.js production compilation and
   lint/type validation.
