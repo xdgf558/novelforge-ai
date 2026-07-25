@@ -36,6 +36,7 @@ import {
   buildPreviousChapterEndingContext,
   findActiveEndingPlanningTask,
   findActiveOutlineGenerationTask,
+  findLatestEndingPlanningReference,
   inferNextTargetChapterNumber,
 } from "@/lib/outlines/ai-tasks";
 import { findEndingPlanningForeshadows } from "@/lib/outlines/ending-planning";
@@ -124,6 +125,10 @@ const generationRequestSchema = z.object({
       return Number.isFinite(parsed) ? parsed : value;
     }, z.number().int().min(1).nullable())
     .default(null),
+  skipEndingPlan: z.preprocess(
+    (value) => value === "on" || value === "true",
+    z.boolean(),
+  ),
 }).transform((request) => ({
   ...request,
   chapterCount: request.targetLevel === "chapter" ? 1 : null,
@@ -306,6 +311,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     targetLevel: formData.get("targetLevel"),
     chapterCount: formData.get("chapterCount"),
     targetChapterNumber: formData.get("targetChapterNumber"),
+    skipEndingPlan: formData.get("skipEndingPlan"),
   };
   const request = generationRequestSchema.parse(rawRequest);
   const activeTask = await findActiveOutlineGenerationTask(projectId);
@@ -315,68 +321,68 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     redirect(`/projects/${projectId}/outlines?outlineTarget=${request.targetLevel}`);
   }
 
-  const [project, outlines, characters, recentChapters] = await Promise.all([
-    prisma.project.findUnique({
-      where: {
-        id: projectId,
-      },
-      include: {
-        setting: true,
-      },
-    }),
-    prisma.outline.findMany({
-      where: {
-        projectId,
-        status: {
-          not: "archived",
+  const [project, outlines, characters, recentChapters, endingPlan] =
+    await Promise.all([
+      prisma.project.findUnique({
+        where: {
+          id: projectId,
         },
-      },
-      orderBy: [
-        {
-          level: "asc",
+        include: {
+          setting: true,
         },
-        {
-          sortOrder: "asc",
+      }),
+      prisma.outline.findMany({
+        where: {
+          projectId,
+          status: {
+            not: "archived",
+          },
         },
-        {
-          createdAt: "asc",
+        orderBy: [
+          {
+            level: "asc",
+          },
+          {
+            sortOrder: "asc",
+          },
+          {
+            createdAt: "asc",
+          },
+        ],
+      }),
+      prisma.character.findMany({
+        where: {
+          projectId,
+          status: "active",
         },
-      ],
-    }),
-    prisma.character.findMany({
-      where: {
-        projectId,
-        status: "active",
-      },
-      orderBy: {
-        name: "asc",
-      },
-      take: 12,
-    }),
-    prisma.chapter.findMany({
-      where: {
-        projectId,
-      },
-      orderBy: {
-        chapterNumber: "desc",
-      },
-      take: 5,
-    }),
-  ]);
+        orderBy: {
+          name: "asc",
+        },
+        take: 12,
+      }),
+      prisma.chapter.findMany({
+        where: {
+          projectId,
+        },
+        orderBy: {
+          chapterNumber: "desc",
+        },
+        take: 5,
+      }),
+      findLatestEndingPlanningReference(projectId),
+    ]);
 
   if (!project) {
     notFound();
   }
 
-  const resolvedRequest =
-    request.targetLevel === "chapter"
-      ? {
-          ...request,
-          targetChapterNumber:
-            request.targetChapterNumber ??
-            inferNextTargetChapterNumber(recentChapters, outlines),
-        }
-      : request;
+  const resolvedRequest = {
+    targetLevel: request.targetLevel,
+    chapterCount: request.chapterCount,
+    targetChapterNumber:
+      request.targetChapterNumber ??
+      inferNextTargetChapterNumber(recentChapters, outlines),
+  };
   const previousChapter =
     resolvedRequest.targetLevel !== "volume" &&
     resolvedRequest.targetChapterNumber &&
@@ -406,6 +412,10 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     characters,
     recentChapters: recentChapters.reverse(),
     previousChapter: buildPreviousChapterEndingContext(previousChapter),
+    endingPlan,
+    endingPlanMode: request.skipEndingPlan
+      ? "author_skipped"
+      : "automatic",
     request: resolvedRequest,
   });
 

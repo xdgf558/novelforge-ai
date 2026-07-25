@@ -3,8 +3,12 @@ import {
   calculateOutlineProgress,
   resolveOutlineLifecycleStatus,
 } from "../outline-progress";
+import {
+  calculateEndingPlanPlanningWindow,
+  endingPlanningTaskType,
+} from "./ending-plan-reference";
 
-export const endingPlanningTaskType = "ending_planning_generation";
+export { endingPlanningTaskType };
 
 export type EndingPlanningProjectContext = {
   title: string;
@@ -80,6 +84,7 @@ export type EndingReadinessSnapshot = {
   targetWords: number | null;
   progressPercent: number | null;
   chapterCount: number;
+  latestChapterNumber: number;
   finalChapterCount: number;
   publishedChapterCount: number;
   unresolvedForeshadowCount: number;
@@ -122,6 +127,10 @@ export function calculateEndingReadiness(
     (foreshadow) => foreshadow.importance === "high",
   ).length;
   const chapterCount = input.chapters.length;
+  const latestChapterNumber = Math.max(
+    0,
+    ...input.chapters.map((chapter) => chapter.chapterNumber),
+  );
   const finalChapterCount = input.chapters.filter((chapter) =>
     isFinalChapterStatus(chapter.status),
   ).length;
@@ -151,6 +160,7 @@ export function calculateEndingReadiness(
     targetWords,
     progressPercent,
     chapterCount,
+    latestChapterNumber,
     finalChapterCount,
     publishedChapterCount,
     unresolvedForeshadowCount: unresolvedForeshadows.length,
@@ -166,6 +176,15 @@ export function buildEndingPlanningContext(
   input: EndingPlanningContextInput,
 ): BuiltEndingPlanningContext {
   const readiness = calculateEndingReadiness(input);
+  const planningWindow = calculateEndingPlanPlanningWindow({
+    latestChapterNumber: readiness.latestChapterNumber,
+    currentWords: readiness.currentWords,
+    targetWords: readiness.targetWords,
+    chapterCount: readiness.chapterCount,
+    finalChapterCount: readiness.finalChapterCount,
+    chapterWordMin: input.project.chapterWordMin,
+    chapterWordMax: input.project.chapterWordMax,
+  });
   const unresolvedForeshadows = input.foreshadows.filter((foreshadow) =>
     isUnresolvedForeshadowStatus(foreshadow.status),
   );
@@ -195,6 +214,7 @@ export function buildEndingPlanningContext(
       description: clipText(input.project.description),
     },
     readiness,
+    planningWindow,
     setting: {
       mainConflict: clipText(input.setting?.mainConflict),
       protagonistDesire: clipText(input.setting?.protagonistDesire),
@@ -259,6 +279,8 @@ export function buildEndingPlanningContext(
           : `${readiness.progressPercent}%`,
       ],
       ["章节数", readiness.chapterCount],
+      ["规划生成位置", `第 ${planningWindow.generatedAtChapterNumber} 章后`],
+      ["建议参考至", `第 ${planningWindow.validThroughChapterNumber} 章`],
       ["已定稿章节", readiness.finalChapterCount],
       ["已发布章节", readiness.publishedChapterCount],
       ["未回收或推进中伏笔", readiness.unresolvedForeshadowCount],
@@ -324,6 +346,15 @@ export function buildEndingPlanningContextSummary(
   input: EndingPlanningContextInput,
   readiness = calculateEndingReadiness(input),
 ) {
+  const planningWindow = calculateEndingPlanPlanningWindow({
+    latestChapterNumber: readiness.latestChapterNumber,
+    currentWords: readiness.currentWords,
+    targetWords: readiness.targetWords,
+    chapterCount: readiness.chapterCount,
+    finalChapterCount: readiness.finalChapterCount,
+    chapterWordMin: input.project.chapterWordMin,
+    chapterWordMax: input.project.chapterWordMax,
+  });
   const progressText =
     readiness.progressPercent == null
       ? "未设置目标字数"
@@ -335,6 +366,7 @@ export function buildEndingPlanningContextSummary(
     `章节 ${readiness.chapterCount} 个`,
     `未回收伏笔 ${readiness.unresolvedForeshadowCount} 条`,
     `阶段：${endingStageLabel(readiness.stage)}`,
+    `建议参考至第 ${planningWindow.validThroughChapterNumber} 章`,
   ].join("；");
 }
 

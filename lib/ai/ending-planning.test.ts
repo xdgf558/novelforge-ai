@@ -103,6 +103,7 @@ describe("ending planning context", () => {
 
     expect(readiness.currentWords).toBe(85000);
     expect(readiness.progressPercent).toBe(85);
+    expect(readiness.latestChapterNumber).toBe(3);
     expect(readiness.unresolvedForeshadowCount).toBe(1);
     expect(readiness.highImportanceUnresolvedForeshadowCount).toBe(1);
     expect(readiness.stage).toBe("tighten_threads");
@@ -112,7 +113,7 @@ describe("ending planning context", () => {
     const context = buildEndingPlanningContext(baseInput);
 
     expect(context.inputContextSummary).toBe(
-      "《离线未来》终局规划；目标进度 85%；章节 3 个；未回收伏笔 1 条；阶段：线索收紧",
+      "《离线未来》终局规划；目标进度 85%；章节 3 个；未回收伏笔 1 条；阶段：线索收紧；建议参考至第 7 章",
     );
     expect(context.inputText).toContain("生成一份终局规划 / 收尾检查草案");
     expect(context.inputText).toContain("不得自动把任何伏笔标记为已回收或废弃");
@@ -120,8 +121,14 @@ describe("ending planning context", () => {
     expect(context.inputText).toContain("主角不再把 AI 当成万能外挂");
     expect(context.inputJson.readiness).toMatchObject({
       currentWords: 85000,
+      latestChapterNumber: 3,
       progressPercent: 85,
       stage: "tighten_threads",
+    });
+    expect(context.inputJson.planningWindow).toEqual({
+      generatedAtChapterNumber: 3,
+      validThroughChapterNumber: 7,
+      estimatedRemainingChapterCount: 4,
     });
   });
 

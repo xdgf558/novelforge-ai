@@ -1,5 +1,94 @@
 # Development Log
 
+## 2026-07-25: Ending Plan Continuity for Later Outline Drafts
+
+Status: completed.
+
+What was done:
+
+- Changed volume, story-unit, and chapter outline generation to automatically
+  load the latest completed ending-planning task after a terminal plan exists.
+  Both unreviewed and author-marked-organized plans remain usable; marking the
+  latest completed plan ignored immediately removes it from later outline
+  context.
+- Added a bounded 6,000-character head/middle/tail ending-plan excerpt to the
+  logged outline-generation input JSON and prompt. The excerpt algorithm keeps
+  its three sections non-overlapping at boundary lengths, preserves the ending,
+  and falls back safely when the requested budget cannot fit separators.
+- Recorded each new ending plan's generation chapter and a locally estimated
+  validity window based on observed chapter pace and remaining target words.
+  Later outline generation only includes the plan for targets after its
+  generation point and within that window. Legacy tasks derive the same
+  metadata from their saved readiness snapshot; historical targets and stale
+  plans are omitted with an auditable reason in the task summary.
+- Added a per-generation "本次不引用终局规划" checkbox. Automatic use remains
+  the default, while authors can skip the reference for one outline without
+  rejecting it globally.
+- Preserved formal-memory precedence. When the ending plan conflicts with
+  formal outlines, settings, or finalized chapters, the new outline draft must
+  follow formal data and surface the conflict for author review. No ending-plan
+  task creates or mutates formal outlines, foreshadows, timelines, chapters, or
+  story memory.
+- Bumped the default `outline_generation` prompt template to v2 so generated
+  tasks visibly record whether terminal-plan guidance was part of their
+  context.
+- Centralized ending-plan usability and newest-task ordering. Only completed,
+  non-empty `not_reviewed` or `adopted` plans are usable; unknown future states
+  fail closed. Prompt loading and task retention both use creation time plus
+  task ID as the same deterministic newest-task order. Only that latest usable
+  completed plan is protected from normal retention, and an unusable latest
+  task never falls back to an older plan.
+- Kept retention cleanup lightweight: its bulk task query no longer selects
+  `outputText` from every chapter draft and polish task. A separate
+  deterministic `findFirst` query reads only the latest completed ending-plan
+  candidate, applies the shared usability rule, and passes the resulting
+  protected ID into the pure pruning helper.
+- Split outline and ending-plan task loading on the outline page. The five
+  latest outline drafts stay bounded while the three latest ending plans remain
+  independently visible, so the active terminal reference can still be marked
+  ignored after more outline work.
+- Updated the outline UI to explain that a completed non-ignored ending plan is
+  automatically used only within its estimated chapter window, can be skipped
+  once, and that “标记已整理” and “忽略” have different downstream effects. A
+  targeted latest-completed-plan query also drives an explicit expired-plan
+  notice that shows the recommended final chapter and directs the author to
+  regenerate the plan.
+- Distinguished a missing total-word target from a manuscript already at or
+  beyond its target. Missing targets use the named ten-chapter neutral
+  estimate plus buffer; over-target manuscripts use the minimum four-chapter
+  planning window instead of receiving the same broad default. Window bounds
+  are named constants and covered independently.
+- Reused one `SkipEndingPlanCheckbox` component across both outline-generation
+  entry points and avoided rebuilding the ending-plan excerpt solely to produce
+  the task summary.
+- Unified the "next target chapter" calculation through
+  `inferNextTargetChapterNumber`. The outline page and every generation level
+  now consider both written chapters and non-archived chapter outlines before
+  passing an explicit target into ending-plan gating. Volume requests therefore
+  cannot disagree with the expired-plan banner; the context builder's
+  recent-chapter-only calculation remains only as a defensive legacy fallback.
+- Documented the legacy planning-window approximation: old readiness snapshots
+  without `latestChapterNumber` fall back to chapter count and may expire early
+  when deleted chapters left numbering gaps.
+- Wrapped model-produced ending-plan text in an explicit untrusted reference
+  boundary and told the outline model not to interpret commands embedded in
+  that quoted content.
+- Confirmed the prompt-template upgrade path with a dedicated regression test:
+  `ensureDefaultPromptTemplate` upgrades existing project v1 outline templates
+  to v2 on the next outline generation and deactivates the older active row, so
+  no schema migration is required.
+
+Verification:
+
+- Focused final target-resolution, ending-plan selection, outline context, and
+  task-helper tests passed: 4 files and 48 tests.
+- Full `npm test` passed: 113 files and 665 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed, including Next.js production compilation and
+  lint/type validation.
+- `npm run mvp:acceptance` passed.
+- `git diff --check` passed.
+
 ## 2026-07-24: 0.1.106 Kimi Long-Form Streaming Personal Installer
 
 Status: completed.

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   prisma: {
     aiTask: {
       deleteMany: vi.fn(),
+      findFirst: vi.fn(),
       findMany: vi.fn(),
     },
   },
@@ -38,6 +39,7 @@ describe("AI task retention", () => {
     mocks.prisma.aiTask.deleteMany.mockResolvedValue({
       count: 1,
     });
+    mocks.prisma.aiTask.findFirst.mockResolvedValue(null);
   });
 
   it("keeps the newest project task records within the retention limit", () => {
@@ -95,6 +97,23 @@ describe("AI task retention", () => {
     expect(aiTaskIdsToPrune(tasks)).toEqual(["task_4"]);
   });
 
+  it("protects only the latest completed ending plan while it remains usable", () => {
+    const tasks = Array.from({ length: 13 }, (_, index) => ({
+      ...task(`task_${index}`, index),
+      taskType:
+        index === 0 ? "ending_planning_generation" : "outline_generation",
+    }));
+
+    expect(
+      aiTaskIdsToPrune(tasks, projectAiTaskRetentionLimit, "task_0"),
+    ).toEqual(["task_2", "task_1"]);
+    expect(aiTaskIdsToPrune(tasks)).toEqual([
+      "task_2",
+      "task_1",
+      "task_0",
+    ]);
+  });
+
   it("cleans cover candidate assets before pruning old cover image tasks", async () => {
     mocks.prisma.aiTask.findMany.mockResolvedValue([
       {
@@ -123,6 +142,75 @@ describe("AI task retention", () => {
           in: ["task_old_cover"],
         },
         projectId: "project_1",
+      },
+    });
+  });
+
+  it("loads only the latest ending-plan output instead of every task output", async () => {
+    mocks.prisma.aiTask.findMany.mockResolvedValue([]);
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "ending_plan_1",
+      taskType: "ending_planning_generation",
+      status: "completed",
+      adoptionState: "adopted",
+      outputText: "终局规划正文",
+    });
+
+    await expect(pruneProjectAiTasks("project_1")).resolves.toBe(0);
+
+    const findManyArgs = mocks.prisma.aiTask.findMany.mock.calls[0]?.[0];
+    expect(findManyArgs.select).not.toHaveProperty("outputText");
+    expect(mocks.prisma.aiTask.findFirst).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+      },
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      select: {
+        id: true,
+        taskType: true,
+        status: true,
+        adoptionState: true,
+        outputText: true,
+      },
+    });
+  });
+
+  it("does not protect an older ending plan when the latest one is rejected", async () => {
+    mocks.prisma.aiTask.findMany.mockResolvedValue([
+      {
+        ...task("ending_new", 2),
+        taskType: "ending_planning_generation",
+      },
+      {
+        ...task("ending_old", 1),
+        taskType: "ending_planning_generation",
+      },
+    ]);
+    mocks.prisma.aiTask.findFirst.mockResolvedValue({
+      id: "ending_new",
+      taskType: "ending_planning_generation",
+      status: "completed",
+      adoptionState: "rejected",
+      outputText: "已拒绝的新规划",
+    });
+
+    await expect(pruneProjectAiTasks("project_1", 0)).resolves.toBe(1);
+
+    expect(mocks.prisma.aiTask.deleteMany).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+        id: {
+          in: ["ending_new", "ending_old"],
+        },
       },
     });
   });

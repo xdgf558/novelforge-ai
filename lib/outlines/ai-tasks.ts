@@ -2,6 +2,11 @@ import {
   endingPlanningGenerationTaskType,
   outlineGenerationTaskType,
 } from "@/lib/ai/outline-task-maintenance";
+import {
+  isUsableEndingPlanTask,
+  readEndingPlanPlanningWindow,
+  type EndingPlanReference,
+} from "@/lib/ai/ending-plan-reference";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { prisma } from "@/lib/prisma";
 
@@ -33,6 +38,52 @@ export async function findActiveEndingPlanningTask(projectId: string) {
       id: true,
     },
   });
+}
+
+export async function findLatestEndingPlanningReference(
+  projectId: string,
+): Promise<EndingPlanReference | null> {
+  const task = await prisma.aiTask.findFirst({
+    where: {
+      projectId,
+      taskType: endingPlanningGenerationTaskType,
+      status: "completed",
+    },
+    orderBy: [
+      {
+        createdAt: "desc",
+      },
+      {
+        id: "desc",
+      },
+    ],
+    select: {
+      id: true,
+      taskType: true,
+      status: true,
+      adoptionState: true,
+      completedAt: true,
+      inputJson: true,
+      outputText: true,
+    },
+  });
+
+  if (!task || !isUsableEndingPlanTask(task)) {
+    return null;
+  }
+
+  const planningWindow = readEndingPlanPlanningWindow(task.inputJson);
+
+  return {
+    taskId: task.id,
+    adoptionState: task.adoptionState,
+    completedAt: task.completedAt,
+    outputText: task.outputText,
+    generatedAtChapterNumber:
+      planningWindow?.generatedAtChapterNumber ?? null,
+    validThroughChapterNumber:
+      planningWindow?.validThroughChapterNumber ?? null,
+  };
 }
 
 export function buildPreviousChapterEndingContext(
@@ -67,13 +118,20 @@ export function buildPreviousChapterEndingContext(
 
 export function inferNextTargetChapterNumber(
   chapters: readonly { chapterNumber: number }[],
-  outlines: readonly { level?: string | null; chapterNumber?: number | null }[],
+  outlines: readonly {
+    level?: string | null;
+    chapterNumber?: number | null;
+    status?: string | null;
+  }[],
 ) {
   const maxKnownChapterNumber = Math.max(
     0,
     ...chapters.map((chapter) => chapter.chapterNumber),
     ...outlines
-      .filter((outline) => outline.level === "chapter")
+      .filter(
+        (outline) =>
+          outline.level === "chapter" && outline.status !== "archived",
+      )
       .map((outline) => outline.chapterNumber ?? 0),
   );
 
