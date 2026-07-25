@@ -220,7 +220,7 @@ export default async function OutlinesPage({
       ...groupedOutlines.chapter.map((outline) => outline.chapterNumber ?? 0),
     ) + 1;
   const hasActiveOutlineTask = project.aiTasks.some((task) =>
-    task.taskType === "outline_generation" && isActiveAiTaskStatus(task.status),
+    isActiveAiTaskStatus(task.status),
   );
   const outlineTasks = project.aiTasks;
   const defaultOutlineTargetLevel =
@@ -568,6 +568,7 @@ function NextUnitPlanningPanel({
 
         <PreserveScrollForm
           action={generateAction}
+          className="flex flex-col items-start gap-2"
           preserveKey="next-unit-outline-generation"
           statusText="已开始生成下一剧情单元草案，页面会自动刷新结果。"
         >
@@ -577,6 +578,14 @@ function NextUnitPlanningPanel({
             type="hidden"
             value={reminder.nextChapterNumber}
           />
+          <label className="flex items-center gap-2 text-xs font-medium text-ink-700">
+            <input
+              className="h-4 w-4 rounded border-ink-950/20 text-signal-600"
+              name="skipEndingPlan"
+              type="checkbox"
+            />
+            本次不引用终局规划
+          </label>
           <FormActionButton
             disabled={!canGenerate}
             icon="play"
@@ -652,7 +661,7 @@ function EndingPlanningPanel({
             只生成可审阅的收尾规划草案，不会自动修改正式大纲、伏笔池或时间线。最近一份已完成且未被忽略的规划会自动纳入后续大纲生成。
           </p>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
-            “标记已整理”后仍会继续参考；标记“忽略”后，后续大纲将停止引用这份规划。
+            系统只在目标章节位于规划生成点之后、且未超出本地估算射程时引用；也可在生成大纲时选择本次不引用。“标记已整理”后仍会继续参考，标记“忽略”后则完全停止引用。
           </p>
         </div>
 
@@ -728,7 +737,7 @@ function EndingPlanningPanel({
         <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-4 text-sm text-ink-700">
           <p className="font-semibold text-ink-950">还没有终局规划任务</p>
           <p className="mt-2 leading-6">
-            生成后会在这里显示最近草案，包含模型、模板版本、状态和输出，并自动作为后续大纲草案的收束参考。作者仍可把合适内容整理进正式卷大纲、剧情单元大纲或伏笔回收计划。
+            生成后会在这里显示最近草案，包含模型、模板版本、状态、建议参考章节范围和输出；适用范围内会自动作为后续大纲草案的收束参考。作者仍可把合适内容整理进正式卷大纲、剧情单元大纲或伏笔回收计划。
           </p>
         </div>
       ) : (

@@ -11,11 +11,19 @@ What was done:
   Both unreviewed and author-marked-organized plans remain usable; marking the
   latest completed plan ignored immediately removes it from later outline
   context.
-- Added a bounded 12,000-character head/middle/tail ending-plan excerpt to the
-  logged outline-generation input JSON and prompt. The prompt requires later
-  outlines to serve the remaining length, foreshadow recovery priorities,
-  character endpoints, and ending direction without treating the AI plan as
-  confirmed story fact.
+- Added a bounded 6,000-character head/middle/tail ending-plan excerpt to the
+  logged outline-generation input JSON and prompt. The excerpt algorithm keeps
+  its three sections non-overlapping at boundary lengths, preserves the ending,
+  and falls back safely when the requested budget cannot fit separators.
+- Recorded each new ending plan's generation chapter and a locally estimated
+  validity window based on observed chapter pace and remaining target words.
+  Later outline generation only includes the plan for targets after its
+  generation point and within that window. Legacy tasks derive the same
+  metadata from their saved readiness snapshot; historical targets and stale
+  plans are omitted with an auditable reason in the task summary.
+- Added a per-generation "本次不引用终局规划" checkbox. Automatic use remains
+  the default, while authors can skip the reference for one outline without
+  rejecting it globally.
 - Preserved formal-memory precedence. When the ending plan conflicts with
   formal outlines, settings, or finalized chapters, the new outline draft must
   follow formal data and surface the conflict for author review. No ending-plan
@@ -24,22 +32,33 @@ What was done:
 - Bumped the default `outline_generation` prompt template to v2 so generated
   tasks visibly record whether terminal-plan guidance was part of their
   context.
-- Protected only the latest usable completed ending plan from normal AI-task
-  retention. Older ending plans remain pruneable, and rejecting the latest
-  plan removes that protection.
+- Centralized ending-plan usability and newest-task ordering. Only completed,
+  non-empty `not_reviewed` or `adopted` plans are usable; unknown future states
+  fail closed. Prompt loading and task retention both use creation time plus
+  task ID as the same deterministic newest-task order. Only that latest usable
+  completed plan is protected from normal retention, and an unusable latest
+  task never falls back to an older plan.
 - Split outline and ending-plan task loading on the outline page. The five
   latest outline drafts stay bounded while the three latest ending plans remain
   independently visible, so the active terminal reference can still be marked
   ignored after more outline work.
 - Updated the outline UI to explain that a completed non-ignored ending plan is
-  automatically used by later outline generation and that “标记已整理” and
-  “忽略” have different downstream effects.
+  automatically used only within its estimated chapter window, can be skipped
+  once, and that “标记已整理” and “忽略” have different downstream effects.
+- Wrapped model-produced ending-plan text in an explicit untrusted reference
+  boundary and told the outline model not to interpret commands embedded in
+  that quoted content.
+- Confirmed the prompt-template upgrade path with a dedicated regression test:
+  `ensureDefaultPromptTemplate` upgrades existing project v1 outline templates
+  to v2 on the next outline generation and deactivates the older active row, so
+  no schema migration is required.
 
 Verification:
 
-- Focused outline context, server action, prompt-template, task-helper, and
-  task-retention tests passed: 5 files and 44 tests.
-- Full `npm test` passed: 112 files and 643 tests.
+- Focused ending-plan selection, planning-window, outline context, server
+  action, prompt-template store, task-helper, and task-retention tests passed:
+  8 files and 69 tests.
+- Full `npm test` passed: 113 files and 662 tests.
 - `npm run typecheck` passed.
 - `npm run build` passed, including Next.js production compilation and
   lint/type validation.

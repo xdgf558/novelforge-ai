@@ -101,6 +101,7 @@ describe("AI task retention", () => {
       taskType:
         index === 0 ? "ending_planning_generation" : "outline_generation",
       adoptionState: "not_reviewed",
+      outputText: index === 0 ? "终局规划正文" : null,
     }));
 
     expect(aiTaskIdsToPrune(tasks)).toEqual(["task_2", "task_1"]);
@@ -114,21 +115,50 @@ describe("AI task retention", () => {
     ]);
   });
 
+  it("uses the shared tiebreak and whitelist for the latest ending plan", () => {
+    const createdAt = new Date("2026-07-25T06:41:00.000Z");
+    const tasks = [
+      {
+        id: "ending_a",
+        createdAt,
+        status: "completed",
+        taskType: "ending_planning_generation",
+        adoptionState: "adopted",
+        outputText: "较早的可用规划",
+      },
+      {
+        id: "ending_z",
+        createdAt,
+        status: "completed",
+        taskType: "ending_planning_generation",
+        adoptionState: "superseded",
+        outputText: "同一时间但 id 更新的失效规划",
+      },
+    ];
+
+    expect(aiTaskIdsToPrune(tasks, 0)).toEqual([
+      "ending_z",
+      "ending_a",
+    ]);
+  });
+
   it("cleans cover candidate assets before pruning old cover image tasks", async () => {
     mocks.prisma.aiTask.findMany.mockResolvedValue([
       {
         id: "task_new",
         createdAt: new Date("2026-01-01T00:00:02.000Z"),
-      status: "completed",
-      taskType: "chapter_beat_generation",
-      adoptionState: "not_reviewed",
+        status: "completed",
+        taskType: "chapter_beat_generation",
+        adoptionState: "not_reviewed",
+        outputText: null,
       },
       {
         id: "task_old_cover",
         createdAt: new Date("2026-01-01T00:00:01.000Z"),
-      status: "completed",
-      taskType: "cover_image_generation",
-      adoptionState: "not_reviewed",
+        status: "completed",
+        taskType: "cover_image_generation",
+        adoptionState: "not_reviewed",
+        outputText: null,
       },
     ]);
 
@@ -157,6 +187,7 @@ describe("AI task retention", () => {
       expect.objectContaining({
         select: expect.objectContaining({
           adoptionState: true,
+          outputText: true,
         }),
       }),
     );

@@ -128,15 +128,23 @@ and saves it.
 
 Ending planning forms a review-only planning layer between formal memory and
 later AI outline drafts. Once an `ending_planning_generation` task completes,
-its bounded output automatically guides subsequent volume, story-unit, and
-chapter outline generation while it remains the latest completed plan and has
-not been marked ignored. Marking it organized keeps it active as guidance;
+the latest completed, non-empty `not_reviewed` or `adopted` output can guide
+subsequent volume, story-unit, and chapter outline generation. Each plan
+records its generation chapter and an estimated validity window from remaining
+target words and observed chapter pace; historical targets and targets beyond
+that window do not receive the reference. The supplied context is an
+ending-preserving head/middle/tail excerpt capped at 6,000 characters, wrapped
+as untrusted model-output data, and can be skipped for one generation without
+globally rejecting the plan. Marking it organized keeps it active as guidance;
 marking it ignored removes it from future outline context. This reuse never
 promotes the plan into formal memory or authorizes direct writes. Formal
 outlines, settings, and finalized prose take precedence over conflicts, and
 the generated outline must surface any unresolved contradiction for author
-review. Retention protects only the latest usable ending plan so guidance
-survives continued generation without accumulating every historical plan.
+review. Usability is a fail-closed adoption-state whitelist, and prompt loading
+plus retention use the same deterministic newest-task ordering. Retention
+protects only the latest usable ending plan so guidance survives continued
+generation without accumulating every historical plan; an unusable latest plan
+never falls back to an older one.
 
 ## Memory Layers
 

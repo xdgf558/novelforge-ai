@@ -2,6 +2,11 @@ import {
   endingPlanningGenerationTaskType,
   outlineGenerationTaskType,
 } from "@/lib/ai/outline-task-maintenance";
+import {
+  isUsableEndingPlanTask,
+  readEndingPlanPlanningWindow,
+  type EndingPlanReference,
+} from "@/lib/ai/ending-plan-reference";
 import { activeAiTaskStatuses } from "@/lib/ai/status";
 import { prisma } from "@/lib/prisma";
 
@@ -35,40 +40,49 @@ export async function findActiveEndingPlanningTask(projectId: string) {
   });
 }
 
-export async function findLatestEndingPlanningReference(projectId: string) {
+export async function findLatestEndingPlanningReference(
+  projectId: string,
+): Promise<EndingPlanReference | null> {
   const task = await prisma.aiTask.findFirst({
     where: {
       projectId,
       taskType: endingPlanningGenerationTaskType,
       status: "completed",
-      outputText: {
-        not: null,
+    },
+    orderBy: [
+      {
+        createdAt: "desc",
       },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
+      {
+        id: "desc",
+      },
+    ],
     select: {
       id: true,
+      taskType: true,
+      status: true,
       adoptionState: true,
       completedAt: true,
+      inputJson: true,
       outputText: true,
     },
   });
 
-  if (
-    !task ||
-    task.adoptionState === "rejected" ||
-    !task.outputText?.trim()
-  ) {
+  if (!task || !isUsableEndingPlanTask(task)) {
     return null;
   }
+
+  const planningWindow = readEndingPlanPlanningWindow(task.inputJson);
 
   return {
     taskId: task.id,
     adoptionState: task.adoptionState,
     completedAt: task.completedAt,
     outputText: task.outputText,
+    generatedAtChapterNumber:
+      planningWindow?.generatedAtChapterNumber ?? null,
+    validThroughChapterNumber:
+      planningWindow?.validThroughChapterNumber ?? null,
   };
 }
 

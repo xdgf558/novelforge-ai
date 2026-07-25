@@ -342,14 +342,27 @@ describe("outline actions", () => {
     const formData = new FormData();
     formData.set("targetLevel", "chapter");
     formData.set("targetChapterNumber", "31");
-    mocks.prisma.aiTask.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
+    mocks.prisma.aiTask.findFirst.mockImplementation((args) => {
+      if (args.where.taskType === "outline_generation") {
+        return Promise.resolve(null);
+      }
+
+      return Promise.resolve({
         id: "ending_plan_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
         adoptionState: "adopted",
         completedAt: new Date("2026-07-25T06:41:00.000Z"),
+        inputJson: JSON.stringify({
+          planningWindow: {
+            generatedAtChapterNumber: 30,
+            validThroughChapterNumber: 38,
+            estimatedRemainingChapterCount: 8,
+          },
+        }),
         outputText: "第31至38章完成收束，优先回收军饷底账和录事参军身份。",
       });
+    });
 
     await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
       "NEXT_REDIRECT",
@@ -362,12 +375,61 @@ describe("outline actions", () => {
             taskId: "ending_plan_1",
             adoptionState: "adopted",
             outputText: expect.stringContaining("第31至38章完成收束"),
+            generatedAtChapterNumber: 30,
+            validThroughChapterNumber: 38,
           }),
         }),
         inputContextSummary: expect.stringContaining("包含终局规划参考"),
       }),
       expect.objectContaining({
         input: expect.stringContaining("自动纳入的终局规划参考"),
+      }),
+    );
+  });
+
+  it("allows one outline task to skip an otherwise usable ending plan", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "chapter");
+    formData.set("targetChapterNumber", "31");
+    formData.set("skipEndingPlan", "on");
+    mocks.prisma.aiTask.findFirst.mockImplementation((args) => {
+      if (args.where.taskType === "outline_generation") {
+        return Promise.resolve(null);
+      }
+
+      return Promise.resolve({
+        id: "ending_plan_1",
+        taskType: "ending_planning_generation",
+        status: "completed",
+        adoptionState: "adopted",
+        completedAt: null,
+        inputJson: JSON.stringify({
+          planningWindow: {
+            generatedAtChapterNumber: 30,
+            validThroughChapterNumber: 38,
+            estimatedRemainingChapterCount: 8,
+          },
+        }),
+        outputText: "第31至38章完成收束。",
+      });
+    });
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputJson: expect.objectContaining({
+          endingPlan: null,
+          endingPlanDecision: expect.objectContaining({
+            status: "author_skipped",
+          }),
+        }),
+        inputContextSummary: expect.stringContaining("本次未使用终局规划"),
+      }),
+      expect.objectContaining({
+        input: expect.not.stringContaining("自动纳入的终局规划参考"),
       }),
     );
   });
@@ -512,6 +574,9 @@ describe("outline actions", () => {
           readiness: expect.objectContaining({
             currentWords: 90000,
             progressPercent: 5,
+          }),
+          planningWindow: expect.objectContaining({
+            generatedAtChapterNumber: 1,
           }),
         }),
       }),
