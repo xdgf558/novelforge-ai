@@ -1,5 +1,49 @@
 # Development Log
 
+## 2026-07-25: 0.1.107 Ending Plan Continuity Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged the approved ending-plan outline-context work from PR #79 into the
+  GitHub `main` branch at merge commit `1810e06`, reconciled it with the local
+  `0.1.106` release commit, and bumped the source app/package version to
+  `0.1.107`.
+- Rebuilt the arm64 macOS desktop application with ending plans automatically
+  carried into later volume, story-unit, and chapter outline drafts while the
+  plan remains inside its estimated chapter window.
+- Created
+  `release/desktop/NovelForge-AI-0.1.107-mac-arm64.pkg`, targeting
+  `/Applications`. After final verification, removed the previous `0.1.106`
+  installer and Electron build intermediates so the delivery folder contains
+  only the new versioned PKG.
+- `security find-identity` reported no valid code-signing identities. The app
+  payload inside the personal-use installer was therefore re-signed ad hoc
+  with hardened runtime and the required Electron entitlements. The PKG is
+  unsigned and unnotarized and is not a Developer ID distribution artifact.
+
+Verification:
+
+- Full `npm test` passed: 113 files and 665 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no schema
+  drift.
+- The expanded final PKG reports bundle identifier `com.novelforge.ai`,
+  version `0.1.107`, install location `/Applications`, and contains all 26
+  migrations.
+- The packaged desktop runtime keeps runtime migrations enabled and does not
+  require the Prisma CLI at startup. Packaged-root work-type acceptance passed.
+- The staged app, an ordinary copied app, and the app expanded from the final
+  PKG all passed strict deep code-sign verification after ad-hoc signing.
+- A clean isolated launch from the expanded final PKG returned HTTP 200,
+  applied all 26 migrations, and produced a SQLite database whose
+  `PRAGMA quick_check` result was `ok`.
+- Final PKG size: 396,743,244 bytes.
+- Final PKG SHA-256:
+  `5477771166c9fe4d3ba3180c46642f4d0d96306614d963bea4ad91356194ad1e`.
+
 ## 2026-07-25: Ending Plan Continuity for Later Outline Drafts
 
 Status: completed.
