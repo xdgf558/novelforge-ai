@@ -36,6 +36,16 @@ describe("default AI prompt templates", () => {
     );
   });
 
+  it("versions outline generation for automatic ending-plan references", () => {
+    const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
+      (item) => item.key === "outline_generation",
+    );
+
+    expect(template?.version).toBe(2);
+    expect(template?.userPrompt).toContain("终局规划参考");
+    expect(template?.contextNotes).toContain("冲突时以正式数据为准");
+  });
+
   it("requires unit-bound suggestions in the whole-story review schema", () => {
     const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
       (item) => item.key === "short_story_whole_review",

@@ -1,6 +1,11 @@
 import { prisma } from "../prisma";
 import { deleteProjectCoverCandidateAssetsForTask } from "../project-cover-assets";
 import { coverImageGenerationTaskType } from "./cover-images";
+import {
+  compareAiTasksNewestFirst,
+  endingPlanningTaskType,
+  isUsableEndingPlanTask,
+} from "./ending-plan-reference";
 import { isActiveAiTaskStatus } from "./status";
 
 export const projectAiTaskRetentionLimit = 10;
@@ -22,23 +27,16 @@ type AiTaskRetentionCandidate = {
 export function aiTaskIdsToPrune(
   tasks: readonly AiTaskRetentionCandidate[],
   limit = projectAiTaskRetentionLimit,
+  protectedEndingPlanId: string | null = null,
 ) {
   const normalizedLimit = Math.max(0, limit);
-  const sortedTasks = [...tasks].sort((taskA, taskB) => {
-    const createdAtDiff =
-      taskB.createdAt.getTime() - taskA.createdAt.getTime();
-
-    if (createdAtDiff !== 0) {
-      return createdAtDiff;
-    }
-
-    return taskB.id.localeCompare(taskA.id);
-  });
+  const sortedTasks = [...tasks].sort(compareAiTasksNewestFirst);
 
   return sortedTasks
     .filter(
       (task) =>
-        !isActiveAiTaskStatus(task.status) && !isProtectedAiTask(task),
+        !isActiveAiTaskStatus(task.status) &&
+        !isProtectedAiTask(task, protectedEndingPlanId),
     )
     .slice(normalizedLimit)
     .map((task) => task.id);
@@ -48,36 +46,69 @@ export async function pruneProjectAiTasks(
   projectId: string,
   limit = projectAiTaskRetentionLimit,
 ) {
-  const tasks = await prisma.aiTask.findMany({
-    where: {
-      projectId,
-    },
-    orderBy: [
-      {
-        createdAt: "desc",
+  const [tasks, latestCompletedEndingPlan] = await Promise.all([
+    prisma.aiTask.findMany({
+      where: {
+        projectId,
       },
-      {
-        id: "desc",
-      },
-    ],
-    select: {
-      id: true,
-      createdAt: true,
-      status: true,
-      taskType: true,
-      _count: {
-        select: {
-          pendingUpdates: true,
-          continuityReports: true,
-          publishPackages: true,
-          chapterSummaries: true,
-          shortStoryBlueprintVersions: true,
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      select: {
+        id: true,
+        createdAt: true,
+        status: true,
+        taskType: true,
+        _count: {
+          select: {
+            pendingUpdates: true,
+            continuityReports: true,
+            publishPackages: true,
+            chapterSummaries: true,
+            shortStoryBlueprintVersions: true,
+          },
         },
       },
-    },
-  });
+    }),
+    prisma.aiTask.findFirst({
+      where: {
+        projectId,
+        taskType: endingPlanningTaskType,
+        status: "completed",
+      },
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      select: {
+        id: true,
+        taskType: true,
+        status: true,
+        adoptionState: true,
+        outputText: true,
+      },
+    }),
+  ]);
+  const protectedEndingPlanId =
+    latestCompletedEndingPlan &&
+    isUsableEndingPlanTask(latestCompletedEndingPlan)
+      ? latestCompletedEndingPlan.id
+      : null;
 
-  const pruneIds = aiTaskIdsToPrune(tasks, limit);
+  const pruneIds = aiTaskIdsToPrune(
+    tasks,
+    limit,
+    protectedEndingPlanId,
+  );
 
   if (pruneIds.length === 0) {
     return 0;
@@ -97,8 +128,15 @@ export async function pruneProjectAiTasks(
   return result.count;
 }
 
-function isProtectedAiTask(task: AiTaskRetentionCandidate) {
+function isProtectedAiTask(
+  task: AiTaskRetentionCandidate,
+  protectedEndingPlanId: string | null,
+) {
   if (task.taskType === "chapter_summary_extraction") {
+    return true;
+  }
+
+  if (task.id === protectedEndingPlanId) {
     return true;
   }
 

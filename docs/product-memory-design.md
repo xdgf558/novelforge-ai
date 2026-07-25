@@ -126,6 +126,33 @@ draft anchored to the previous chapter ending. The draft is only an AI task
 record; it must not create or mutate a formal outline until the author reviews
 and saves it.
 
+Ending planning forms a review-only planning layer between formal memory and
+later AI outline drafts. Once an `ending_planning_generation` task completes,
+the latest completed, non-empty `not_reviewed` or `adopted` output can guide
+subsequent volume, story-unit, and chapter outline generation. Each plan
+records its generation chapter and an estimated validity window from remaining
+target words and observed chapter pace; historical targets and targets beyond
+that window do not receive the reference. A missing word target uses a neutral
+ten-chapter estimate plus buffer, while a manuscript already at or beyond its
+target receives the minimum four-chapter window. Expired plans are called out
+on the outline page with guidance to regenerate them. The page and all outline
+generation levels use the same next-target calculation across written chapters
+and non-archived chapter outlines, so the banner and actual prompt injection
+cannot disagree. The supplied context is an ending-preserving head/middle/tail
+excerpt capped at 6,000 characters, wrapped
+as untrusted model-output data, and can be skipped for one generation without
+globally rejecting the plan. Marking it organized keeps it active as guidance;
+marking it ignored removes it from future outline context. This reuse never
+promotes the plan into formal memory or authorizes direct writes. Formal
+outlines, settings, and finalized prose take precedence over conflicts, and
+the generated outline must surface any unresolved contradiction for author
+review. Usability is a fail-closed adoption-state whitelist, and prompt loading
+plus retention use the same deterministic newest-task ordering. Retention
+protects only the latest usable ending plan so guidance survives continued
+generation without accumulating every historical plan; an unusable latest plan
+never falls back to an older one. Cleanup discovers that protected plan with a
+targeted one-row query and does not bulk-load every AI task's full output.
+
 ## Memory Layers
 
 ### 1. Project Setting Memory

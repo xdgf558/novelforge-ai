@@ -27,6 +27,7 @@ import { FormActionButton } from "@/components/form-action-button";
 import { OutlineAiGenerateForm } from "@/components/outlines/outline-ai-generate-form";
 import { OutlineDraftCopyButton } from "@/components/outlines/outline-draft-copy-button";
 import { OutlineSaveButton } from "@/components/outlines/outline-save-button";
+import { SkipEndingPlanCheckbox } from "@/components/outlines/skip-ending-plan-checkbox";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
 import {
   calculateEndingReadiness,
@@ -34,6 +35,11 @@ import {
   endingStageLabel,
   type EndingReadinessSnapshot,
 } from "@/lib/ai/ending-planning";
+import {
+  isUsableEndingPlanTask,
+  readEndingPlanPlanningWindow,
+  resolveEndingPlanWindowApplicability,
+} from "@/lib/ai/ending-plan-reference";
 import { expireStaleOutlineAiTasks } from "@/lib/ai/outline-task-maintenance";
 import {
   aiTaskAdoptionLabel,
@@ -57,6 +63,7 @@ import {
   resolveOutlineLifecycleStatus,
   type OutlineProgress,
 } from "@/lib/outline-progress";
+import { inferNextTargetChapterNumber } from "@/lib/outlines/ai-tasks";
 import {
   findNextUnitPlanningReminder,
   type NextUnitPlanningReminder,
@@ -86,82 +93,130 @@ export default async function OutlinesPage({
 
   await expireStaleOutlineAiTasks(projectId);
 
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    include: {
-      outlines: {
-        include: {
-          storylineOutlines: {
-            include: {
-              storyline: {
-                select: {
-                  id: true,
-                  name: true,
-                  type: true,
-                  status: true,
+  const outlinePageData = await Promise.all([
+    prisma.project.findUnique({
+      where: {
+        id: projectId,
+      },
+      include: {
+        outlines: {
+          include: {
+            storylineOutlines: {
+              include: {
+                storyline: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                    status: true,
+                  },
                 },
               },
+              orderBy: {
+                createdAt: "asc",
+              },
             },
-            orderBy: {
+          },
+          orderBy: [
+            {
+              level: "asc",
+            },
+            {
+              sortOrder: "asc",
+            },
+            {
               createdAt: "asc",
             },
+          ],
+        },
+        chapters: {
+          orderBy: {
+            chapterNumber: "asc",
+          },
+          select: {
+            chapterNumber: true,
+            goal: true,
+            title: true,
+            status: true,
+            wordCount: true,
           },
         },
-        orderBy: [
-          {
-            level: "asc",
-          },
-          {
-            sortOrder: "asc",
-          },
-          {
-            createdAt: "asc",
-          },
-        ],
-      },
-      chapters: {
-        orderBy: {
-          chapterNumber: "asc",
-        },
-        select: {
-          chapterNumber: true,
-          goal: true,
-          title: true,
-          status: true,
-          wordCount: true,
-        },
-      },
-      foreshadows: {
-        select: {
-          content: true,
-          status: true,
-          importance: true,
-          expectedResolveChapter: true,
-        },
-      },
-      aiTasks: {
-        where: {
-          taskType: {
-            in: ["outline_generation", endingPlanningTaskType],
+        foreshadows: {
+          select: {
+            content: true,
+            status: true,
+            importance: true,
+            expectedResolveChapter: true,
           },
         },
-        include: {
-          promptTemplate: {
-            select: {
-              name: true,
-              version: true,
+        aiTasks: {
+          where: {
+            taskType: "outline_generation",
+          },
+          include: {
+            promptTemplate: {
+              select: {
+                name: true,
+                version: true,
+              },
             },
           },
+          orderBy: {
+            createdAt: "desc",
+          },
+          take: 5,
         },
-        orderBy: {
+      },
+    }),
+    prisma.aiTask.findMany({
+      where: {
+        projectId,
+        taskType: endingPlanningTaskType,
+      },
+      include: {
+        promptTemplate: {
+          select: {
+            name: true,
+            version: true,
+          },
+        },
+      },
+      orderBy: [
+        {
           createdAt: "desc",
         },
-        take: 5,
+        {
+          id: "desc",
+        },
+      ],
+      take: 3,
+    }),
+    prisma.aiTask.findFirst({
+      where: {
+        projectId,
+        taskType: endingPlanningTaskType,
+        status: "completed",
       },
-    },
-  });
+      orderBy: [
+        {
+          createdAt: "desc",
+        },
+        {
+          id: "desc",
+        },
+      ],
+      select: {
+        id: true,
+        taskType: true,
+        status: true,
+        adoptionState: true,
+        outputText: true,
+        inputJson: true,
+      },
+    }),
+  ]);
+  const [project, endingPlanTasks, latestCompletedEndingPlanTask] =
+    outlinePageData;
 
   if (!project) {
     notFound();
@@ -195,28 +250,41 @@ export default async function OutlinesPage({
     unit: lifecycleOutlines.filter((outline) => outline.level === "unit"),
     chapter: lifecycleOutlines.filter((outline) => outline.level === "chapter"),
   };
-  const defaultTargetChapterNumber =
-    Math.max(
-      0,
-      project.chapters.at(-1)?.chapterNumber ?? 0,
-      ...groupedOutlines.chapter.map((outline) => outline.chapterNumber ?? 0),
-    ) + 1;
+  const defaultTargetChapterNumber = inferNextTargetChapterNumber(
+    project.chapters,
+    project.outlines,
+  );
   const hasActiveOutlineTask = project.aiTasks.some((task) =>
-    task.taskType === "outline_generation" && isActiveAiTaskStatus(task.status),
+    isActiveAiTaskStatus(task.status),
   );
-  const outlineTasks = project.aiTasks.filter(
-    (task) => task.taskType === "outline_generation",
-  );
+  const outlineTasks = project.aiTasks;
   const defaultOutlineTargetLevel =
     outlineTargetLevelFromQuery(query.outlineTarget) ??
     outlineLevelFromTaskSummary(outlineTasks[0]?.inputContextSummary) ??
     "chapter";
-  const endingPlanTasks = project.aiTasks.filter(
-    (task) => task.taskType === endingPlanningTaskType,
-  );
   const hasActiveEndingPlanTask = endingPlanTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
+  const latestUsableEndingPlanTask =
+    latestCompletedEndingPlanTask &&
+    isUsableEndingPlanTask(latestCompletedEndingPlanTask)
+      ? latestCompletedEndingPlanTask
+      : null;
+  const latestEndingPlanWindow = readEndingPlanPlanningWindow(
+    latestUsableEndingPlanTask?.inputJson,
+  );
+  const expiredEndingPlanReference =
+    latestEndingPlanWindow &&
+    resolveEndingPlanWindowApplicability(
+      latestEndingPlanWindow,
+      defaultTargetChapterNumber,
+    ) === "expired"
+      ? {
+          nextChapterNumber: defaultTargetChapterNumber,
+          validThroughChapterNumber:
+            latestEndingPlanWindow.validThroughChapterNumber,
+        }
+      : null;
   const endingReadiness = calculateEndingReadiness({
     project,
     chapters: project.chapters,
@@ -293,6 +361,7 @@ export default async function OutlinesPage({
       />
 
       <EndingPlanningPanel
+        expiredReference={expiredEndingPlanReference}
         generateAction={generateEndingPlanDraft.bind(null, project.id)}
         hasActiveTask={hasActiveEndingPlanTask}
         hasApiKey={aiSettings.hasApiKey}
@@ -555,6 +624,7 @@ function NextUnitPlanningPanel({
 
         <PreserveScrollForm
           action={generateAction}
+          className="flex flex-col items-start gap-2"
           preserveKey="next-unit-outline-generation"
           statusText="已开始生成下一剧情单元草案，页面会自动刷新结果。"
         >
@@ -564,6 +634,7 @@ function NextUnitPlanningPanel({
             type="hidden"
             value={reminder.nextChapterNumber}
           />
+          <SkipEndingPlanCheckbox />
           <FormActionButton
             disabled={!canGenerate}
             icon="play"
@@ -591,6 +662,7 @@ function NextUnitPlanningPanel({
 }
 
 function EndingPlanningPanel({
+  expiredReference,
   generateAction,
   hasActiveTask,
   hasApiKey,
@@ -598,6 +670,10 @@ function EndingPlanningPanel({
   readiness,
   tasks,
 }: {
+  expiredReference: {
+    nextChapterNumber: number;
+    validThroughChapterNumber: number;
+  } | null;
   generateAction: () => Promise<void>;
   hasActiveTask: boolean;
   hasApiKey: boolean;
@@ -636,7 +712,10 @@ function EndingPlanningPanel({
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
             系统会结合总目标字数、章节状态、未回收伏笔和大纲进度给出本地判断；AI
-            只生成可审阅的收尾规划草案，不会自动修改正式大纲、伏笔池或时间线。
+            只生成可审阅的收尾规划草案，不会自动修改正式大纲、伏笔池或时间线。最近一份已完成且未被忽略的规划会自动纳入后续大纲生成。
+          </p>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-ink-700">
+            系统只在目标章节位于规划生成点之后、且未超出本地估算射程时引用；也可在生成大纲时选择本次不引用。“标记已整理”后仍会继续参考，标记“忽略”后则完全停止引用。
           </p>
         </div>
 
@@ -696,6 +775,15 @@ function EndingPlanningPanel({
         />
       </div>
 
+      {expiredReference ? (
+        <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+          <strong>终局规划已超出建议射程。</strong> 最新规划建议参考至第{" "}
+          {formatNumber(expiredReference.validThroughChapterNumber)} 章；当前下一章是第{" "}
+          {formatNumber(expiredReference.nextChapterNumber)} 章，后续大纲不会再自动引用。
+          请重新生成收尾规划，更新剩余章节和伏笔回收安排。
+        </p>
+      ) : null}
+
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
           未配置 API Key，暂不能生成终局规划草案；本地收尾信号仍可参考。
@@ -712,7 +800,7 @@ function EndingPlanningPanel({
         <div className="mt-4 rounded-lg border border-dashed border-ink-950/20 bg-paper-50 p-4 text-sm text-ink-700">
           <p className="font-semibold text-ink-950">还没有终局规划任务</p>
           <p className="mt-2 leading-6">
-            生成后会在这里显示最近草案，包含模型、模板版本、状态和输出。作者可以把合适内容整理进正式卷大纲、剧情单元大纲或伏笔回收计划。
+            生成后会在这里显示最近草案，包含模型、模板版本、状态、建议参考章节范围和输出；适用范围内会自动作为后续大纲草案的收束参考。作者仍可把合适内容整理进正式卷大纲、剧情单元大纲或伏笔回收计划。
           </p>
         </div>
       ) : (
