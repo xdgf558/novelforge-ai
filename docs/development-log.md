@@ -1,5 +1,50 @@
 # Development Log
 
+## 2026-07-26: 0.1.108 Missing Character Recovery Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Fast-forwarded the approved unmatched-character pending-update fix into
+  `main` at `d9033e3` and bumped the source app/package version from `0.1.107`
+  to `0.1.108`.
+- Rebuilt the arm64 macOS desktop application so first-appearance character
+  suggestions with fabricated IDs become reviewable creates, while historical
+  unmatched character updates can be explicitly approved as new characters.
+- Created
+  `release/desktop/NovelForge-AI-0.1.108-mac-arm64.pkg`, targeting
+  `/Applications`. After final verification, removed the previous `0.1.107`
+  installer and Electron build intermediates so the delivery folder contains
+  only the new versioned PKG.
+- `security find-identity` reported no valid code-signing identities. The app
+  payload inside the personal-use installer was therefore re-signed ad hoc
+  with hardened runtime and the required Electron entitlements. The PKG is
+  unsigned and unnotarized and is not a Developer ID distribution artifact.
+
+Verification:
+
+- Full `npm test` passed: 113 files and 667 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  source-tree `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed, and `prisma migrate diff` reported no schema
+  drift.
+- `npm run desktop:pack:mac` completed; the expanded final PKG reports bundle
+  identifier `com.novelforge.ai`, version `0.1.108`, install location
+  `/Applications`, and contains all 26 migrations.
+- The staged app, an ordinary copied app, and the app expanded from the final
+  PKG all passed strict deep code-sign verification after ad-hoc signing. The
+  final entitlements preserve Electron JIT, unsigned executable memory, and
+  library-validation allowances.
+- The packaged desktop runtime keeps runtime migrations enabled and does not
+  require the Prisma CLI at startup. Packaged-root work-type acceptance passed.
+- A clean isolated launch from the expanded final PKG returned HTTP 200,
+  applied all 26 migrations, and produced a SQLite database whose
+  `PRAGMA quick_check` result was `ok`.
+- Final PKG size: 438,841,117 bytes.
+- Final PKG SHA-256:
+  `33904cf90b01d2982ecd9b3a1dd7f13117876d8fb6b3218a8809ea0a525d493c`.
+
 ## 2026-07-26: Missing Character Pending-Update Recovery
 
 Status: completed.
