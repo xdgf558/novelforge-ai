@@ -90,6 +90,12 @@ MVP includes:
 - AI chapter summary generation
 - AI pending setting update extraction
 - Pending update approval/rejection flow
+- Missing-target character suggestions fail closed by default. When extraction
+  identifies a first-appearance name absent from formal characters, it becomes
+  a reviewable create with no model-supplied ID. Historical unmatched character
+  updates may be approved as a new role only through the explicit
+  `作为新角色批准` checkbox; the created character ID and version are linked
+  back to the approval record.
 - Basic continuity check
 - AI task records
 - WeChat and Fanqie layout export for manual platform publishing

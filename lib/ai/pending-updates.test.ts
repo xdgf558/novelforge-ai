@@ -217,6 +217,36 @@ describe("pending update context builder", () => {
     );
 
     expect(normalized[0].targetId).toBeUndefined();
+    expect(normalized[0].updateType).toBe("update");
+  });
+
+  it("turns an unknown first-appearance character update into a reviewable create", () => {
+    const suggestions = parsePendingUpdateSuggestions(
+      JSON.stringify({
+        updates: [
+          {
+            updateType: "update",
+            targetType: "character",
+            targetId: "hallucinated-character-id",
+            targetName: "万俟衡之子",
+            title: "万俟衡之子首次出场",
+            content: "万俟衡之子获救并提供关键口供。",
+          },
+        ],
+      }),
+    );
+
+    const normalized = normalizePendingUpdateSuggestionTargetIds(
+      suggestions,
+      baseInput,
+    );
+
+    expect(normalized[0]).toMatchObject({
+      updateType: "create",
+      targetType: "character",
+      targetName: "万俟衡之子",
+    });
+    expect(normalized[0].targetId).toBeUndefined();
   });
 
   it("corrects a target type when a real formal id belongs to another memory layer", () => {

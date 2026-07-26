@@ -8,6 +8,15 @@ NovelForge AI must remember story facts across a long serialized novel without s
 
 Memory is not a single prompt. It is a structured database plus controlled AI extraction and review.
 
+Pending character updates must never trust model-generated target IDs. Existing
+characters are resolved only by a real project-scoped ID or one unique formal
+name. A first-appearance name absent from the formal character list may be
+normalized into a reviewable create, while ambiguous names remain unresolved.
+For historical unmatched updates, the author may explicitly choose
+`作为新角色批准`; otherwise approval fails closed. Creating through that path
+must also create the first character version and link the new character ID back
+to the pending-update audit record.
+
 ## Work Type Boundary
 
 Every project has one durable work type: `serial_novel` or `short_story`.

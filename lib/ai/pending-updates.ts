@@ -195,6 +195,7 @@ export function buildPendingUpdateContext(
       "不要直接修改正式记忆；只提出待审核更新。",
       "高风险项包括核心世界观、主角、反派、禁写项、能力边界和时间线冲突。",
       "更新或回收现有角色、世界规则、伏笔或时间线时必须返回对应 targetId；项目总设定更新使用 fieldName。",
+      "正文首次出现且当前正式角色列表不存在的人物必须使用 updateType=create，并将 targetId 留空；禁止伪造角色 ID。",
       "逐条检查正式伏笔池：完整兑现使用 updateType=resolve，只有实质推进时使用 updateType=update；重复提及不算推进。",
     ],
   };
@@ -275,6 +276,7 @@ export function buildPendingUpdateContext(
     "- updates: 待审核更新数组。",
     "- 每条 update 包含 updateType, targetType, targetId, targetName, fieldName, title, content, reason, riskLevel, sourceEvidence。",
     "- 更新或回收现有角色、世界规则、伏笔或时间线时，targetId 必须使用上方正式记忆中的真实 ID；create 时 targetId 留空。",
+    "- 正文首次出现且当前正式角色列表不存在的人物，必须输出 targetType=character、updateType=create，并将 targetId 留空；禁止为新角色编造 ID。",
     "- 正文已经明确回答既有伏笔核心疑问时，必须优先输出 targetType=foreshadow、updateType=resolve，而不是再 create 一条相似伏笔。",
     "- 正文只增加新证据但仍未回答核心疑问时，输出 targetType=foreshadow、updateType=update。仅重复提及线索时不要输出更新。",
     "- targetType 只能使用 project_setting, character, world_rule, foreshadow, timeline_event, location, organization。",
@@ -372,6 +374,21 @@ export function normalizePendingUpdateSuggestionTargetIds(
         ...suggestion,
         targetId,
         targetType: resolvedTargetType,
+      };
+    }
+
+    if (
+      suggestion.targetType === "character" &&
+      clean(suggestion.targetName) &&
+      !context.characters.some(
+        (character) =>
+          clean(character.name) === clean(suggestion.targetName),
+      )
+    ) {
+      return {
+        ...suggestion,
+        updateType: "create" as const,
+        targetId: undefined,
       };
     }
 

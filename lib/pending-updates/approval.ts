@@ -34,10 +34,15 @@ export async function applyApprovedPendingUpdate(
     tx,
     pendingUpdate,
   );
+  let appliedTargetId = resolvedUpdate.targetId;
 
   switch (resolvedUpdate.targetType) {
     case "character":
-      await applyCharacterUpdate(tx, resolvedUpdate, proposedContent);
+      appliedTargetId = await applyCharacterUpdate(
+        tx,
+        resolvedUpdate,
+        proposedContent,
+      );
       break;
     case "world_rule":
       await applyWorldRuleUpdate(tx, resolvedUpdate, proposedContent);
@@ -70,7 +75,7 @@ export async function applyApprovedPendingUpdate(
   }
 
   return {
-    targetId: resolvedUpdate.targetId,
+    targetId: appliedTargetId,
     targetType: resolvedUpdate.targetType,
   };
 }
@@ -266,7 +271,7 @@ async function applyCharacterUpdate(
       },
     });
 
-    return;
+    return existingCharacter.id;
   }
 
   if (pendingUpdate.updateType !== "create") {
@@ -299,6 +304,8 @@ async function applyCharacterUpdate(
       sourceChapterId: pendingUpdate.chapterId,
     },
   });
+
+  return createdCharacter.id;
 }
 
 async function findCharacterTarget(

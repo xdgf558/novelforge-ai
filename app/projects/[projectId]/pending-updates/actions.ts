@@ -43,6 +43,10 @@ const reviewSchema = z.object({
           : value,
       z.string().trim().max(1000).optional(),
     ),
+  createMissingCharacter: z.preprocess(
+    (value) => value === "1",
+    z.boolean(),
+  ),
 });
 
 const rejectionSchema = z.object({
@@ -161,6 +165,7 @@ export async function approvePendingUpdate(
   const parsed = reviewSchema.parse({
     proposedContent: formData.get("proposedContent"),
     resolutionNote: formData.get("resolutionNote"),
+    createMissingCharacter: formData.get("createMissingCharacter"),
   });
 
   const pendingUpdate = await prisma.pendingUpdate.findFirst({
@@ -193,11 +198,24 @@ export async function approvePendingUpdate(
     redirect(`/projects/${projectId}/pending-updates?review=stale-source`);
   }
 
+  const approveAsNewCharacter =
+    parsed.createMissingCharacter &&
+    pendingUpdate.targetType === "character" &&
+    pendingUpdate.updateType !== "create" &&
+    !pendingUpdate.targetId &&
+    Boolean(pendingUpdate.targetName?.trim());
+
   try {
     await prisma.$transaction(async (tx) => {
       const appliedTarget = await applyApprovedPendingUpdate(
         tx,
-        pendingUpdate,
+        approveAsNewCharacter
+          ? {
+              ...pendingUpdate,
+              updateType: "create",
+              targetId: null,
+            }
+          : pendingUpdate,
         parsed.proposedContent,
       );
 
@@ -211,6 +229,9 @@ export async function approvePendingUpdate(
           resolutionNote: parsed.resolutionNote,
           targetId: appliedTarget.targetId,
           targetType: appliedTarget.targetType,
+          updateType: approveAsNewCharacter
+            ? "create"
+            : pendingUpdate.updateType,
           appliedAt: new Date(),
         },
       });

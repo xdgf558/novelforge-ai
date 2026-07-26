@@ -4,7 +4,14 @@ import { chapterFinalTextHash } from "@/lib/chapters/source-text";
 const mocks = vi.hoisted(() => {
   const tx = {
     character: {
+      create: vi.fn(),
       findFirst: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
+    },
+    characterVersion: {
+      count: vi.fn(),
+      create: vi.fn(),
     },
     foreshadow: {
       create: vi.fn(),
@@ -110,6 +117,8 @@ describe("pending update approval", () => {
       status: "planted",
     });
     mocks.tx.character.findFirst.mockResolvedValue(null);
+    mocks.tx.character.findMany.mockResolvedValue([]);
+    mocks.tx.characterVersion.count.mockResolvedValue(0);
     mocks.tx.timelineEvent.findFirst.mockResolvedValue(null);
     mocks.tx.worldRule.findFirst.mockResolvedValue(null);
     mocks.approveAutomaticForeshadowRecoveries.mockResolvedValue({
@@ -167,6 +176,58 @@ describe("pending update approval", () => {
 
     expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
     expect(mocks.tx.foreshadow.update).not.toHaveBeenCalled();
+  });
+
+  it("explicitly approves an unmatched character suggestion as a new character", async () => {
+    mocks.prisma.pendingUpdate.findFirst.mockResolvedValue(
+      pendingForeshadowUpdate({
+        updateType: "update",
+        targetType: "character",
+        targetId: null,
+        targetName: "万俟衡之子",
+        fieldName: "备注",
+        title: "万俟衡之子被救出并提供关键口供",
+        proposedContent: "万俟衡之子获救并提供关键口供。",
+      }),
+    );
+    mocks.tx.character.create.mockResolvedValue({
+      id: "character_new",
+      projectId: "project_1",
+      name: "万俟衡之子",
+      status: "active",
+      notes: "万俟衡之子获救并提供关键口供。",
+    });
+    const formData = new FormData();
+    formData.set("proposedContent", "万俟衡之子获救并提供关键口供。");
+    formData.set("createMissingCharacter", "1");
+
+    await approvePendingUpdate("project_1", "update_1", formData);
+
+    expect(mocks.tx.character.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        projectId: "project_1",
+        name: "万俟衡之子",
+        notes: "万俟衡之子获救并提供关键口供。",
+      }),
+    });
+    expect(mocks.tx.characterVersion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        characterId: "character_new",
+        versionNumber: 1,
+        sourceType: "pending_update",
+      }),
+    });
+    expect(mocks.tx.pendingUpdate.update).toHaveBeenCalledWith({
+      where: {
+        id: "update_1",
+      },
+      data: expect.objectContaining({
+        status: "approved",
+        targetId: "character_new",
+        targetType: "character",
+        updateType: "create",
+      }),
+    });
   });
 
   it("persists a recovered cross-type target in the approval audit record", async () => {

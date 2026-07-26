@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-07-26: Missing Character Pending-Update Recovery
+
+Status: completed.
+
+What was done:
+
+- Diagnosed a chapter-32 pending update for `万俟衡之子`: the model labeled a
+  first-appearance character as `update` and supplied a fabricated character
+  ID. Target normalization correctly removed the untrusted ID, but the
+  remaining update could never be approved because no formal character record
+  existed.
+- Tightened pending-update instructions so first-appearance characters absent
+  from the formal character list must use `create` with no target ID.
+- Normalization now converts only unmatched character suggestions whose name
+  does not exist in the formal character list into reviewable creates. An
+  ambiguous duplicate formal name remains an unresolved update rather than
+  silently creating another character.
+- Added an explicit `作为新角色批准` checkbox for already-generated unmatched
+  character updates. The author must opt in; other missing-target update types
+  keep the existing fail-closed behavior.
+- Approval now records the newly created character ID back on the pending
+  update, preserving a direct audit link from the AI suggestion to the formal
+  character and its first version snapshot.
+
+Verification:
+
+- Focused pending-update parsing and approval tests passed: 2 files and 16
+  tests.
+- Full `npm test` passed: 113 files and 667 tests.
+- `npm run typecheck` and `npm run build` passed.
+- `git diff --check` passed.
+
 ## 2026-07-25: 0.1.107 Ending Plan Continuity Personal Installer
 
 Status: completed.

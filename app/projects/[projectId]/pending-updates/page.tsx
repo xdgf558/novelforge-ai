@@ -233,6 +233,11 @@ export default async function PendingUpdatesPage({
             );
             const automaticRecovery =
               parseAutomaticForeshadowRecoveryPayload(update.payloadJson);
+            const canApproveAsNewCharacter =
+              update.targetType === "character" &&
+              update.updateType !== "create" &&
+              !update.targetId &&
+              Boolean(update.targetName?.trim());
 
             return (
               <article
@@ -362,6 +367,23 @@ export default async function PendingUpdatesPage({
                           placeholder="可选：记录为什么批准或如何编辑"
                         />
                       </label>
+                      {canApproveAsNewCharacter ? (
+                        <label className="flex items-start gap-3 rounded-md border border-ember-500/30 bg-ember-500/10 px-3 py-3 text-sm leading-6 text-ink-800">
+                          <input
+                            className="mt-1 h-4 w-4 shrink-0 accent-signal-600"
+                            name="createMissingCharacter"
+                            type="checkbox"
+                            value="1"
+                          />
+                          <span>
+                            <strong className="block text-ink-950">
+                              作为新角色批准
+                            </strong>
+                            当前没有唯一匹配的正式角色。勾选后会以“
+                            {update.targetName}”创建角色档案，并把本条内容写入备注。
+                          </span>
+                        </label>
+                      ) : null}
                       <PendingUpdateReviewSubmit
                         disabled={isStale}
                         testId={`approve-pending-update-${update.id}`}
@@ -449,7 +471,7 @@ function pendingUpdateReviewMessage(searchParams?: {
     return {
       Icon: ShieldAlert,
       description:
-        "该建议要更新或回收现有记忆，但没有唯一匹配的正式记录。请重新提取，或先在记忆页手动处理目标。",
+        "该建议要更新或回收现有记忆，但没有唯一匹配的正式记录。若它是首次登场角色，可在对应建议中勾选“作为新角色批准”；其他类型请重新提取或先手动处理目标。",
       title: "没有找到唯一目标",
       tone: "danger" as const,
     };
