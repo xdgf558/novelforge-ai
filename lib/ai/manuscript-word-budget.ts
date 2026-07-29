@@ -10,7 +10,7 @@ export type ManuscriptWordBudget = {
   shouldFinishNextChapter: boolean;
 };
 
-const DEFAULT_ESTIMATED_CHAPTER_WORDS = 5000;
+export const DEFAULT_ESTIMATED_CHAPTER_WORDS = 5000;
 
 export function calculateManuscriptWordBudget(input: {
   currentWords: number;
@@ -22,19 +22,12 @@ export function calculateManuscriptWordBudget(input: {
   const currentWords = nonNegativeNumber(input.currentWords);
   const targetWords = positiveNumber(input.targetWords);
   const chapterCount = Math.max(0, Math.floor(input.chapterCount));
-  const observedChapterWords =
-    chapterCount > 0 && currentWords > 0
-      ? currentWords / chapterCount
-      : null;
-  const estimatedChapterWords = Math.max(
-    1,
-    Math.round(
-      positiveNumber(input.chapterWordMax) ??
-        observedChapterWords ??
-        positiveNumber(input.chapterWordMin) ??
-        DEFAULT_ESTIMATED_CHAPTER_WORDS,
-    ),
-  );
+  const estimatedChapterWords = estimateChapterWords({
+    currentWords,
+    chapterCount,
+    chapterWordMin: input.chapterWordMin,
+    chapterWordMax: input.chapterWordMax,
+  });
   const remainingWords =
     targetWords == null ? null : Math.max(0, targetWords - currentWords);
   const targetReached =
@@ -63,9 +56,55 @@ export function calculateManuscriptWordBudget(input: {
   };
 }
 
+export function estimateChapterWords(input: {
+  currentWords: number;
+  chapterCount: number;
+  chapterWordMin?: number | null;
+  chapterWordMax?: number | null;
+}) {
+  const currentWords = nonNegativeNumber(input.currentWords);
+  const chapterCount = Math.max(0, Math.floor(input.chapterCount));
+  const observedChapterWords =
+    chapterCount > 0 && currentWords > 0
+      ? currentWords / chapterCount
+      : null;
+  const configuredChapterWords = averagePositiveNumbers([
+    input.chapterWordMin,
+    input.chapterWordMax,
+  ]);
+
+  return Math.max(
+    1,
+    Math.round(
+      observedChapterWords ??
+        configuredChapterWords ??
+        DEFAULT_ESTIMATED_CHAPTER_WORDS,
+    ),
+  );
+}
+
+export function sumManuscriptWords(
+  wordCounts: readonly (number | null | undefined)[],
+): number {
+  return wordCounts.reduce<number>(
+    (sum, wordCount) => sum + nonNegativeNumber(wordCount ?? 0),
+    0,
+  );
+}
+
 function positiveNumber(value?: number | null) {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? value
+    : null;
+}
+
+function averagePositiveNumbers(values: readonly (number | null | undefined)[]) {
+  const numbers = values
+    .map(positiveNumber)
+    .filter((value): value is number => value != null);
+
+  return numbers.length > 0
+    ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length
     : null;
 }
 

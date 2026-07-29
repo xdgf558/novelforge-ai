@@ -68,6 +68,7 @@ export type OutlineGenerationContextInput = {
   previousChapter?: OutlineGenerationPreviousChapterContext | null;
   endingPlan?: OutlineGenerationEndingPlanContext | null;
   endingPlanMode?: "automatic" | "author_skipped";
+  wordBudgetMode?: "automatic" | "author_skipped";
   manuscriptWordBudget: ManuscriptWordBudget;
   request: OutlineGenerationRequest;
 };
@@ -111,7 +112,11 @@ export function buildOutlineGenerationContext(
   const endingPlanDecision = resolveEndingPlanReference(input);
   const endingPlan = endingPlanDecision.reference;
   const mustFinishNextChapter =
-    input.manuscriptWordBudget.shouldFinishNextChapter;
+    input.manuscriptWordBudget.shouldFinishNextChapter &&
+    input.wordBudgetMode !== "author_skipped";
+  const wordBudgetWasSkipped =
+    input.manuscriptWordBudget.shouldFinishNextChapter &&
+    input.wordBudgetMode === "author_skipped";
   const wordBudgetSection = [
     "",
     "# 当前正文与总字数预算",
@@ -131,6 +136,10 @@ export function buildOutlineGenerationContext(
           : input.manuscriptWordBudget.remainingWords,
       ],
       ["预计单章容量", input.manuscriptWordBudget.estimatedChapterWords],
+      [
+        "预计剩余章节",
+        input.manuscriptWordBudget.estimatedChaptersToTarget ?? "未设置",
+      ],
     ]),
     ...(mustFinishNextChapter
       ? [
@@ -139,9 +148,14 @@ export function buildOutlineGenerationContext(
             : "当前剩余字数只够约一章。",
           input.request.targetLevel === "chapter"
             ? `第 ${targetChapterNumber ?? "下一"} 章必须作为全书完结章：完成主线矛盾、核心角色落点和结局余味，不得再以新钩子延长作品。`
-            : "本次规划必须压缩为只覆盖下一章的最终收束，不得新开卷、长剧情单元或后续章节链。",
+            : "当前状态不适合再生成卷大纲或剧情单元大纲；应改为生成下一章的完结章大纲。",
           "实时字数预算优先于旧终局规划的剩余章节数，也优先于延伸到更晚章节的旧大纲范围。保留正式事实，但把必要结局内容压缩到下一章，并提示作者后续调整不再适用的旧大纲。",
           "不得为了清零伏笔继续延长作品。只处理与主线结局直接相关的高优先级伏笔，其余明确列为淡化、留白或番外候选；不得新增支线、谜团、角色任务或续章钩子。",
+        ]
+      : []),
+    ...(wordBudgetWasSkipped
+      ? [
+          "作者已明确选择本次不强制按字数收尾。仍需报告超限风险和未回收伏笔，但不要把本次目标章强制写成完结章。",
         ]
       : []),
   ];
@@ -203,6 +217,10 @@ export function buildOutlineGenerationContext(
     recentChapters: chapterItems,
     previousChapter,
     manuscriptWordBudget: input.manuscriptWordBudget,
+    wordBudgetDecision: {
+      mode: input.wordBudgetMode ?? "automatic",
+      mustFinishNextChapter,
+    },
     endingPlan,
     endingPlanDecision: {
       status: endingPlanDecision.status,
@@ -336,7 +354,9 @@ function formatOutlineGenerationContextSummary(
             ? "终局规划未纳入：已超出建议射程"
             : null;
   const wordBudgetSummary = input.manuscriptWordBudget.shouldFinishNextChapter
-    ? "实时字数预算要求下一章完结"
+    ? input.wordBudgetMode === "author_skipped"
+      ? "本次已跳过字数收尾约束"
+      : "实时字数预算要求下一章完结"
     : null;
 
   return [

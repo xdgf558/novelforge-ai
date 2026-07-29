@@ -294,7 +294,9 @@ export default async function OutlinesPage({
   const nextUnitReminder = findNextUnitPlanningReminder({
     chapters: project.chapters,
     outlines: project.outlines,
-    readyToFinish: endingReadiness.stage === "ready_to_finish",
+    readyToFinish:
+      endingReadiness.stage === "ready_to_finish" ||
+      endingReadiness.shouldFinishNextChapter,
   });
 
   return (
@@ -357,6 +359,7 @@ export default async function OutlinesPage({
         hasActiveTask={hasActiveOutlineTask}
         hasApiKey={aiSettings.hasApiKey}
         initialTargetLevel={defaultOutlineTargetLevel}
+        mustFinishNextChapter={endingReadiness.shouldFinishNextChapter}
         tasks={outlineTasks}
       />
 
@@ -365,6 +368,7 @@ export default async function OutlinesPage({
         generateAction={generateEndingPlanDraft.bind(null, project.id)}
         hasActiveTask={hasActiveEndingPlanTask}
         hasApiKey={aiSettings.hasApiKey}
+        nextTargetChapterNumber={defaultTargetChapterNumber}
         projectId={project.id}
         readiness={endingReadiness}
         tasks={endingPlanTasks}
@@ -443,6 +447,7 @@ function OutlineAiPanel({
   hasActiveTask,
   hasApiKey,
   initialTargetLevel,
+  mustFinishNextChapter,
   tasks,
 }: {
   defaultTargetChapterNumber: number;
@@ -450,6 +455,7 @@ function OutlineAiPanel({
   hasActiveTask: boolean;
   hasApiKey: boolean;
   initialTargetLevel: OutlineLevel;
+  mustFinishNextChapter: boolean;
   tasks: readonly {
     id: string;
     status: string;
@@ -489,6 +495,7 @@ function OutlineAiPanel({
           defaultTargetChapterNumber={defaultTargetChapterNumber}
           hasActiveTask={hasActiveTask}
           initialTargetLevel={initialTargetLevel}
+          mustFinishNextChapter={mustFinishNextChapter}
         />
       </div>
 
@@ -666,6 +673,7 @@ function EndingPlanningPanel({
   generateAction,
   hasActiveTask,
   hasApiKey,
+  nextTargetChapterNumber,
   projectId,
   readiness,
   tasks,
@@ -677,6 +685,7 @@ function EndingPlanningPanel({
   generateAction: () => Promise<void>;
   hasActiveTask: boolean;
   hasApiKey: boolean;
+  nextTargetChapterNumber: number;
   projectId: string;
   readiness: EndingReadinessSnapshot;
   tasks: readonly {
@@ -745,7 +754,7 @@ function EndingPlanningPanel({
           }
           detail={
             readiness.targetWords
-              ? `${formatNumber(readiness.currentWords)} / ${formatNumber(readiness.targetWords)} 字`
+              ? `${formatNumber(readiness.currentWords)} / ${formatNumber(readiness.targetWords)} 字 · 预计剩余 ${formatNumber(readiness.estimatedChaptersToTarget ?? 0)} 章`
               : `${formatNumber(readiness.currentWords)} 字`
           }
         />
@@ -779,11 +788,26 @@ function EndingPlanningPanel({
         <p className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm leading-6 text-red-900">
           <strong>
             {readiness.targetReached
-              ? `已超过总字数上限 ${formatNumber(readiness.overTargetWords)} 字。`
+              ? readiness.overTargetWords > 0
+                ? `已超过总字数上限 ${formatNumber(readiness.overTargetWords)} 字。`
+                : "已达到总字数上限。"
               : `距离总字数上限只剩 ${formatNumber(readiness.remainingWords ?? 0)} 字。`}
           </strong>{" "}
-          按当前单章容量，第 {formatNumber(readiness.latestChapterNumber + 1)}{" "}
+          按当前大纲生成入口，第 {formatNumber(nextTargetChapterNumber)}{" "}
           章应作为完结章。之后生成的章节大纲会优先完成主线、核心角色落点和结局余味，不再因旧大纲范围或未清零伏笔继续扩写；已保存的大纲和正文不会被自动修改。
+        </p>
+      ) : null}
+
+      {readiness.shouldFinishNextChapter &&
+      readiness.unresolvedForeshadowCount > 0 ? (
+        <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
+          <strong>
+            收尾风险：仍有{" "}
+            {formatNumber(readiness.unresolvedForeshadowCount)} 条未回收伏笔，其中{" "}
+            {formatNumber(readiness.highImportanceUnresolvedForeshadowCount)}{" "}
+            条为高重要度。
+          </strong>{" "}
+          字数收尾不会把它们自动标记为已回收；新大纲只应选择与主线结局直接相关的内容，其余需要作者确认淡化、留白或转为番外候选。
         </p>
       ) : null}
 

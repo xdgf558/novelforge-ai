@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { calculateManuscriptWordBudget } from "./manuscript-word-budget";
+import {
+  calculateManuscriptWordBudget,
+  estimateChapterWords,
+  sumManuscriptWords,
+} from "./manuscript-word-budget";
 
 describe("manuscript word budget", () => {
-  it("requires the next chapter to finish when only one configured chapter fits", () => {
+  it("uses observed pace before the configured range when estimating chapters left", () => {
     expect(
       calculateManuscriptWordBudget({
         currentWords: 144696,
@@ -13,10 +17,10 @@ describe("manuscript word budget", () => {
       }),
     ).toMatchObject({
       remainingWords: 5304,
-      estimatedChapterWords: 5999,
-      estimatedChaptersToTarget: 1,
+      estimatedChapterWords: 4256,
+      estimatedChaptersToTarget: 2,
       targetReached: false,
-      shouldFinishNextChapter: true,
+      shouldFinishNextChapter: false,
     });
   });
 
@@ -50,5 +54,36 @@ describe("manuscript word budget", () => {
       estimatedChaptersToTarget: 7,
       shouldFinishNextChapter: false,
     });
+  });
+
+  it("uses the configured range average when no observed pace exists", () => {
+    expect(
+      estimateChapterWords({
+        currentWords: 0,
+        chapterCount: 0,
+        chapterWordMin: 2000,
+        chapterWordMax: 20000,
+      }),
+    ).toBe(11000);
+  });
+
+  it("does not let a wide configured maximum trigger premature closure", () => {
+    expect(
+      calculateManuscriptWordBudget({
+        currentWords: 90000,
+        targetWords: 109000,
+        chapterCount: 30,
+        chapterWordMin: 2000,
+        chapterWordMax: 20000,
+      }),
+    ).toMatchObject({
+      estimatedChapterWords: 3000,
+      estimatedChaptersToTarget: 7,
+      shouldFinishNextChapter: false,
+    });
+  });
+
+  it("sums chapter words with the same non-negative rule used by the page", () => {
+    expect(sumManuscriptWords([4000, -500, null, 3500])).toBe(7500);
   });
 });

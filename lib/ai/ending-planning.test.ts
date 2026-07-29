@@ -132,7 +132,7 @@ describe("ending planning context", () => {
     });
   });
 
-  it("requires a final chapter when the remaining word budget fits one chapter", () => {
+  it("keeps foreshadow risk visible while requiring a final chapter", () => {
     const context = buildEndingPlanningContext({
       ...baseInput,
       chapters: [
@@ -145,8 +145,9 @@ describe("ending planning context", () => {
       ],
     });
 
-    expect(context.readiness.stage).toBe("ready_to_finish");
+    expect(context.readiness.stage).toBe("enter_endgame");
     expect(context.readiness.shouldFinishNextChapter).toBe(true);
+    expect(context.readiness.highImportanceUnresolvedForeshadowCount).toBe(1);
     expect(context.inputText).toContain("剩余建议章节数必须为 1");
     expect(context.inputText).toContain("不得为了清零伏笔继续延长作品");
   });
@@ -154,14 +155,12 @@ describe("ending planning context", () => {
   it("keeps tightening when high importance foreshadows remain and more than one chapter fits", () => {
     const context = buildEndingPlanningContext({
       ...baseInput,
-      chapters: [
-        {
-          chapterNumber: 1,
-          title: "终局前",
-          status: "final",
-          wordCount: 90000,
-        },
-      ],
+      chapters: Array.from({ length: 10 }, (_, index) => ({
+        chapterNumber: index + 1,
+        title: `终局前 ${index + 1}`,
+        status: "final",
+        wordCount: 9000,
+      })),
     });
 
     expect(context.readiness.stage).toBe("enter_endgame");

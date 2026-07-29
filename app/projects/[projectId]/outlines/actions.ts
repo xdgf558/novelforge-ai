@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { buildEndingPlanningContext } from "@/lib/ai/ending-planning";
-import { calculateManuscriptWordBudget } from "@/lib/ai/manuscript-word-budget";
+import {
+  calculateManuscriptWordBudget,
+  sumManuscriptWords,
+} from "@/lib/ai/manuscript-word-budget";
 import { buildOutlineGenerationContext } from "@/lib/ai/outlines";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
@@ -127,6 +130,10 @@ const generationRequestSchema = z.object({
     }, z.number().int().min(1).nullable())
     .default(null),
   skipEndingPlan: z.preprocess(
+    (value) => value === "on" || value === "true",
+    z.boolean(),
+  ),
+  skipWordLimitEnding: z.preprocess(
     (value) => value === "on" || value === "true",
     z.boolean(),
   ),
@@ -313,6 +320,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     chapterCount: formData.get("chapterCount"),
     targetChapterNumber: formData.get("targetChapterNumber"),
     skipEndingPlan: formData.get("skipEndingPlan"),
+    skipWordLimitEnding: formData.get("skipWordLimitEnding"),
   };
   const request = generationRequestSchema.parse(rawRequest);
   const activeTask = await findActiveOutlineGenerationTask(projectId);
@@ -328,7 +336,7 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     characters,
     recentChapters,
     endingPlan,
-    chapterWordTotals,
+    chapterWordCounts,
   ] =
     await Promise.all([
       prisma.project.findUnique({
@@ -378,21 +386,38 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
         take: 5,
       }),
       findLatestEndingPlanningReference(projectId),
-      prisma.chapter.aggregate({
+      prisma.chapter.findMany({
         where: {
           projectId,
         },
-        _sum: {
+        select: {
           wordCount: true,
-        },
-        _count: {
-          _all: true,
         },
       }),
     ]);
 
   if (!project) {
     notFound();
+  }
+
+  const manuscriptWordBudget = calculateManuscriptWordBudget({
+    currentWords: sumManuscriptWords(
+      chapterWordCounts.map((chapter) => chapter.wordCount),
+    ),
+    targetWords: project.totalWordTarget,
+    chapterCount: chapterWordCounts.length,
+    chapterWordMin: project.chapterWordMin,
+    chapterWordMax: project.chapterWordMax,
+  });
+
+  if (
+    manuscriptWordBudget.shouldFinishNextChapter &&
+    request.targetLevel !== "chapter"
+  ) {
+    revalidateOutlinePaths(projectId);
+    redirect(
+      `/projects/${projectId}/outlines?outlineTarget=chapter&outlineError=wordLimitChapterOnly`,
+    );
   }
 
   const resolvedRequest = {
@@ -431,13 +456,10 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     characters,
     recentChapters: recentChapters.reverse(),
     previousChapter: buildPreviousChapterEndingContext(previousChapter),
-    manuscriptWordBudget: calculateManuscriptWordBudget({
-      currentWords: chapterWordTotals._sum.wordCount ?? 0,
-      targetWords: project.totalWordTarget,
-      chapterCount: chapterWordTotals._count._all,
-      chapterWordMin: project.chapterWordMin,
-      chapterWordMax: project.chapterWordMax,
-    }),
+    manuscriptWordBudget,
+    wordBudgetMode: request.skipWordLimitEnding
+      ? "author_skipped"
+      : "automatic",
     endingPlan,
     endingPlanMode: request.skipEndingPlan
       ? "author_skipped"

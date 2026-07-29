@@ -144,14 +144,22 @@ target words and observed chapter pace; historical targets and targets beyond
 that window do not receive the reference. A missing word target uses a neutral
 ten-chapter estimate plus buffer. Every outline request must also recompute the
 live manuscript word budget from confirmed chapter totals and the configured
-or observed chapter capacity. If the target is reached, or the remaining
+or observed chapter capacity. The estimator uses observed pace first, then the
+configured minimum/maximum average, then a 5,000-word default. If the target is
+reached, or the remaining
 budget fits in one normal chapter, the next chapter must finish the work and a
 new ending plan receives a one-chapter window. This live constraint supersedes
 older ending-plan schedules and longer formal outline ranges for generation
-guidance. Outstanding foreshadows can be prioritized, faded, or left open, but
-cannot justify extending the manuscript; no new branch or next-chapter hook may
-be introduced. The outline page must show the remaining or excess words and
-the required ending chapter without automatically rewriting formal data.
+guidance, but it does not replace the separate foreshadow-readiness stage. The
+page must show both warnings, including unresolved and high-importance counts.
+Authors may skip the hard ending instruction for one chapter-outline
+generation without changing the project target; volume and story-unit
+generation remain unavailable at this boundary. Outstanding foreshadows can be
+prioritized, faded, or left open, but cannot silently justify extending the
+manuscript; no new branch or next-chapter hook may be introduced while the
+constraint is active. The outline page must show the remaining or excess words,
+estimated remaining chapters, and the same required ending chapter used by the
+generation action without automatically rewriting formal data.
 Expired plans are called out on the outline page with guidance to regenerate
 them. The page and all outline generation levels use the same next-target
 calculation across written chapters and non-archived chapter outlines, so the

@@ -33,7 +33,6 @@ const mocks = vi.hoisted(() => ({
       findMany: vi.fn(),
     },
     chapter: {
-      aggregate: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
     },
@@ -125,14 +124,6 @@ describe("outline actions", () => {
     mocks.prisma.character.findMany.mockResolvedValue([]);
     mocks.prisma.chapter.findFirst.mockResolvedValue(null);
     mocks.prisma.chapter.findMany.mockResolvedValue([]);
-    mocks.prisma.chapter.aggregate.mockResolvedValue({
-      _sum: {
-        wordCount: 0,
-      },
-      _count: {
-        _all: 0,
-      },
-    });
     mocks.prisma.timelineEvent.findMany.mockResolvedValue([]);
     mocks.prisma.aiTask.findFirst.mockResolvedValue(null);
     mocks.prisma.aiTask.updateMany.mockResolvedValue({
@@ -357,28 +348,24 @@ describe("outline actions", () => {
       chapterWordMin: 4000,
       chapterWordMax: 5999,
     });
-    mocks.prisma.chapter.aggregate.mockResolvedValue({
-      _sum: {
-        wordCount: 151430,
-      },
-      _count: {
-        _all: 35,
-      },
-    });
+    const wordCounts = [
+      ...Array.from({ length: 34 }, () => ({ wordCount: 4256 })),
+      { wordCount: 6726 },
+    ];
+    mocks.prisma.chapter.findMany.mockImplementation((args) =>
+      args.select?.wordCount ? Promise.resolve(wordCounts) : Promise.resolve([]),
+    );
 
     await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
       "NEXT_REDIRECT",
     );
 
-    expect(mocks.prisma.chapter.aggregate).toHaveBeenCalledWith({
+    expect(mocks.prisma.chapter.findMany).toHaveBeenCalledWith({
       where: {
         projectId: "project_1",
       },
-      _sum: {
+      select: {
         wordCount: true,
-      },
-      _count: {
-        _all: true,
       },
     });
     expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
@@ -399,6 +386,68 @@ describe("outline actions", () => {
         input: expect.stringContaining("第 36 章必须作为全书完结章"),
       }),
     );
+  });
+
+  it("allows the author to skip the word-limit ending constraint once", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "chapter");
+    formData.set("targetChapterNumber", "36");
+    formData.set("skipWordLimitEnding", "on");
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      ...project,
+      totalWordTarget: 150000,
+      chapterWordMin: 4000,
+      chapterWordMax: 5999,
+    });
+    mocks.prisma.chapter.findMany.mockImplementation((args) =>
+      args.select?.wordCount
+        ? Promise.resolve([{ wordCount: 151430 }])
+        : Promise.resolve([]),
+    );
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputJson: expect.objectContaining({
+          wordBudgetDecision: {
+            mode: "author_skipped",
+            mustFinishNextChapter: false,
+          },
+        }),
+        inputContextSummary: expect.stringContaining(
+          "本次已跳过字数收尾约束",
+        ),
+      }),
+      expect.objectContaining({
+        input: expect.not.stringContaining("第 36 章必须作为全书完结章"),
+      }),
+    );
+  });
+
+  it("blocks volume or unit generation once the live budget requires closure", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "volume");
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      ...project,
+      totalWordTarget: 150000,
+    });
+    mocks.prisma.chapter.findMany.mockImplementation((args) =>
+      args.select?.wordCount
+        ? Promise.resolve([{ wordCount: 151430 }])
+        : Promise.resolve([]),
+    );
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/outlines?outlineTarget=chapter&outlineError=wordLimitChapterOnly",
+    );
+    expect(mocks.startLoggedOpenAITextTask).not.toHaveBeenCalled();
   });
 
   it("injects the latest completed non-ignored ending plan into new outlines", async () => {

@@ -37,6 +37,8 @@ export const outlineValidationErrorMessages = {
   invalidForm: "大纲表单内容不完整，请检查标题、章节号和章节范围。",
   invalidChapterRange: "结束章节不能小于起始章节。",
   missingChapterNumber: "章节大纲必须填写章节号，才能参与章节生成匹配。",
+  wordLimitChapterOnly:
+    "当前字数预算已进入最终收尾，只能生成章节大纲。若要继续规划卷或剧情单元，请先调整项目总字数目标。",
 } as const;
 
 export type OutlineValidationErrorCode =

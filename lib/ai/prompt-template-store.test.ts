@@ -89,25 +89,25 @@ describe("prompt template store", () => {
     });
   });
 
-  it("upgrades existing outline projects from prompt v2 to v3 on demand", async () => {
+  it("upgrades existing outline projects from prompt v3 to v4 on demand", async () => {
     mocks.prisma.aiPromptTemplate.findFirst.mockResolvedValue({
-      id: "outline_template_v2",
-      key: "outline_generation",
-      version: 2,
-      status: "active",
-    });
-    mocks.prisma.aiPromptTemplate.upsert.mockResolvedValue({
       id: "outline_template_v3",
       key: "outline_generation",
       version: 3,
+      status: "active",
+    });
+    mocks.prisma.aiPromptTemplate.upsert.mockResolvedValue({
+      id: "outline_template_v4",
+      key: "outline_generation",
+      version: 4,
       status: "active",
     });
 
     await expect(
       ensureDefaultPromptTemplate("project_1", "outline_generation"),
     ).resolves.toMatchObject({
-      id: "outline_template_v3",
-      version: 3,
+      id: "outline_template_v4",
+      version: 4,
     });
 
     expect(mocks.prisma.aiPromptTemplate.upsert).toHaveBeenCalledWith(
@@ -116,7 +116,7 @@ describe("prompt template store", () => {
           projectId_key_version: {
             projectId: "project_1",
             key: "outline_generation",
-            version: 3,
+            version: 4,
           },
         },
       }),
@@ -126,7 +126,7 @@ describe("prompt template store", () => {
         projectId: "project_1",
         key: "outline_generation",
         version: {
-          lt: 3,
+          lt: 4,
         },
         status: "active",
       },

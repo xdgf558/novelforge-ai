@@ -152,6 +152,36 @@ describe("outline generation context builder", () => {
     );
   });
 
+  it("records an author skip without forcing the target chapter to finish", () => {
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      manuscriptWordBudget: calculateManuscriptWordBudget({
+        currentWords: 151430,
+        targetWords: 150000,
+        chapterCount: 35,
+      }),
+      wordBudgetMode: "author_skipped",
+      request: {
+        targetLevel: "chapter",
+        targetChapterNumber: 36,
+      },
+    });
+
+    expect(context.inputJson.wordBudgetDecision).toEqual({
+      mode: "author_skipped",
+      mustFinishNextChapter: false,
+    });
+    expect(context.inputText).toContain(
+      "作者已明确选择本次不强制按字数收尾",
+    );
+    expect(context.inputText).not.toContain(
+      "第 36 章必须作为全书完结章",
+    );
+    expect(context.inputContextSummary).toContain(
+      "本次已跳过字数收尾约束",
+    );
+  });
+
   it("automatically includes a bounded latest ending plan in later outline drafts", () => {
     const longEndingPlan = [
       "开头：剩余八章进入收束。",

@@ -9,7 +9,7 @@ import {
 } from "./ending-plan-reference";
 import {
   calculateManuscriptWordBudget,
-  type ManuscriptWordBudget,
+  sumManuscriptWords,
 } from "./manuscript-word-budget";
 
 export { endingPlanningTaskType };
@@ -118,9 +118,8 @@ const LIST_ITEM_MAX_LENGTH = 500;
 export function calculateEndingReadiness(
   input: Pick<EndingPlanningContextInput, "project" | "chapters" | "outlines" | "foreshadows">,
 ): EndingReadinessSnapshot {
-  const currentWords = input.chapters.reduce(
-    (sum, chapter) => sum + Math.max(0, chapter.wordCount ?? 0),
-    0,
+  const currentWords = sumManuscriptWords(
+    input.chapters.map((chapter) => chapter.wordCount),
   );
   const wordBudget = calculateManuscriptWordBudget({
     currentWords,
@@ -160,7 +159,6 @@ export function calculateEndingReadiness(
   ).length;
   const stage = resolveEndingStage({
     progressPercent: wordBudget.progressPercent,
-    shouldFinishNextChapter: wordBudget.shouldFinishNextChapter,
     unresolvedForeshadowCount: unresolvedForeshadows.length,
     highImportanceUnresolvedForeshadowCount,
   });
@@ -184,7 +182,7 @@ export function calculateEndingReadiness(
     activeOutlineCount,
     completedOutlineCount,
     stage,
-    recommendation: endingStageRecommendation(stage, wordBudget),
+    recommendation: endingStageRecommendation(stage),
   };
 }
 
@@ -419,21 +417,15 @@ export function endingStageLabel(stage: EndingReadinessStage) {
 
 function resolveEndingStage({
   progressPercent,
-  shouldFinishNextChapter,
   unresolvedForeshadowCount,
   highImportanceUnresolvedForeshadowCount,
 }: {
   progressPercent: number | null;
-  shouldFinishNextChapter: boolean;
   unresolvedForeshadowCount: number;
   highImportanceUnresolvedForeshadowCount: number;
 }): EndingReadinessStage {
   if (progressPercent == null) {
     return "missing_target";
-  }
-
-  if (shouldFinishNextChapter) {
-    return "ready_to_finish";
   }
 
   if (progressPercent < 70) {
@@ -459,10 +451,7 @@ function resolveEndingStage({
   return "enter_endgame";
 }
 
-function endingStageRecommendation(
-  stage: EndingReadinessStage,
-  wordBudget: ManuscriptWordBudget,
-) {
+function endingStageRecommendation(stage: EndingReadinessStage) {
   switch (stage) {
     case "missing_target":
       return "建议先在项目设置里填写总目标字数，再让 AI 判断收尾节奏。";
@@ -475,9 +464,7 @@ function endingStageRecommendation(
     case "enter_endgame":
       return "建议规划终局卷或最后几个剧情单元，避免继续铺开新主线。";
     case "ready_to_finish":
-      return wordBudget.targetReached
-        ? "已达到总字数上限：下一章必须完成主线收束、角色落点和结局余味，不再新增支线。"
-        : "剩余字数只够约一章：下一章应作为完结章，不要为清零伏笔继续延长作品。";
+      return "可以准备完结规划：聚焦主线矛盾解决、角色落点和大结局余味。";
   }
 }
 
