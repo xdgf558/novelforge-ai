@@ -1,5 +1,52 @@
 # Development Log
 
+## 2026-07-29: 0.1.109 Live Word-Budget Ending Guard Personal Installer
+
+Status: completed.
+
+What was done:
+
+- Merged the approved live word-budget ending guard from PR #80 into `main` at
+  merge commit `91857f2` and bumped the source app/package version from
+  `0.1.108` to `0.1.109`.
+- Updated the in-app release title and notes so the installed application
+  explains the hard ending-chapter signal, the separate foreshadow warning,
+  the one-generation skip, and the shared target-chapter calculation.
+- Rebuilt the arm64 macOS desktop application and created
+  `release/desktop/NovelForge-AI-0.1.109-mac-arm64.pkg`, targeting
+  `/Applications`.
+- Valid Developer ID Application and Developer ID Installer identities were
+  available for this release. The application payload uses hardened-runtime
+  Developer ID signing, and the PKG uses Developer ID Installer signing with a
+  trusted timestamp. Per the personal-use policy, no Apple notarization upload
+  was performed.
+- Removed the previous `0.1.108` installer and Electron build intermediates so
+  the delivery folder contains only the new versioned PKG.
+
+Verification:
+
+- Full `npm test` passed: 114 files and 679 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, and source-tree plus packaged-root
+  `npm run work-types:acceptance` passed.
+- `npx prisma validate` passed.
+- The final PKG signature chain reports Developer ID Installer with a trusted
+  timestamp. The staged app, an ordinary copied app, and the app expanded from
+  the final PKG passed strict deep code-sign verification.
+- The expanded final PKG reports bundle identifier `com.novelforge.ai`,
+  version `0.1.109`, install location `/Applications`, and contains all 26
+  migrations. Packaged runtime checks confirm startup uses
+  `runDesktopMigrations`, reads bundled `migration.sql`, and does not invoke
+  Prisma CLI `migrate deploy`.
+- A clean isolated launch from the expanded final PKG returned HTTP 200,
+  applied all 26 migrations, and produced a SQLite database whose
+  `PRAGMA quick_check` result was `ok`.
+- Gatekeeper reports `Unnotarized Developer ID`, which is expected because
+  notarization was intentionally skipped.
+- Final PKG size: 423,219,901 bytes.
+- Final PKG SHA-256:
+  `b86402fa0f30474bb4f1b9d06e3c908cabaa3ddc04b01aca23d0041c90d11902`.
+
 ## 2026-07-29: Live Word-Budget Ending Guard
 
 Status: completed.
