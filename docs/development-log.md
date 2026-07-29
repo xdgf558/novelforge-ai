@@ -1,5 +1,48 @@
 # Development Log
 
+## 2026-07-30: Public-Visibility Repository Readiness
+
+Status: completed.
+
+What was done:
+
+- Prepared the repository for public visibility without changing its licensing
+  model to open source. Added a source-visible, all-rights-reserved `LICENSE`
+  and made the same boundary explicit in the README and contribution terms.
+- Reworked the public README with product scope, local setup, data locations,
+  AI-provider privacy boundaries, quality commands, desktop packaging guidance,
+  and links to contributor and security policies.
+- Added `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, CODEOWNERS,
+  structured issue forms, a pull-request checklist, Dependabot configuration,
+  and a least-privilege GitHub Actions CI workflow.
+- CI now installs from the lock file, audits production dependencies, runs all
+  tests, type checking, the production build, desktop smoke validation, MVP
+  acceptance, and work-type lifecycle acceptance.
+- Audited every Git ref with Gitleaks 8.30.1 and scanned GitHub pull-request,
+  review, and issue-comment text for credential patterns. No committed secrets
+  were found. Removed the remaining personal absolute source-document path from
+  the current public files; the historical occurrence contains no credential
+  and did not justify a destructive history rewrite.
+- Raised the direct Next.js and PostCSS minimums to patched releases and
+  constrained the optional Sharp runtime dependency to a patched 0.35 release.
+  The production dependency audit now reports zero vulnerabilities. Remaining
+  audit notices are confined to Electron Builder development-only transitive
+  packages that have no compatible upstream stable fix yet.
+- Recorded the public repository data boundary in project memory: credentials,
+  databases, backups, manuscripts, generated assets, logs, and installers must
+  remain outside Git.
+
+Verification:
+
+- `npm test` passed: 114 files and 679 tests.
+- `npm run typecheck` and a clean-lockfile `npm run build` passed with
+  Next.js 15.5.22.
+- `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
+- `npx prisma validate`, YAML parsing for all new GitHub configuration, and
+  `git diff --check` passed.
+- `npm audit --omit=dev --audit-level=high` reports zero vulnerabilities.
+
 ## 2026-07-29: 0.1.109 Live Word-Budget Ending Guard Personal Installer
 
 Status: completed.
@@ -5040,7 +5083,8 @@ Status: completed.
 
 What was done:
 
-- Read the product development document at `/Users/shaola/Downloads/开发文档/长篇少说开发.md`.
+- Read the original local product-development source document, which is not
+  committed to the repository.
 - Summarized the implementation method before coding.
 - Created a project-level memory entrypoint in `AGENTS.md`.
 - Created `docs/project-memory.md` for MVP scope, product principles, development order, and acceptance baseline.

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/xdgf558/novelforge-ai/security/advisories/new
+    about: Send a confidential report instead of opening a public issue.
