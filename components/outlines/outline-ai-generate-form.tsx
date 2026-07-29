@@ -15,6 +15,7 @@ type OutlineAiGenerateFormProps = {
   defaultTargetChapterNumber: number;
   hasActiveTask: boolean;
   initialTargetLevel: OutlineLevel;
+  mustFinishNextChapter: boolean;
 };
 
 export function OutlineAiGenerateForm({
@@ -23,8 +24,11 @@ export function OutlineAiGenerateForm({
   defaultTargetChapterNumber,
   hasActiveTask,
   initialTargetLevel,
+  mustFinishNextChapter,
 }: OutlineAiGenerateFormProps) {
-  const [targetLevel, setTargetLevel] = useState<OutlineLevel>(initialTargetLevel);
+  const [targetLevel, setTargetLevel] = useState<OutlineLevel>(
+    mustFinishNextChapter ? "chapter" : initialTargetLevel,
+  );
 
   return (
     <PreserveScrollForm
@@ -42,7 +46,13 @@ export function OutlineAiGenerateForm({
           value={targetLevel}
         >
           {outlineLevelOptions.map((option) => (
-            <option key={option.value} value={option.value}>
+            <option
+              disabled={
+                mustFinishNextChapter && option.value !== "chapter"
+              }
+              key={option.value}
+              value={option.value}
+            >
               {option.label}
             </option>
           ))}
@@ -67,6 +77,16 @@ export function OutlineAiGenerateForm({
       <div className="mt-5">
         <SkipEndingPlanCheckbox />
       </div>
+      {mustFinishNextChapter && targetLevel === "chapter" ? (
+        <label className="mt-5 flex min-h-10 items-center gap-2 text-xs font-medium text-ink-700">
+          <input
+            className="h-4 w-4 rounded border-ink-950/20 text-signal-600"
+            name="skipWordLimitEnding"
+            type="checkbox"
+          />
+          本次不强制按字数收尾
+        </label>
+      ) : null}
       <button
         className={`mt-5 inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition ${
           canGenerate
@@ -79,6 +99,11 @@ export function OutlineAiGenerateForm({
         <Sparkles aria-hidden="true" className="h-4 w-4" />
         {hasActiveTask ? "生成中" : "生成大纲草案"}
       </button>
+      {mustFinishNextChapter ? (
+        <p className="w-full text-xs leading-5 text-red-800">
+          当前字数预算已进入最终收尾，只能生成章节大纲。单次跳过不会修改项目总字数目标。
+        </p>
+      ) : null}
     </PreserveScrollForm>
   );
 }

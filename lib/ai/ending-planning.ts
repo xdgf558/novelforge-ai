@@ -7,6 +7,10 @@ import {
   calculateEndingPlanPlanningWindow,
   endingPlanningTaskType,
 } from "./ending-plan-reference";
+import {
+  calculateManuscriptWordBudget,
+  sumManuscriptWords,
+} from "./manuscript-word-budget";
 
 export { endingPlanningTaskType };
 
@@ -83,6 +87,12 @@ export type EndingReadinessSnapshot = {
   currentWords: number;
   targetWords: number | null;
   progressPercent: number | null;
+  remainingWords: number | null;
+  overTargetWords: number;
+  estimatedChapterWords: number;
+  estimatedChaptersToTarget: number | null;
+  targetReached: boolean;
+  shouldFinishNextChapter: boolean;
   chapterCount: number;
   latestChapterNumber: number;
   finalChapterCount: number;
@@ -108,18 +118,16 @@ const LIST_ITEM_MAX_LENGTH = 500;
 export function calculateEndingReadiness(
   input: Pick<EndingPlanningContextInput, "project" | "chapters" | "outlines" | "foreshadows">,
 ): EndingReadinessSnapshot {
-  const currentWords = input.chapters.reduce(
-    (sum, chapter) => sum + Math.max(0, chapter.wordCount ?? 0),
-    0,
+  const currentWords = sumManuscriptWords(
+    input.chapters.map((chapter) => chapter.wordCount),
   );
-  const targetWords =
-    input.project.totalWordTarget && input.project.totalWordTarget > 0
-      ? input.project.totalWordTarget
-      : null;
-  const progressPercent =
-    targetWords && targetWords > 0
-      ? Math.round((currentWords / targetWords) * 100)
-      : null;
+  const wordBudget = calculateManuscriptWordBudget({
+    currentWords,
+    targetWords: input.project.totalWordTarget,
+    chapterCount: input.chapters.length,
+    chapterWordMin: input.project.chapterWordMin,
+    chapterWordMax: input.project.chapterWordMax,
+  });
   const unresolvedForeshadows = input.foreshadows.filter((foreshadow) =>
     isUnresolvedForeshadowStatus(foreshadow.status),
   );
@@ -150,15 +158,21 @@ export function calculateEndingReadiness(
     (status) => status === "completed",
   ).length;
   const stage = resolveEndingStage({
-    progressPercent,
+    progressPercent: wordBudget.progressPercent,
     unresolvedForeshadowCount: unresolvedForeshadows.length,
     highImportanceUnresolvedForeshadowCount,
   });
 
   return {
-    currentWords,
-    targetWords,
-    progressPercent,
+    currentWords: wordBudget.currentWords,
+    targetWords: wordBudget.targetWords,
+    progressPercent: wordBudget.progressPercent,
+    remainingWords: wordBudget.remainingWords,
+    overTargetWords: wordBudget.overTargetWords,
+    estimatedChapterWords: wordBudget.estimatedChapterWords,
+    estimatedChaptersToTarget: wordBudget.estimatedChaptersToTarget,
+    targetReached: wordBudget.targetReached,
+    shouldFinishNextChapter: wordBudget.shouldFinishNextChapter,
     chapterCount,
     latestChapterNumber,
     finalChapterCount,
@@ -278,6 +292,13 @@ export function buildEndingPlanningContext(
           ? "未设置"
           : `${readiness.progressPercent}%`,
       ],
+      [
+        "目标剩余字数",
+        readiness.remainingWords == null
+          ? "未设置"
+          : readiness.remainingWords,
+      ],
+      ["预计单章容量", readiness.estimatedChapterWords],
       ["章节数", readiness.chapterCount],
       ["规划生成位置", `第 ${planningWindow.generatedAtChapterNumber} 章后`],
       ["建议参考至", `第 ${planningWindow.validThroughChapterNumber} 章`],
@@ -332,6 +353,13 @@ export function buildEndingPlanningContext(
     "- 不要新增大量新支线；如果确实需要新增，只能列为风险提示。",
     "- 不要直接写完整大结局正文，只做规划。",
     "- 每个建议都要尽量关联已有大纲、伏笔、角色或章节事实。",
+    ...(readiness.shouldFinishNextChapter
+      ? [
+          "- 实时字数预算只允许再写一章：剩余建议章节数必须为 1，下一章必须完成主线矛盾、核心角色落点和结局余味。",
+          "- 即使旧大纲或旧规划延伸到更晚章节，也要把必要内容压缩进下一章；不得为了清零伏笔继续延长作品。",
+          "- 只处理与主线结局直接相关的高优先级伏笔；其余伏笔列入可淡化或留白清单，不得新增支线、谜团或角色任务。",
+        ]
+      : []),
   ].join("\n");
 
   return {

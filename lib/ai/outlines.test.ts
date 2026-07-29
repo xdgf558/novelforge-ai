@@ -6,6 +6,7 @@ import {
   ENDING_PLAN_CONTEXT_MAX_LENGTH,
   ENDING_PLAN_EXCERPT_MARKER,
 } from "./outlines";
+import { calculateManuscriptWordBudget } from "./manuscript-word-budget";
 
 const baseInput = {
   project: {
@@ -47,6 +48,13 @@ const baseInput = {
       goal: "确认重生和 AI 登场。",
     },
   ],
+  manuscriptWordBudget: calculateManuscriptWordBudget({
+    currentWords: 5000,
+    targetWords: 2000000,
+    chapterCount: 1,
+    chapterWordMin: 5000,
+    chapterWordMax: 10000,
+  }),
   request: {
     targetLevel: "chapter" as const,
     chapterCount: 1,
@@ -98,6 +106,80 @@ describe("outline generation context builder", () => {
       title: "谢勇出场",
       endingText: "林巧深夜打来电话，说罗文斌要截培训班的新机器。",
     });
+  });
+
+  it("forces the next chapter to finish when the live word budget has reached its limit", () => {
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      manuscriptWordBudget: calculateManuscriptWordBudget({
+        currentWords: 151430,
+        targetWords: 150000,
+        chapterCount: 35,
+        chapterWordMin: 4000,
+        chapterWordMax: 5999,
+      }),
+      request: {
+        targetLevel: "chapter",
+        targetChapterNumber: 36,
+      },
+      endingPlan: {
+        taskId: "ending_plan_old_schedule",
+        adoptionState: "adopted",
+        completedAt: null,
+        outputText: "第36章支付代价，第37章平反，第38章余韵。",
+        generatedAtChapterNumber: 30,
+        validThroughChapterNumber: 38,
+      },
+    });
+
+    expect(context.inputJson.manuscriptWordBudget).toMatchObject({
+      currentWords: 151430,
+      targetWords: 150000,
+      overTargetWords: 1430,
+      targetReached: true,
+      shouldFinishNextChapter: true,
+    });
+    expect(context.inputText).toContain("第 36 章必须作为全书完结章");
+    expect(context.inputText).toContain(
+      "实时字数预算优先于旧终局规划的剩余章节数",
+    );
+    expect(context.inputText).toContain(
+      "不得为了清零伏笔继续延长作品",
+    );
+    expect(context.inputText).toContain("不得给出下一章钩子");
+    expect(context.inputContextSummary).toContain(
+      "实时字数预算要求下一章完结",
+    );
+  });
+
+  it("records an author skip without forcing the target chapter to finish", () => {
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      manuscriptWordBudget: calculateManuscriptWordBudget({
+        currentWords: 151430,
+        targetWords: 150000,
+        chapterCount: 35,
+      }),
+      wordBudgetMode: "author_skipped",
+      request: {
+        targetLevel: "chapter",
+        targetChapterNumber: 36,
+      },
+    });
+
+    expect(context.inputJson.wordBudgetDecision).toEqual({
+      mode: "author_skipped",
+      mustFinishNextChapter: false,
+    });
+    expect(context.inputText).toContain(
+      "作者已明确选择本次不强制按字数收尾",
+    );
+    expect(context.inputText).not.toContain(
+      "第 36 章必须作为全书完结章",
+    );
+    expect(context.inputContextSummary).toContain(
+      "本次已跳过字数收尾约束",
+    );
   });
 
   it("automatically includes a bounded latest ending plan in later outline drafts", () => {

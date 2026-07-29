@@ -36,14 +36,16 @@ describe("default AI prompt templates", () => {
     );
   });
 
-  it("versions outline generation for automatic ending-plan references", () => {
+  it("versions outline generation for live word-budget closure", () => {
     const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
       (item) => item.key === "outline_generation",
     );
 
-    expect(template?.version).toBe(2);
+    expect(template?.version).toBe(4);
+    expect(template?.userPrompt).toContain("实时字数预算");
     expect(template?.userPrompt).toContain("终局规划参考");
-    expect(template?.contextNotes).toContain("冲突时以正式数据为准");
+    expect(template?.contextNotes).toContain("下一章必须完结");
+    expect(template?.contextNotes).toContain("作者本次跳过");
   });
 
   it("requires unit-bound suggestions in the whole-story review schema", () => {

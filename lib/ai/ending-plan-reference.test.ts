@@ -3,8 +3,8 @@ import {
   calculateEndingPlanPlanningWindow,
   compareAiTasksNewestFirst,
   DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS,
+  IMMEDIATE_ENDING_PLAN_WINDOW_CHAPTERS,
   isUsableEndingPlanTask,
-  MIN_ENDING_PLAN_WINDOW_CHAPTERS,
   readEndingPlanPlanningWindow,
 } from "./ending-plan-reference";
 
@@ -115,9 +115,9 @@ describe("ending plan reference rules", () => {
       DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS + 3,
     );
     expect(overTarget.estimatedRemainingChapterCount).toBe(
-      MIN_ENDING_PLAN_WINDOW_CHAPTERS,
+      IMMEDIATE_ENDING_PLAN_WINDOW_CHAPTERS,
     );
-    expect(overTarget.validThroughChapterNumber).toBe(24);
+    expect(overTarget.validThroughChapterNumber).toBe(21);
   });
 
   it("reads saved windows and derives a legacy window when needed", () => {

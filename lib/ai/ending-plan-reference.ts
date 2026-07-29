@@ -1,3 +1,5 @@
+import { estimateChapterWords } from "./manuscript-word-budget";
+
 export const endingPlanningTaskType = "ending_planning_generation";
 
 export const usableEndingPlanAdoptionStates = [
@@ -5,8 +7,8 @@ export const usableEndingPlanAdoptionStates = [
   "adopted",
 ] as const;
 export const DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS = 10;
-export const MIN_ENDING_PLAN_WINDOW_CHAPTERS = 4;
 export const MAX_ENDING_PLAN_WINDOW_CHAPTERS = 24;
+export const IMMEDIATE_ENDING_PLAN_WINDOW_CHAPTERS = 1;
 
 export type UsableEndingPlanAdoptionState =
   (typeof usableEndingPlanAdoptionStates)[number];
@@ -113,16 +115,12 @@ export function calculateEndingPlanPlanningWindow(input: {
     input.chapterCount > 0
       ? input.chapterCount
       : input.finalChapterCount;
-  const observedChapterWords =
-    observedChapterCount > 0 && input.currentWords > 0
-      ? input.currentWords / observedChapterCount
-      : null;
-  const configuredChapterWords = averagePositiveNumbers([
-    input.chapterWordMin,
-    input.chapterWordMax,
-  ]);
-  const estimatedChapterWords =
-    observedChapterWords ?? configuredChapterWords ?? 5000;
+  const estimatedChapterWords = estimateChapterWords({
+    currentWords: input.currentWords,
+    chapterCount: observedChapterCount,
+    chapterWordMin: input.chapterWordMin,
+    chapterWordMax: input.chapterWordMax,
+  });
   const estimatedFromWords =
     input.targetWords == null
       ? DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS
@@ -136,11 +134,13 @@ export function calculateEndingPlanPlanningWindow(input: {
     estimatedFromWords > 0
       ? Math.max(2, Math.ceil(estimatedFromWords * 0.25))
       : 0;
-  const estimatedRemainingChapterCount = clamp(
-    estimatedFromWords + buffer,
-    MIN_ENDING_PLAN_WINDOW_CHAPTERS,
-    MAX_ENDING_PLAN_WINDOW_CHAPTERS,
-  );
+  const estimatedRemainingChapterCount =
+    input.targetWords != null && estimatedFromWords <= 1
+      ? IMMEDIATE_ENDING_PLAN_WINDOW_CHAPTERS
+      : Math.min(
+          estimatedFromWords + buffer,
+          MAX_ENDING_PLAN_WINDOW_CHAPTERS,
+        );
 
   return {
     generatedAtChapterNumber,
@@ -256,18 +256,4 @@ function positiveNumber(value: unknown) {
     value > 0
     ? value
     : null;
-}
-
-function averagePositiveNumbers(values: readonly unknown[]) {
-  const numbers = values
-    .map(positiveNumber)
-    .filter((value): value is number => value != null);
-
-  return numbers.length > 0
-    ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length
-    : null;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
