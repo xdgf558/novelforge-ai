@@ -8,9 +8,8 @@ Before starting any implementation phase, read these files:
 2. `docs/product-memory-design.md`
 3. `docs/development-log.md`
 
-Primary source document:
-
-- `/Users/shaola/Downloads/开发文档/长篇少说开发.md`
+The committed project memory and design documents above are the public source
+of truth. Earlier local product notes are not required for contributors.
 
 Current development rule:
 
@@ -26,4 +25,3 @@ After completing any future development phase:
 2. Update `docs/project-memory.md` if scope, architecture, commands, or product decisions changed.
 3. Run the relevant checks for that phase.
 4. Summarize what changed and what should be remembered next time.
-

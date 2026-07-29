@@ -8,6 +8,25 @@ web novel writers, and content studios.
 
 The product is not just a text generator. Its core value is helping authors maintain million-word continuity through structured memory, versioned settings, character state tracking, foreshadow management, timeline tracking, AI generation records, pending update review, and continuity checks.
 
+## Repository Policy
+
+- The canonical repository is `https://github.com/xdgf558/novelforge-ai`.
+- The repository is publicly visible for transparency, evaluation, and
+  collaboration, but it is not currently open source. Source use remains
+  governed by the source-visible, all-rights-reserved `LICENSE`.
+- Public repository automation must keep production dependency auditing,
+  tests, type checking, builds, desktop smoke checks, and both acceptance
+  suites green.
+- GitHub private vulnerability reporting, dependency alerts, secret scanning,
+  push protection, and protected `main` changes are expected repository
+  controls.
+- Never commit API keys, publishing tokens, `.env` files, SQLite databases,
+  backups, author manuscripts, generated assets, logs, or packaged desktop
+  applications.
+- The original local product notes are not required to build or review the
+  public project. Committed project memory and design documents are the source
+  of truth.
+
 ## MVP Boundary
 
 The first version must be local-only and single-user.
