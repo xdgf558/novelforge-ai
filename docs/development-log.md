@@ -1,5 +1,48 @@
 # Development Log
 
+## 2026-07-29: Live Word-Budget Ending Guard
+
+Status: completed.
+
+What was done:
+
+- Diagnosed a real long-form project that had reached 151,430 / 150,000 words
+  without closing. The previous ending signal was advisory: an ending plan
+  generated at chapter 30 remained valid through chapter 38, formal volume and
+  story-unit ranges still extended to chapter 46, and 92 unresolved or
+  advancing foreshadows prevented the local stage from becoming
+  `ready_to_finish`.
+- Added one shared live manuscript word-budget calculation for outline and
+  ending planning. It records the current total, target, remaining or excess
+  words, observed/configured chapter capacity, estimated chapters remaining,
+  and whether the next chapter must finish the work.
+- When the manuscript has reached its target, or the remaining budget fits in
+  one normal chapter, the next chapter outline is now required to be the ending
+  chapter. This live constraint overrides older ending-plan schedules and
+  formal outline ranges for generation guidance. Unresolved foreshadows may be
+  prioritized, faded, or left open, but may no longer extend the manuscript;
+  the model is also forbidden from opening new branches or ending on a
+  next-chapter hook.
+- Tightened newly generated ending-plan windows to one chapter when only one
+  chapter fits in the live budget, and exposed an explicit outline-page alert
+  showing the excess or remaining words plus the required ending chapter.
+  Existing formal outlines and prose remain unchanged until the author reviews
+  and saves new work.
+- Upgraded the default outline-generation prompt template from v2 to v3 so
+  existing installations receive the live-budget precedence rule through the
+  normal on-demand prompt-template upgrade path.
+
+Verification:
+
+- Production-data validation used a copied SQLite database and confirmed the
+  outline page reports 151,430 / 150,000 words, 1,430 words over target, and
+  requires chapter 36 to be the ending chapter. The production database was
+  not modified.
+- Full `npm test` passed: 114 files and 673 tests.
+- `npm run typecheck`, `npm run build`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
+- `git diff --check` passed.
+
 ## 2026-07-26: 0.1.108 Missing Character Recovery Personal Installer
 
 Status: completed.

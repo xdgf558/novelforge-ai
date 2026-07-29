@@ -7,6 +7,7 @@ export const usableEndingPlanAdoptionStates = [
 export const DEFAULT_ENDING_PLAN_REMAINING_CHAPTERS = 10;
 export const MIN_ENDING_PLAN_WINDOW_CHAPTERS = 4;
 export const MAX_ENDING_PLAN_WINDOW_CHAPTERS = 24;
+export const IMMEDIATE_ENDING_PLAN_WINDOW_CHAPTERS = 1;
 
 export type UsableEndingPlanAdoptionState =
   (typeof usableEndingPlanAdoptionStates)[number];
@@ -136,11 +137,14 @@ export function calculateEndingPlanPlanningWindow(input: {
     estimatedFromWords > 0
       ? Math.max(2, Math.ceil(estimatedFromWords * 0.25))
       : 0;
-  const estimatedRemainingChapterCount = clamp(
-    estimatedFromWords + buffer,
-    MIN_ENDING_PLAN_WINDOW_CHAPTERS,
-    MAX_ENDING_PLAN_WINDOW_CHAPTERS,
-  );
+  const estimatedRemainingChapterCount =
+    input.targetWords != null && estimatedFromWords <= 1
+      ? IMMEDIATE_ENDING_PLAN_WINDOW_CHAPTERS
+      : clamp(
+          estimatedFromWords + buffer,
+          MIN_ENDING_PLAN_WINDOW_CHAPTERS,
+          MAX_ENDING_PLAN_WINDOW_CHAPTERS,
+        );
 
   return {
     generatedAtChapterNumber,

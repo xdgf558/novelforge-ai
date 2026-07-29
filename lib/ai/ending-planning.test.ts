@@ -113,7 +113,7 @@ describe("ending planning context", () => {
     const context = buildEndingPlanningContext(baseInput);
 
     expect(context.inputContextSummary).toBe(
-      "《离线未来》终局规划；目标进度 85%；章节 3 个；未回收伏笔 1 条；阶段：线索收紧；建议参考至第 7 章",
+      "《离线未来》终局规划；目标进度 85%；章节 3 个；未回收伏笔 1 条；阶段：线索收紧；建议参考至第 4 章",
     );
     expect(context.inputText).toContain("生成一份终局规划 / 收尾检查草案");
     expect(context.inputText).toContain("不得自动把任何伏笔标记为已回收或废弃");
@@ -127,12 +127,12 @@ describe("ending planning context", () => {
     });
     expect(context.inputJson.planningWindow).toEqual({
       generatedAtChapterNumber: 3,
-      validThroughChapterNumber: 7,
-      estimatedRemainingChapterCount: 4,
+      validThroughChapterNumber: 4,
+      estimatedRemainingChapterCount: 1,
     });
   });
 
-  it("does not say the book is ready to finish when high importance foreshadows remain", () => {
+  it("requires a final chapter when the remaining word budget fits one chapter", () => {
     const context = buildEndingPlanningContext({
       ...baseInput,
       chapters: [
@@ -145,7 +145,27 @@ describe("ending planning context", () => {
       ],
     });
 
+    expect(context.readiness.stage).toBe("ready_to_finish");
+    expect(context.readiness.shouldFinishNextChapter).toBe(true);
+    expect(context.inputText).toContain("剩余建议章节数必须为 1");
+    expect(context.inputText).toContain("不得为了清零伏笔继续延长作品");
+  });
+
+  it("keeps tightening when high importance foreshadows remain and more than one chapter fits", () => {
+    const context = buildEndingPlanningContext({
+      ...baseInput,
+      chapters: [
+        {
+          chapterNumber: 1,
+          title: "终局前",
+          status: "final",
+          wordCount: 90000,
+        },
+      ],
+    });
+
     expect(context.readiness.stage).toBe("enter_endgame");
+    expect(context.readiness.shouldFinishNextChapter).toBe(false);
   });
 
   it("uses confirmed chapter progress instead of stale stored outline labels", () => {

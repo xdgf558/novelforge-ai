@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
       findMany: vi.fn(),
     },
     chapter: {
+      aggregate: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
     },
@@ -124,6 +125,14 @@ describe("outline actions", () => {
     mocks.prisma.character.findMany.mockResolvedValue([]);
     mocks.prisma.chapter.findFirst.mockResolvedValue(null);
     mocks.prisma.chapter.findMany.mockResolvedValue([]);
+    mocks.prisma.chapter.aggregate.mockResolvedValue({
+      _sum: {
+        wordCount: 0,
+      },
+      _count: {
+        _all: 0,
+      },
+    });
     mocks.prisma.timelineEvent.findMany.mockResolvedValue([]);
     mocks.prisma.aiTask.findFirst.mockResolvedValue(null);
     mocks.prisma.aiTask.updateMany.mockResolvedValue({
@@ -334,6 +343,60 @@ describe("outline actions", () => {
       }),
       expect.objectContaining({
         input: expect.stringContaining("只生成第 3 章的一条章节大纲"),
+      }),
+    );
+  });
+
+  it("forces an immediate ending when the live manuscript has reached its word limit", async () => {
+    const formData = new FormData();
+    formData.set("targetLevel", "chapter");
+    formData.set("targetChapterNumber", "36");
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      ...project,
+      totalWordTarget: 150000,
+      chapterWordMin: 4000,
+      chapterWordMax: 5999,
+    });
+    mocks.prisma.chapter.aggregate.mockResolvedValue({
+      _sum: {
+        wordCount: 151430,
+      },
+      _count: {
+        _all: 35,
+      },
+    });
+
+    await expect(generateOutlineDraft("project_1", formData)).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.chapter.aggregate).toHaveBeenCalledWith({
+      where: {
+        projectId: "project_1",
+      },
+      _sum: {
+        wordCount: true,
+      },
+      _count: {
+        _all: true,
+      },
+    });
+    expect(mocks.startLoggedOpenAITextTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputJson: expect.objectContaining({
+          manuscriptWordBudget: expect.objectContaining({
+            currentWords: 151430,
+            targetWords: 150000,
+            targetReached: true,
+            shouldFinishNextChapter: true,
+          }),
+        }),
+        inputContextSummary: expect.stringContaining(
+          "实时字数预算要求下一章完结",
+        ),
+      }),
+      expect.objectContaining({
+        input: expect.stringContaining("第 36 章必须作为全书完结章"),
       }),
     );
   });

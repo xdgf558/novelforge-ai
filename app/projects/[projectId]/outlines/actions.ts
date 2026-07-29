@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { buildEndingPlanningContext } from "@/lib/ai/ending-planning";
+import { calculateManuscriptWordBudget } from "@/lib/ai/manuscript-word-budget";
 import { buildOutlineGenerationContext } from "@/lib/ai/outlines";
 import { ensureDefaultPromptTemplate } from "@/lib/ai/prompt-template-store";
 import { startLoggedOpenAITextTask } from "@/lib/ai/task-logger";
@@ -321,7 +322,14 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     redirect(`/projects/${projectId}/outlines?outlineTarget=${request.targetLevel}`);
   }
 
-  const [project, outlines, characters, recentChapters, endingPlan] =
+  const [
+    project,
+    outlines,
+    characters,
+    recentChapters,
+    endingPlan,
+    chapterWordTotals,
+  ] =
     await Promise.all([
       prisma.project.findUnique({
         where: {
@@ -370,6 +378,17 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
         take: 5,
       }),
       findLatestEndingPlanningReference(projectId),
+      prisma.chapter.aggregate({
+        where: {
+          projectId,
+        },
+        _sum: {
+          wordCount: true,
+        },
+        _count: {
+          _all: true,
+        },
+      }),
     ]);
 
   if (!project) {
@@ -412,6 +431,13 @@ export async function generateOutlineDraft(projectId: string, formData: FormData
     characters,
     recentChapters: recentChapters.reverse(),
     previousChapter: buildPreviousChapterEndingContext(previousChapter),
+    manuscriptWordBudget: calculateManuscriptWordBudget({
+      currentWords: chapterWordTotals._sum.wordCount ?? 0,
+      targetWords: project.totalWordTarget,
+      chapterCount: chapterWordTotals._count._all,
+      chapterWordMin: project.chapterWordMin,
+      chapterWordMax: project.chapterWordMax,
+    }),
     endingPlan,
     endingPlanMode: request.skipEndingPlan
       ? "author_skipped"

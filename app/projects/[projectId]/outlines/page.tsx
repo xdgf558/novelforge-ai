@@ -775,6 +775,18 @@ function EndingPlanningPanel({
         />
       </div>
 
+      {readiness.shouldFinishNextChapter && readiness.targetWords ? (
+        <p className="mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm leading-6 text-red-900">
+          <strong>
+            {readiness.targetReached
+              ? `已超过总字数上限 ${formatNumber(readiness.overTargetWords)} 字。`
+              : `距离总字数上限只剩 ${formatNumber(readiness.remainingWords ?? 0)} 字。`}
+          </strong>{" "}
+          按当前单章容量，第 {formatNumber(readiness.latestChapterNumber + 1)}{" "}
+          章应作为完结章。之后生成的章节大纲会优先完成主线、核心角色落点和结局余味，不再因旧大纲范围或未清零伏笔继续扩写；已保存的大纲和正文不会被自动修改。
+        </p>
+      ) : null}
+
       {expiredReference ? (
         <p className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900">
           <strong>终局规划已超出建议射程。</strong> 最新规划建议参考至第{" "}
