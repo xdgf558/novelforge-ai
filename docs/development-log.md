@@ -31,6 +31,9 @@ What was done:
 - Recorded the public repository data boundary in project memory: credentials,
   databases, backups, manuscripts, generated assets, logs, and installers must
   remain outside Git.
+- Corrected the contributor scope wording after review so it excludes only
+  automatic WeChat publishing and does not misclassify the existing Station Cat
+  publishing integration as out of scope.
 
 Verification:
 
