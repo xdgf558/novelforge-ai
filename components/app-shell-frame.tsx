@@ -27,6 +27,7 @@ import {
 import type {
   AppShellData,
   AppShellProject,
+  AppShellReviewCount,
   AppShellSeries,
 } from "@/components/app-shell";
 import { AppShellNavigation } from "@/components/app-shell-navigation";
@@ -73,6 +74,8 @@ export function AppShellFrame({
     useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const desktopAiConsoleTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileAiConsoleTriggerRef = useRef<HTMLButtonElement>(null);
   const activeProject = useMemo(
     () => findActiveProject(pathname, data.projects),
     [data.projects, pathname],
@@ -88,6 +91,33 @@ export function AppShellFrame({
         : data.activeTasks,
     [activeProject, data.activeTasks],
   );
+  const totalReviewCount = useMemo(
+    () =>
+      data.reviewCounts.reduce(
+        (total, count) =>
+          total + count.pendingUpdateCount + count.openContinuityCount,
+        0,
+      ),
+    [data.reviewCounts],
+  );
+  const closeAiConsole = useCallback(() => {
+    setAiConsoleOpen(false);
+    window.requestAnimationFrame(() => {
+      const desktopTrigger = desktopAiConsoleTriggerRef.current;
+      const trigger =
+        desktopTrigger?.offsetParent != null
+          ? desktopTrigger
+          : mobileAiConsoleTriggerRef.current;
+      trigger?.focus();
+    });
+  }, []);
+  const toggleAiConsole = useCallback(() => {
+    if (aiConsoleOpen) {
+      closeAiConsole();
+      return;
+    }
+    setAiConsoleOpen(true);
+  }, [aiConsoleOpen, closeAiConsole]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("novelforge.aiConsoleOpen");
@@ -116,12 +146,15 @@ export function AppShellFrame({
         setCommandPaletteOpen(false);
         setNotificationOpen(false);
         setMobileNavigationOpen(false);
+        if (aiConsoleOpen) {
+          closeAiConsole();
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [aiConsoleOpen, closeAiConsole]);
 
   useEffect(() => {
     if (data.activeTasks.length === 0) {
@@ -134,10 +167,6 @@ export function AppShellFrame({
 
     return () => window.clearInterval(interval);
   }, [data.activeTasks.length, router]);
-
-  const toggleAiConsole = useCallback(() => {
-    setAiConsoleOpen((open) => !open);
-  }, []);
 
   return (
     <div
@@ -233,15 +262,14 @@ export function AppShellFrame({
                 type="button"
               >
                 <Bell aria-hidden="true" className="h-4 w-4" />
-                {data.pendingUpdateCount + data.openContinuityCount > 0 ? (
+                {totalReviewCount > 0 ? (
                   <span className="nf-notification-dot" />
                 ) : null}
               </button>
               {notificationOpen ? (
                 <NotificationPopover
-                  activeProject={activeProject}
-                  openContinuityCount={data.openContinuityCount}
-                  pendingUpdateCount={data.pendingUpdateCount}
+                  activeProjectId={activeProject?.id ?? null}
+                  reviewCounts={data.reviewCounts}
                 />
               ) : null}
             </div>
@@ -273,6 +301,7 @@ export function AppShellFrame({
               aria-label={aiConsoleOpen ? "收起 AI 运行台" : "展开 AI 运行台"}
               className="nf-icon-button hidden lg:inline-flex"
               onClick={toggleAiConsole}
+              ref={desktopAiConsoleTriggerRef}
               type="button"
             >
               {aiConsoleOpen ? (
@@ -289,18 +318,20 @@ export function AppShellFrame({
         </main>
       </div>
 
-      <AiRunConsole
-        activeProjectId={activeProject?.id ?? null}
-        activeTasks={data.activeTasks}
-        onClose={() => setAiConsoleOpen(false)}
-        open={aiConsoleOpen}
-        recentTasks={data.recentTasks}
-      />
+      {aiConsoleOpen ? (
+        <AiRunConsole
+          activeProjectId={activeProject?.id ?? null}
+          activeTasks={data.activeTasks}
+          onClose={closeAiConsole}
+          recentTasks={data.recentTasks}
+        />
+      ) : null}
 
       <button
         aria-label="打开 AI 运行台"
         className="nf-ai-console-fab lg:hidden"
         onClick={() => setAiConsoleOpen(true)}
+        ref={mobileAiConsoleTriggerRef}
         type="button"
       >
         <Bot aria-hidden="true" className="h-4 w-4" />
@@ -403,56 +434,91 @@ function routeSegmentLabel(segment: string, previousSegment?: string) {
 }
 
 function NotificationPopover({
-  activeProject,
-  openContinuityCount,
-  pendingUpdateCount,
+  activeProjectId,
+  reviewCounts,
 }: {
-  activeProject: AppShellProject | null;
-  openContinuityCount: number;
-  pendingUpdateCount: number;
+  activeProjectId: string | null;
+  reviewCounts: AppShellReviewCount[];
 }) {
-  const projectBase = activeProject ? `/projects/${activeProject.id}` : null;
+  const orderedCounts = [...reviewCounts].sort((left, right) => {
+    if (left.projectId === activeProjectId) {
+      return -1;
+    }
+    if (right.projectId === activeProjectId) {
+      return 1;
+    }
+    return (
+      right.pendingUpdateCount +
+        right.openContinuityCount -
+        (left.pendingUpdateCount + left.openContinuityCount) ||
+      left.projectTitle.localeCompare(right.projectTitle, "zh-CN")
+    );
+  });
+  const totalCount = orderedCounts.reduce(
+    (total, count) =>
+      total + count.pendingUpdateCount + count.openContinuityCount,
+    0,
+  );
 
   return (
     <div className="nf-popover nf-notification-popover">
       <div className="nf-popover-header">
         <span>需要处理</span>
-        <span className="nf-badge">
-          {pendingUpdateCount + openContinuityCount}
-        </span>
+        <span className="nf-badge">{totalCount}</span>
       </div>
-      <div className="space-y-1.5 p-2">
-        <Link
-          className="nf-notification-row"
-          href={projectBase ? `${projectBase}/pending-updates` : "/"}
-        >
-          <CheckCircle2 aria-hidden="true" className="h-4 w-4 text-[var(--nf-amber)]" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs font-medium text-[var(--nf-text-secondary)]">
-              待审核更新
-            </span>
-            <span className="block text-[10px] text-[var(--nf-text-faint)]">
-              {pendingUpdateCount} 条建议等待作者确认
-            </span>
-          </span>
-        </Link>
-        <Link
-          className="nf-notification-row"
-          href={projectBase ? `${projectBase}/continuity` : "/"}
-        >
-          <TriangleAlert
-            aria-hidden="true"
-            className="h-4 w-4 text-[var(--nf-cyan)]"
-          />
-          <span className="min-w-0 flex-1">
-            <span className="block text-xs font-medium text-[var(--nf-text-secondary)]">
-              连续性问题
-            </span>
-            <span className="block text-[10px] text-[var(--nf-text-faint)]">
-              {openContinuityCount} 条报告尚未处理
-            </span>
-          </span>
-        </Link>
+      <div className="nf-notification-list">
+        {orderedCounts.length > 0 ? (
+          orderedCounts.map((count) => (
+            <section className="nf-notification-project" key={count.projectId}>
+              <div className="nf-notification-project-title">
+                <span className="truncate">{count.projectTitle}</span>
+                <span>
+                  {count.pendingUpdateCount + count.openContinuityCount} 条
+                </span>
+              </div>
+              {count.pendingUpdateCount > 0 ? (
+                <Link
+                  className="nf-notification-row"
+                  href={`/projects/${count.projectId}/pending-updates`}
+                >
+                  <CheckCircle2
+                    aria-hidden="true"
+                    className="h-4 w-4 text-[var(--nf-amber)]"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-medium text-[var(--nf-text-secondary)]">
+                      待审核更新
+                    </span>
+                    <span className="block text-[10px] text-[var(--nf-text-faint)]">
+                      {count.pendingUpdateCount} 条建议等待作者确认
+                    </span>
+                  </span>
+                </Link>
+              ) : null}
+              {count.openContinuityCount > 0 ? (
+                <Link
+                  className="nf-notification-row"
+                  href={`/projects/${count.projectId}/continuity`}
+                >
+                  <TriangleAlert
+                    aria-hidden="true"
+                    className="h-4 w-4 text-[var(--nf-cyan)]"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-medium text-[var(--nf-text-secondary)]">
+                      连续性问题
+                    </span>
+                    <span className="block text-[10px] text-[var(--nf-text-faint)]">
+                      {count.openContinuityCount} 条报告尚未处理
+                    </span>
+                  </span>
+                </Link>
+              ) : null}
+            </section>
+          ))
+        ) : (
+          <p className="nf-notification-empty">当前没有待处理事项</p>
+        )}
       </div>
     </div>
   );

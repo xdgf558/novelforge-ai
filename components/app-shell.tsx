@@ -2,6 +2,10 @@ import { unstable_noStore as noStore } from "next/cache";
 import { AppShellFrame } from "@/components/app-shell-frame";
 import { FormScrollRestoration } from "@/components/form-scroll-restoration";
 import { appVersion } from "@/lib/app-version";
+import {
+  buildAppShellReviewCounts,
+  type AppShellReviewCount,
+} from "@/lib/app-shell-review-counts";
 import { prisma } from "@/lib/prisma";
 
 type AppShellProps = {
@@ -43,13 +47,14 @@ export type AppShellAiTask = {
   completedAt: string | null;
 };
 
+export type { AppShellReviewCount };
+
 export type AppShellData = {
   projects: AppShellProject[];
   series: AppShellSeries[];
   activeTasks: AppShellAiTask[];
   recentTasks: AppShellAiTask[];
-  pendingUpdateCount: number;
-  openContinuityCount: number;
+  reviewCounts: AppShellReviewCount[];
 };
 
 export async function AppShell({ children }: AppShellProps) {
@@ -74,8 +79,8 @@ async function getAppShellData(): Promise<AppShellData> {
       series,
       activeTasks,
       recentTasks,
-      pendingUpdateCount,
-      openContinuityCount,
+      pendingUpdateGroups,
+      openContinuityGroups,
     ] = await Promise.all([
       prisma.project.findMany({
         orderBy: [
@@ -151,18 +156,25 @@ async function getAppShellData(): Promise<AppShellData> {
         take: 6,
         select: appShellAiTaskSelect,
       }),
-      prisma.pendingUpdate.count({
+      prisma.pendingUpdate.groupBy({
+        by: ["projectId"],
         where: {
           status: "pending",
         },
+        _count: {
+          _all: true,
+        },
       }),
-      prisma.continuityReport.count({
+      prisma.continuityReport.groupBy({
+        by: ["projectId"],
         where: {
           status: "open",
         },
+        _count: {
+          _all: true,
+        },
       }),
     ]);
-
     return {
       projects: projects.map((project) => ({
         id: project.id,
@@ -175,8 +187,11 @@ async function getAppShellData(): Promise<AppShellData> {
       series,
       activeTasks: activeTasks.map(serializeAppShellAiTask),
       recentTasks: recentTasks.map(serializeAppShellAiTask),
-      pendingUpdateCount,
-      openContinuityCount,
+      reviewCounts: buildAppShellReviewCounts(
+        projects,
+        pendingUpdateGroups,
+        openContinuityGroups,
+      ),
     };
   } catch {
     return {
@@ -184,8 +199,7 @@ async function getAppShellData(): Promise<AppShellData> {
       series: [],
       activeTasks: [],
       recentTasks: [],
-      pendingUpdateCount: 0,
-      openContinuityCount: 0,
+      reviewCounts: [],
     };
   }
 }

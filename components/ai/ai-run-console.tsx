@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import {
+  Ban,
   Bot,
   Check,
   ChevronRight,
   Circle,
   Clock3,
   FileCheck2,
-  Gauge,
   LoaderCircle,
   RotateCw,
   Sparkles,
@@ -16,12 +16,16 @@ import {
   X,
 } from "lucide-react";
 import type { AppShellAiTask } from "@/components/app-shell";
+import {
+  aiTaskStatusLabel,
+  aiTaskStatusTone,
+  aiTaskTypeLabel,
+} from "@/lib/ai/task-presentation";
 
 type AiRunConsoleProps = {
   activeProjectId: string | null;
   activeTasks: AppShellAiTask[];
   onClose: () => void;
-  open: boolean;
   recentTasks: AppShellAiTask[];
 };
 
@@ -38,7 +42,6 @@ export function AiRunConsole({
   activeProjectId,
   activeTasks,
   onClose,
-  open,
   recentTasks,
 }: AiRunConsoleProps) {
   const prioritizedTasks = activeProjectId
@@ -52,17 +55,15 @@ export function AiRunConsole({
 
   return (
     <>
-      {open ? (
-        <button
-          aria-label="关闭 AI 运行台遮罩"
-          className="nf-ai-console-backdrop lg:hidden"
-          onClick={onClose}
-          type="button"
-        />
-      ) : null}
+      <button
+        aria-label="关闭 AI 运行台遮罩"
+        className="nf-ai-console-backdrop lg:hidden"
+        onClick={onClose}
+        type="button"
+      />
       <aside
         aria-label="AI 运行台"
-        className={open ? "nf-ai-console nf-ai-console-open" : "nf-ai-console"}
+        className="nf-ai-console nf-ai-console-open"
       >
         <div className="nf-ai-console-header">
           <div>
@@ -77,7 +78,7 @@ export function AiRunConsole({
             </div>
             <p className="mt-1 text-[10px] text-[var(--nf-text-faint)]">
               {currentTask
-                ? `${currentTask.projectTitle} · ${taskTypeLabel(currentTask.taskType)}`
+                ? `${currentTask.projectTitle} · ${aiTaskTypeLabel(currentTask.taskType)}`
                 : "当前没有运行中的任务"}
             </p>
           </div>
@@ -120,14 +121,14 @@ export function AiRunConsole({
 
           <section className="nf-ai-console-section">
             <div className="nf-ai-console-section-title">
-              <span>最近完成</span>
+              <span>最近任务</span>
               <Clock3 aria-hidden="true" className="h-3.5 w-3.5" />
             </div>
             {recentTasks.length > 0 ? (
               <div className="space-y-1.5">
                 {recentTasks.map((task) => (
                   <TaskRow
-                    detail={`${formatTaskTime(task)} · ${task.model}`}
+                    detail={`${aiTaskStatusLabel(task.status)} · ${formatTaskTime(task)} · ${task.model}`}
                     key={task.id}
                     task={task}
                   />
@@ -156,7 +157,7 @@ function ActiveTaskPanel({ task }: { task: AppShellAiTask }) {
             {task.status === "pending" ? "等待执行" : "正在生成"}
           </div>
           <h3 className="mt-1.5 line-clamp-2 text-xs font-semibold leading-5 text-[var(--nf-text-main)]">
-            {taskTypeLabel(task.taskType)}
+            {aiTaskTypeLabel(task.taskType)}
           </h3>
           <p className="mt-1 truncate text-[10px] text-[var(--nf-text-faint)]">
             {task.model}
@@ -251,33 +252,40 @@ function TaskRow({
   detail: string;
   task: AppShellAiTask;
 }) {
-  const failed = task.status === "failed";
-  const active = task.status === "pending" || task.status === "running";
-  const Icon = failed
+  const tone = aiTaskStatusTone(task.status);
+  const Icon = tone === "failed"
     ? TriangleAlert
-    : active
+    : tone === "active"
       ? RotateCw
-      : FileCheck2;
+      : tone === "cancelled"
+        ? Ban
+        : FileCheck2;
 
   return (
     <Link className="nf-ai-task-row" href={taskLandingHref(task)}>
       <span
         className={
-          failed
+          tone === "failed"
             ? "nf-ai-task-row-icon nf-ai-task-row-icon-failed"
-            : active
+            : tone === "active"
               ? "nf-ai-task-row-icon nf-ai-task-row-icon-active"
-              : "nf-ai-task-row-icon"
+              : tone === "cancelled"
+                ? "nf-ai-task-row-icon nf-ai-task-row-icon-cancelled"
+                : "nf-ai-task-row-icon"
         }
       >
         <Icon
           aria-hidden="true"
-          className={active ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
+          className={
+            tone === "active"
+              ? "h-3.5 w-3.5 animate-spin"
+              : "h-3.5 w-3.5"
+          }
         />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[11px] font-medium text-[var(--nf-text-secondary)]">
-          {taskTypeLabel(task.taskType)}
+          {aiTaskTypeLabel(task.taskType)}
         </span>
         <span className="mt-0.5 block truncate text-[9px] text-[var(--nf-text-faint)]">
           {task.projectTitle} · {detail}
@@ -291,34 +299,14 @@ function TaskRow({
   );
 }
 
-function taskTypeLabel(taskType: string) {
-  const labels: Record<string, string> = {
-    chapter_beats_generation: "章节节拍生成",
-    chapter_draft_generation: "章节草稿生成",
-    chapter_polish_generation: "正文精修",
-    chapter_summary_generation: "章节摘要提取",
-    continuity_check: "连续性检查",
-    ending_planning: "终局规划",
-    outline_generation: "大纲草案生成",
-    pending_update_extraction: "待审核更新提取",
-    short_story_blueprint_generation: "短故事蓝图",
-    short_story_whole_review: "短故事整篇审校",
-    storyline_generation: "故事线草案生成",
-  };
-
-  return (
-    labels[taskType] ??
-    taskType
-      .replaceAll("_", " ")
-      .replace(/\b\w/g, (letter) => letter.toUpperCase())
-  );
-}
-
 function taskLandingHref(task: AppShellAiTask) {
   if (task.chapterId) {
     return `/projects/${task.projectId}/chapters/${task.chapterId}`;
   }
-  if (task.taskType.includes("outline") || task.taskType === "ending_planning") {
+  if (
+    task.taskType.includes("outline") ||
+    task.taskType === "ending_planning_generation"
+  ) {
     return `/projects/${task.projectId}/outlines`;
   }
   if (task.taskType.includes("continuity")) {
@@ -343,7 +331,10 @@ function taskLandingLabel(task: AppShellAiTask) {
   if (task.chapterNumber != null) {
     return `第 ${task.chapterNumber} 章`;
   }
-  if (task.taskType.includes("outline") || task.taskType === "ending_planning") {
+  if (
+    task.taskType.includes("outline") ||
+    task.taskType === "ending_planning_generation"
+  ) {
     return "大纲";
   }
   if (task.taskType.includes("continuity")) {

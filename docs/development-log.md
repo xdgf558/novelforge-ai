@@ -28,15 +28,22 @@ What was done:
 - Replaced the older glass/gradient treatment with a flat nocturne token
   system: cyan indicates AI/local activity, amber indicates author actions and
   primary commands, and cream/muted parchment provide the reading hierarchy.
+- Review hardening keeps global review notifications project-scoped, removes a
+  closed AI console from the accessibility tree and restores focus to its
+  trigger, presents cancelled tasks as neutral cancelled records, and
+  centralizes labels for the real task-type keys written to `ai_tasks`.
 
 Verification:
 
-- `npm test` passed: 114 files and 679 tests.
+- `npm test` passed: 116 files and 685 tests.
 - `npm run typecheck`, `npm run build`, and `git diff --check` passed.
 - Browser smoke checks passed at 1168x768 and 390x844 for the project library,
   long-form and short-story dashboards, series list/detail, pending updates,
   chapter workspace, command palette, AI console, and mobile navigation.
 - No horizontal overflow was found in the checked desktop or mobile routes.
+- Review-specific browser checks confirmed project-specific notification links,
+  no hidden AI-console focus targets after closing, focus restoration to the
+  console trigger, and neutral `已取消` task presentation.
 
 ## 2026-07-30: Public-Visibility Repository Readiness
 
