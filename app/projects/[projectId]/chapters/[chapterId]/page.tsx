@@ -212,7 +212,7 @@ export default async function ChapterPage({
     }),
   ]);
   return (
-    <div className="space-y-6">
+    <div className="nf-chapter-workspace space-y-6">
       <AutoRefresh enabled={hasActiveAiTasks} />
 
       <Link
@@ -222,6 +222,15 @@ export default async function ChapterPage({
         <ArrowLeft aria-hidden="true" className="h-4 w-4" />
         返回{shortStoryProject ? "写作单元" : "章节"}列表
       </Link>
+
+      <nav className="nf-workflow-nav" aria-label="章节工作流">
+        <a href="#chapter-beats">节拍</a>
+        <a href="#chapter-draft">草稿</a>
+        <a href="#chapter-polish">精修</a>
+        <a href="#chapter-summary">摘要</a>
+        <a href="#chapter-updates">记忆更新</a>
+        <a href="#chapter-continuity">连续性</a>
+      </nav>
 
       <header className="rounded-lg border border-ink-950/10 bg-white p-6 shadow-panel">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -490,7 +499,10 @@ function ChapterBeatAiPanel({
   const canGenerate = hasApiKey && !hasActiveGeneration;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      id="chapter-beats"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
@@ -736,7 +748,10 @@ function ChapterDraftAiPanel({
   const canGenerate = hasApiKey && hasConfirmedBeats && !hasActiveGeneration;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      id="chapter-draft"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
@@ -916,7 +931,10 @@ function ChapterPolishAiPanel({
   const canGenerate = hasApiKey && hasPolishableText && !hasActiveGeneration;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      id="chapter-polish"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
@@ -1124,7 +1142,10 @@ function ChapterSummaryAiPanel({
   const canGenerate = hasApiKey && hasConfirmedText && !hasActiveGeneration;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      id="chapter-summary"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
@@ -1315,7 +1336,10 @@ function ChapterPendingUpdatePanel({
   const canGenerate = hasApiKey && hasConfirmedText && !hasActiveGeneration;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      id="chapter-updates"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">
@@ -1449,7 +1473,10 @@ function ChapterContinuityPanel({
   const canGenerate = hasApiKey && hasConfirmedText && !hasActiveGeneration;
 
   return (
-    <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <section
+      className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      id="chapter-continuity"
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-signal-600">

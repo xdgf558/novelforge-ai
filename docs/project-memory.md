@@ -386,7 +386,12 @@ Recommended implementation order:
   evidence-backed violations as `narrative_perspective`. All reports remain
   advisory and manual-only. No schema migration was required because the
   nullable formal field already existed.
-- Nocturne UI refresh: the app shell and project dashboard now use a dark teal writing-workbench style with warm gold/cyan accents, branded custom SVG illustrations, local mode status, glassy cards, and scoped dark styling for legacy pages.
+- Unified workbench UI refresh: the app shell, project library, series library,
+  long-form and short-story dashboards, and chapter workspace now use one
+  compact dark-teal writing-workbench system. The visual treatment is flat
+  rather than glassy: cyan represents AI/local activity, amber represents
+  author actions and primary commands, cream is primary reading text, and muted
+  parchment is secondary text.
 - Phase 16: AI connection settings page for local API Key, custom model id, and OpenAI-compatible base URL, including DeepSeek-style custom provider support without exposing API keys to the frontend.
 - Phase 17: software-side publish platform abstraction, local target/token management, standard website import package JSON, draft/direct publish modes, incremental content-hash tracking, and local publish result records.
 - Phase 18A: Station Cat publish API adapter and draft API contract, including import request generation, endpoint normalization, server-only future HTTP client, response/error parsing, dry-run publish run request storage, and contract documentation for the website backend agent.
@@ -438,10 +443,38 @@ Recommended implementation order:
 - Current product UI direction is a dark local writing workbench, not a generic light SaaS dashboard.
 - Primary feel: nocturne writing room, local memory vault, warm editorial tooling.
 - Use very dark teal/black surfaces, warm gold CTAs and borders, cyan local/active accents, cream primary text, and muted parchment secondary text.
+- Keep surfaces flat, quiet, and operational. Avoid gradients, translucent
+  glass panels, oversized marketing typography, decorative cards, and nested
+  cards. Individual records, modals, and framed tools may use restrained
+  4-8px-radius panels.
+- The persistent desktop shell is a 210px navigation rail, a 50px command bar,
+  a flexible content workspace, and an optional 322px AI run console. On
+  smaller screens the navigation and AI console become independent drawers;
+  neither may force horizontal page overflow.
+- Organize project tools by the author's working phases: `准备`, `写作`, `审校`,
+  and `发布`. Long-form novels, short stories, and short-story series use the
+  same shell and interaction vocabulary while exposing only their relevant
+  tools.
+- The top bar owns project-aware breadcrumbs, `Cmd/Ctrl+K` command search,
+  review notifications, AI status, and the AI-console toggle. Do not duplicate
+  these global controls inside page bodies.
+- The AI run console is a read-only projection of existing `AiTask` records.
+  Its progress stages are derived status labels, not a second task engine.
+  Opening, closing, or reading the console must never approve AI output or
+  mutate formal story memory.
+- Project and series indexes should prefer dense rows, status summaries, and
+  recent activity over large decorative tiles. Chapter detail should keep the
+  author oriented with direct jumps between beats, draft, polish, summary,
+  memory review, and continuity review.
 - Keep the first screen as the usable project dashboard. Do not turn it into a marketing landing page.
 - Custom story-specific SVG illustration components live in `components/story-illustrations.tsx` and can be reused for future empty states or dashboard panels.
-- `components/app-shell.tsx` owns the persistent sidebar, local mode toolbar, and dark workspace panel.
-- `app/globals.css` contains the scoped `nf-*` visual system plus `nf-legacy-surface` overrides so older MVP pages stay visually aligned until they receive dedicated component cleanup.
+- `components/app-shell.tsx` loads serializable shell data;
+  `components/app-shell-frame.tsx` owns the responsive client shell and global
+  interactions; `components/app-shell-navigation.tsx` owns phase navigation;
+  and `components/ai/ai-run-console.tsx` renders AI task visibility.
+- `app/globals.css` contains the shared `nf-*` token and layout system plus
+  restrained legacy overrides so older MVP pages stay visually aligned until
+  they receive dedicated component cleanup.
 
 ## Next Phase
 
@@ -613,7 +646,10 @@ The next useful cleanup pass is:
 
 - Split oversized page/action files where review notes repeatedly flagged maintainability.
 - Add friendly Server Action/form error handling where it improves the local author workflow.
-- Continue applying the nocturne UI system to deeper project pages with dedicated components rather than broad one-off class overrides.
+- Continue applying the unified workbench system to deeper project pages with
+  dedicated components rather than broad one-off class overrides. Preserve the
+  same phase navigation and semantic color meanings for serial novels, short
+  stories, and series.
 - Keep MVP boundaries intact: no SaaS, team collaboration, mobile app, cloud sync, payment, or automatic WeChat publishing unless the user explicitly expands scope.
 
 ## Acceptance Baseline

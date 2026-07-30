@@ -116,7 +116,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="nf-project-dashboard space-y-6">
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
         href="/"
@@ -578,7 +578,7 @@ function ShortStoryProjectDashboard({
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="nf-project-dashboard space-y-6">
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
         href="/"
