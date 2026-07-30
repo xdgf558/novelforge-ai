@@ -13,7 +13,9 @@ Read:
 
 Keep changes inside the active local, single-user MVP boundary. In particular,
 do not add cloud sync, SaaS multi-tenancy, payments, team permissions, mobile
-apps, or automatic platform publishing without an explicit product decision.
+apps, or automatic WeChat publishing without an explicit product decision.
+The existing Station Cat publishing integration remains inside the current
+product scope.
 
 ## Development setup
 
