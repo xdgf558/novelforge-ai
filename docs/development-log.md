@@ -1,5 +1,51 @@
 # Development Log
 
+## 2026-07-30: 0.1.110 Notarized Writing Workbench Installer
+
+Status: completed.
+
+What was done:
+
+- Packaged the approved unified writing-workbench UI/UX refactor from PR #90,
+  merged into `main` at `1725a13`, and bumped the source app/package version
+  from `0.1.109` to `0.1.110`.
+- Updated the in-app release title and notes for the phase-based navigation,
+  project switching, review notifications, read-only AI run console, responsive
+  drawers, and rebuilt project, series, and chapter workspaces.
+- Built the arm64 macOS application with hardened runtime and Developer ID
+  Application signing, then submitted it to Apple notarization and stapled the
+  accepted ticket.
+- Built `release/desktop/NovelForge-AI-0.1.110-mac-arm64.pkg` for installation
+  at `/Applications/NovelForge AI.app`, signed it with Developer ID Installer,
+  submitted it to Apple notarization, and stapled the accepted ticket. The
+  final PKG notarization submission ID is
+  `16f2c2ed-8602-453a-85d6-173296626d2f`.
+- Removed the previous `0.1.109` installer, generated DMG/ZIP artifacts, update
+  metadata, and Electron build intermediates so the delivery directory
+  contains only the notarized `0.1.110` PKG.
+
+Verification:
+
+- Full `npm test` passed: 116 files and 685 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`,
+  source-tree and packaged-root `npm run work-types:acceptance`, and
+  `npx prisma validate` passed.
+- `codesign --verify --deep --strict` passed for the staged app, the ordinary
+  package-root copy, and the app expanded from the final PKG.
+- `pkgutil --check-signature` reports Developer ID Installer, a trusted
+  timestamp, and Apple notary trust. `xcrun stapler validate` passes for the
+  app and PKG, while Gatekeeper accepts both as `Notarized Developer ID`.
+- The final PKG reports identifier `com.novelforge.ai`, version `0.1.110`, and
+  a payload path of `/Applications/NovelForge AI.app`. Packaged resources
+  report version `0.1.110`, include all 26 migrations, use
+  `runDesktopMigrations`, read bundled `migration.sql`, and do not invoke
+  Prisma CLI `migrate deploy`.
+- An isolated launch from the final expanded payload returned HTTP 200, applied
+  all 26 migrations, and returned `ok` from SQLite `PRAGMA quick_check`.
+- Final PKG size: 451,597,937 bytes.
+- Final PKG SHA-256:
+  `26e0a41117b167244d633bc1dd2813fdd81a5c4bbd6e9a417c92f31baecd2109`.
+
 ## 2026-07-30: Unified Writing Workbench UI/UX Refactor
 
 Status: completed.
