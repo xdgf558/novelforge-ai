@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Activity,
-  BookOpenText,
+  ArrowUpRight,
   BookCopy,
-  Clock3,
+  BookOpenText,
+  CalendarClock,
   Plus,
   Target,
   Waves,
@@ -16,10 +17,6 @@ import {
   isShortStoryProject,
   projectWorkTypeLabel,
 } from "@/lib/projects/work-types";
-import {
-  EmptyStationIllustration,
-  StatCardBackdrop,
-} from "@/components/story-illustrations";
 
 export const dynamic = "force-dynamic";
 
@@ -91,205 +88,224 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const hasTotalWordTarget = totalWordTarget != null && totalWordTarget > 0;
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-4">
+      <header className="nf-page-header">
         <div>
-          <p className="text-sm font-semibold text-[#58d7c7]">本地工作台</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-normal text-[#f5dfbd] sm:text-4xl">
-            创作项目
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#b7a286]">
-            在同一个本地工作台管理长篇连载和短故事，保留各自的创作结构。
+          <p className="nf-page-eyebrow">项目库</p>
+          <h1>创作项目</h1>
+          <p className="nf-page-description">
+            管理本机上的长篇连载、独立短故事与系列作品。
           </p>
         </div>
-        <Link className="nf-primary-button w-fit" href="/projects/new">
+        <Link className="nf-primary-button" href="/projects/new">
           <Plus aria-hidden="true" className="h-4 w-4" />
           新建项目
         </Link>
       </header>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <div className="nf-glass-card min-h-24 p-4">
-          <StatCardBackdrop className="absolute bottom-0 right-0 h-20 w-32 opacity-55" />
-          <div className="relative flex items-center gap-2 text-xs font-semibold text-[#dac39f]">
-            <BookOpenText aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />
-            项目总数
-          </div>
-          <p className="relative mt-3 text-3xl font-semibold text-[#f5dfbd]">
-            {totalProjectCount}
-          </p>
-          <p className="relative mt-1 text-xs text-[#8d7b63]">所有创作项目</p>
-        </div>
-
-        <div className="nf-glass-card min-h-24 p-4">
-          <StatCardBackdrop className="absolute bottom-0 right-0 h-20 w-32 opacity-45" />
-          <div className="relative flex items-center gap-2 text-xs font-semibold text-[#dac39f]">
-            <Waves aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />
-            活跃项目
-          </div>
-          <p className="relative mt-3 text-3xl font-semibold text-[#f5dfbd]">
-            {activeProjectCount}
-          </p>
-          <p className="relative mt-1 text-xs text-[#8d7b63]">正在创作的项目</p>
-        </div>
-
-        <div className="nf-glass-card min-h-24 p-4">
-          <StatCardBackdrop className="absolute bottom-0 right-0 h-20 w-32 opacity-45" />
-          <div className="relative flex items-center gap-2 text-xs font-semibold text-[#dac39f]">
-            <Target aria-hidden="true" className="h-4 w-4 text-[#ffc274]" />
-            目标字数
-          </div>
-          <p className="relative mt-3 text-2xl font-semibold text-[#f5dfbd] sm:text-3xl">
-            {hasTotalWordTarget ? formatNumber(totalWordTarget) : "未设置"}
-          </p>
-          <p className="relative mt-1 text-xs text-[#8d7b63]">
-            {hasTotalWordTarget ? "所有项目目标合计" : "当前目标字数未设置"}
-          </p>
-        </div>
+      <section className="nf-summary-strip" aria-label="项目概览">
+        <SummaryMetric
+          icon={BookOpenText}
+          label="项目"
+          value={formatNumber(totalProjectCount)}
+        />
+        <SummaryMetric
+          icon={Waves}
+          label="进行中"
+          value={formatNumber(activeProjectCount)}
+        />
+        <SummaryMetric
+          accent="amber"
+          icon={Target}
+          label="目标字数"
+          value={hasTotalWordTarget ? formatNumber(totalWordTarget) : "未设置"}
+        />
+        <SummaryMetric
+          icon={CalendarClock}
+          label="本地存储"
+          value="SQLite"
+        />
       </section>
 
-      <nav className="flex flex-wrap gap-2" aria-label="项目状态筛选">
-        <ProjectFilterLink active={activeFilter === "active"} href="/">
-          活跃项目
-        </ProjectFilterLink>
-        <ProjectFilterLink
-          active={activeFilter === "archived"}
-          href="/?projectStatus=archived"
-        >
-          已归档
-        </ProjectFilterLink>
-        <ProjectFilterLink active={activeFilter === "all"} href="/?projectStatus=all">
-          全部项目
-        </ProjectFilterLink>
-      </nav>
-
-      {projects.length === 0 ? (
-        <section className="nf-dashed-panel px-6 py-10 text-center sm:px-10">
-          <div className="relative mx-auto max-w-3xl">
-            <EmptyStationIllustration className="mx-auto h-auto w-full max-w-sm opacity-95" />
-            <h2 className="mt-2 text-2xl font-semibold text-[#f5dfbd]">
-              {activeFilter === "archived" ? "还没有归档项目" : "还没有创作项目"}
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[#b7a286]">
-              {activeFilter === "archived"
-                ? "项目归档后会从默认活跃列表中隐藏，但仍可在这里恢复和查看。"
-                : "创建第一个项目后，系统会把标题、题材、读者、字数目标和公众号定位保存到本地 SQLite。"}
-            </p>
-            {activeFilter === "archived" ? null : (
-              <Link className="nf-primary-button mt-7" href="/projects/new">
-                <Plus aria-hidden="true" className="h-5 w-5" />
-                创建第一个项目
-              </Link>
-            )}
-          </div>
-        </section>
-      ) : (
-        <section className="grid gap-3 lg:grid-cols-2">
-          {projects.map((project) => (
-            <Link
-              className="nf-glass-card block p-4 transition hover:-translate-y-0.5 hover:border-[#58d7c7]/45 hover:shadow-[0_24px_60px_rgba(0,0,0,0.28)]"
-              href={`/projects/${project.id}`}
-              key={project.id}
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 className="text-base font-semibold text-[#f5dfbd]">
-                    {project.title}
-                  </h2>
-                  <p className="mt-0.5 text-xs text-[#a99573]">
-                    {project.genre || "未设置题材"} / {project.platform || "未设置平台"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <span className="w-fit rounded-full border border-[#ce8f48]/25 bg-[#ce8f48]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#f0c98b]">
-                    {projectWorkTypeLabel(project.workType)}
-                  </span>
-                  <span className="w-fit rounded-full border border-[#58d7c7]/25 bg-[#58d7c7]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#8be7dd]">
-                    {project.status === "active" ? "进行中" : "已归档"}
-                  </span>
-                  {project.shortStorySeriesEntry ? (
-                    <span className="inline-flex w-fit items-center gap-1 rounded-full border border-[#ce8f48]/25 bg-[#ce8f48]/10 px-2.5 py-0.5 text-[11px] font-semibold text-[#f0c98b]">
-                      <BookCopy aria-hidden="true" className="h-3 w-3" />
-                      {project.shortStorySeriesEntry.series.title}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              <dl className="mt-4 grid gap-2.5 text-xs sm:grid-cols-3">
-                <div>
-                  <dt className="text-[#8d7b63]">目标读者</dt>
-                  <dd className="mt-1 font-medium text-[#dac39f]">
-                    {project.targetAudience || "未设置"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[#8d7b63]">
-                    {isShortStoryProject(project.workType)
-                      ? "单元字数"
-                      : "单章字数"}
-                  </dt>
-                  <dd className="mt-1 font-medium text-[#dac39f]">
-                    {formatWordRange(project.chapterWordMin, project.chapterWordMax)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[#8d7b63]">
-                    {isShortStoryProject(project.workType) ? "目标字数" : "更新"}
-                  </dt>
-                  <dd className="mt-1 font-medium text-[#dac39f]">
-                    {isShortStoryProject(project.workType)
-                      ? formatNumber(project.totalWordTarget)
-                      : project.updateFrequency || "未设置"}
-                  </dd>
-                </div>
-              </dl>
-
-              <p className="mt-3 text-xs text-[#8d7b63]">
-                最近活动：
-                {formatDate(
-                  project.activitySummary?.latestActivityAt ?? project.updatedAt,
-                )}
-              </p>
-            </Link>
-          ))}
-        </section>
-      )}
-
-      <section className="nf-glass-card p-4">
-        <div className="flex items-center gap-2 text-sm text-[#dac39f]">
-          <Clock3 aria-hidden="true" className="h-4 w-4 text-[#ffc274]" />
-          最近活动
-        </div>
-        {projects.length === 0 ? (
-          <p className="mt-4 text-sm text-[#9f8b6d]">
-            暂无最近活动，开始创作吧。
-          </p>
-        ) : (
-          <div className="mt-4 grid gap-3">
-            {projects.slice(0, 3).map((project) => (
-              <Link
-                className="flex items-center justify-between gap-4 rounded-lg border border-[#ce8f48]/15 bg-[#071719]/70 px-3 py-2.5 transition hover:border-[#58d7c7]/30 hover:bg-[#0b2225]"
-                href={`/projects/${project.id}`}
-                key={`recent-${project.id}`}
+      <div className="nf-project-library-layout">
+        <section className="min-w-0">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <nav className="nf-segmented-control" aria-label="项目状态筛选">
+              <ProjectFilterLink active={activeFilter === "active"} href="/">
+                活跃
+              </ProjectFilterLink>
+              <ProjectFilterLink
+                active={activeFilter === "archived"}
+                href="/?projectStatus=archived"
               >
-                <div>
-                  <p className="text-sm font-medium text-[#f5dfbd]">{project.title}</p>
-                  <p className="mt-0.5 text-xs text-[#8d7b63]">
-                    {projectWorkTypeLabel(project.workType)} · {project.genre || "未设置题材"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-[#a99573]">
-                  <Activity aria-hidden="true" className="h-4 w-4 text-[#58d7c7]" />
-                  {formatDate(
-                    project.activitySummary?.latestActivityAt ?? project.updatedAt,
-                  )}
-                </div>
-              </Link>
-            ))}
+                已归档
+              </ProjectFilterLink>
+              <ProjectFilterLink
+                active={activeFilter === "all"}
+                href="/?projectStatus=all"
+              >
+                全部
+              </ProjectFilterLink>
+            </nav>
+            <p className="text-[10px] text-[var(--nf-text-faint)]">
+              {projects.length} 个结果 · 按最近活动排序
+            </p>
           </div>
-        )}
-      </section>
+
+          {projects.length === 0 ? (
+            <section className="nf-empty-state">
+              <BookOpenText
+                aria-hidden="true"
+                className="h-7 w-7 text-[var(--nf-cyan)]"
+              />
+              <h2>
+                {activeFilter === "archived" ? "还没有归档项目" : "还没有创作项目"}
+              </h2>
+              <p>
+                {activeFilter === "archived"
+                  ? "归档项目会保留全部正文、记忆与 AI 任务记录。"
+                  : "创建项目后即可进入设定、大纲、章节与审校工作流。"}
+              </p>
+              {activeFilter === "archived" ? null : (
+                <Link className="nf-primary-button mt-3" href="/projects/new">
+                  <Plus aria-hidden="true" className="h-4 w-4" />
+                  创建第一个项目
+                </Link>
+              )}
+            </section>
+          ) : (
+            <div className="space-y-2">
+              {projects.map((project) => {
+                const latestActivity =
+                  project.activitySummary?.latestActivityAt ?? project.updatedAt;
+
+                return (
+                  <Link
+                    className="nf-project-row"
+                    href={`/projects/${project.id}`}
+                    key={project.id}
+                  >
+                    <span
+                      className={
+                        isShortStoryProject(project.workType)
+                          ? "nf-project-row-mark nf-project-row-mark-short"
+                          : "nf-project-row-mark"
+                      }
+                    >
+                      {isShortStoryProject(project.workType) ? (
+                        <BookCopy aria-hidden="true" className="h-4 w-4" />
+                      ) : (
+                        <BookOpenText aria-hidden="true" className="h-4 w-4" />
+                      )}
+                    </span>
+
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-semibold text-[var(--nf-text-main)]">
+                          {project.title}
+                        </span>
+                        <span className="nf-status-label">
+                          {projectWorkTypeLabel(project.workType)}
+                        </span>
+                        {project.shortStorySeriesEntry ? (
+                          <span className="nf-status-label nf-status-label-amber">
+                            {project.shortStorySeriesEntry.series.title}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="mt-1 block truncate text-[10px] text-[var(--nf-text-faint)]">
+                        {project.genre || "未设置题材"} ·{" "}
+                        {project.platform || "未设置平台"} ·{" "}
+                        {isShortStoryProject(project.workType)
+                          ? `${formatNumber(project.totalWordTarget)} 字目标`
+                          : `${formatWordRange(project.chapterWordMin, project.chapterWordMax)} / 章`}
+                      </span>
+                    </span>
+
+                    <span className="hidden shrink-0 text-right sm:block">
+                      <span className="block text-[10px] text-[var(--nf-text-muted)]">
+                        {formatDate(latestActivity)}
+                      </span>
+                      <span className="mt-1 block text-[9px] text-[var(--nf-text-faint)]">
+                        {project.status === "active" ? "进行中" : "已归档"}
+                      </span>
+                    </span>
+                    <ArrowUpRight
+                      aria-hidden="true"
+                      className="h-4 w-4 shrink-0 text-[var(--nf-text-faint)]"
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <aside className="nf-activity-panel">
+          <div className="nf-panel-heading">
+            <span className="flex items-center gap-2">
+              <Activity
+                aria-hidden="true"
+                className="h-3.5 w-3.5 text-[var(--nf-cyan)]"
+              />
+              最近活动
+            </span>
+          </div>
+          {projects.length === 0 ? (
+            <p className="nf-panel-empty">暂无最近活动</p>
+          ) : (
+            <div>
+              {projects.slice(0, 6).map((project) => (
+                <Link
+                  className="nf-activity-row"
+                  href={`/projects/${project.id}`}
+                  key={`recent-${project.id}`}
+                >
+                  <span className="nf-activity-dot" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[11px] font-medium text-[var(--nf-text-secondary)]">
+                      {project.title}
+                    </span>
+                    <span className="mt-0.5 block text-[9px] text-[var(--nf-text-faint)]">
+                      {formatDate(
+                        project.activitySummary?.latestActivityAt ??
+                          project.updatedAt,
+                      )}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function SummaryMetric({
+  accent = "cyan",
+  icon: Icon,
+  label,
+  value,
+}: {
+  accent?: "amber" | "cyan";
+  icon: typeof BookOpenText;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="nf-summary-metric">
+      <Icon
+        aria-hidden="true"
+        className={
+          accent === "amber"
+            ? "h-3.5 w-3.5 text-[var(--nf-amber)]"
+            : "h-3.5 w-3.5 text-[var(--nf-cyan)]"
+        }
+      />
+      <span className="text-[9px] text-[var(--nf-text-faint)]">{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
@@ -308,14 +324,7 @@ function ProjectFilterLink({
   href: string;
 }) {
   return (
-    <Link
-      className={`inline-flex min-h-10 items-center rounded-md border px-3 py-2 text-sm font-semibold transition ${
-        active
-          ? "border-[#58d7c7]/45 bg-[#58d7c7]/15 text-[#dffcf6]"
-          : "border-[#ce8f48]/15 bg-[#071719]/70 text-[#dac39f] hover:border-[#58d7c7]/30 hover:bg-[#0b2225]"
-      }`}
-      href={href}
-    >
+    <Link className={active ? "nf-segment-active" : ""} href={href}>
       {children}
     </Link>
   );

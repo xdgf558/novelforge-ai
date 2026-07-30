@@ -29,6 +29,16 @@ chapter, and audiobook surfaces remain specific to serial novels. Short stories
 use a focused workspace and will reuse `Chapter` as an internal writing-unit
 foundation rather than duplicating the prose/version/task storage model.
 
+Both work types and the short-story series workspace also share one durable
+interaction model. The persistent shell groups tools by the author's phases
+(`准备`, `写作`, `审校`, and `发布`), keeps project switching and command search
+global, and uses responsive drawers for navigation and AI status on smaller
+screens. Short-story and series screens must not become visually separate
+sub-products merely because a design handoff omitted explicit mockups for them.
+The AI run console is only a projection of existing task records; it may explain
+task status, model, token use, and output destination, but it cannot create a
+second task state machine or weaken the explicit-review boundary.
+
 Short-story projects also have one formal blueprint with premise, opening hook,
 protagonist pressure, core conflict, reversal chain, emotional arc, climax,
 ending, required payoffs, and forbidden deviations. The blueprint is durable

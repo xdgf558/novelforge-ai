@@ -1,5 +1,52 @@
 # Development Log
 
+## 2026-07-30: Unified Writing Workbench UI/UX Refactor
+
+Status: completed.
+
+What was done:
+
+- Rebuilt the persistent application shell around a compact local writing
+  workbench: a 210px navigation rail, 50px command bar, responsive content
+  workspace, and an optional 322px AI run console.
+- Reorganized long-form and short-story project navigation into the author
+  workflow phases `准备`, `写作`, `审校`, and `发布`, while keeping project
+  switching and global project/series entry points immediately available.
+- Added a `Cmd/Ctrl+K` command palette, project-aware breadcrumbs, review
+  notifications, mobile navigation drawer, and responsive AI-console drawer.
+- Added a read-only AI run console backed by existing `AiTask` records. It
+  exposes active/recent tasks, model, token usage, landing destination, and
+  honest derived progress stages without changing task execution or the
+  author-approval boundary.
+- Reworked the project library, series library, long-form dashboard,
+  short-story dashboard, and chapter workspace into denser operational
+  surfaces. Short stories and series now use the same visual and interaction
+  language even though they were not represented directly in the original
+  design handoff.
+- Added a sticky chapter workflow navigator for beats, draft, polish, summary,
+  pending memory updates, and continuity checks.
+- Replaced the older glass/gradient treatment with a flat nocturne token
+  system: cyan indicates AI/local activity, amber indicates author actions and
+  primary commands, and cream/muted parchment provide the reading hierarchy.
+- Review hardening keeps global review notifications project-scoped, removes
+  closed mobile drawers from the accessibility tree, moves focus to each
+  drawer's close control when opened, and restores focus to the trigger when
+  closed. It also presents cancelled tasks as neutral cancelled records and
+  centralizes labels for the real task-type keys written to `ai_tasks`.
+
+Verification:
+
+- `npm test` passed: 116 files and 685 tests.
+- `npm run typecheck`, `npm run build`, and `git diff --check` passed.
+- Browser smoke checks passed at 1168x768 and 390x844 for the project library,
+  long-form and short-story dashboards, series list/detail, pending updates,
+  chapter workspace, command palette, AI console, and mobile navigation.
+- No horizontal overflow was found in the checked desktop or mobile routes.
+- Review-specific browser checks confirmed project-specific notification links,
+  no hidden mobile-navigation or AI-console focus targets after closing,
+  drawer-entry and trigger-restoration focus behavior, and neutral `已取消`
+  task presentation.
+
 ## 2026-07-30: Public-Visibility Repository Readiness
 
 Status: completed.
