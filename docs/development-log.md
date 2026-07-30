@@ -28,9 +28,10 @@ What was done:
 - Replaced the older glass/gradient treatment with a flat nocturne token
   system: cyan indicates AI/local activity, amber indicates author actions and
   primary commands, and cream/muted parchment provide the reading hierarchy.
-- Review hardening keeps global review notifications project-scoped, removes a
-  closed AI console from the accessibility tree and restores focus to its
-  trigger, presents cancelled tasks as neutral cancelled records, and
+- Review hardening keeps global review notifications project-scoped, removes
+  closed mobile drawers from the accessibility tree, moves focus to each
+  drawer's close control when opened, and restores focus to the trigger when
+  closed. It also presents cancelled tasks as neutral cancelled records and
   centralizes labels for the real task-type keys written to `ai_tasks`.
 
 Verification:
@@ -42,8 +43,9 @@ Verification:
   chapter workspace, command palette, AI console, and mobile navigation.
 - No horizontal overflow was found in the checked desktop or mobile routes.
 - Review-specific browser checks confirmed project-specific notification links,
-  no hidden AI-console focus targets after closing, focus restoration to the
-  console trigger, and neutral `已取消` task presentation.
+  no hidden mobile-navigation or AI-console focus targets after closing,
+  drawer-entry and trigger-restoration focus behavior, and neutral `已取消`
+  task presentation.
 
 ## 2026-07-30: Public-Visibility Repository Readiness
 

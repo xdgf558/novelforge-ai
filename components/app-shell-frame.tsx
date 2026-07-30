@@ -76,6 +76,8 @@ export function AppShellFrame({
   const [notificationOpen, setNotificationOpen] = useState(false);
   const desktopAiConsoleTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileAiConsoleTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileNavigationTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileNavigationCloseRef = useRef<HTMLButtonElement>(null);
   const activeProject = useMemo(
     () => findActiveProject(pathname, data.projects),
     [data.projects, pathname],
@@ -118,6 +120,18 @@ export function AppShellFrame({
     }
     setAiConsoleOpen(true);
   }, [aiConsoleOpen, closeAiConsole]);
+  const openMobileNavigation = useCallback(() => {
+    setMobileNavigationOpen(true);
+    window.requestAnimationFrame(() => {
+      mobileNavigationCloseRef.current?.focus();
+    });
+  }, []);
+  const closeMobileNavigation = useCallback(() => {
+    setMobileNavigationOpen(false);
+    window.requestAnimationFrame(() => {
+      mobileNavigationTriggerRef.current?.focus();
+    });
+  }, []);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("novelforge.aiConsoleOpen");
@@ -145,7 +159,9 @@ export function AppShellFrame({
       if (event.key === "Escape") {
         setCommandPaletteOpen(false);
         setNotificationOpen(false);
-        setMobileNavigationOpen(false);
+        if (mobileNavigationOpen) {
+          closeMobileNavigation();
+        }
         if (aiConsoleOpen) {
           closeAiConsole();
         }
@@ -154,7 +170,12 @@ export function AppShellFrame({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [aiConsoleOpen, closeAiConsole]);
+  }, [
+    aiConsoleOpen,
+    closeAiConsole,
+    closeMobileNavigation,
+    mobileNavigationOpen,
+  ]);
 
   useEffect(() => {
     if (data.activeTasks.length === 0) {
@@ -199,7 +220,8 @@ export function AppShellFrame({
           <button
             aria-label="关闭导航"
             className="nf-icon-button lg:hidden"
-            onClick={() => setMobileNavigationOpen(false)}
+            onClick={closeMobileNavigation}
+            ref={mobileNavigationCloseRef}
             type="button"
           >
             <X aria-hidden="true" className="h-4 w-4" />
@@ -217,7 +239,7 @@ export function AppShellFrame({
         <button
           aria-label="关闭导航遮罩"
           className="nf-shell-backdrop lg:hidden"
-          onClick={() => setMobileNavigationOpen(false)}
+          onClick={closeMobileNavigation}
           type="button"
         />
       ) : null}
@@ -228,7 +250,8 @@ export function AppShellFrame({
             <button
               aria-label="打开导航"
               className="nf-icon-button lg:hidden"
-              onClick={() => setMobileNavigationOpen(true)}
+              onClick={openMobileNavigation}
+              ref={mobileNavigationTriggerRef}
               type="button"
             >
               <Menu aria-hidden="true" className="h-4 w-4" />

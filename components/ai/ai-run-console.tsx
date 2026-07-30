@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import {
   Ban,
   Bot,
@@ -44,6 +45,7 @@ export function AiRunConsole({
   onClose,
   recentTasks,
 }: AiRunConsoleProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const prioritizedTasks = activeProjectId
     ? [
         ...activeTasks.filter((task) => task.projectId === activeProjectId),
@@ -52,6 +54,10 @@ export function AiRunConsole({
     : activeTasks;
   const currentTask = prioritizedTasks[0] ?? null;
   const queuedTasks = prioritizedTasks.slice(1);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
 
   return (
     <>
@@ -86,6 +92,7 @@ export function AiRunConsole({
             aria-label="收起 AI 运行台"
             className="nf-icon-button"
             onClick={onClose}
+            ref={closeButtonRef}
             type="button"
           >
             <X aria-hidden="true" className="h-4 w-4" />

@@ -461,10 +461,11 @@ Recommended implementation order:
 - The AI run console is a read-only projection of existing `AiTask` records.
   Its progress stages are derived status labels, not a second task engine.
   Opening, closing, or reading the console must never approve AI output or
-  mutate formal story memory. A closed console must be removed from the
-  accessibility tree and return focus to the trigger. Task labels and status
-  tones live in `lib/ai/task-presentation.ts`; use the real database task keys,
-  and never present `cancelled` as successfully completed.
+  mutate formal story memory. Mobile navigation and AI-console drawers must
+  move focus to their close control when opened, leave the accessibility tree
+  when closed, and return focus to their trigger. Task labels and status tones
+  live in `lib/ai/task-presentation.ts`; use the real database task keys, and
+  never present `cancelled` as successfully completed.
 - Global review notifications are grouped by `projectId` through
   `lib/app-shell-review-counts.ts`. Every displayed count must link to the same
   project that owns those pending updates or continuity reports; do not combine

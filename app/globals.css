@@ -1508,10 +1508,16 @@ summary:focus-visible {
   .nf-sidebar {
     width: min(260px, 88vw);
     transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 180ms ease,
+      visibility 0s linear 180ms;
   }
 
   .nf-sidebar-mobile-open {
     transform: translateX(0);
+    visibility: visible;
+    transition-delay: 0s;
   }
 
   .nf-shell-main {
