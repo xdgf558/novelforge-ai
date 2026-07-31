@@ -2,11 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { ClipboardPenLine } from "lucide-react";
-import {
-  parseOutlineDraftCopySuggestion,
-  type OutlineDraftCopySuggestion,
-} from "@/lib/outline-draft-copy";
-import { outlineLevelLabel } from "@/lib/outline-fields";
+import { parseOutlineDraftCopySuggestion } from "@/lib/outline-draft-copy";
+import { storeOutlineDraftCopySuggestion } from "@/lib/outline-draft-copy-handoff";
 
 type OutlineDraftCopyButtonProps = {
   inputContextSummary?: string | null;
@@ -33,20 +30,17 @@ export function OutlineDraftCopyButton({
       return;
     }
 
-    const form = document.querySelector<HTMLFormElement>(
-      `form[data-outline-level="${suggestion.level}"]`,
-    );
-
-    if (!form) {
-      setFeedback("没有找到对应的大纲表单。");
-      return;
+    try {
+      storeOutlineDraftCopySuggestion(
+        window.sessionStorage,
+        window.location.pathname,
+        suggestion,
+      );
+      setFeedback("正在打开正式大纲表单…");
+      window.location.hash = "quick-create-outlines";
+    } catch {
+      setFeedback("无法暂存大纲草案，请刷新页面后重试。");
     }
-
-    form.reset();
-    fillOutlineForm(form, suggestion);
-    form.scrollIntoView({ behavior: "smooth", block: "center" });
-    form.querySelector<HTMLInputElement>('[name="title"]')?.focus();
-    setFeedback(`已填入${outlineLevelLabel(suggestion.level)}表单，请确认后保存。`);
   };
 
   return (
@@ -69,38 +63,4 @@ export function OutlineDraftCopyButton({
       ) : null}
     </div>
   );
-}
-
-function fillOutlineForm(
-  form: HTMLFormElement,
-  suggestion: OutlineDraftCopySuggestion,
-) {
-  setFieldValue(form, "title", suggestion.title);
-  setFieldValue(form, "goal", suggestion.goal);
-  setFieldValue(form, "startChapter", suggestion.startChapter);
-  setFieldValue(form, "endChapter", suggestion.endChapter);
-  setFieldValue(form, "chapterNumber", suggestion.chapterNumber);
-  setFieldValue(form, "expectedWords", suggestion.expectedWords);
-  setFieldValue(form, "volumeNumber", suggestion.volumeNumber);
-}
-
-function setFieldValue(
-  form: HTMLFormElement,
-  name: string,
-  value?: string | number,
-) {
-  if (value == null || value === "") {
-    return;
-  }
-
-  const field = form.elements.namedItem(name);
-
-  if (
-    field instanceof HTMLInputElement ||
-    field instanceof HTMLTextAreaElement
-  ) {
-    field.value = String(value);
-    field.dispatchEvent(new Event("input", { bubbles: true }));
-    field.dispatchEvent(new Event("change", { bubbles: true }));
-  }
 }
