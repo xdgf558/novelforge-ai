@@ -6426,3 +6426,29 @@ Verification:
 - Expanded app `CFBundleShortVersionString` and `CFBundleVersion` are `0.1.1`.
 - Packaged `package.json` is `0.1.1`.
 - Packaged startup code still uses `runDesktopMigrations`, reads bundled `migration.sql`, and does not contain Prisma CLI `migrate deploy` startup code.
+
+## 2026-07-31: UI/UX Workspace Completion Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Removed duplicate tab panel IDs from the local integration settings page.
+- Restored the chapter change reason field as a multiline textarea and gave chapter field groups stable IDs.
+- Kept pending-update filters available for empty filtered results, clamped out-of-range pages, preserved review context after approval or rejection, and rendered disabled pagination controls as non-focusable text.
+- Changed the continuity queue to server-side status filtering and pagination. List queries no longer load every chapter final text; only the selected report loads its source chapter text for stale-source checks and repair actions.
+- Stabilized workspace tab hash listeners and restored deep-link scrolling after a tab mounts.
+- Raised compact workspace metadata to a 10px minimum, centralized sticky offsets in CSS variables, and narrowed legacy padding selectors to exact class tokens.
+- Reformatted the AI settings and AI task pages so the new tab content hierarchy remains maintainable.
+
+Notes:
+
+- `WorkspaceTabs` remains a presentation component: inactive content is not mounted in the DOM, but its server-rendered React payload is still produced. This phase targets scanability and client DOM size; route-level lazy loading is a separate performance change.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm test` passed: 116 files and 686 tests, including review context preservation.
+- `npm run build` passed.
+- Local browser checks passed for duplicate IDs, empty filtered review queues, out-of-range pages, chapter deep links, multiline change reasons, and horizontal overflow at 1272px and 390px widths.
+- `npm run responsive:smoke` could not start Electron in the current environment (`SIGABRT`); browser-based responsive checks were used for this review round.

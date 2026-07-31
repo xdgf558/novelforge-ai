@@ -168,7 +168,10 @@ export default async function AiWorkspacePage({
               template.id,
             )}
           >
-            <button className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+            <button
+              className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100"
+              type="submit"
+            >
               复制新版
             </button>
           </form>
@@ -179,7 +182,10 @@ export default async function AiWorkspacePage({
               template.id,
             )}
           >
-            <button className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+            <button
+              className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100"
+              type="submit"
+            >
               {template.status === "active" ? "停用" : "启用"}
             </button>
           </form>
@@ -190,7 +196,10 @@ export default async function AiWorkspacePage({
               template.id,
             )}
           >
-            <button className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100" type="submit">
+            <button
+              className="inline-flex min-h-8 items-center rounded-md border border-ink-950/15 bg-white px-2.5 py-1 text-xs font-semibold text-ink-800 transition hover:bg-paper-100"
+              type="submit"
+            >
               恢复默认
             </button>
           </form>
@@ -271,7 +280,8 @@ export default async function AiWorkspacePage({
             AI 任务记录
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-            管理提示词模板和 AI 调用审计记录。后续大纲草案、人物生成、人物关系草案、章节节拍、草稿、正文精修、摘要、连续性检查和公众号排版候选都会从这里追踪。
+            管理提示词模板和 AI
+            调用审计记录。后续大纲草案、人物生成、人物关系草案、章节节拍、草稿、正文精修、摘要、连续性检查和公众号排版候选都会从这里追踪。
           </p>
         </div>
 
@@ -305,11 +315,7 @@ export default async function AiWorkspacePage({
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <InfoTile
-          icon={Bot}
-          label="默认模型"
-          value={aiSettings.model}
-        />
+        <InfoTile icon={Bot} label="默认模型" value={aiSettings.model} />
         <InfoTile
           icon={Database}
           label="API Key"
@@ -320,11 +326,7 @@ export default async function AiWorkspacePage({
           label="接口地址"
           value={aiSettings.baseUrl}
         />
-        <InfoTile
-          icon={FileClock}
-          label="任务记录"
-          value={`${taskCount} 条`}
-        />
+        <InfoTile icon={FileClock} label="任务记录" value={`${taskCount} 条`} />
       </section>
 
       <WorkspaceTabs
@@ -336,46 +338,57 @@ export default async function AiWorkspacePage({
             meta: `${usageSummary.totals.callCount} 次`,
             content: (
               <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-        <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-ink-950">
-              今日 AI 用量
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-ink-700">
-              {usageSummary.dateKey} 的聚合统计独立于最近任务保留，用于查看调用次数和 token 消耗。
-            </p>
-          </div>
-          <div className="rounded-md bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-700">
-            提醒阈值：{project.aiDailyTokenBudget ? `${formatUsageNumber(project.aiDailyTokenBudget)} token` : "未设置"}
-          </div>
-        </div>
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-ink-950">
+                      今日 AI 用量
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-ink-700">
+                      {usageSummary.dateKey}{" "}
+                      的聚合统计独立于最近任务保留，用于查看调用次数和 token
+                      消耗。
+                    </p>
+                  </div>
+                  <div className="rounded-md bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-700">
+                    提醒阈值：
+                    {project.aiDailyTokenBudget
+                      ? `${formatUsageNumber(project.aiDailyTokenBudget)} token`
+                      : "未设置"}
+                  </div>
+                </div>
 
-        {budgetWarning ? (
-          <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-            {budgetWarning}
-          </p>
-        ) : null}
+                {budgetWarning ? (
+                  <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+                    {budgetWarning}
+                  </p>
+                ) : null}
 
-        <div className="mt-3 grid gap-2 md:grid-cols-4">
-          <UsageTile label="调用次数" value={`${usageSummary.totals.callCount} 次`} />
-          <UsageTile
-            label="输入 token"
-            value={formatUsageNumber(usageSummary.totals.tokenInput)}
-          />
-          <UsageTile
-            label="输出 token"
-            value={formatUsageNumber(usageSummary.totals.tokenOutput)}
-          />
-          <UsageTile
-            label="总 token"
-            value={formatUsageNumber(usageSummary.totals.tokenTotal)}
-          />
-        </div>
+                <div className="mt-3 grid gap-2 md:grid-cols-4">
+                  <UsageTile
+                    label="调用次数"
+                    value={`${usageSummary.totals.callCount} 次`}
+                  />
+                  <UsageTile
+                    label="输入 token"
+                    value={formatUsageNumber(usageSummary.totals.tokenInput)}
+                  />
+                  <UsageTile
+                    label="输出 token"
+                    value={formatUsageNumber(usageSummary.totals.tokenOutput)}
+                  />
+                  <UsageTile
+                    label="总 token"
+                    value={formatUsageNumber(usageSummary.totals.tokenTotal)}
+                  />
+                </div>
 
-        <div className="mt-3 grid gap-3 lg:grid-cols-2">
-          <UsageBreakdown title="按任务类型" rows={usageSummary.byTaskType} />
-          <UsageBreakdown title="按模型" rows={usageSummary.byModel} />
-        </div>
+                <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                  <UsageBreakdown
+                    title="按任务类型"
+                    rows={usageSummary.byTaskType}
+                  />
+                  <UsageBreakdown title="按模型" rows={usageSummary.byModel} />
+                </div>
               </section>
             ),
           },
@@ -384,46 +397,46 @@ export default async function AiWorkspacePage({
             label: "提示词模板",
             meta: `${templates.length} 个`,
             content: (
-
               <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-ink-950">
-              提示词模板
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-ink-700">
-              当前项目已保存 {templates.length} 个模板版本，默认展示最新 {Math.min(templates.length, visibleTemplateLimit)} 个。
-            </p>
-          </div>
-        </div>
-
-        {templates.length === 0 ? (
-          <EmptyState
-            title="还没有提示词模板"
-            body="同步默认模板后，后续 AI 阶段会按模板版本记录每次调用。"
-          />
-        ) : (
-          <div className="mt-4 space-y-3">
-            {templateMessage(resolvedSearchParams) ? (
-              <p className="rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm text-ink-800">
-                {templateMessage(resolvedSearchParams)}
-              </p>
-            ) : null}
-
-            {visibleTemplates.map(renderTemplateCard)}
-
-            {hiddenTemplates.length > 0 ? (
-              <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
-                <summary className="cursor-pointer text-sm font-semibold text-ink-800">
-                  展开历史模板（{hiddenTemplates.length} 个）
-                </summary>
-                <div className="mt-3 space-y-3">
-                  {hiddenTemplates.map(renderTemplateCard)}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-ink-950">
+                      提示词模板
+                    </h2>
+                    <p className="mt-1 text-sm leading-6 text-ink-700">
+                      当前项目已保存 {templates.length} 个模板版本，默认展示最新{" "}
+                      {Math.min(templates.length, visibleTemplateLimit)} 个。
+                    </p>
+                  </div>
                 </div>
-              </details>
-            ) : null}
-          </div>
-        )}
+
+                {templates.length === 0 ? (
+                  <EmptyState
+                    title="还没有提示词模板"
+                    body="同步默认模板后，后续 AI 阶段会按模板版本记录每次调用。"
+                  />
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {templateMessage(resolvedSearchParams) ? (
+                      <p className="rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm text-ink-800">
+                        {templateMessage(resolvedSearchParams)}
+                      </p>
+                    ) : null}
+
+                    {visibleTemplates.map(renderTemplateCard)}
+
+                    {hiddenTemplates.length > 0 ? (
+                      <details className="rounded-lg border border-ink-950/10 bg-paper-50 p-3">
+                        <summary className="cursor-pointer text-sm font-semibold text-ink-800">
+                          展开历史模板（{hiddenTemplates.length} 个）
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                          {hiddenTemplates.map(renderTemplateCard)}
+                        </div>
+                      </details>
+                    ) : null}
+                  </div>
+                )}
               </section>
             ),
           },
@@ -432,46 +445,48 @@ export default async function AiWorkspacePage({
             label: "最近任务",
             meta: `${taskCount} 条`,
             content: (
-
               <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-        <div>
-          <h2 className="text-base font-semibold text-ink-950">最近任务</h2>
-          <p className="mt-1 text-sm leading-6 text-ink-700">
-            最近 {projectAiTaskRetentionLimit} 条 AI
-            任务记录会保留状态、模型、模板版本和输出摘要；默认展示最新 {Math.min(tasks.length, visibleTaskLimit)} 条，其余折叠。
-          </p>
-        </div>
-
-        {tasks.length === 0 ? (
-          <EmptyState
-            title="还没有 AI 任务"
-            body="记录本地检查会创建一条不调用外部模型的审计记录。"
-          />
-        ) : (
-          <div className="mt-4 overflow-hidden rounded-lg border border-ink-950/10">
-            <div className="grid grid-cols-[88px_minmax(0,1fr)_84px_126px] border-b border-ink-950/10 bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-800 max-lg:hidden">
-              <div>状态</div>
-              <div>任务</div>
-              <div>审阅</div>
-              <div>时间</div>
-            </div>
-
-            <div className="divide-y divide-ink-950/10">
-              {renderTaskRows(visibleTasks)}
-            </div>
-
-            {hiddenTasks.length > 0 ? (
-              <details className="border-t border-ink-950/10 bg-paper-50">
-                <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-ink-800">
-                  展开历史任务（{hiddenTasks.length} 条）
-                </summary>
-                <div className="divide-y divide-ink-950/10 bg-white">
-                  {renderTaskRows(hiddenTasks)}
+                <div>
+                  <h2 className="text-base font-semibold text-ink-950">
+                    最近任务
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-ink-700">
+                    最近 {projectAiTaskRetentionLimit} 条 AI
+                    任务记录会保留状态、模型、模板版本和输出摘要；默认展示最新{" "}
+                    {Math.min(tasks.length, visibleTaskLimit)} 条，其余折叠。
+                  </p>
                 </div>
-              </details>
-            ) : null}
-          </div>
-        )}
+
+                {tasks.length === 0 ? (
+                  <EmptyState
+                    title="还没有 AI 任务"
+                    body="记录本地检查会创建一条不调用外部模型的审计记录。"
+                  />
+                ) : (
+                  <div className="mt-4 overflow-hidden rounded-lg border border-ink-950/10">
+                    <div className="grid grid-cols-[88px_minmax(0,1fr)_84px_126px] border-b border-ink-950/10 bg-paper-50 px-3 py-2 text-xs font-semibold text-ink-800 max-lg:hidden">
+                      <div>状态</div>
+                      <div>任务</div>
+                      <div>审阅</div>
+                      <div>时间</div>
+                    </div>
+
+                    <div className="divide-y divide-ink-950/10">
+                      {renderTaskRows(visibleTasks)}
+                    </div>
+
+                    {hiddenTasks.length > 0 ? (
+                      <details className="border-t border-ink-950/10 bg-paper-50">
+                        <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-ink-800">
+                          展开历史任务（{hiddenTasks.length} 条）
+                        </summary>
+                        <div className="divide-y divide-ink-950/10 bg-white">
+                          {renderTaskRows(hiddenTasks)}
+                        </div>
+                      </details>
+                    ) : null}
+                  </div>
+                )}
               </section>
             ),
           },

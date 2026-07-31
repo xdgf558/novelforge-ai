@@ -111,8 +111,8 @@ export function ChapterSnapshot({ values, workType }: ChapterSnapshotProps) {
         return (
           <details
             className="nf-collapsible-snapshot"
-            key={group.title}
-            open={group.title === "正文内容"}
+            key={group.id}
+            open={group.id === "content"}
           >
             <summary>
               <span>

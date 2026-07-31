@@ -208,7 +208,9 @@ export function ChapterForm({
               maxLength={160}
               name="title"
               placeholder={
-                shortStoryProject ? "例如：病历上的签名" : "例如：第一份借命契约"
+                shortStoryProject
+                  ? "例如：病历上的签名"
+                  : "例如：第一份借命契约"
               }
               required
             />
@@ -325,27 +327,29 @@ export function ChapterForm({
         ).map((group) => (
           <details
             className="nf-collapsible-snapshot"
-            key={group.title}
-            open={isCreateForm || group.title === "正文内容"}
+            key={group.id}
+            open={isCreateForm || group.id === "content"}
           >
             <summary>
               <span>
                 <strong>
-                {shortStoryProject && group.title === "章节目标"
-                  ? "单元目标与节拍"
-                  : group.title}
+                  {shortStoryProject && group.title === "章节目标"
+                    ? "单元目标与节拍"
+                    : group.title}
                 </strong>
                 <small>
-                {shortStoryProject && group.title === "章节目标"
-                  ? "记录这个内部写作单元要完成的剧情功能；AI 会结合正式蓝图和单元规划生成细化节拍。"
-                  : shortStoryProject && group.title === "作者备注"
-                    ? "保存这个写作单元的临时提醒、修订计划和后续兑现注意事项。"
-                    : group.description}
+                  {shortStoryProject && group.title === "章节目标"
+                    ? "记录这个内部写作单元要完成的剧情功能；AI 会结合正式蓝图和单元规划生成细化节拍。"
+                    : shortStoryProject && group.title === "作者备注"
+                      ? "保存这个写作单元的临时提醒、修订计划和后续兑现注意事项。"
+                      : group.description}
                 </small>
               </span>
               <span className="nf-collapsible-snapshot-meta">
-                {group.fields.filter((field) => values[field.name].trim())
-                  .length}
+                {
+                  group.fields.filter((field) => values[field.name].trim())
+                    .length
+                }
                 /{group.fields.length} 已填写
               </span>
             </summary>
@@ -409,7 +413,10 @@ export function ChapterForm({
                     name={field.name}
                     placeholder={
                       shortStoryProject
-                        ? shortStoryFieldPlaceholder(field.name, field.placeholder)
+                        ? shortStoryFieldPlaceholder(
+                            field.name,
+                            field.placeholder,
+                          )
                         : field.placeholder
                     }
                     rows={field.rows}
@@ -440,14 +447,15 @@ export function ChapterForm({
           {isCreateForm ? null : (
             <label className="min-w-60 flex-1">
               <span className={labelClass}>修改原因</span>
-              <input
-                className={`${inputClass} mt-1.5 min-h-10 w-full`}
+              <textarea
+                className={`${inputClass} mt-1.5 min-h-16 w-full py-2 leading-5`}
                 name="changeReason"
                 placeholder={
                   shortStoryProject
                     ? "例如：补全单元规划、调整转折、整理定稿正文"
                     : "例如：初始章节草稿、补全节拍、整理定稿正文"
                 }
+                rows={2}
               />
             </label>
           )}
@@ -480,15 +488,12 @@ function shortStoryFieldPlaceholder(
 ) {
   const placeholders: Partial<Record<typeof fieldName, string>> = {
     goal: "例如：迫使主角接受契约，并把调查推进到医院旧档案室。",
-    beats:
-      "按顺序列出本单元的场景动作、压力变化、关键转折和蓝图兑现作用。",
+    beats: "按顺序列出本单元的场景动作、压力变化、关键转折和蓝图兑现作用。",
     draftText:
       "这里保存写作单元草稿；它是完整短故事正文的一段，不需要内部标题。",
     polishedText: "这里保存精修后的连续正文候选，确认后可写入定稿正文。",
-    finalText:
-      "确认后的单元定稿。后续摘要、更新提取和连续性检查会以此为准。",
-    notes:
-      "例如：直接承接上一单元结尾，不重复人物介绍；结尾停在证据反转之后。",
+    finalText: "确认后的单元定稿。后续摘要、更新提取和连续性检查会以此为准。",
+    notes: "例如：直接承接上一单元结尾，不重复人物介绍；结尾停在证据反转之后。",
   };
 
   return placeholders[fieldName] ?? fallback;

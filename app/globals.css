@@ -27,6 +27,10 @@
   --nf-warning: #e8b65a;
   --nf-danger: #e4735a;
   --nf-purple: #9a8fd8;
+  --nf-topbar-height: 50px;
+  --nf-workspace-tabs-top: calc(var(--nf-topbar-height) + 7px);
+  --nf-panel-sticky-top: calc(var(--nf-topbar-height) + 16px);
+  --nf-review-list-viewport-offset: 190px;
   background: var(--nf-bg);
   color: var(--nf-text-main);
   font-synthesis: none;
@@ -47,8 +51,15 @@ body {
   background: var(--nf-bg);
   color: var(--nf-text-main);
   font-family:
-    "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif,
-    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Noto Sans SC",
+    "PingFang SC",
+    "Microsoft YaHei",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   letter-spacing: 0;
 }
 
@@ -84,7 +95,9 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 summary:focus-visible {
-  box-shadow: 0 0 0 2px var(--nf-bg), 0 0 0 4px rgba(88, 215, 199, 0.55);
+  box-shadow:
+    0 0 0 2px var(--nf-bg),
+    0 0 0 4px rgba(88, 215, 199, 0.55);
 }
 
 ::selection {
@@ -182,7 +195,7 @@ summary:focus-visible {
     margin: 0 0 3px;
     padding: 0 13px;
     color: var(--nf-text-faint);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 650;
     line-height: 20px;
     text-transform: uppercase;
@@ -352,7 +365,7 @@ summary:focus-visible {
     background: var(--nf-panel-nested);
     padding: 0 5px;
     color: var(--nf-text-faint);
-    font-size: 9px;
+    font-size: 10px;
     font-family: inherit;
   }
 
@@ -431,7 +444,7 @@ summary:focus-visible {
     gap: 8px;
     padding: 0 7px;
     color: var(--nf-text-faint);
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .nf-notification-project-title span:last-child {
@@ -467,7 +480,7 @@ summary:focus-visible {
     background: rgba(241, 168, 76, 0.12);
     padding: 0 5px;
     color: var(--nf-amber-light);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
   }
 
@@ -642,7 +655,7 @@ summary:focus-visible {
 
   .nf-ai-task-metrics dt {
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .nf-ai-task-metrics dd {
@@ -703,7 +716,7 @@ summary:focus-visible {
     align-items: center;
     justify-content: space-between;
     color: var(--nf-text-muted);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 650;
     text-transform: uppercase;
   }
@@ -714,7 +727,7 @@ summary:focus-visible {
     padding: 12px;
     color: var(--nf-text-faint);
     text-align: center;
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .nf-ai-task-row {
@@ -860,7 +873,7 @@ summary:focus-visible {
 
   .nf-page-eyebrow {
     color: var(--nf-cyan);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
   }
@@ -921,7 +934,7 @@ summary:focus-visible {
 
   .nf-workspace-tablist {
     position: sticky;
-    top: 57px;
+    top: var(--nf-workspace-tabs-top);
     z-index: 25;
     display: flex;
     max-width: 100%;
@@ -963,7 +976,7 @@ summary:focus-visible {
 
   .nf-workspace-tablist button small {
     color: inherit;
-    font-size: 8px;
+    font-size: 10px;
     font-variant-numeric: tabular-nums;
     opacity: 0.72;
   }
@@ -1007,7 +1020,7 @@ summary:focus-visible {
 
   .nf-setting-nav {
     position: sticky;
-    top: 66px;
+    top: var(--nf-panel-sticky-top);
     overflow: hidden;
     border: 1px solid var(--nf-border);
     border-radius: 8px;
@@ -1061,7 +1074,7 @@ summary:focus-visible {
     margin-top: 2px;
     overflow: hidden;
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1069,7 +1082,7 @@ summary:focus-visible {
 
   .nf-setting-nav button > em {
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
     font-style: normal;
     font-variant-numeric: tabular-nums;
   }
@@ -1106,7 +1119,7 @@ summary:focus-visible {
 
   .nf-setting-savebar p {
     color: var(--nf-text-faint);
-    font-size: 9px;
+    font-size: 10px;
     line-height: 1.5;
   }
 
@@ -1147,7 +1160,7 @@ summary:focus-visible {
     margin-top: 2px;
     overflow: hidden;
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 500;
     line-height: 1.45;
     text-overflow: ellipsis;
@@ -1157,7 +1170,7 @@ summary:focus-visible {
   .nf-collapsible-snapshot-meta {
     flex: 0 0 auto;
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
     font-variant-numeric: tabular-nums;
     font-weight: 550;
   }
@@ -1169,7 +1182,7 @@ summary:focus-visible {
   .nf-collapsible-snapshot > summary::after {
     color: var(--nf-text-faint);
     content: "展开";
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 600;
   }
 
@@ -1195,7 +1208,7 @@ summary:focus-visible {
 
   .nf-review-list {
     position: sticky;
-    top: 66px;
+    top: var(--nf-panel-sticky-top);
     min-width: 0;
     overflow: hidden;
     border: 1px solid var(--nf-border);
@@ -1220,7 +1233,7 @@ summary:focus-visible {
     gap: 4px;
     border-radius: 4px;
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 650;
   }
 
@@ -1236,7 +1249,7 @@ summary:focus-visible {
   }
 
   .nf-review-list-items {
-    max-height: calc(100vh - 190px);
+    max-height: calc(100vh - var(--nf-review-list-viewport-offset));
     overflow-y: auto;
     padding: 4px;
   }
@@ -1264,7 +1277,7 @@ summary:focus-visible {
     display: block;
     overflow: hidden;
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1288,7 +1301,7 @@ summary:focus-visible {
     border-top: 1px solid var(--nf-border);
     padding: 7px 9px;
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .nf-review-pagination a {
@@ -1296,8 +1309,7 @@ summary:focus-visible {
     font-weight: 600;
   }
 
-  .nf-review-pagination a[aria-disabled="true"] {
-    pointer-events: none;
+  .nf-review-pagination .is-disabled {
     opacity: 0.35;
   }
 
@@ -1440,7 +1452,7 @@ summary:focus-visible {
   .nf-series-row-stat span {
     margin-top: 2px;
     color: var(--nf-text-faint);
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .nf-project-row-mark {
@@ -1469,7 +1481,7 @@ summary:focus-visible {
     background: rgba(88, 215, 199, 0.06);
     padding: 0 5px;
     color: var(--nf-cyan-light);
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 650;
   }
 
@@ -1774,7 +1786,7 @@ summary:focus-visible {
 
   .nf-legacy-surface article,
   .nf-legacy-surface section {
-    scroll-margin-top: 66px;
+    scroll-margin-top: var(--nf-panel-sticky-top);
   }
 
   .nf-legacy-surface
@@ -1784,15 +1796,7 @@ summary:focus-visible {
       [class~="space-y-6"],
       [class~="space-y-8"]
     )
-    > :where(section, article)[class*="p-5"],
-  .nf-legacy-surface
-    > :where(
-      [class~="space-y-4"],
-      [class~="space-y-5"],
-      [class~="space-y-6"],
-      [class~="space-y-8"]
-    )
-    > :where(section, article)[class*="p-6"] {
+    > :where(section, article):where([class~="p-5"], [class~="p-6"]) {
     padding: 14px !important;
   }
 
@@ -1814,8 +1818,7 @@ summary:focus-visible {
   }
 
   .nf-project-dashboard > header h1 {
-    font-family:
-      "Noto Serif SC", "Songti SC", Georgia, ui-serif, serif;
+    font-family: "Noto Serif SC", "Songti SC", Georgia, ui-serif, serif;
   }
 
   .nf-project-dashboard > section.grid {
@@ -1866,7 +1869,7 @@ summary:focus-visible {
 
   .nf-project-stat p:first-child {
     color: var(--nf-text-faint) !important;
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
 
   .nf-project-stat p:last-child {
@@ -1936,14 +1939,14 @@ summary:focus-visible {
     min-width: 0;
     overflow: hidden;
     color: var(--nf-text-muted);
-    font-size: 9px;
+    font-size: 10px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .nf-module-row-meta {
     color: var(--nf-text-faint);
-    font-size: 9px;
+    font-size: 10px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -1958,8 +1961,7 @@ summary:focus-visible {
   }
 
   .nf-chapter-workspace > header h1 {
-    font-family:
-      "Noto Serif SC", "Songti SC", Georgia, ui-serif, serif;
+    font-family: "Noto Serif SC", "Songti SC", Georgia, ui-serif, serif;
   }
 
   .nf-chapter-workspace > section {

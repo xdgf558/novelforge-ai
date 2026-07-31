@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 
 export type WorkspaceTab = {
   id: string;
@@ -26,13 +21,16 @@ export function WorkspaceTabs({
   tabs,
 }: WorkspaceTabsProps) {
   const fallbackId = initialTabId ?? tabs[0]?.id ?? "";
+  const tabIdSignature = tabs.map((tab) => tab.id).join("\n");
   const [activeTabId, setActiveTabId] = useState(fallbackId);
 
   useEffect(() => {
+    const tabIds = tabIdSignature.split("\n");
+
     function selectHashTab() {
       const hashId = window.location.hash.slice(1);
 
-      if (tabs.some((tab) => tab.id === hashId)) {
+      if (tabIds.includes(hashId)) {
         setActiveTabId(hashId);
       }
     }
@@ -41,7 +39,21 @@ export function WorkspaceTabs({
     window.addEventListener("hashchange", selectHashTab);
 
     return () => window.removeEventListener("hashchange", selectHashTab);
-  }, [tabs]);
+  }, [tabIdSignature]);
+
+  useEffect(() => {
+    const hashId = window.location.hash.slice(1);
+
+    if (hashId !== activeTabId) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(hashId)?.scrollIntoView({ block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTabId]);
 
   const activeTab =
     tabs.find((tab) => tab.id === activeTabId) ??
