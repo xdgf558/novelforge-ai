@@ -1,5 +1,46 @@
 # Development Log
 
+## 2026-07-31: 0.1.112 Outline Draft Copy Fix Installer
+
+Status: completed.
+
+What was done:
+
+- Packaged the approved outline draft cross-tab copy fix from PR #93, merged
+  into `main` at `2abbd14`, and bumped the source app/package version from
+  `0.1.111` to `0.1.112`.
+- Updated the in-app release title and notes to explain that outline draft copy
+  now activates the formal-outline tab and fills the matching form without
+  auto-saving formal story memory.
+- Built the arm64 macOS application with hardened runtime and Developer ID
+  Application signing.
+- Built `release/desktop/NovelForge-AI-0.1.112-mac-arm64.pkg` with a payload at
+  `/Applications/NovelForge AI.app` and signed it with Developer ID Installer.
+- Did not upload this rebuild to Apple notarization because the request only
+  asked for a new installer package.
+- Removed the previous `0.1.111` installer and all Electron build intermediates
+  so `release/desktop/` contains only the `0.1.112` PKG.
+
+Verification:
+
+- `npm test` passed: 120 files and 698 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`,
+  `npm run work-types:acceptance`, and `npx prisma validate` passed.
+- The production build inside `npm run desktop:pack:mac` passed.
+- Deep strict code-sign verification passed for the packaged app, the staging
+  copy, and the app expanded from the final PKG.
+- The final PKG reports identifier `com.novelforge.ai`, version `0.1.112`, and
+  payload path `/Applications/NovelForge AI.app`. The expanded app reports
+  `0.1.112`, includes all 26 migrations, and contains the bundled desktop
+  migration runtime.
+- The PKG archive contains RSA/CMS signatures and the Developer ID certificate
+  chain. On this macOS release, `pkgutil --check-signature` still reports
+  `invalid signature` for newly signed unnotarized packages, matching the known
+  behavior recorded for `0.1.111`; this installer is not notarized or stapled.
+- Final PKG size: 415,011,462 bytes.
+- Final PKG SHA-256:
+  `683c7e5578ba06cdffa3e0953e9356e338d9476c4dc4aef5cb336364c7bd9554`.
+
 ## 2026-07-31: Outline Draft Cross-Tab Copy Fix
 
 Status: completed.
