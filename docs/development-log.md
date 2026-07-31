@@ -1,5 +1,28 @@
 # Development Log
 
+## 2026-07-31: Outline Draft Cross-Tab Copy Fix
+
+Status: completed.
+
+What was done:
+
+- Fixed completed outline AI drafts reporting "没有找到对应的大纲表单" after
+  the workspace-tab refactor. Inactive `WorkspaceTabs` panels are intentionally
+  not mounted, so the AI tab can no longer query the formal-outline form
+  directly.
+- Added a one-shot, project-path-scoped `sessionStorage` handoff. Clicking
+  "复制到表单" now stores only the parsed draft fields, activates the formal
+  outline tab, fills the matching volume/unit/chapter form after it mounts,
+  focuses the title field, and leaves the final save action to the author.
+- Kept the author-control boundary unchanged: copying does not write the
+  database, create an outline, or mutate formal story memory.
+
+Verification:
+
+- Targeted outline-copy and workspace-tab tests passed: 3 files, 17 tests.
+- Full `npm test` passed: 120 files and 698 tests.
+- `npm run typecheck` and `npm run build` passed.
+
 ## 2026-07-31: 0.1.111 Full-Route Workspace Installer
 
 Status: completed.

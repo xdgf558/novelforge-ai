@@ -26,6 +26,7 @@ import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
 import { FormActionButton } from "@/components/form-action-button";
 import { OutlineAiGenerateForm } from "@/components/outlines/outline-ai-generate-form";
 import { OutlineDraftCopyButton } from "@/components/outlines/outline-draft-copy-button";
+import { OutlineDraftCopyTarget } from "@/components/outlines/outline-draft-copy-target";
 import { OutlineSaveButton } from "@/components/outlines/outline-save-button";
 import { SkipEndingPlanCheckbox } from "@/components/outlines/skip-ending-plan-checkbox";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
@@ -429,6 +430,8 @@ export default async function OutlinesPage({
                       先记录标题、章节范围和目标；进入编辑页后可以补全冲突、爽点、伏笔和钩子。
                     </p>
                   </div>
+
+                  <OutlineDraftCopyTarget />
 
                   <div className="mt-4 grid gap-3 lg:grid-cols-3">
                     <QuickCreateOutlineForm
