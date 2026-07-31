@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-07-31: Full-Route Writing Workspace Completion
+
+Status: completed.
+
+What was done:
+
+- Audited all 42 public page routes after the initial workbench redesign and
+  documented their interaction pattern in `docs/uiux-route-audit.md`.
+- Replaced the long-form and short-story dashboard card walls with phase-based
+  `准备`, `写作`, `审校`, and `发布` module indexes.
+- Rebuilt chapter detail as a seven-stage workspace for confirmed content,
+  beats, draft, polish, summary, memory updates, and continuity review.
+- Rebuilt the formal setting editor around a five-section navigation rail and
+  sticky version-save bar. Chapter, character, project, series, and history
+  forms now use grouped or collapsible sections instead of one unbounded form.
+- Changed pending updates and continuity reports to master-detail review
+  workspaces so large projects no longer render every full record at once.
+- Split outline planning, AI task history, and global AI settings into
+  task-focused tabs. Long chapter, character, and setting snapshots are now
+  bounded and collapsible.
+- Added shared route primitives for workflow tabs, review queues, compact
+  module rows, setting navigation, and responsive mobile behavior.
+
+Verification:
+
+- `npm test` passed: 116 files and 685 tests.
+- `npm run typecheck` and `npm run build` passed.
+- Desktop browser checks covered the project dashboard, formal settings,
+  chapter detail, pending updates, and global AI settings.
+- Mobile checks at 390x844 confirmed zero page-level horizontal overflow for
+  the project dashboard, formal settings, and pending-update review workspace.
+
 ## 2026-07-30: 0.1.110 Notarized Writing Workbench Installer
 
 Status: completed.

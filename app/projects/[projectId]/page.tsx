@@ -5,6 +5,7 @@ import {
   BookMarked,
   BookCopy,
   Bot,
+  ChevronRight,
   ClipboardCheck,
   FileDown,
   FileText,
@@ -22,6 +23,8 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { WorkspaceTabs } from "@/components/workspace-tabs";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
 import {
@@ -115,8 +118,133 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     );
   }
 
+  const workspaceGroups = [
+    {
+      id: "project-prepare",
+      label: "准备",
+      items: [
+        {
+          detail: "维护题材、主线、世界观、人物规则、文风和发布约束。",
+          href: `/projects/${project.id}/settings`,
+          icon: BookMarked,
+          meta: `${project._count.settingVersions} 个历史版本`,
+          title: "总设定档",
+        },
+        {
+          detail: "管理正式角色档案、角色状态与历史快照。",
+          href: `/projects/${project.id}/characters`,
+          icon: Users,
+          meta: `${project._count.characters} 个角色`,
+          title: "角色库",
+        },
+        {
+          detail: "追踪人物同盟、冲突、亲缘与隐秘信息。",
+          href: `/projects/${project.id}/characters/network`,
+          icon: Network,
+          meta: `${project._count.characterRelationships} 条关系`,
+          title: "人物关系网络",
+        },
+        {
+          detail: "管理卷、剧情单元和章节大纲，并生成可审阅规划。",
+          href: `/projects/${project.id}/outlines`,
+          icon: Layers3,
+          meta: `${project._count.outlines} 条大纲`,
+          title: "大纲模块",
+        },
+        {
+          detail: "维护主线、支线、角色线与伏笔线的推进范围。",
+          href: `/projects/${project.id}/storylines`,
+          icon: GitBranch,
+          meta: `${project._count.storylines} 条故事线`,
+          title: "多故事线",
+        },
+        {
+          detail: "查看、比较并恢复作者确认过的设定快照。",
+          href: `/projects/${project.id}/settings/history`,
+          icon: History,
+          meta: `${project._count.settingVersions} 个快照`,
+          title: "设定历史",
+        },
+      ],
+    },
+    {
+      id: "project-writing",
+      label: "写作",
+      items: [
+        {
+          detail: "进入章节工作流，处理节拍、草稿、精修与定稿。",
+          href: `/projects/${project.id}/chapters`,
+          icon: FileText,
+          meta: `${project._count.chapters} 章`,
+          title: "章节编辑器",
+        },
+        {
+          detail: "查看模型路由、提示词模板和最近 AI 任务记录。",
+          href: `/projects/${project.id}/ai`,
+          icon: Bot,
+          meta: `${project._count.aiTasks} 条任务`,
+          title: "AI 任务",
+        },
+        {
+          detail: "从作者确认的正文生成本地分段音频。",
+          href: `/projects/${project.id}/audiobook`,
+          icon: Headphones,
+          meta: `${project._count.audioExports} 条导出`,
+          title: "有声小说导出",
+        },
+      ],
+    },
+    {
+      id: "project-review",
+      label: "审校",
+      items: [
+        {
+          detail: "逐条审核 AI 从正文中提取的设定、角色与伏笔变化。",
+          href: `/projects/${project.id}/pending-updates`,
+          icon: ListChecks,
+          meta: `${pendingUpdateStats.pending} 条待审`,
+          title: "待审更新",
+        },
+        {
+          detail: "集中维护世界规则、伏笔池和正式时间线。",
+          href: `/projects/${project.id}/memory`,
+          icon: ShieldCheck,
+          meta: `${project._count.worldRules + project._count.foreshadows + project._count.timelineEvents} 条记录`,
+          title: "结构化记忆",
+        },
+        {
+          detail: "审阅正文与正式记忆之间的冲突、风险与修复建议。",
+          href: `/projects/${project.id}/continuity`,
+          icon: ShieldAlert,
+          meta: `${project._count.continuityReports} 条报告`,
+          title: "连续性检查",
+        },
+        {
+          detail: "对照完整创作链路检查本地 MVP 的关键能力。",
+          href: `/projects/${project.id}/acceptance`,
+          icon: ClipboardCheck,
+          meta: "本地检查",
+          title: "MVP 验收",
+        },
+      ],
+    },
+    {
+      id: "project-publish",
+      label: "发布",
+      items: [
+        {
+          detail: "管理公众号排版、Station Cat 草稿同步与项目备份。",
+          href: `/projects/${project.id}/publish`,
+          icon: Send,
+          meta: "作者确认后执行",
+          title: "发布与导出",
+        },
+      ],
+    },
+  ];
+
   return (
-    <div className="nf-project-dashboard space-y-6">
+    <div className="nf-project-dashboard nf-page-stack">
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
         href="/"
@@ -125,7 +253,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         返回项目列表
       </Link>
 
-      <header className="rounded-lg border border-ink-950/10 bg-white p-6 shadow-panel">
+      <header className="nf-project-workspace-header">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-signal-600">
@@ -157,7 +285,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="nf-project-stat-strip" aria-label="项目创作参数">
         <InfoTile label="目标读者" value={project.targetAudience || "未设置"} />
         <InfoTile label="连载平台" value={project.platform || "未设置"} />
         <InfoTile label="总字数目标" value={formatNumber(project.totalWordTarget)} />
@@ -167,283 +295,25 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/settings`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
-              <BookMarked aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                总设定档
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                维护题材、主线、世界观、人物规则、文风和发布约束。
-              </p>
-            </div>
-          </div>
-        </Link>
+      <WorkspaceTabs
+        ariaLabel="长篇项目模块"
+        tabs={workspaceGroups.map((group) => ({
+          content: <ModuleIndex items={group.items} />,
+          id: group.id,
+          label: group.label,
+          meta: `${group.items.length} 项`,
+        }))}
+      />
 
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/characters`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
-              <Users aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                角色库
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                已保存 {project._count.characters} 个角色，{project._count.characterVersions} 个角色快照。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/characters/network`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
-              <Network aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                人物关系网络
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                已保存 {project._count.characterRelationships} 条人物关系，用于追踪同盟、冲突和隐秘信息。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/chapters`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
-              <FileText aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                章节编辑器
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                已保存 {project._count.chapters} 个章节，{project._count.chapterVersions} 个章节快照。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/outlines`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
-              <Layers3 aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                大纲模块
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                已保存 {project._count.outlines} 条卷、剧情单元和章节大纲。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/storylines`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
-              <GitBranch aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                多故事线
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                已保存 {project._count.storylines} 条主线、支线、角色线或伏笔线。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/settings/history`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ember-500/10 text-ember-500">
-              <History aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                设定历史
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                已保存 {project._count.settingVersions} 个设定快照。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/ai`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
-              <Bot aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                AI 任务
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                已保存 {project._count.aiPromptTemplates} 个模板，{project._count.aiTasks} 条任务。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/pending-updates`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ember-500/10 text-ember-500">
-              <ListChecks aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                待审更新
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                {pendingUpdateSummary(pendingUpdateStats)}
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/memory`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
-              <ShieldCheck aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                结构化记忆
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                世界规则 {project._count.worldRules} 条，伏笔 {project._count.foreshadows} 条，时间线 {project._count.timelineEvents} 条。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/continuity`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ember-500/10 text-ember-500">
-              <ShieldAlert aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                连续性报告
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                {project._count.continuityReports} 条检查问题，处理前不会自动修改记忆。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/publish`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
-              <Send aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                发布与导出
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                公众号排版导出、Station Cat 同步材料和项目备份集中管理。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/audiobook`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
-              <Headphones aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                有声小说导出
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                已保存 {project._count.audioExports} 条有声导出记录，可生成本地分段音频。
-              </p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel transition hover:-translate-y-0.5 hover:border-signal-500/45 hover:shadow-md"
-          href={`/projects/${project.id}/acceptance`}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-950/5 text-ink-800">
-              <ClipboardCheck aria-hidden="true" className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                MVP 验收
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                对照完整创作链路检查项目、AI 任务、待审更新、连续性报告和导出能力。
-              </p>
-            </div>
-          </div>
-        </Link>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel lg:col-span-2">
+      <section className="grid gap-3 lg:grid-cols-3">
+        <div className="nf-section-panel lg:col-span-2">
           <h2 className="text-base font-semibold text-ink-950">公众号定位</h2>
           <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink-700">
             {project.wechatPositioning || "暂无公众号定位。"}
           </p>
         </div>
 
-        <div className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+        <div className="nf-section-panel">
           <h2 className="text-base font-semibold text-ink-950">项目状态</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <Row label="状态" value={project.status === "active" ? "进行中" : "已归档"} />
@@ -516,6 +386,7 @@ function ShortStoryProjectDashboard({
 }) {
   const workspaceLinks = [
     {
+      group: "prepare",
       href: project.shortStorySeriesEntry
         ? `/series/${project.shortStorySeriesEntry.series.id}`
         : "/series",
@@ -526,6 +397,7 @@ function ShortStoryProjectDashboard({
         : "当前为独立短故事，可在系列页加入篇目",
     },
     {
+      group: "prepare",
       href: `/projects/${project.id}/blueprint`,
       icon: MapPinned,
       title: "故事蓝图",
@@ -534,51 +406,72 @@ function ShortStoryProjectDashboard({
         : "待建立开篇、反转与结局闭环",
     },
     {
+      group: "prepare",
       href: `/projects/${project.id}/settings`,
       icon: BookMarked,
       title: "设定库",
       detail: "作品定位、人物驱动、冲突与风格约束",
     },
     {
+      group: "writing",
       href: `/projects/${project.id}/chapters`,
       icon: NotebookTabs,
       title: "写作单元",
       detail: `已建立 ${project._count.chapters} 个内部单元`,
     },
     {
+      group: "prepare",
       href: `/projects/${project.id}/characters`,
       icon: Users,
       title: "角色",
       detail: `已保存 ${project._count.characters} 个角色`,
     },
     {
+      group: "review",
       href: `/projects/${project.id}/story-review`,
       icon: ShieldAlert,
       title: "整篇审校",
       detail: `${project._count.continuityReports} 条连续性建议`,
     },
     {
+      group: "publish",
       href: `/projects/${project.id}/manuscript`,
       icon: FileDown,
       title: "成稿导出",
       detail: "组装完整正文并导出 TXT / Markdown",
     },
     {
+      group: "review",
       href: `/projects/${project.id}/memory`,
       icon: ShieldCheck,
       title: "结构化记忆",
       detail: `规则 ${project._count.worldRules} · 伏笔 ${project._count.foreshadows} · 时间线 ${project._count.timelineEvents}`,
     },
     {
+      group: "writing",
       href: `/projects/${project.id}/ai`,
       icon: Bot,
       title: "AI 任务",
       detail: `已记录 ${project._count.aiTasks} 条任务`,
     },
   ];
+  const workspaceGroups = [
+    { id: "prepare", label: "准备" },
+    { id: "writing", label: "写作" },
+    { id: "review", label: "审校" },
+    { id: "publish", label: "发布" },
+  ].map((group) => ({
+    ...group,
+    items: workspaceLinks
+      .filter((item) => item.group === group.id)
+      .map((item) => ({
+        ...item,
+        meta: "进入",
+      })),
+  }));
 
   return (
-    <div className="nf-project-dashboard space-y-6">
+    <div className="nf-project-dashboard nf-page-stack">
       <Link
         className="inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
         href="/"
@@ -587,7 +480,7 @@ function ShortStoryProjectDashboard({
         返回项目列表
       </Link>
 
-      <header className="border-b border-ink-950/10 pb-5">
+      <header className="nf-project-workspace-header">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-semibold text-signal-600">
@@ -616,7 +509,7 @@ function ShortStoryProjectDashboard({
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="nf-project-stat-strip" aria-label="短故事创作参数">
         <InfoTile label="目标读者" value={project.targetAudience || "未设置"} />
         <InfoTile label="发布平台" value={project.platform || "未设置"} />
         <InfoTile label="总字数目标" value={formatNumber(project.totalWordTarget)} />
@@ -626,30 +519,15 @@ function ShortStoryProjectDashboard({
         />
       </section>
 
-      <section>
-        <h2 className="text-base font-semibold text-ink-950">创作资料</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {workspaceLinks.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <Link
-                className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel transition hover:border-signal-500/45 hover:bg-paper-50"
-                href={item.href}
-                key={item.href}
-              >
-                <Icon aria-hidden="true" className="h-5 w-5 text-signal-600" />
-                <h3 className="mt-3 text-sm font-semibold text-ink-950">
-                  {item.title}
-                </h3>
-                <p className="mt-1 text-xs leading-5 text-ink-700">
-                  {item.detail}
-                </p>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
+      <WorkspaceTabs
+        ariaLabel="短故事项目模块"
+        tabs={workspaceGroups.map((group) => ({
+          content: <ModuleIndex items={group.items} />,
+          id: `short-story-${group.id}`,
+          label: group.label,
+          meta: `${group.items.length} 项`,
+        }))}
+      />
 
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="border-t border-ink-950/10 pt-4">
@@ -659,7 +537,7 @@ function ShortStoryProjectDashboard({
           </p>
         </div>
 
-        <div className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+        <div className="nf-section-panel">
           <h2 className="text-sm font-semibold text-ink-950">项目状态</h2>
           <dl className="mt-3 space-y-3 text-sm">
             <Row label="作品类型" value={projectWorkTypeLabel(project.workType)} />
@@ -710,33 +588,43 @@ function summarizePendingUpdates(
   return stats;
 }
 
-function pendingUpdateSummary({
-  approved,
-  pending,
-  rejected,
-  total,
-}: {
-  approved: number;
-  pending: number;
-  rejected: number;
-  total: number;
-}) {
-  if (total === 0) {
-    return "暂无建议，AI 提取后会先进入待审核列表。";
-  }
-
-  if (pending === 0) {
-    return `全部建议已处理：已批准 ${approved} 条，已拒绝 ${rejected} 条。`;
-  }
-
-  return `待审核 ${pending} 条，已批准 ${approved} 条，已拒绝 ${rejected} 条。`;
-}
-
 function InfoTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+    <div className="nf-project-stat">
       <p className="text-sm text-ink-700">{label}</p>
       <p className="mt-2 text-base font-semibold text-ink-950">{value}</p>
+    </div>
+  );
+}
+
+type ModuleIndexItem = {
+  detail: string;
+  href: string;
+  icon: LucideIcon;
+  meta: string;
+  title: string;
+};
+
+function ModuleIndex({ items }: { items: ModuleIndexItem[] }) {
+  return (
+    <div className="nf-module-index">
+      {items.map((item) => {
+        const Icon = item.icon;
+
+        return (
+          <Link className="nf-module-row" href={item.href} key={item.href}>
+            <span className="nf-module-row-icon">
+              <Icon aria-hidden="true" className="h-4 w-4" />
+            </span>
+            <span className="nf-module-row-copy">
+              <strong>{item.title}</strong>
+              <span>{item.detail}</span>
+            </span>
+            <span className="nf-module-row-meta">{item.meta}</span>
+            <ChevronRight aria-hidden="true" className="h-4 w-4" />
+          </Link>
+        );
+      })}
     </div>
   );
 }

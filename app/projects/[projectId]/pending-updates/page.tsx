@@ -37,8 +37,11 @@ type PendingUpdatesPageProps = {
   }>;
   searchParams?: Promise<{
     approved?: string;
+    page?: string;
     review?: string;
     skipped?: string;
+    status?: string;
+    updateId?: string;
   }>;
 };
 
@@ -49,6 +52,11 @@ export default async function PendingUpdatesPage({
   const { projectId } = await params;
   const resolvedSearchParams = await searchParams;
   const reviewMessage = pendingUpdateReviewMessage(resolvedSearchParams);
+  const statusFilter = pendingUpdateStatusFilter(
+    resolvedSearchParams?.status,
+  );
+  const page = positiveInt(resolvedSearchParams?.page);
+  const pageSize = 30;
   const project = await prisma.project.findUnique({
     where: {
       id: projectId,
@@ -69,10 +77,12 @@ export default async function PendingUpdatesPage({
     approvedCount,
     rejectedCount,
     automaticRecoveryCandidateCount,
+    filteredCount,
   ] = await Promise.all([
     prisma.pendingUpdate.findMany({
       where: {
         projectId,
+        status: statusFilter,
       },
       include: {
         chapter: {
@@ -94,6 +104,8 @@ export default async function PendingUpdatesPage({
       orderBy: {
         createdAt: "desc",
       },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     }),
     prisma.pendingUpdate.count({
       where: {
@@ -114,15 +126,18 @@ export default async function PendingUpdatesPage({
       },
     }),
     countAutomaticForeshadowRecoveryCandidates(projectId),
+    prisma.pendingUpdate.count({
+      where: {
+        projectId,
+        status: statusFilter,
+      },
+    }),
   ]);
 
-  const sortedUpdates = [...updates].sort((left, right) => {
-    if (left.status === right.status) {
-      return right.createdAt.getTime() - left.createdAt.getTime();
-    }
-
-    return left.status === "pending" ? -1 : 1;
-  });
+  const selectedUpdate =
+    updates.find((update) => update.id === resolvedSearchParams?.updateId) ??
+    updates[0];
+  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
 
   return (
     <div className="space-y-6">
@@ -207,7 +222,7 @@ export default async function PendingUpdatesPage({
         </section>
       ) : null}
 
-      {sortedUpdates.length === 0 ? (
+      {updates.length === 0 ? (
         <section className="rounded-lg border border-dashed border-ink-950/20 bg-white p-8 text-center shadow-panel">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-paper-100 text-ink-700">
             <FilePenLine aria-hidden="true" className="h-5 w-5" />
@@ -220,8 +235,90 @@ export default async function PendingUpdatesPage({
           </p>
         </section>
       ) : (
-        <section className="space-y-4">
-          {sortedUpdates.map((update) => {
+        <section className="nf-review-workspace">
+          <aside className="nf-review-list">
+            <div className="nf-review-filters" aria-label="更新状态筛选">
+              {[
+                ["pending", "待审核", pendingCount],
+                ["approved", "已批准", approvedCount],
+                ["rejected", "已拒绝", rejectedCount],
+              ].map(([status, label, count]) => (
+                <Link
+                  aria-current={statusFilter === status ? "page" : undefined}
+                  className={statusFilter === status ? "is-active" : undefined}
+                  href={pendingUpdateHref(project.id, String(status), 1)}
+                  key={String(status)}
+                >
+                  {label}
+                  <span>{count}</span>
+                </Link>
+              ))}
+            </div>
+
+            <div className="nf-review-list-items">
+              {updates.map((update) => (
+                <Link
+                  aria-current={
+                    selectedUpdate?.id === update.id ? "page" : undefined
+                  }
+                  className={
+                    selectedUpdate?.id === update.id ? "is-active" : undefined
+                  }
+                  href={pendingUpdateHref(
+                    project.id,
+                    statusFilter,
+                    page,
+                    update.id,
+                  )}
+                  key={update.id}
+                >
+                  <span>
+                    {pendingUpdateTargetLabel(update.targetType)} ·{" "}
+                    {pendingUpdateTypeLabel(update.updateType)}
+                  </span>
+                  <strong>{update.title}</strong>
+                  <small>
+                    {update.chapter
+                      ? `第 ${update.chapter.chapterNumber} 章`
+                      : "未关联章节"}
+                    {" · "}
+                    {formatDate(update.createdAt)}
+                  </small>
+                </Link>
+              ))}
+            </div>
+
+            {totalPages > 1 ? (
+              <div className="nf-review-pagination">
+                <Link
+                  aria-disabled={page <= 1}
+                  href={pendingUpdateHref(
+                    project.id,
+                    statusFilter,
+                    Math.max(1, page - 1),
+                  )}
+                >
+                  上一页
+                </Link>
+                <span>
+                  {page}/{totalPages}
+                </span>
+                <Link
+                  aria-disabled={page >= totalPages}
+                  href={pendingUpdateHref(
+                    project.id,
+                    statusFilter,
+                    Math.min(totalPages, page + 1),
+                  )}
+                >
+                  下一页
+                </Link>
+              </div>
+            ) : null}
+          </aside>
+
+          <div className="nf-review-detail">
+          {selectedUpdate ? [selectedUpdate].map((update) => {
             const isPending = update.status === "pending";
             const isHighRisk = update.riskLevel === "high";
             const isStale = Boolean(
@@ -412,7 +509,8 @@ export default async function PendingUpdatesPage({
                 ) : null}
               </article>
             );
-          })}
+          }) : null}
+          </div>
         </section>
       )}
     </div>
@@ -484,6 +582,34 @@ function nonNegativeInt(value?: string) {
   const parsed = Number(value);
 
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function positiveInt(value?: string) {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function pendingUpdateStatusFilter(value?: string) {
+  return value === "approved" || value === "rejected" ? value : "pending";
+}
+
+function pendingUpdateHref(
+  projectId: string,
+  status: string,
+  page: number,
+  updateId?: string,
+) {
+  const query = new URLSearchParams({
+    page: String(page),
+    status,
+  });
+
+  if (updateId) {
+    query.set("updateId", updateId);
+  }
+
+  return `/projects/${projectId}/pending-updates?${query.toString()}`;
 }
 
 function InfoTile({ label, value }: { label: string; value: string }) {

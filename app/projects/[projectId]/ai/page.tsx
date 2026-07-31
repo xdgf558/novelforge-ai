@@ -18,6 +18,7 @@ import {
   togglePromptTemplateStatus,
 } from "@/app/projects/[projectId]/ai/actions";
 import { PromptTemplateCopyButton } from "@/components/ai/prompt-template-copy-button";
+import { WorkspaceTabs } from "@/components/workspace-tabs";
 import { aiTaskAdoptionLabel, aiTaskStatusLabel } from "@/lib/ai/status";
 import { readAiConnectionSettings } from "@/lib/ai/local-config";
 import {
@@ -326,7 +327,15 @@ export default async function AiWorkspacePage({
         />
       </section>
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+      <WorkspaceTabs
+        ariaLabel="AI 任务工作区"
+        tabs={[
+          {
+            id: "ai-usage",
+            label: "用量概览",
+            meta: `${usageSummary.totals.callCount} 次`,
+            content: (
+              <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-base font-semibold text-ink-950">
@@ -367,13 +376,20 @@ export default async function AiWorkspacePage({
           <UsageBreakdown title="按任务类型" rows={usageSummary.byTaskType} />
           <UsageBreakdown title="按模型" rows={usageSummary.byModel} />
         </div>
-      </section>
+              </section>
+            ),
+          },
+          {
+            id: "prompt-templates",
+            label: "提示词模板",
+            meta: `${templates.length} 个`,
+            content: (
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+              <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-base font-semibold text-ink-950">
-              Prompt Templates
+              提示词模板
             </h2>
             <p className="mt-1 text-sm leading-6 text-ink-700">
               当前项目已保存 {templates.length} 个模板版本，默认展示最新 {Math.min(templates.length, visibleTemplateLimit)} 个。
@@ -408,11 +424,18 @@ export default async function AiWorkspacePage({
             ) : null}
           </div>
         )}
-      </section>
+              </section>
+            ),
+          },
+          {
+            id: "recent-ai-tasks",
+            label: "最近任务",
+            meta: `${taskCount} 条`,
+            content: (
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+              <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
         <div>
-          <h2 className="text-base font-semibold text-ink-950">Recent Tasks</h2>
+          <h2 className="text-base font-semibold text-ink-950">最近任务</h2>
           <p className="mt-1 text-sm leading-6 text-ink-700">
             最近 {projectAiTaskRetentionLimit} 条 AI
             任务记录会保留状态、模型、模板版本和输出摘要；默认展示最新 {Math.min(tasks.length, visibleTaskLimit)} 条，其余折叠。
@@ -449,7 +472,11 @@ export default async function AiWorkspacePage({
             ) : null}
           </div>
         )}
-      </section>
+              </section>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

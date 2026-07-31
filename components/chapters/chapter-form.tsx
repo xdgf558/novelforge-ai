@@ -323,26 +323,34 @@ export function ChapterForm({
             ]
           : chapterFieldGroups
         ).map((group) => (
-          <section
-            className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+          <details
+            className="nf-collapsible-snapshot"
             key={group.title}
+            open={isCreateForm || group.title === "正文内容"}
           >
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
+            <summary>
+              <span>
+                <strong>
                 {shortStoryProject && group.title === "章节目标"
                   ? "单元目标与节拍"
                   : group.title}
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
+                </strong>
+                <small>
                 {shortStoryProject && group.title === "章节目标"
                   ? "记录这个内部写作单元要完成的剧情功能；AI 会结合正式蓝图和单元规划生成细化节拍。"
                   : shortStoryProject && group.title === "作者备注"
                     ? "保存这个写作单元的临时提醒、修订计划和后续兑现注意事项。"
                     : group.description}
-              </p>
-            </div>
+                </small>
+              </span>
+              <span className="nf-collapsible-snapshot-meta">
+                {group.fields.filter((field) => values[field.name].trim())
+                  .length}
+                /{group.fields.length} 已填写
+              </span>
+            </summary>
 
-            <div className="mt-5 grid gap-4">
+            <div className="nf-collapsible-snapshot-body grid gap-4">
               {group.fields.map((field) => (
                 <div className="flex flex-col gap-2" key={field.name}>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -425,15 +433,15 @@ export function ChapterForm({
                 </div>
               ))}
             </div>
-          </section>
+          </details>
         ))}
 
-        {isCreateForm ? null : (
-          <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
-            <label className="flex flex-col gap-2">
+        <div className="nf-setting-savebar">
+          {isCreateForm ? null : (
+            <label className="min-w-60 flex-1">
               <span className={labelClass}>修改原因</span>
-              <textarea
-                className={`${inputClass} min-h-24 py-3 leading-6`}
+              <input
+                className={`${inputClass} mt-1.5 min-h-10 w-full`}
                 name="changeReason"
                 placeholder={
                   shortStoryProject
@@ -442,19 +450,16 @@ export function ChapterForm({
                 }
               />
             </label>
-          </section>
-        )}
-
-        <div className="flex flex-wrap items-center gap-3">
+          )}
           <button
-            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
             type="submit"
           >
             <Save aria-hidden="true" className="h-4 w-4" />
             {submitLabel}
           </button>
           <Link
-            className="inline-flex min-h-11 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            className="inline-flex min-h-10 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
             href={
               chapter
                 ? `/projects/${project.id}/chapters/${chapter.id}`

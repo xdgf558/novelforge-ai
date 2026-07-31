@@ -6,10 +6,14 @@ import {
   ArrowLeft,
   Bot,
   CheckCircle2,
+  Compass,
   Eye,
+  Feather,
+  Globe2,
   History,
   Save,
   Sparkles,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -76,6 +80,8 @@ type ProjectSettingAiTask = {
   } | null;
 };
 
+type SettingSectionId = "ai" | "core" | "characters" | "world" | "narrative";
+
 const inputClass =
   "min-h-9 rounded-md border border-ink-950/15 bg-white px-3 text-sm text-ink-950 shadow-panel outline-none transition placeholder:text-ink-700/45 focus:border-signal-500 focus:ring-4 focus:ring-signal-500/15";
 
@@ -120,6 +126,49 @@ export function ProjectSettingForm({
   const currentNarrativePerspectiveId =
     appliedNarrativePerspectiveId(values.narrativePerspective);
   const settingGroups = projectSettingGroupsForWorkType(project.workType);
+  const [activeSection, setActiveSection] =
+    useState<SettingSectionId>("core");
+  const settingSections = [
+    {
+      id: "ai" as const,
+      label: "AI 草案",
+      description: "生成、补全与优化",
+      icon: Bot,
+      meta: aiTasks.some((task) => isActiveAiTaskStatus(task.status))
+        ? "运行中"
+        : aiTasks.length > 0
+          ? `${aiTasks.length} 次`
+          : "未生成",
+    },
+    {
+      id: "core" as const,
+      label: "核心定位",
+      description: "题材、读者与主线",
+      icon: Compass,
+      meta: settingGroupCompletion(values, settingGroups, "核心定位"),
+    },
+    {
+      id: "characters" as const,
+      label: "人物与势力",
+      description: "欲望、缺陷与关系",
+      icon: Users,
+      meta: settingGroupCompletion(values, settingGroups, "人物与势力"),
+    },
+    {
+      id: "world" as const,
+      label: "世界与剧情",
+      description: "规则、时间线与结局",
+      icon: Globe2,
+      meta: settingGroupCompletion(values, settingGroups, "世界与剧情规则"),
+    },
+    {
+      id: "narrative" as const,
+      label: "叙事与发布",
+      description: "视角、文风与平台约束",
+      icon: Feather,
+      meta: settingGroupCompletion(values, settingGroups, "发布与风格约束"),
+    },
+  ];
 
   function applySelectedStylePreset() {
     if (!selectedStylePresetId) {
@@ -162,8 +211,8 @@ export function ProjectSettingForm({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div className="nf-page-stack">
+      <div className="nf-page-header">
         <div>
           <Link
             className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
@@ -192,18 +241,50 @@ export function ProjectSettingForm({
         </Link>
       </div>
 
-      <ProjectSettingAiPanel
-        adoptAction={adoptProjectSettingAction}
-        generateCompletionAction={generateProjectSettingCompletionAction}
-        generateAction={generateProjectSettingAction}
-        generateOptimizationAction={generateProjectSettingOptimizationAction}
-        hasApiKey={hasApiKey}
-        projectTitle={project.title}
-        tasks={aiTasks}
-      />
+      <div className="nf-setting-workspace">
+        <nav aria-label="总设定分区" className="nf-setting-nav">
+          {settingSections.map((section) => {
+            const Icon = section.icon;
+            const active = activeSection === section.id;
 
-      <form action={action} className="space-y-4">
-        {isShortStory ? (
+            return (
+              <button
+                aria-current={active ? "page" : undefined}
+                className={active ? "nf-setting-nav-active" : undefined}
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                type="button"
+              >
+                <Icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+                <span>
+                  <strong>{section.label}</strong>
+                  <small>{section.description}</small>
+                </span>
+                <em>{section.meta}</em>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="nf-setting-content">
+          <div hidden={activeSection !== "ai"}>
+            <ProjectSettingAiPanel
+              adoptAction={adoptProjectSettingAction}
+              generateCompletionAction={generateProjectSettingCompletionAction}
+              generateAction={generateProjectSettingAction}
+              generateOptimizationAction={
+                generateProjectSettingOptimizationAction
+              }
+              hasApiKey={hasApiKey}
+              projectTitle={project.title}
+              tasks={aiTasks}
+            />
+          </div>
+
+          <form action={action} className="space-y-4">
+            <div hidden={activeSection !== "narrative"}>
+              <div className="space-y-4">
+                {isShortStory ? (
           <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
             <div className="flex items-start gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
@@ -293,9 +374,9 @@ export function ProjectSettingForm({
               </p>
             )}
           </section>
-        ) : null}
+                ) : null}
 
-        <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
+                <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
           <div className="flex items-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-signal-500/10 text-signal-600">
               <Eye aria-hidden="true" className="h-4 w-4" />
@@ -382,13 +463,18 @@ export function ProjectSettingForm({
               推荐网文和强代入作品使用“沉浸式第三人称限制”；多主角长篇可选择“多人物限制视角”。也可以直接在下方填写自定义视角规则。
             </p>
           )}
-        </section>
+                </section>
+              </div>
+            </div>
 
-        {settingGroups.map((group) => (
-          <section
-            className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
-            key={group.title}
-          >
+            {settingGroups.map((group) => (
+              <section
+                className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
+                hidden={
+                  activeSection !== settingSectionIdForGroup(group.title)
+                }
+                key={group.title}
+              >
             <div>
               <h2 className="text-base font-semibold text-ink-950">
                 {group.title}
@@ -426,38 +512,71 @@ export function ProjectSettingForm({
                 </label>
               ))}
             </div>
-          </section>
-        ))}
+              </section>
+            ))}
 
-        <section className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel">
-          <label className="flex flex-col gap-1.5">
-            <span className={labelClass}>修改原因</span>
-            <textarea
-              className={`${inputClass} min-h-20 py-2 leading-5`}
-              name="changeReason"
-              placeholder="例如：初版设定、补全主线矛盾、调整公众号定位"
-            />
-          </label>
-        </section>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-            type="submit"
-          >
-            <Save aria-hidden="true" className="h-4 w-4" />
-            保存并记录版本
-          </button>
-          <Link
-            className="inline-flex min-h-11 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-            href={`/projects/${project.id}`}
-          >
-            取消
-          </Link>
+            <div
+              className="nf-setting-savebar"
+              hidden={activeSection === "ai"}
+            >
+              <label className="min-w-0 flex-1">
+                <span className={labelClass}>修改原因</span>
+                <input
+                  className={`${inputClass} mt-1.5 min-h-10 w-full`}
+                  name="changeReason"
+                  placeholder="例如：补全主线矛盾、调整发布定位"
+                />
+              </label>
+              <button
+                className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+                type="submit"
+              >
+                <Save aria-hidden="true" className="h-4 w-4" />
+                保存并记录版本
+              </button>
+              <Link
+                className="inline-flex min-h-10 shrink-0 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                href={`/projects/${project.id}`}
+              >
+                取消
+              </Link>
+            </div>
+          </form>
         </div>
-      </form>
+      </div>
     </div>
   );
+}
+
+function settingSectionIdForGroup(title: string): SettingSectionId {
+  switch (title) {
+    case "核心定位":
+      return "core";
+    case "人物与势力":
+      return "characters";
+    case "世界与剧情规则":
+      return "world";
+    default:
+      return "narrative";
+  }
+}
+
+function settingGroupCompletion(
+  values: ProjectSettingValues,
+  groups: ReturnType<typeof projectSettingGroupsForWorkType>,
+  title: string,
+) {
+  const group = groups.find((candidate) => candidate.title === title);
+
+  if (!group || group.fields.length === 0) {
+    return "0/0";
+  }
+
+  const filled = group.fields.filter((field) =>
+    values[field.name].trim(),
+  ).length;
+
+  return `${filled}/${group.fields.length}`;
 }
 
 function ProjectSettingAiPanel({

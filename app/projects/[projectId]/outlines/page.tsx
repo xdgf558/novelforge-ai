@@ -29,6 +29,7 @@ import { OutlineDraftCopyButton } from "@/components/outlines/outline-draft-copy
 import { OutlineSaveButton } from "@/components/outlines/outline-save-button";
 import { SkipEndingPlanCheckbox } from "@/components/outlines/skip-ending-plan-checkbox";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
+import { WorkspaceTabs } from "@/components/workspace-tabs";
 import {
   calculateEndingReadiness,
   endingPlanningTaskType,
@@ -353,89 +354,128 @@ export default async function OutlinesPage({
         </div>
       ) : null}
 
-      <OutlineAiPanel
-        defaultTargetChapterNumber={defaultTargetChapterNumber}
-        generateAction={generateOutlineDraft.bind(null, project.id)}
-        hasActiveTask={hasActiveOutlineTask}
-        hasApiKey={aiSettings.hasApiKey}
-        initialTargetLevel={defaultOutlineTargetLevel}
-        mustFinishNextChapter={endingReadiness.shouldFinishNextChapter}
-        tasks={outlineTasks}
-      />
+      <WorkspaceTabs
+        ariaLabel="大纲工作区"
+        tabs={[
+          {
+            id: "outline-ai",
+            label: "AI 规划",
+            meta: hasActiveOutlineTask
+              ? "运行中"
+              : outlineTasks.length > 0
+                ? `${outlineTasks.length} 次`
+                : "未生成",
+            content: (
+              <>
+                <OutlineAiPanel
+                  defaultTargetChapterNumber={defaultTargetChapterNumber}
+                  generateAction={generateOutlineDraft.bind(null, project.id)}
+                  hasActiveTask={hasActiveOutlineTask}
+                  hasApiKey={aiSettings.hasApiKey}
+                  initialTargetLevel={defaultOutlineTargetLevel}
+                  mustFinishNextChapter={
+                    endingReadiness.shouldFinishNextChapter
+                  }
+                  tasks={outlineTasks}
+                />
+                {nextUnitReminder ? (
+                  <NextUnitPlanningPanel
+                    generateAction={generateOutlineDraft.bind(
+                      null,
+                      project.id,
+                    )}
+                    hasActiveTask={hasActiveOutlineTask}
+                    hasApiKey={aiSettings.hasApiKey}
+                    reminder={nextUnitReminder}
+                  />
+                ) : null}
+                <AiBudgetNotice projectId={project.id} />
+              </>
+            ),
+          },
+          {
+            id: "ending-planning",
+            label: "终局收束",
+            meta: endingStageLabel(endingReadiness.stage),
+            content: (
+              <EndingPlanningPanel
+                expiredReference={expiredEndingPlanReference}
+                generateAction={generateEndingPlanDraft.bind(null, project.id)}
+                hasActiveTask={hasActiveEndingPlanTask}
+                hasApiKey={aiSettings.hasApiKey}
+                nextTargetChapterNumber={defaultTargetChapterNumber}
+                projectId={project.id}
+                readiness={endingReadiness}
+                tasks={endingPlanTasks}
+              />
+            ),
+          },
+          {
+            id: "outline-library",
+            label: "正式大纲",
+            meta: `${project.outlines.length} 条`,
+            content: (
+              <>
+                <section
+                  className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
+                  id="quick-create-outlines"
+                >
+                  <div>
+                    <h2 className="text-base font-semibold text-ink-950">
+                      快速新增大纲
+                    </h2>
+                    <p className="mt-1 text-xs leading-5 text-ink-700">
+                      先记录标题、章节范围和目标；进入编辑页后可以补全冲突、爽点、伏笔和钩子。
+                    </p>
+                  </div>
 
-      <EndingPlanningPanel
-        expiredReference={expiredEndingPlanReference}
-        generateAction={generateEndingPlanDraft.bind(null, project.id)}
-        hasActiveTask={hasActiveEndingPlanTask}
-        hasApiKey={aiSettings.hasApiKey}
-        nextTargetChapterNumber={defaultTargetChapterNumber}
-        projectId={project.id}
-        readiness={endingReadiness}
-        tasks={endingPlanTasks}
-      />
-      {nextUnitReminder ? (
-        <NextUnitPlanningPanel
-          generateAction={generateOutlineDraft.bind(null, project.id)}
-          hasActiveTask={hasActiveOutlineTask}
-          hasApiKey={aiSettings.hasApiKey}
-          reminder={nextUnitReminder}
-        />
-      ) : null}
-      <AiBudgetNotice projectId={project.id} />
+                  <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                    <QuickCreateOutlineForm
+                      action={createOutline.bind(null, project.id)}
+                      level="volume"
+                    />
+                    <QuickCreateOutlineForm
+                      action={createOutline.bind(null, project.id)}
+                      level="unit"
+                    />
+                    <QuickCreateOutlineForm
+                      action={createOutline.bind(null, project.id)}
+                      level="chapter"
+                    />
+                  </div>
+                </section>
 
-      <section
-        className="rounded-lg border border-ink-950/10 bg-white p-4 shadow-panel"
-        id="quick-create-outlines"
-      >
-        <div>
-          <h2 className="text-base font-semibold text-ink-950">快速新增大纲</h2>
-          <p className="mt-1 text-xs leading-5 text-ink-700">
-            先记录标题、章节范围和目标；进入编辑页后可以补全冲突、爽点、伏笔和钩子。
-          </p>
-        </div>
-
-        <div className="mt-4 grid gap-3 lg:grid-cols-3">
-          <QuickCreateOutlineForm
-            action={createOutline.bind(null, project.id)}
-            level="volume"
-          />
-          <QuickCreateOutlineForm
-            action={createOutline.bind(null, project.id)}
-            level="unit"
-          />
-          <QuickCreateOutlineForm
-            action={createOutline.bind(null, project.id)}
-            level="chapter"
-          />
-        </div>
-      </section>
-
-      <OutlineGroup
-        emptyText="还没有卷大纲。先定义本卷目标、冲突、高潮和预计章节数。"
-        icon={Layers3}
-        outlines={groupedOutlines.volume}
-        progressByOutlineId={progressByOutlineId}
-        projectId={project.id}
-        title="卷大纲"
-        visibleLimit={1}
-      />
-      <OutlineGroup
-        emptyText="还没有剧情单元大纲。可以把一段连续剧情拆成若干单元。"
-        icon={Route}
-        outlines={groupedOutlines.unit}
-        progressByOutlineId={progressByOutlineId}
-        projectId={project.id}
-        title="剧情单元大纲"
-        visibleLimit={1}
-      />
-      <OutlineGroup
-        emptyText="还没有章节大纲。章节节拍生成会优先读取匹配章节号的大纲。"
-        icon={FileText}
-        outlines={groupedOutlines.chapter}
-        progressByOutlineId={progressByOutlineId}
-        projectId={project.id}
-        title="章节大纲"
-        visibleLimit={1}
+                <OutlineGroup
+                  emptyText="还没有卷大纲。先定义本卷目标、冲突、高潮和预计章节数。"
+                  icon={Layers3}
+                  outlines={groupedOutlines.volume}
+                  progressByOutlineId={progressByOutlineId}
+                  projectId={project.id}
+                  title="卷大纲"
+                  visibleLimit={1}
+                />
+                <OutlineGroup
+                  emptyText="还没有剧情单元大纲。可以把一段连续剧情拆成若干单元。"
+                  icon={Route}
+                  outlines={groupedOutlines.unit}
+                  progressByOutlineId={progressByOutlineId}
+                  projectId={project.id}
+                  title="剧情单元大纲"
+                  visibleLimit={1}
+                />
+                <OutlineGroup
+                  emptyText="还没有章节大纲。章节节拍生成会优先读取匹配章节号的大纲。"
+                  icon={FileText}
+                  outlines={groupedOutlines.chapter}
+                  progressByOutlineId={progressByOutlineId}
+                  projectId={project.id}
+                  title="章节大纲"
+                  visibleLimit={1}
+                />
+              </>
+            ),
+          },
+        ]}
       />
     </div>
   );

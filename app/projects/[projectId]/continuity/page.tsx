@@ -53,6 +53,8 @@ type ContinuityPageProps = {
   searchParams?: Promise<{
     fix?: string;
     patch?: string;
+    reportId?: string;
+    status?: string;
   }>;
 };
 
@@ -64,6 +66,8 @@ export default async function ContinuityPage({
   const resolvedSearchParams = await searchParams;
   const fixMessage = continuityFixMessage(resolvedSearchParams?.fix);
   const patchMessage = continuityPatchMessage(resolvedSearchParams?.patch);
+  const statusFilter =
+    resolvedSearchParams?.status === "resolved" ? "resolved" : "open";
 
   await expireStaleContinuityFixPatchTasks(projectId);
 
@@ -156,6 +160,13 @@ export default async function ContinuityPage({
   const hasActivePatchTask = project.aiTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
+  const filteredReports = project.continuityReports.filter(
+    (report) => report.status === statusFilter,
+  );
+  const selectedReport =
+    filteredReports.find(
+      (report) => report.id === resolvedSearchParams?.reportId,
+    ) ?? filteredReports[0];
 
   return (
     <div className="space-y-6">
@@ -251,9 +262,74 @@ export default async function ContinuityPage({
             打开已保存定稿正文的章节，在“连续性检查”面板中运行检查后，问题会汇总到这里。
           </p>
         </section>
+      ) : filteredReports.length === 0 ? (
+        <section className="rounded-lg border border-dashed border-ink-950/20 bg-white p-6 text-sm text-ink-700 shadow-panel">
+          当前筛选下没有报告。切换到
+          <Link
+            className="mx-1 font-semibold text-signal-600 hover:underline"
+            href={continuityReportHref(
+              project.id,
+              statusFilter === "open" ? "resolved" : "open",
+            )}
+          >
+            {statusFilter === "open" ? "已处理" : "待处理"}
+          </Link>
+          查看其他记录。
+        </section>
       ) : (
-        <section className="space-y-4">
-          {project.continuityReports.map((report) => {
+        <section className="nf-review-workspace">
+          <aside className="nf-review-list">
+            <div className="nf-review-filters" aria-label="连续性报告状态筛选">
+              <Link
+                className={statusFilter === "open" ? "is-active" : undefined}
+                href={continuityReportHref(project.id, "open")}
+              >
+                待处理 <span>{openCount}</span>
+              </Link>
+              <Link
+                className={
+                  statusFilter === "resolved" ? "is-active" : undefined
+                }
+                href={continuityReportHref(project.id, "resolved")}
+              >
+                已处理 <span>{resolvedCount}</span>
+              </Link>
+            </div>
+            <div className="nf-review-list-items">
+              {filteredReports.map((report) => (
+                <Link
+                  aria-current={
+                    selectedReport?.id === report.id ? "page" : undefined
+                  }
+                  className={
+                    selectedReport?.id === report.id ? "is-active" : undefined
+                  }
+                  href={continuityReportHref(
+                    project.id,
+                    statusFilter,
+                    report.id,
+                  )}
+                  key={report.id}
+                >
+                  <span>
+                    {continuitySeverityLabel(report.severity)} ·{" "}
+                    {continuityCategoryLabel(report.category)}
+                  </span>
+                  <strong>{report.title}</strong>
+                  <small>
+                    {report.chapter
+                      ? `第 ${report.chapter.chapterNumber} 章`
+                      : "整篇报告"}
+                    {" · "}
+                    {formatDate(report.createdAt)}
+                  </small>
+                </Link>
+              ))}
+            </div>
+          </aside>
+
+          <div className="nf-review-detail">
+          {selectedReport ? [selectedReport].map((report) => {
             const isWholeStoryReview =
               report.aiTask?.taskType === shortStoryWholeReviewTaskType;
             const isStale = Boolean(
@@ -451,7 +527,8 @@ export default async function ContinuityPage({
               ) : null}
               </article>
             );
-          })}
+          }) : null}
+          </div>
         </section>
       )}
     </div>
@@ -784,6 +861,22 @@ function continuityPatchAdoptionLabel(adoptionState?: string | null) {
   }
 
   return aiTaskAdoptionLabel(adoptionState);
+}
+
+function continuityReportHref(
+  projectId: string,
+  status: "open" | "resolved",
+  reportId?: string,
+) {
+  const query = new URLSearchParams({
+    status,
+  });
+
+  if (reportId) {
+    query.set("reportId", reportId);
+  }
+
+  return `/projects/${projectId}/continuity?${query.toString()}`;
 }
 
 function buildManualContinuityFixHref({

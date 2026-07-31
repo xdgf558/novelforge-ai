@@ -24,6 +24,7 @@ import {
   saveTtsGenerationSettingsAction,
 } from "@/app/ai-settings/actions";
 import { FormActionButton } from "@/components/form-action-button";
+import { WorkspaceTabs } from "@/components/workspace-tabs";
 import {
   readAiConnectionSettings,
   readAiTaskModelRouteSettings,
@@ -193,10 +194,20 @@ export default async function AiSettingsPage({
         <InfoTile icon={PackageCheck} label="当前版本" value={`v${appVersion}`} />
       </section>
 
-      <section
-        className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
-        id="writing-model-routes"
-      >
+      <WorkspaceTabs
+        ariaLabel="本机接入设置分区"
+        tabs={[
+          {
+            id: "writing-model-routes",
+            label: "写作模型",
+            meta: routeStatusText(
+              writingModelRouteSettings.routes.chapterPolish,
+            ),
+            content: (
+              <section
+                className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+                id="writing-model-routes-panel"
+              >
         <div className="mb-5 flex items-start gap-3">
           <Bot aria-hidden="true" className="mt-0.5 h-5 w-5 text-signal-600" />
           <div>
@@ -247,12 +258,19 @@ export default async function AiSettingsPage({
             />
           </div>
         </form>
-      </section>
+              </section>
+            ),
+          },
+          {
+            id: "tts-settings",
+            label: "有声输出",
+            meta: ttsSettings.hasApiKey ? "已配置" : "未配置",
+            content: (
 
-      <section
-        className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
-        id="tts-settings"
-      >
+              <section
+                className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+                id="tts-settings-panel"
+              >
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex items-center gap-2 text-base font-semibold text-ink-950">
@@ -547,9 +565,16 @@ export default async function AiSettingsPage({
             </div>
           </div>
         </form>
-      </section>
+              </section>
+            ),
+          },
+          {
+            id: "default-ai-connection",
+            label: "默认接入",
+            meta: settings.hasApiKey ? "已配置" : "未配置",
+            content: (
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+              <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
         <div className="mb-5 flex items-center gap-2 text-base font-semibold text-ink-950">
           <ShieldCheck aria-hidden="true" className="h-5 w-5 text-signal-600" />
           接入参数
@@ -658,9 +683,16 @@ export default async function AiSettingsPage({
             />
           </div>
         </form>
-      </section>
+              </section>
+            ),
+          },
+          {
+            id: "station-cat-publish",
+            label: "网站发布",
+            meta: stationCatSettings.hasToken ? "已配置" : "未配置",
+            content: (
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+              <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
         <div className="mb-5 flex items-center gap-2 text-base font-semibold text-ink-950">
           <Globe2 aria-hidden="true" className="h-5 w-5 text-signal-600" />
           个人网站发布参数
@@ -750,9 +782,17 @@ export default async function AiSettingsPage({
             />
           </div>
         </form>
-      </section>
+              </section>
+            ),
+          },
+          {
+            id: "local-data",
+            label: "数据与版本",
+            meta: `v${appVersion}`,
+            content: (
+              <>
 
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+                <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
         <div className="flex items-start gap-3">
           <Database aria-hidden="true" className="mt-0.5 h-5 w-5 text-signal-600" />
           <div>
@@ -868,7 +908,12 @@ export default async function AiSettingsPage({
             </ul>
           </div>
         </div>
-      </section>
+                </section>
+              </>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

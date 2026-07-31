@@ -14,8 +14,8 @@ export function CharacterSnapshot({ values }: CharacterSnapshotProps) {
   const statusLabel = characterStatusLabel(normalizedValues.status);
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
+    <div className="space-y-3">
+      <section className="nf-section-panel">
         <div>
           <h2 className="text-base font-semibold text-ink-950">角色基础</h2>
           <p className="mt-1 text-sm leading-6 text-ink-700">
@@ -23,46 +23,68 @@ export function CharacterSnapshot({ values }: CharacterSnapshotProps) {
           </p>
         </div>
 
-        <dl className="mt-5 grid gap-4 md:grid-cols-2">
+        <dl className="mt-4 grid gap-px overflow-hidden rounded-md border border-ink-950/10 bg-ink-950/10 md:grid-cols-2">
           <SnapshotItem label="角色姓名" value={normalizedValues.name} />
           <SnapshotItem label="角色状态" value={statusLabel} />
         </dl>
       </section>
 
-      {characterFieldGroups.map((group) => (
-        <section
-          className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+      {characterFieldGroups.map((group, index) => (
+        <details
+          className="nf-collapsible-snapshot"
           key={group.title}
+          open={index === 0}
         >
-          <div>
-            <h2 className="text-base font-semibold text-ink-950">
-              {group.title}
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-ink-700">
-              {group.description}
-            </p>
-          </div>
+          <summary>
+            <span>
+              <strong>{group.title}</strong>
+              <small>{group.description}</small>
+            </span>
+            <span className="nf-collapsible-snapshot-meta">
+              {
+                group.fields.filter((field) =>
+                  normalizedValues[field.name].trim(),
+                ).length
+              }
+              /{group.fields.length} 已填写
+            </span>
+          </summary>
 
-          <dl className="mt-5 grid gap-4 lg:grid-cols-2">
-            {group.fields.map((field) => (
-              <SnapshotItem
-                key={field.name}
-                label={field.label}
-                value={normalizedValues[field.name]}
-              />
-            ))}
-          </dl>
-        </section>
+          <div className="nf-collapsible-snapshot-body">
+            <dl className="grid gap-3 lg:grid-cols-2">
+              {group.fields.map((field) => (
+                <SnapshotItem
+                  bounded
+                  key={field.name}
+                  label={field.label}
+                  value={normalizedValues[field.name]}
+                />
+              ))}
+            </dl>
+          </div>
+        </details>
       ))}
     </div>
   );
 }
 
-function SnapshotItem({ label, value }: { label: string; value: string }) {
+function SnapshotItem({
+  bounded = false,
+  label,
+  value,
+}: {
+  bounded?: boolean;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="rounded-md bg-paper-50 p-4">
+    <div className="min-w-0 bg-paper-50 p-3">
       <dt className="text-sm font-medium text-ink-800">{label}</dt>
-      <dd className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink-700">
+      <dd
+        className={`mt-1.5 whitespace-pre-wrap text-sm leading-6 text-ink-700 ${
+          bounded ? "max-h-72 overflow-auto pr-1" : ""
+        }`}
+      >
         {value || "未填写"}
       </dd>
     </div>
