@@ -64,7 +64,7 @@ export function SeriesForm({
   subtitle,
 }: SeriesFormProps) {
   return (
-    <div className="space-y-6">
+    <div className="nf-page-stack">
       <header>
         <Link
           className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-ink-700 transition hover:text-signal-600"
@@ -110,39 +110,82 @@ export function SeriesForm({
             </select>
           </label>
 
-          {textFields.map((field) => (
-            <label
-              className="flex flex-col gap-2 md:col-span-2"
-              key={field.name}
-            >
-              <span className="text-sm font-medium text-ink-800">
-                {field.label}
-              </span>
-              <span className="text-xs leading-5 text-ink-700">
-                {field.description}
-              </span>
-              <textarea
-                className={`${inputClass} min-h-28 py-3 leading-6`}
-                defaultValue={
-                  series?.[field.name] ?? initialValues?.[field.name] ?? ""
-                }
-                name={field.name}
-                placeholder={field.placeholder}
-              />
-            </label>
-          ))}
         </section>
 
-        <div className="flex flex-wrap items-center gap-3">
+        {[
+          {
+            description: "系列承诺、共享世界与每篇故事的共同底座。",
+            fields: textFields.slice(0, 2),
+            title: "定位与世界",
+          },
+          {
+            description: "跨篇事实、常驻人物、组织与技术的稳定边界。",
+            fields: textFields.slice(2, 4),
+            title: "连续性",
+          },
+          {
+            description: "长期谜团和下一阶段的系列推进方向。",
+            fields: textFields.slice(4),
+            title: "长线规划",
+          },
+        ].map((group, index) => (
+          <details
+            className="nf-collapsible-snapshot"
+            key={group.title}
+            open={index === 0}
+          >
+            <summary>
+              <span>
+                <strong>{group.title}</strong>
+                <small>{group.description}</small>
+              </span>
+              <span className="nf-collapsible-snapshot-meta">
+                {
+                  group.fields.filter((field) =>
+                    (
+                      series?.[field.name] ??
+                      initialValues?.[field.name] ??
+                      ""
+                    ).trim(),
+                  ).length
+                }
+                /{group.fields.length} 已填写
+              </span>
+            </summary>
+            <div className="nf-collapsible-snapshot-body grid gap-4 lg:grid-cols-2">
+              {group.fields.map((field) => (
+                <label className="flex flex-col gap-2" key={field.name}>
+                  <span className="text-sm font-medium text-ink-800">
+                    {field.label}
+                  </span>
+                  <span className="text-xs leading-5 text-ink-700">
+                    {field.description}
+                  </span>
+                  <textarea
+                    className={`${inputClass} min-h-28 py-3 leading-6`}
+                    defaultValue={
+                      series?.[field.name] ?? initialValues?.[field.name] ?? ""
+                    }
+                    name={field.name}
+                    placeholder={field.placeholder}
+                  />
+                </label>
+              ))}
+            </div>
+          </details>
+        ))}
+
+        <div className="nf-setting-savebar">
+          <p>系列资料只约束跨篇连续性，不会自动改写单篇项目。</p>
           <button
-            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
             type="submit"
           >
             <Save aria-hidden="true" className="h-4 w-4" />
             {submitLabel}
           </button>
           <Link
-            className="inline-flex min-h-11 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            className="inline-flex min-h-10 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
             href={series ? `/series/${series.id}` : "/series"}
           >
             取消

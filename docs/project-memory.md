@@ -474,6 +474,12 @@ Recommended implementation order:
   recent activity over large decorative tiles. Chapter detail should keep the
   author oriented with direct jumps between beats, draft, polish, summary,
   memory review, and continuity review.
+- Route-level UI coverage is tracked in `docs/uiux-route-audit.md`. Multi-stage
+  tools should use workflow tabs, review queues should use master-detail
+  layouts, long snapshots should be bounded and collapsible, and related form
+  fields should share one grouped editing surface with a stable save action.
+  A compatibility color treatment is not sufficient for a new multi-stage
+  route; update the audit whenever a public `page.tsx` route is added.
 - Keep the first screen as the usable project dashboard. Do not turn it into a marketing landing page.
 - Custom story-specific SVG illustration components live in `components/story-illustrations.tsx` and can be reused for future empty states or dashboard panels.
 - `components/app-shell.tsx` loads serializable shell data;
@@ -481,8 +487,9 @@ Recommended implementation order:
   interactions; `components/app-shell-navigation.tsx` owns phase navigation;
   and `components/ai/ai-run-console.tsx` renders AI task visibility.
 - `app/globals.css` contains the shared `nf-*` token and layout system plus
-  restrained legacy overrides so older MVP pages stay visually aligned until
-  they receive dedicated component cleanup.
+  restrained compatibility overrides for single-purpose MVP surfaces. The
+  compatibility layer is a fallback, not the interaction model for
+  multi-stage pages.
 
 ## Next Phase
 

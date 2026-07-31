@@ -29,6 +29,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { AiBudgetNotice } from "@/components/ai/ai-budget-notice";
 import { ChapterSnapshot } from "@/components/chapters/chapter-snapshot";
 import { PreserveScrollForm } from "@/components/preserve-scroll-form";
+import { WorkspaceTabs } from "@/components/workspace-tabs";
 import { hasConfirmedChapterBeats } from "@/lib/ai/chapter-drafts";
 import { chapterPlatformTemplateOptions } from "@/lib/ai/chapter-platform-templates";
 import {
@@ -212,7 +213,7 @@ export default async function ChapterPage({
     }),
   ]);
   return (
-    <div className="nf-chapter-workspace space-y-6">
+    <div className="nf-chapter-workspace nf-page-stack">
       <AutoRefresh enabled={hasActiveAiTasks} />
 
       <Link
@@ -222,15 +223,6 @@ export default async function ChapterPage({
         <ArrowLeft aria-hidden="true" className="h-4 w-4" />
         返回{shortStoryProject ? "写作单元" : "章节"}列表
       </Link>
-
-      <nav className="nf-workflow-nav" aria-label="章节工作流">
-        <a href="#chapter-beats">节拍</a>
-        <a href="#chapter-draft">草稿</a>
-        <a href="#chapter-polish">精修</a>
-        <a href="#chapter-summary">摘要</a>
-        <a href="#chapter-updates">记忆更新</a>
-        <a href="#chapter-continuity">连续性</a>
-      </nav>
 
       <header className="rounded-lg border border-ink-950/10 bg-white p-6 shadow-panel">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -286,77 +278,149 @@ export default async function ChapterPage({
 
       <AiBudgetNotice projectId={chapter.project.id} />
 
-      {shortStoryProject ? null : (
-        <ChapterStorylinesPanel
-          projectId={chapter.project.id}
-          storylines={chapter.storylineChapters.map((item) => item.storyline)}
-        />
-      )}
-
-      <ChapterBeatAiPanel
-        chapterId={chapter.id}
-        currentChapterNumber={chapter.chapterNumber}
-        foreshadowReminders={foreshadowReminders}
-        hasApiKey={hasDefaultApiKey}
-        projectId={chapter.project.id}
-        tasks={beatTasks}
-        unitMode={shortStoryProject}
+      <WorkspaceTabs
+        ariaLabel={`${shortStoryProject ? "写作单元" : "章节"}工作流`}
+        tabs={[
+          {
+            id: "chapter-content",
+            label: "正文与资料",
+            meta: formatChapterWordCount(chapter.wordCount),
+            content: (
+              <>
+                {shortStoryProject ? null : (
+                  <ChapterStorylinesPanel
+                    projectId={chapter.project.id}
+                    storylines={chapter.storylineChapters.map(
+                      (item) => item.storyline,
+                    )}
+                  />
+                )}
+                <ChapterSnapshot
+                  values={chapter}
+                  workType={chapter.project.workType}
+                />
+              </>
+            ),
+          },
+          {
+            id: "chapter-beats",
+            label: "节拍",
+            meta: taskTabMeta(beatTasks),
+            content: (
+              <ChapterBeatAiPanel
+                chapterId={chapter.id}
+                currentChapterNumber={chapter.chapterNumber}
+                foreshadowReminders={foreshadowReminders}
+                hasApiKey={hasDefaultApiKey}
+                projectId={chapter.project.id}
+                tasks={beatTasks}
+                unitMode={shortStoryProject}
+              />
+            ),
+          },
+          {
+            id: "chapter-draft",
+            label: "草稿",
+            meta: taskTabMeta(draftTasks),
+            content: (
+              <ChapterDraftAiPanel
+                chapterId={chapter.id}
+                hasApiKey={hasDraftApiKey}
+                hasConfirmedBeats={hasConfirmedBeats}
+                projectId={chapter.project.id}
+                tasks={draftTasks}
+                unitMode={shortStoryProject}
+              />
+            ),
+          },
+          {
+            id: "chapter-polish",
+            label: "精修",
+            meta: taskTabMeta(polishTasks),
+            content: (
+              <ChapterPolishAiPanel
+                chapterId={chapter.id}
+                hasApiKey={hasPolishApiKey}
+                hasPolishableText={hasPolishableText}
+                polishError={polishError}
+                projectId={chapter.project.id}
+                tasks={polishTasks}
+                unitMode={shortStoryProject}
+              />
+            ),
+          },
+          {
+            id: "chapter-summary",
+            label: "摘要",
+            meta: taskTabMeta(summaryTasks),
+            content: (
+              <ChapterSummaryAiPanel
+                chapterId={chapter.id}
+                finalText={chapter.finalText}
+                hasApiKey={hasDefaultApiKey}
+                hasConfirmedText={hasConfirmedText}
+                projectId={chapter.project.id}
+                tasks={summaryTasks}
+                unitMode={shortStoryProject}
+              />
+            ),
+          },
+          {
+            id: "chapter-updates",
+            label: "记忆更新",
+            meta:
+              pendingUpdateReviewCount > 0
+                ? `${pendingUpdateReviewCount} 待审`
+                : taskTabMeta(pendingUpdateTasks),
+            content: (
+              <ChapterPendingUpdatePanel
+                chapterId={chapter.id}
+                finalText={chapter.finalText}
+                hasApiKey={hasDefaultApiKey}
+                hasConfirmedText={hasConfirmedText}
+                pendingUpdateCount={pendingUpdateReviewCount}
+                projectId={chapter.project.id}
+                tasks={pendingUpdateTasks}
+                unitMode={shortStoryProject}
+              />
+            ),
+          },
+          {
+            id: "chapter-continuity",
+            label: "连续性",
+            meta:
+              chapter._count.continuityReports > 0
+                ? `${chapter._count.continuityReports} 条`
+                : taskTabMeta(continuityTasks),
+            content: (
+              <ChapterContinuityPanel
+                chapterId={chapter.id}
+                continuityReportCount={chapter._count.continuityReports}
+                finalText={chapter.finalText}
+                hasApiKey={hasDefaultApiKey}
+                hasConfirmedText={hasConfirmedText}
+                projectId={chapter.project.id}
+                tasks={continuityTasks}
+                unitMode={shortStoryProject}
+              />
+            ),
+          },
+        ]}
       />
-
-      <ChapterDraftAiPanel
-        chapterId={chapter.id}
-        hasApiKey={hasDraftApiKey}
-        hasConfirmedBeats={hasConfirmedBeats}
-        projectId={chapter.project.id}
-        tasks={draftTasks}
-        unitMode={shortStoryProject}
-      />
-
-      <ChapterPolishAiPanel
-        chapterId={chapter.id}
-        hasApiKey={hasPolishApiKey}
-        hasPolishableText={hasPolishableText}
-        polishError={polishError}
-        projectId={chapter.project.id}
-        tasks={polishTasks}
-        unitMode={shortStoryProject}
-      />
-
-      <ChapterSummaryAiPanel
-        chapterId={chapter.id}
-        finalText={chapter.finalText}
-        hasApiKey={hasDefaultApiKey}
-        hasConfirmedText={hasConfirmedText}
-        projectId={chapter.project.id}
-        tasks={summaryTasks}
-        unitMode={shortStoryProject}
-      />
-
-      <ChapterPendingUpdatePanel
-        chapterId={chapter.id}
-        finalText={chapter.finalText}
-        hasApiKey={hasDefaultApiKey}
-        hasConfirmedText={hasConfirmedText}
-        pendingUpdateCount={pendingUpdateReviewCount}
-        projectId={chapter.project.id}
-        tasks={pendingUpdateTasks}
-        unitMode={shortStoryProject}
-      />
-
-      <ChapterContinuityPanel
-        chapterId={chapter.id}
-        continuityReportCount={chapter._count.continuityReports}
-        finalText={chapter.finalText}
-        hasApiKey={hasDefaultApiKey}
-        hasConfirmedText={hasConfirmedText}
-        projectId={chapter.project.id}
-        tasks={continuityTasks}
-        unitMode={shortStoryProject}
-      />
-
-      <ChapterSnapshot values={chapter} workType={chapter.project.workType} />
     </div>
   );
+}
+
+function taskTabMeta(tasks: readonly ChapterAiTask[]) {
+  if (tasks.some((task) => isActiveAiTaskStatus(task.status))) {
+    return "运行中";
+  }
+
+  if (tasks.length === 0) {
+    return "未生成";
+  }
+
+  return `${tasks.length} 次`;
 }
 
 function ChapterStorylinesPanel({

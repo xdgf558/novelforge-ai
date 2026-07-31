@@ -30,6 +30,10 @@ import {
   getLocalBackupRoot,
   localBackupFingerprint,
 } from "@/lib/local-backups";
+import {
+  aiSettingsTabIds,
+  buildAiSettingsHref,
+} from "@/lib/ai-settings-navigation";
 import { resetServerFetchProxyDispatcher } from "@/lib/server-fetch";
 
 const execFileAsync = promisify(execFile);
@@ -49,12 +53,18 @@ export async function saveAiConnectionSettingsAction(formData: FormData) {
   } catch {
     revalidatePath("/ai-settings");
     revalidatePath("/");
-    redirect("/ai-settings?saved=ai-error");
+    redirect(
+      buildAiSettingsHref(aiSettingsTabIds.defaultConnection, {
+        saved: "ai-error",
+      }),
+    );
   }
 
   revalidatePath("/ai-settings");
   revalidatePath("/");
-  redirect("/ai-settings?saved=ai");
+  redirect(
+    buildAiSettingsHref(aiSettingsTabIds.defaultConnection, { saved: "ai" }),
+  );
 }
 
 export async function saveAiTaskModelRouteSettingsAction(formData: FormData) {
@@ -74,12 +84,20 @@ export async function saveAiTaskModelRouteSettingsAction(formData: FormData) {
   } catch {
     revalidatePath("/ai-settings");
     revalidatePath("/");
-    redirect("/ai-settings?saved=ai-route-error#writing-model-routes");
+    redirect(
+      buildAiSettingsHref(aiSettingsTabIds.writingModelRoutes, {
+        saved: "ai-route-error",
+      }),
+    );
   }
 
   revalidatePath("/ai-settings");
   revalidatePath("/");
-  redirect("/ai-settings?saved=ai-route#writing-model-routes");
+  redirect(
+    buildAiSettingsHref(aiSettingsTabIds.writingModelRoutes, {
+      saved: "ai-route",
+    }),
+  );
 }
 
 export async function saveStationCatPublishSettingsAction(formData: FormData) {
@@ -92,7 +110,11 @@ export async function saveStationCatPublishSettingsAction(formData: FormData) {
 
   revalidatePath("/ai-settings");
   revalidatePath("/");
-  redirect("/ai-settings?saved=station-cat");
+  redirect(
+    buildAiSettingsHref(aiSettingsTabIds.stationCatPublish, {
+      saved: "station-cat",
+    }),
+  );
 }
 
 export async function saveTtsGenerationSettingsAction(formData: FormData) {
@@ -112,7 +134,9 @@ export async function saveTtsGenerationSettingsAction(formData: FormData) {
   } catch {
     revalidatePath("/ai-settings");
     revalidatePath("/");
-    redirect("/ai-settings?saved=tts-error");
+    redirect(
+      buildAiSettingsHref(aiSettingsTabIds.tts, { saved: "tts-error" }),
+    );
   }
 
   revalidatePath("/ai-settings");
@@ -121,7 +145,7 @@ export async function saveTtsGenerationSettingsAction(formData: FormData) {
     formData.get("ttsSettingsAction")?.toString() === "save-voice"
       ? "tts-voice"
       : "tts";
-  redirect(`/ai-settings?saved=${savedCode}`);
+  redirect(buildAiSettingsHref(aiSettingsTabIds.tts, { saved: savedCode }));
 }
 
 export async function previewTtsVoiceAction(formData: FormData) {
@@ -148,9 +172,10 @@ export async function previewTtsVoiceAction(formData: FormData) {
 
   if (previewPath) {
     redirect(
-      `/ai-settings?saved=tts-preview&ttsPreviewPath=${encodeURIComponent(
-        previewPath,
-      )}`,
+      buildAiSettingsHref(aiSettingsTabIds.tts, {
+        saved: "tts-preview",
+        ttsPreviewPath: previewPath,
+      }),
     );
   }
 
@@ -162,7 +187,12 @@ export async function previewTtsVoiceAction(formData: FormData) {
     params.set("ttsError", errorMessage);
   }
 
-  redirect(`/ai-settings?${params.toString()}`);
+  redirect(
+    buildAiSettingsHref(
+      aiSettingsTabIds.tts,
+      Object.fromEntries(params.entries()),
+    ),
+  );
 }
 
 export async function createLocalBackupAction() {

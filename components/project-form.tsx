@@ -37,7 +37,7 @@ export function ProjectForm({
   const isShortStory = workType === "short_story";
 
   return (
-    <div className="space-y-6">
+    <div className="nf-page-stack">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link
@@ -252,16 +252,19 @@ export function ProjectForm({
           </label>
         </section>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="nf-setting-savebar">
+          <p>
+            项目类型创建后不可切换；其他基础信息可随时回来调整。
+          </p>
           <button
-            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
             type="submit"
           >
             <Save aria-hidden="true" className="h-4 w-4" />
             {submitLabel}
           </button>
           <Link
-            className="inline-flex min-h-11 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            className="inline-flex min-h-10 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
             href={project ? `/projects/${project.id}` : "/"}
           >
             取消

@@ -100,21 +100,25 @@ export function CharacterForm({
           </label>
         </section>
 
-        {characterFieldGroups.map((group) => (
-          <section
-            className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+        {characterFieldGroups.map((group, index) => (
+          <details
+            className="nf-collapsible-snapshot"
             key={group.title}
+            open={index === 0}
           >
-            <div>
-              <h2 className="text-base font-semibold text-ink-950">
-                {group.title}
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-ink-700">
-                {group.description}
-              </p>
-            </div>
+            <summary>
+              <span>
+                <strong>{group.title}</strong>
+                <small>{group.description}</small>
+              </span>
+              <span className="nf-collapsible-snapshot-meta">
+                {group.fields.filter((field) => values[field.name].trim())
+                  .length}
+                /{group.fields.length} 已填写
+              </span>
+            </summary>
 
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div className="nf-collapsible-snapshot-body grid gap-4 lg:grid-cols-2">
               {group.fields.map((field) => (
                 <label className="flex flex-col gap-2" key={field.name}>
                   <span className={labelClass}>{field.label}</span>
@@ -128,30 +132,28 @@ export function CharacterForm({
                 </label>
               ))}
             </div>
-          </section>
+          </details>
         ))}
 
-        <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
-          <label className="flex flex-col gap-2">
+        <div className="nf-setting-savebar">
+          <label className="min-w-60 flex-1">
             <span className={labelClass}>修改原因</span>
-            <textarea
-              className={`${inputClass} min-h-24 py-3 leading-6`}
+            <input
+              className={`${inputClass} mt-1.5 min-h-10 w-full`}
               name="changeReason"
               placeholder="例如：初始角色档案、补全信息边界、调整人物弧光"
             />
           </label>
-        </section>
 
-        <div className="flex flex-wrap items-center gap-3">
           <button
-            className="inline-flex min-h-11 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
             type="submit"
           >
             <Save aria-hidden="true" className="h-4 w-4" />
             {submitLabel}
           </button>
           <Link
-            className="inline-flex min-h-11 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+            className="inline-flex min-h-10 items-center rounded-md border border-ink-950/15 bg-white px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
             href={
               character
                 ? `/projects/${project.id}/characters/${character.id}`

@@ -41,8 +41,8 @@ const mocks = vi.hoisted(() => {
       pendingUpdate: {
         findFirst: vi.fn(),
       },
-      $transaction: vi.fn(
-        async (callback: (client: typeof tx) => unknown) => callback(tx),
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) =>
+        callback(tx),
       ),
     },
     tx,
@@ -154,6 +154,23 @@ describe("pending update approval", () => {
       }),
     });
     expect(mocks.tx.foreshadow.create).not.toHaveBeenCalled();
+  });
+
+  it("returns to the active review filter and page after approval", async () => {
+    mocks.prisma.pendingUpdate.findFirst.mockResolvedValue(
+      pendingForeshadowUpdate(),
+    );
+    const formData = new FormData();
+    formData.set("proposedContent", "确认旧印来自内库。");
+    formData.set("returnStatus", "pending");
+    formData.set("returnPage", "3");
+    formData.set("returnUpdateId", "update_1");
+
+    await approvePendingUpdate("project_1", "update_1", formData);
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/pending-updates?review=approved&status=pending&page=3&updateId=update_1",
+    );
   });
 
   it("does not apply a suggestion generated from an older final text", async () => {

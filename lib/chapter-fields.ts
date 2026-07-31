@@ -61,6 +61,7 @@ type ChapterTextField = {
 };
 
 type ChapterFieldGroup = {
+  id: "goals" | "content" | "notes";
   title: string;
   description: string;
   fields: readonly ChapterTextField[];
@@ -87,13 +88,15 @@ export const chapterStatusOptions = [
 
 export const chapterFieldGroups: readonly ChapterFieldGroup[] = [
   {
+    id: "goals",
     title: "章节目标",
     description: "记录这一章要完成的剧情功能，后续 AI 节拍生成会优先参考这里。",
     fields: [
       {
         name: "goal",
         label: "章节目标",
-        placeholder: "例如：主角第一次意识到借命契约不是偶然，而是有人故意安排。",
+        placeholder:
+          "例如：主角第一次意识到借命契约不是偶然，而是有人故意安排。",
         rows: 4,
       },
       {
@@ -105,8 +108,10 @@ export const chapterFieldGroups: readonly ChapterFieldGroup[] = [
     ],
   },
   {
+    id: "content",
     title: "正文内容",
-    description: "草稿、精修稿和定稿分层保存，AI 产物必须由作者采用后才进入对应正文槽。",
+    description:
+      "草稿、精修稿和定稿分层保存，AI 产物必须由作者采用后才进入对应正文槽。",
     fields: [
       {
         name: "draftText",
@@ -117,25 +122,29 @@ export const chapterFieldGroups: readonly ChapterFieldGroup[] = [
       {
         name: "polishedText",
         label: "精修正文",
-        placeholder: "这里保存 AI 精修或作者修订后的正文候选。确认后可一键写入定稿正文。",
+        placeholder:
+          "这里保存 AI 精修或作者修订后的正文候选。确认后可一键写入定稿正文。",
         rows: 14,
       },
       {
         name: "finalText",
         label: "定稿正文",
-        placeholder: "确认后的正式正文。后续章节摘要、更新提取和连续性检查会以定稿为准。",
+        placeholder:
+          "确认后的正式正文。后续章节摘要、更新提取和连续性检查会以定稿为准。",
         rows: 14,
       },
     ],
   },
   {
+    id: "notes",
     title: "作者备注",
     description: "保存这一章的临时提醒、修订计划和后续伏笔注意事项。",
     fields: [
       {
         name: "notes",
         label: "备注",
-        placeholder: "例如：这一章结尾要留一个未解释的短信来源，后续第 5 章回收。",
+        placeholder:
+          "例如：这一章结尾要留一个未解释的短信来源，后续第 5 章回收。",
         rows: 5,
       },
     ],
@@ -169,10 +178,9 @@ export const shortStoryUnitPlanFields: readonly ChapterTextField[] = [
   },
 ] as const;
 
-export const chapterTextFields: readonly ChapterTextField[] =
-  chapterFieldGroups
-    .flatMap((group) => group.fields)
-    .concat(shortStoryUnitPlanFields);
+export const chapterTextFields: readonly ChapterTextField[] = chapterFieldGroups
+  .flatMap((group) => group.fields)
+  .concat(shortStoryUnitPlanFields);
 
 export function chapterStatusLabel(status?: string | null) {
   return (
@@ -223,7 +231,9 @@ export function emptyChapterValues(): ChapterValues {
   };
 }
 
-export function chapterValuesFromRecord(record?: ChapterRecord | null): ChapterValues {
+export function chapterValuesFromRecord(
+  record?: ChapterRecord | null,
+): ChapterValues {
   const values = emptyChapterValues();
 
   if (!record) {

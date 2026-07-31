@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-07-31: Full-Route Writing Workspace Completion
+
+Status: completed.
+
+What was done:
+
+- Audited all 42 public page routes after the initial workbench redesign and
+  documented their interaction pattern in `docs/uiux-route-audit.md`.
+- Replaced the long-form and short-story dashboard card walls with phase-based
+  `准备`, `写作`, `审校`, and `发布` module indexes.
+- Rebuilt chapter detail as a seven-stage workspace for confirmed content,
+  beats, draft, polish, summary, memory updates, and continuity review.
+- Rebuilt the formal setting editor around a five-section navigation rail and
+  sticky version-save bar. Chapter, character, project, series, and history
+  forms now use grouped or collapsible sections instead of one unbounded form.
+- Changed pending updates and continuity reports to master-detail review
+  workspaces so large projects no longer render every full record at once.
+- Split outline planning, AI task history, and global AI settings into
+  task-focused tabs. Long chapter, character, and setting snapshots are now
+  bounded and collapsible.
+- Added shared route primitives for workflow tabs, review queues, compact
+  module rows, setting navigation, and responsive mobile behavior.
+
+Verification:
+
+- `npm test` passed: 116 files and 685 tests.
+- `npm run typecheck` and `npm run build` passed.
+- Desktop browser checks covered the project dashboard, formal settings,
+  chapter detail, pending updates, and global AI settings.
+- Mobile checks at 390x844 confirmed zero page-level horizontal overflow for
+  the project dashboard, formal settings, and pending-update review workspace.
+
 ## 2026-07-30: 0.1.110 Notarized Writing Workbench Installer
 
 Status: completed.
@@ -6394,3 +6426,51 @@ Verification:
 - Expanded app `CFBundleShortVersionString` and `CFBundleVersion` are `0.1.1`.
 - Packaged `package.json` is `0.1.1`.
 - Packaged startup code still uses `runDesktopMigrations`, reads bundled `migration.sql`, and does not contain Prisma CLI `migrate deploy` startup code.
+
+## 2026-07-31: UI/UX Workspace Completion Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Removed duplicate tab panel IDs from the local integration settings page.
+- Restored the chapter change reason field as a multiline textarea and gave chapter field groups stable IDs.
+- Kept pending-update filters available for empty filtered results, clamped out-of-range pages, preserved review context after approval or rejection, and rendered disabled pagination controls as non-focusable text.
+- Changed the continuity queue to server-side status filtering and pagination. List queries no longer load every chapter final text; only the selected report loads its source chapter text for stale-source checks and repair actions.
+- Stabilized workspace tab hash listeners and restored deep-link scrolling after a tab mounts.
+- Raised compact workspace metadata to a 10px minimum, centralized sticky offsets in CSS variables, and narrowed legacy padding selectors to exact class tokens.
+- Reformatted the AI settings and AI task pages so the new tab content hierarchy remains maintainable.
+
+Notes:
+
+- `WorkspaceTabs` remains a presentation component: inactive content is not mounted in the DOM, but its server-rendered React payload is still produced. This phase targets scanability and client DOM size; route-level lazy loading is a separate performance change.
+
+Verification:
+
+- `npm run typecheck` passed.
+- `npm test` passed: 116 files and 686 tests, including review context preservation.
+- `npm run build` passed.
+- Local browser checks passed for duplicate IDs, empty filtered review queues, out-of-range pages, chapter deep links, multiline change reasons, and horizontal overflow at 1272px and 390px widths.
+- `npm run responsive:smoke` could not start Electron in the current environment (`SIGABRT`); browser-based responsive checks were used for this review round.
+
+## 2026-07-31: UI/UX Workspace Completion Second Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Preserved the continuity review queue context across report actions. Resolve, reopen, one-click repair, patch generation, and patch adoption now retain the current filter, page, and selected report; moving a report between open and resolved queues keeps its detail visible.
+- Added stable hash aliases to workspace tabs so nested deep links such as `#quick-create-outlines`, `#local-backups`, and `#app-version` activate their owning tab before scrolling to the requested section.
+- Added stable AI settings tab redirects. Saving the default model, writing model routes, Station Cat publishing, or TTS settings now returns to the originating tab with the result message intact.
+- Restored the native `hidden` behavior for the settings save bar so collapsed or inactive save controls are not forced visible by workspace CSS.
+- Added focused navigation tests for workspace hash aliases, AI settings redirects, continuity review return state, and report state transitions.
+
+Verification:
+
+- Targeted navigation and continuity action tests passed.
+- `npm run typecheck` passed.
+- `npm test` passed: 119 files and 695 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke`, `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+- Browser checks passed at desktop and 390px mobile widths for nested deep links, settings-tab return state, hidden save bars, continuity return fields, and horizontal overflow.
+- `npm run responsive:smoke` still exits while starting Electron with `SIGABRT` in the current environment; equivalent responsive interactions were verified in the browser.

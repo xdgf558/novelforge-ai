@@ -35,32 +35,30 @@ const pendingUpdateTemplateKey = "pending_update_extraction";
 
 const reviewSchema = z.object({
   proposedContent: z.string().trim().min(1).max(12000),
-  resolutionNote: z
-    .preprocess(
-      (value) =>
-        value == null || (typeof value === "string" && value.trim() === "")
-          ? undefined
-          : value,
-      z.string().trim().max(1000).optional(),
-    ),
-  createMissingCharacter: z.preprocess(
-    (value) => value === "1",
-    z.boolean(),
+  resolutionNote: z.preprocess(
+    (value) =>
+      value == null || (typeof value === "string" && value.trim() === "")
+        ? undefined
+        : value,
+    z.string().trim().max(1000).optional(),
   ),
+  createMissingCharacter: z.preprocess((value) => value === "1", z.boolean()),
 });
 
 const rejectionSchema = z.object({
-  resolutionNote: z
-    .preprocess(
-      (value) =>
-        value == null || (typeof value === "string" && value.trim() === "")
-          ? undefined
-          : value,
-      z.string().trim().max(1000).optional(),
-    ),
+  resolutionNote: z.preprocess(
+    (value) =>
+      value == null || (typeof value === "string" && value.trim() === "")
+        ? undefined
+        : value,
+    z.string().trim().max(1000).optional(),
+  ),
 });
 
-export async function generatePendingUpdates(projectId: string, chapterId: string) {
+export async function generatePendingUpdates(
+  projectId: string,
+  chapterId: string,
+) {
   const activeTask = await findActivePendingUpdateTask(projectId, chapterId);
 
   if (activeTask) {
@@ -195,7 +193,7 @@ export async function approvePendingUpdate(
     )
   ) {
     revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
-    redirect(`/projects/${projectId}/pending-updates?review=stale-source`);
+    redirect(pendingUpdateReviewRedirect(projectId, "stale-source", formData));
   }
 
   const approveAsNewCharacter =
@@ -240,7 +238,7 @@ export async function approvePendingUpdate(
     if (error instanceof PendingUpdateTargetNotFoundError) {
       revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
       redirect(
-        `/projects/${projectId}/pending-updates?review=target-not-found`,
+        pendingUpdateReviewRedirect(projectId, "target-not-found", formData),
       );
     }
 
@@ -248,7 +246,7 @@ export async function approvePendingUpdate(
   }
 
   revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
-  redirect(`/projects/${projectId}/pending-updates?review=approved`);
+  redirect(pendingUpdateReviewRedirect(projectId, "approved", formData));
 }
 
 export async function rejectPendingUpdate(
@@ -284,7 +282,7 @@ export async function rejectPendingUpdate(
   });
 
   revalidatePendingUpdatePaths(projectId, pendingUpdate.chapterId);
-  redirect(`/projects/${projectId}/pending-updates?review=rejected`);
+  redirect(pendingUpdateReviewRedirect(projectId, "rejected", formData));
 }
 
 export async function approveAutomaticForeshadowRecoveryBatch(
@@ -299,6 +297,35 @@ export async function approveAutomaticForeshadowRecoveryBatch(
   redirect(
     `/projects/${projectId}/pending-updates?review=auto-recovery-approved&approved=${result.approvedCount}&skipped=${result.skippedCount}`,
   );
+}
+
+function pendingUpdateReviewRedirect(
+  projectId: string,
+  review: string,
+  formData: FormData,
+) {
+  const query = new URLSearchParams({ review });
+  const returnStatus = formData.get("returnStatus");
+  const returnPage = formData.get("returnPage");
+  const returnUpdateId = formData.get("returnUpdateId");
+
+  if (
+    returnStatus === "pending" ||
+    returnStatus === "approved" ||
+    returnStatus === "rejected"
+  ) {
+    query.set("status", returnStatus);
+  }
+
+  if (typeof returnPage === "string" && /^\d+$/.test(returnPage)) {
+    query.set("page", returnPage);
+  }
+
+  if (typeof returnUpdateId === "string" && returnUpdateId.trim()) {
+    query.set("updateId", returnUpdateId);
+  }
+
+  return `/projects/${projectId}/pending-updates?${query.toString()}`;
 }
 
 async function loadPendingUpdateContext(projectId: string, chapterId: string) {
@@ -420,7 +447,10 @@ function pickPendingUpdateChapterContext(chapter: PendingUpdateChapterContext) {
   };
 }
 
-async function findActivePendingUpdateTask(projectId: string, chapterId: string) {
+async function findActivePendingUpdateTask(
+  projectId: string,
+  chapterId: string,
+) {
   return prisma.aiTask.findFirst({
     where: {
       projectId,

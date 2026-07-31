@@ -40,6 +40,10 @@ import {
   getContinuityReplacements,
   parseContinuityReplacementFix,
 } from "@/lib/continuity-fixes";
+import {
+  buildContinuityReviewHref,
+  type ContinuityReviewStatus,
+} from "@/lib/continuity/review-navigation";
 import { formatDate, formatNumber } from "@/lib/format";
 import { chapterSourceMatches } from "@/lib/chapters/source-text";
 import { prisma } from "@/lib/prisma";
@@ -52,7 +56,10 @@ type ContinuityPageProps = {
   }>;
   searchParams?: Promise<{
     fix?: string;
+    page?: string;
     patch?: string;
+    reportId?: string;
+    status?: string;
   }>;
 };
 
@@ -64,6 +71,10 @@ export default async function ContinuityPage({
   const resolvedSearchParams = await searchParams;
   const fixMessage = continuityFixMessage(resolvedSearchParams?.fix);
   const patchMessage = continuityPatchMessage(resolvedSearchParams?.patch);
+  const statusFilter =
+    resolvedSearchParams?.status === "resolved" ? "resolved" : "open";
+  const requestedPage = positiveInt(resolvedSearchParams?.page);
+  const pageSize = 30;
 
   await expireStaleContinuityFixPatchTasks(projectId);
 
@@ -71,8 +82,83 @@ export default async function ContinuityPage({
     where: {
       id: projectId,
     },
+    select: {
+      id: true,
+      title: true,
+    },
+  });
+
+  if (!project) {
+    notFound();
+  }
+
+  const [openCount, resolvedCount, highRiskCount, filteredCount, patchTasks] =
+    await Promise.all([
+      prisma.continuityReport.count({ where: { projectId, status: "open" } }),
+      prisma.continuityReport.count({
+        where: { projectId, status: "resolved" },
+      }),
+      prisma.continuityReport.count({
+        where: { projectId, severity: { in: ["high", "critical"] } },
+      }),
+      prisma.continuityReport.count({
+        where: { projectId, status: statusFilter },
+      }),
+      prisma.aiTask.findMany({
+        where: {
+          projectId,
+          taskType: continuityFixPatchTaskType,
+        },
+        include: {
+          promptTemplate: {
+            select: {
+              name: true,
+              version: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      }),
+    ]);
+  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
+  const page = Math.min(requestedPage, totalPages);
+  const reports = await prisma.continuityReport.findMany({
+    where: {
+      projectId,
+      status: statusFilter,
+    },
     include: {
-      continuityReports: {
+      chapter: {
+        select: {
+          id: true,
+          chapterNumber: true,
+          title: true,
+        },
+      },
+      aiTask: {
+        select: {
+          id: true,
+          model: true,
+          inputContextSummary: true,
+          taskType: true,
+          createdAt: true,
+        },
+      },
+    },
+    orderBy: [{ severity: "desc" }, { createdAt: "desc" }],
+    skip: (page - 1) * pageSize,
+    take: pageSize,
+  });
+  const requestedReportId = resolvedSearchParams?.reportId?.trim();
+  const selectedReportId = requestedReportId || reports[0]?.id;
+  let selectedReport = selectedReportId
+    ? await prisma.continuityReport.findFirst({
+        where: {
+          id: selectedReportId,
+          projectId,
+          status: statusFilter,
+        },
         include: {
           chapter: {
             select: {
@@ -92,56 +178,44 @@ export default async function ContinuityPage({
             },
           },
         },
-        orderBy: [
-          {
-            status: "asc",
-          },
-          {
-            severity: "desc",
-          },
-          {
-            createdAt: "desc",
-          },
-        ],
-      },
-      aiTasks: {
-        where: {
-          taskType: continuityFixPatchTaskType,
-        },
-        include: {
-          promptTemplate: {
-            select: {
-              name: true,
-              version: true,
-            },
-          },
-        },
-        orderBy: [
-          {
-            createdAt: "desc",
-          },
-        ],
-        take: 100,
-      },
-    },
-  });
+      })
+    : null;
 
-  if (!project) {
-    notFound();
+  if (
+    !selectedReport &&
+    reports[0] &&
+    selectedReportId !== reports[0].id
+  ) {
+    selectedReport = await prisma.continuityReport.findFirst({
+      where: {
+        id: reports[0].id,
+        projectId,
+        status: statusFilter,
+      },
+      include: {
+        chapter: {
+          select: {
+            id: true,
+            chapterNumber: true,
+            title: true,
+            finalText: true,
+          },
+        },
+        aiTask: {
+          select: {
+            id: true,
+            model: true,
+            inputContextSummary: true,
+            taskType: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
   }
+  const patchTasksByReportId = new Map<string, typeof patchTasks>();
 
-  const openCount = project.continuityReports.filter(
-    (report) => report.status === "open",
-  ).length;
-  const resolvedCount = project.continuityReports.filter(
-    (report) => report.status === "resolved",
-  ).length;
-  const highRiskCount = project.continuityReports.filter((report) =>
-    ["high", "critical"].includes(report.severity),
-  ).length;
-  const patchTasksByReportId = new Map<string, typeof project.aiTasks>();
-
-  project.aiTasks.forEach((task) => {
+  patchTasks.forEach((task) => {
     const reportId = readContinuityFixPatchReportId(task.inputJson);
 
     if (!reportId) {
@@ -153,9 +227,10 @@ export default async function ContinuityPage({
     patchTasksByReportId.set(reportId, tasks);
   });
 
-  const hasActivePatchTask = project.aiTasks.some((task) =>
+  const hasActivePatchTask = patchTasks.some((task) =>
     isActiveAiTaskStatus(task.status),
   );
+  const totalCount = openCount + resolvedCount;
 
   return (
     <div className="space-y-6">
@@ -182,7 +257,8 @@ export default async function ContinuityPage({
               连续性检查报告
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-700">
-              AI 只生成风险报告和修复建议，不会自动修改正式设定、角色、时间线、伏笔或章节正文。处理结果由作者确认。
+              AI
+              只生成风险报告和修复建议，不会自动修改正式设定、角色、时间线、伏笔或章节正文。处理结果由作者确认。
             </p>
           </div>
         </div>
@@ -242,7 +318,7 @@ export default async function ContinuityPage({
         </section>
       ) : null}
 
-      {project.continuityReports.length === 0 ? (
+      {totalCount === 0 ? (
         <section className="rounded-lg border border-dashed border-ink-950/20 bg-white p-8 text-sm text-ink-700 shadow-panel">
           <h2 className="text-base font-semibold text-ink-950">
             还没有连续性报告
@@ -252,206 +328,363 @@ export default async function ContinuityPage({
           </p>
         </section>
       ) : (
-        <section className="space-y-4">
-          {project.continuityReports.map((report) => {
-            const isWholeStoryReview =
-              report.aiTask?.taskType === shortStoryWholeReviewTaskType;
-            const isStale = Boolean(
-              report.sourceTextHash &&
-                !chapterSourceMatches(
-                  report.sourceTextHash,
-                  report.chapter?.finalText,
-                ),
-            );
-            const replacementFix = isWholeStoryReview
-              ? null
-              : parseContinuityReplacementFix(report.suggestedFix, {
-                  description: report.description,
-                  evidence: report.evidence,
-                });
-            const manualFixHref = report.chapter
-              ? buildManualContinuityFixHref({
-                  chapterId: report.chapter.id,
-                  projectId: project.id,
-                  replacementText: replacementFix
-                    ? getContinuityReplacements(replacementFix)[0]?.from
-                    : null,
-                  fallbackText:
-                    report.evidence ?? report.suggestedFix ?? report.description,
-                })
-              : null;
-
-            return (
-              <article
-                id={`report-${report.id}`}
-                className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
-                key={report.id}
+        <section className="nf-review-workspace">
+          <aside className="nf-review-list">
+            <div className="nf-review-filters" aria-label="连续性报告状态筛选">
+              <Link
+                className={statusFilter === "open" ? "is-active" : undefined}
+                href={continuityReportHref(project.id, "open")}
               >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
-                    <span className="rounded-md bg-paper-100 px-2.5 py-1">
-                      {continuityStatusLabel(report.status)}
-                    </span>
-                    <span
-                      className={`rounded-md px-2.5 py-1 ${
-                        report.severity === "critical" ||
-                        report.severity === "high"
-                          ? "bg-red-50 text-red-700"
-                          : "bg-paper-100 text-ink-700"
-                      }`}
-                    >
-                      {continuitySeverityLabel(report.severity)}
-                    </span>
-                    <span className="rounded-md bg-paper-100 px-2.5 py-1">
-                      {continuityCategoryLabel(report.category)}
-                    </span>
-                    {isStale ? (
-                      <span className="rounded-md bg-red-50 px-2.5 py-1 text-red-700">
-                        来源已过期
-                      </span>
-                    ) : null}
-                    <span>{formatDate(report.createdAt)}</span>
-                  </div>
-                  <h2 className="mt-3 text-lg font-semibold text-ink-950">
-                    {report.title}
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-ink-700">
-                    {report.description}
-                  </p>
-                  {report.chapter ? (
-                    <Link
-                      className="mt-3 inline-flex text-sm font-semibold text-signal-600 hover:underline"
-                      href={`/projects/${project.id}/chapters/${report.chapter.id}`}
-                    >
-                      第 {formatNumber(report.chapter.chapterNumber)} 章《
-                      {report.chapter.title}》
-                    </Link>
-                  ) : null}
-                </div>
-
-                {report.status === "open" ? (
-                  <div className="min-w-72 space-y-3">
-                    {isStale ? (
-                      <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
-                        章节定稿已在本报告生成后修改。请重新运行连续性检查；旧报告不能再用于一键修复或生成补丁。
-                      </p>
-                    ) : replacementFix && report.chapter ? (
-                      <form
-                        action={applyContinuityReportFix.bind(
-                          null,
-                          project.id,
-                          report.id,
-                        )}
-                        className="rounded-md border border-signal-600/20 bg-signal-600/10 p-3"
-                      >
-                        <p className="text-xs font-semibold text-signal-700">
-                          可一键修复定稿正文
-                        </p>
-                        <p className="mt-2 text-xs leading-5 text-ink-700">
-                          {describeContinuityReplacementFix(replacementFix)}
-                          ，并保存章节快照。
-                        </p>
-                        <button
-                          className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-md border border-signal-600/30 bg-signal-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-signal-700"
-                          type="submit"
-                        >
-                          <Wrench aria-hidden="true" className="h-4 w-4" />
-                          一键修复正文
-                        </button>
-                      </form>
-                    ) : (
-                      <p className="rounded-md bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700">
-                        这条建议需要手动处理：系统只会自动执行明确的“将 A
-                        改为 B”替换。
-                      </p>
-                    )}
-
-                    {manualFixHref ? (
-                      <Link
-                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                        href={manualFixHref}
-                      >
-                        <PencilLine aria-hidden="true" className="h-4 w-4" />
-                        去定稿正文定位
-                      </Link>
-                    ) : null}
-
-                    <form
-                      action={resolveContinuityReport.bind(
-                        null,
-                        project.id,
-                        report.id,
-                      )}
-                      className="space-y-2"
-                    >
-                      <textarea
-                        className="min-h-20 w-full rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
-                        maxLength={1000}
-                        name="resolutionNote"
-                        placeholder="处理备注（可选）"
-                      />
-                      <button
-                        className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                        type="submit"
-                      >
-                        <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-                        标记已处理
-                      </button>
-                    </form>
-                  </div>
-                ) : (
-                  <form
-                    action={reopenContinuityReport.bind(null, project.id, report.id)}
-                  >
-                    <button
-                      className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-                      type="submit"
-                    >
-                      <RotateCcw aria-hidden="true" className="h-4 w-4" />
-                      重新打开
-                    </button>
-                  </form>
-                )}
-              </div>
-
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
-                <DetailBlock label="证据" value={report.evidence} />
-                <DetailBlock label="冲突记忆" value={report.conflictingMemory} />
-                <DetailBlock label="建议修复" value={report.suggestedFix} />
-              </div>
-
-              {isWholeStoryReview ? (
-                <p className="mt-4 rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-xs leading-5 text-ink-800">
-                  这条建议来自短故事整篇审校，只允许作者进入目标单元手动修订；系统不会一键改写或继续生成自动补丁。
+                待处理 <span>{openCount}</span>
+              </Link>
+              <Link
+                className={
+                  statusFilter === "resolved" ? "is-active" : undefined
+                }
+                href={continuityReportHref(project.id, "resolved")}
+              >
+                已处理 <span>{resolvedCount}</span>
+              </Link>
+            </div>
+            <div className="nf-review-list-items">
+              {reports.length === 0 ? (
+                <p className="px-3 py-6 text-center text-xs leading-5 text-ink-700">
+                  当前筛选下没有报告。
                 </p>
               ) : (
-                <ContinuityFixPatchPanel
-                  canGenerate={
-                    report.status === "open" && Boolean(report.chapter) && !isStale
-                  }
-                  projectId={project.id}
-                  reportId={report.id}
-                  tasks={patchTasksByReportId.get(report.id) ?? []}
-                />
+                reports.map((report) => (
+                  <Link
+                    aria-current={
+                      selectedReport?.id === report.id ? "page" : undefined
+                    }
+                    className={
+                      selectedReport?.id === report.id ? "is-active" : undefined
+                    }
+                    href={continuityReportHref(
+                      project.id,
+                      statusFilter,
+                      page,
+                      report.id,
+                    )}
+                    key={report.id}
+                  >
+                    <span>
+                      {continuitySeverityLabel(report.severity)} ·{" "}
+                      {continuityCategoryLabel(report.category)}
+                    </span>
+                    <strong>{report.title}</strong>
+                    <small>
+                      {report.chapter
+                        ? `第 ${report.chapter.chapterNumber} 章`
+                        : "整篇报告"}
+                      {" · "}
+                      {formatDate(report.createdAt)}
+                    </small>
+                  </Link>
+                ))
               )}
+            </div>
+            {totalPages > 1 ? (
+              <div className="nf-review-pagination">
+                {page <= 1 ? (
+                  <span className="is-disabled">上一页</span>
+                ) : (
+                  <Link
+                    href={continuityReportHref(
+                      project.id,
+                      statusFilter,
+                      page - 1,
+                    )}
+                  >
+                    上一页
+                  </Link>
+                )}
+                <span>
+                  {page}/{totalPages}
+                </span>
+                {page >= totalPages ? (
+                  <span className="is-disabled">下一页</span>
+                ) : (
+                  <Link
+                    href={continuityReportHref(
+                      project.id,
+                      statusFilter,
+                      page + 1,
+                    )}
+                  >
+                    下一页
+                  </Link>
+                )}
+              </div>
+            ) : null}
+          </aside>
 
-              {report.aiTask ? (
-                <p className="mt-4 text-xs leading-5 text-ink-700">
-                  来源任务：{report.aiTask.model} /{" "}
-                  {report.aiTask.inputContextSummary} /{" "}
-                  {formatDate(report.aiTask.createdAt)}
-                </p>
-              ) : null}
+          <div className="nf-review-detail">
+            {selectedReport ? (
+              (() => {
+                const report = selectedReport;
+                const isWholeStoryReview =
+                  report.aiTask?.taskType === shortStoryWholeReviewTaskType;
+                const isStale = Boolean(
+                  report.sourceTextHash &&
+                    !chapterSourceMatches(
+                      report.sourceTextHash,
+                      report.chapter?.finalText,
+                    ),
+                );
+                const replacementFix = isWholeStoryReview
+                  ? null
+                  : parseContinuityReplacementFix(report.suggestedFix, {
+                      description: report.description,
+                      evidence: report.evidence,
+                    });
+                const manualFixHref = report.chapter
+                  ? buildManualContinuityFixHref({
+                      chapterId: report.chapter.id,
+                      projectId: project.id,
+                      replacementText: replacementFix
+                        ? getContinuityReplacements(replacementFix)[0]?.from
+                        : null,
+                      fallbackText:
+                        report.evidence ??
+                        report.suggestedFix ??
+                        report.description,
+                    })
+                  : null;
 
-              {report.resolutionNote ? (
-                <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm leading-6 text-ink-700">
-                  处理备注：{report.resolutionNote}
+                return (
+                  <article
+                    id={`report-${report.id}`}
+                    className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel"
+                    key={report.id}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-700">
+                          <span className="rounded-md bg-paper-100 px-2.5 py-1">
+                            {continuityStatusLabel(report.status)}
+                          </span>
+                          <span
+                            className={`rounded-md px-2.5 py-1 ${
+                              report.severity === "critical" ||
+                              report.severity === "high"
+                                ? "bg-red-50 text-red-700"
+                                : "bg-paper-100 text-ink-700"
+                            }`}
+                          >
+                            {continuitySeverityLabel(report.severity)}
+                          </span>
+                          <span className="rounded-md bg-paper-100 px-2.5 py-1">
+                            {continuityCategoryLabel(report.category)}
+                          </span>
+                          {isStale ? (
+                            <span className="rounded-md bg-red-50 px-2.5 py-1 text-red-700">
+                              来源已过期
+                            </span>
+                          ) : null}
+                          <span>{formatDate(report.createdAt)}</span>
+                        </div>
+                        <h2 className="mt-3 text-lg font-semibold text-ink-950">
+                          {report.title}
+                        </h2>
+                        <p className="mt-2 text-sm leading-6 text-ink-700">
+                          {report.description}
+                        </p>
+                        {report.chapter ? (
+                          <Link
+                            className="mt-3 inline-flex text-sm font-semibold text-signal-600 hover:underline"
+                            href={`/projects/${project.id}/chapters/${report.chapter.id}`}
+                          >
+                            第 {formatNumber(report.chapter.chapterNumber)} 章《
+                            {report.chapter.title}》
+                          </Link>
+                        ) : null}
+                      </div>
+
+                      {report.status === "open" ? (
+                        <div className="min-w-72 space-y-3">
+                          {isStale ? (
+                            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
+                              章节定稿已在本报告生成后修改。请重新运行连续性检查；旧报告不能再用于一键修复或生成补丁。
+                            </p>
+                          ) : replacementFix && report.chapter ? (
+                            <form
+                              action={applyContinuityReportFix.bind(
+                                null,
+                                project.id,
+                                report.id,
+                              )}
+                              className="rounded-md border border-signal-600/20 bg-signal-600/10 p-3"
+                            >
+                              <ContinuityReviewContextFields
+                                page={page}
+                                reportId={report.id}
+                                status={statusFilter}
+                              />
+                              <p className="text-xs font-semibold text-signal-700">
+                                可一键修复定稿正文
+                              </p>
+                              <p className="mt-2 text-xs leading-5 text-ink-700">
+                                {describeContinuityReplacementFix(
+                                  replacementFix,
+                                )}
+                                ，并保存章节快照。
+                              </p>
+                              <button
+                                className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-md border border-signal-600/30 bg-signal-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-signal-700"
+                                type="submit"
+                              >
+                                <Wrench
+                                  aria-hidden="true"
+                                  className="h-4 w-4"
+                                />
+                                一键修复正文
+                              </button>
+                            </form>
+                          ) : (
+                            <p className="rounded-md bg-paper-50 px-3 py-2 text-xs leading-5 text-ink-700">
+                              这条建议需要手动处理：系统只会自动执行明确的“将 A
+                              改为 B”替换。
+                            </p>
+                          )}
+
+                          {manualFixHref ? (
+                            <Link
+                              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                              href={manualFixHref}
+                            >
+                              <PencilLine
+                                aria-hidden="true"
+                                className="h-4 w-4"
+                              />
+                              去定稿正文定位
+                            </Link>
+                          ) : null}
+
+                          <form
+                            action={resolveContinuityReport.bind(
+                              null,
+                              project.id,
+                              report.id,
+                            )}
+                            className="space-y-2"
+                          >
+                            <ContinuityReviewContextFields
+                              page={page}
+                              reportId={report.id}
+                              status={statusFilter}
+                            />
+                            <textarea
+                              className="min-h-20 w-full rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
+                              maxLength={1000}
+                              name="resolutionNote"
+                              placeholder="处理备注（可选）"
+                            />
+                            <button
+                              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                              type="submit"
+                            >
+                              <CheckCircle2
+                                aria-hidden="true"
+                                className="h-4 w-4"
+                              />
+                              标记已处理
+                            </button>
+                          </form>
+                        </div>
+                      ) : (
+                        <form
+                          action={reopenContinuityReport.bind(
+                            null,
+                            project.id,
+                            report.id,
+                          )}
+                        >
+                          <ContinuityReviewContextFields
+                            page={page}
+                            reportId={report.id}
+                            status={statusFilter}
+                          />
+                          <button
+                            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                            type="submit"
+                          >
+                            <RotateCcw aria-hidden="true" className="h-4 w-4" />
+                            重新打开
+                          </button>
+                        </form>
+                      )}
+                    </div>
+
+                    <div className="mt-5 grid gap-3 md:grid-cols-3">
+                      <DetailBlock label="证据" value={report.evidence} />
+                      <DetailBlock
+                        label="冲突记忆"
+                        value={report.conflictingMemory}
+                      />
+                      <DetailBlock
+                        label="建议修复"
+                        value={report.suggestedFix}
+                      />
+                    </div>
+
+                    {isWholeStoryReview ? (
+                      <p className="mt-4 rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-xs leading-5 text-ink-800">
+                        这条建议来自短故事整篇审校，只允许作者进入目标单元手动修订；系统不会一键改写或继续生成自动补丁。
+                      </p>
+                    ) : (
+                      <ContinuityFixPatchPanel
+                        canGenerate={
+                          report.status === "open" &&
+                          Boolean(report.chapter) &&
+                          !isStale
+                        }
+                        projectId={project.id}
+                        reportId={report.id}
+                        returnPage={page}
+                        returnStatus={statusFilter}
+                        tasks={patchTasksByReportId.get(report.id) ?? []}
+                      />
+                    )}
+
+                    {report.aiTask ? (
+                      <p className="mt-4 text-xs leading-5 text-ink-700">
+                        来源任务：{report.aiTask.model} /{" "}
+                        {report.aiTask.inputContextSummary} /{" "}
+                        {formatDate(report.aiTask.createdAt)}
+                      </p>
+                    ) : null}
+
+                    {report.resolutionNote ? (
+                      <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm leading-6 text-ink-700">
+                        处理备注：{report.resolutionNote}
+                      </p>
+                    ) : null}
+                  </article>
+                );
+              })()
+            ) : (
+              <section className="rounded-lg border border-dashed border-ink-950/20 bg-white p-8 text-center shadow-panel">
+                <h2 className="text-base font-semibold text-ink-950">
+                  当前筛选下没有报告
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-ink-700">
+                  从左侧切换到
+                  <Link
+                    className="mx-1 font-semibold text-signal-600 hover:underline"
+                    href={continuityReportHref(
+                      project.id,
+                      statusFilter === "open" ? "resolved" : "open",
+                      1,
+                    )}
+                  >
+                    {statusFilter === "open" ? "已处理" : "待处理"}
+                  </Link>
+                  查看其他记录。
                 </p>
-              ) : null}
-              </article>
-            );
-          })}
+              </section>
+            )}
+          </div>
         </section>
       )}
     </div>
@@ -477,11 +710,15 @@ function ContinuityFixPatchPanel({
   canGenerate,
   projectId,
   reportId,
+  returnPage,
+  returnStatus,
   tasks,
 }: {
   canGenerate: boolean;
   projectId: string;
   reportId: string;
+  returnPage: number;
+  returnStatus: ContinuityReviewStatus;
   tasks: ContinuityFixPatchTask[];
 }) {
   const hasActiveTask = tasks.some((task) => isActiveAiTaskStatus(task.status));
@@ -504,7 +741,14 @@ function ContinuityFixPatchPanel({
         </div>
 
         {canGenerate ? (
-          <form action={generateContinuityFixPatch.bind(null, projectId, reportId)}>
+          <form
+            action={generateContinuityFixPatch.bind(null, projectId, reportId)}
+          >
+            <ContinuityReviewContextFields
+              page={returnPage}
+              reportId={reportId}
+              status={returnStatus}
+            />
             <FormActionButton
               disabled={hasActiveTask}
               icon="play"
@@ -564,6 +808,11 @@ function ContinuityFixPatchPanel({
                       task.id,
                     )}
                   >
+                    <ContinuityReviewContextFields
+                      page={returnPage}
+                      reportId={reportId}
+                      status={returnStatus}
+                    />
                     <FormActionButton
                       icon="save"
                       idleLabel="标记已整理"
@@ -578,6 +827,11 @@ function ContinuityFixPatchPanel({
                       task.id,
                     )}
                   >
+                    <ContinuityReviewContextFields
+                      page={returnPage}
+                      reportId={reportId}
+                      status={returnStatus}
+                    />
                     <FormActionButton
                       icon="save"
                       idleLabel="忽略候选"
@@ -621,6 +875,24 @@ function DetailBlock({
         {value || "未提供"}
       </p>
     </div>
+  );
+}
+
+function ContinuityReviewContextFields({
+  page,
+  reportId,
+  status,
+}: {
+  page: number;
+  reportId: string;
+  status: ContinuityReviewStatus;
+}) {
+  return (
+    <>
+      <input name="returnPage" type="hidden" value={page} />
+      <input name="returnReportId" type="hidden" value={reportId} />
+      <input name="returnStatus" type="hidden" value={status} />
+    </>
   );
 }
 
@@ -784,6 +1056,25 @@ function continuityPatchAdoptionLabel(adoptionState?: string | null) {
   }
 
   return aiTaskAdoptionLabel(adoptionState);
+}
+
+function continuityReportHref(
+  projectId: string,
+  status: ContinuityReviewStatus,
+  page = 1,
+  reportId?: string,
+) {
+  return buildContinuityReviewHref(projectId, {
+    page,
+    reportId,
+    status,
+  });
+}
+
+function positiveInt(value?: string) {
+  const parsed = Number(value);
+
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
 }
 
 function buildManualContinuityFixHref({
