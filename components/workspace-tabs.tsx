@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  resolveWorkspaceTabId,
+  type WorkspaceTabTarget,
+} from "@/lib/workspace-tab-navigation";
 
 export type WorkspaceTab = {
   id: string;
   label: string;
   meta?: string;
+  hashAliases?: readonly string[];
   content: ReactNode;
 };
 
@@ -21,17 +26,23 @@ export function WorkspaceTabs({
   tabs,
 }: WorkspaceTabsProps) {
   const fallbackId = initialTabId ?? tabs[0]?.id ?? "";
-  const tabIdSignature = tabs.map((tab) => tab.id).join("\n");
+  const tabTargetSignature = JSON.stringify(
+    tabs.map((tab) => ({
+      hashAliases: tab.hashAliases ?? [],
+      id: tab.id,
+    })),
+  );
   const [activeTabId, setActiveTabId] = useState(fallbackId);
 
   useEffect(() => {
-    const tabIds = tabIdSignature.split("\n");
+    const tabTargets = JSON.parse(tabTargetSignature) as WorkspaceTabTarget[];
 
     function selectHashTab() {
       const hashId = window.location.hash.slice(1);
+      const hashTabId = resolveWorkspaceTabId(tabTargets, hashId);
 
-      if (tabIds.includes(hashId)) {
-        setActiveTabId(hashId);
+      if (hashTabId) {
+        setActiveTabId(hashTabId);
       }
     }
 
@@ -39,12 +50,14 @@ export function WorkspaceTabs({
     window.addEventListener("hashchange", selectHashTab);
 
     return () => window.removeEventListener("hashchange", selectHashTab);
-  }, [tabIdSignature]);
+  }, [tabTargetSignature]);
 
   useEffect(() => {
     const hashId = window.location.hash.slice(1);
+    const tabTargets = JSON.parse(tabTargetSignature) as WorkspaceTabTarget[];
+    const hashTabId = resolveWorkspaceTabId(tabTargets, hashId);
 
-    if (hashId !== activeTabId) {
+    if (hashTabId !== activeTabId) {
       return;
     }
 
@@ -53,7 +66,7 @@ export function WorkspaceTabs({
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [activeTabId]);
+  }, [activeTabId, tabTargetSignature]);
 
   const activeTab =
     tabs.find((tab) => tab.id === activeTabId) ??

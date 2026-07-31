@@ -29,6 +29,11 @@ import {
   resolveContinuityReportRecord,
   updateContinuityFixPatchTaskAdoptionState,
 } from "@/lib/continuity/records";
+import {
+  buildContinuityReviewHref,
+  readContinuityReviewContext,
+  type ContinuityReviewStatus,
+} from "@/lib/continuity/review-navigation";
 
 const continuityTemplateKey = "continuity_check";
 
@@ -143,10 +148,19 @@ export async function resolveContinuityReport(
   });
 
   revalidateContinuityPaths(projectId, report.chapterId);
-  redirect(`/projects/${projectId}/continuity`);
+  redirect(
+    continuityActionHref(projectId, formData, {
+      reportId: report.id,
+      status: "resolved",
+    }),
+  );
 }
 
-export async function reopenContinuityReport(projectId: string, reportId: string) {
+export async function reopenContinuityReport(
+  projectId: string,
+  reportId: string,
+  formData: FormData,
+) {
   const report = await findContinuityReportSummary({
     projectId,
     reportId,
@@ -159,12 +173,18 @@ export async function reopenContinuityReport(projectId: string, reportId: string
   await reopenContinuityReportRecord(report.id);
 
   revalidateContinuityPaths(projectId, report.chapterId);
-  redirect(`/projects/${projectId}/continuity`);
+  redirect(
+    continuityActionHref(projectId, formData, {
+      reportId: report.id,
+      status: "open",
+    }),
+  );
 }
 
 export async function applyContinuityReportFix(
   projectId: string,
   reportId: string,
+  formData: FormData,
 ) {
   const result = await applyContinuityReportReplacementFix({
     projectId,
@@ -176,33 +196,66 @@ export async function applyContinuityReportFix(
   }
 
   if (result.status === "already-resolved") {
-    redirect(`/projects/${projectId}/continuity?fix=already-resolved`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId,
+        result: { name: "fix", value: "already-resolved" },
+        status: "resolved",
+      }),
+    );
   }
 
   if (result.status === "missing-chapter") {
-    redirect(`/projects/${projectId}/continuity?fix=missing-chapter`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId,
+        result: { name: "fix", value: "missing-chapter" },
+      }),
+    );
   }
 
   if (result.status === "unsupported") {
-    redirect(`/projects/${projectId}/continuity?fix=unsupported`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId,
+        result: { name: "fix", value: "unsupported" },
+      }),
+    );
   }
 
   if (result.status === "not-found") {
-    redirect(`/projects/${projectId}/continuity?fix=not-found`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId,
+        result: { name: "fix", value: "not-found" },
+      }),
+    );
   }
 
   if (result.status === "stale-report") {
-    redirect(`/projects/${projectId}/continuity?fix=stale-report`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId,
+        result: { name: "fix", value: "stale-report" },
+      }),
+    );
   }
 
   revalidateContinuityPaths(projectId, result.chapterId);
   revalidatePath(`/projects/${projectId}/chapters/${result.chapterId}/history`);
-  redirect(`/projects/${projectId}/continuity?fix=applied`);
+  redirect(
+    continuityActionHref(projectId, formData, {
+      reportId,
+      result: { name: "fix", value: "applied" },
+      status: "resolved",
+    }),
+  );
 }
 
 export async function generateContinuityFixPatch(
   projectId: string,
   reportId: string,
+  formData: FormData,
 ) {
   await expireStaleContinuityFixPatchTasks(projectId);
 
@@ -216,17 +269,31 @@ export async function generateContinuityFixPatch(
   }
 
   if (report.status !== "open") {
-    redirect(`/projects/${projectId}/continuity?patch=already-resolved`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId: report.id,
+        result: { name: "patch", value: "already-resolved" },
+        status: "resolved",
+      }),
+    );
   }
 
   if (report.aiTask?.taskType === shortStoryWholeReviewTaskType) {
     redirect(
-      `/projects/${projectId}/continuity?patch=manual-only#report-${report.id}`,
+      continuityActionHref(projectId, formData, {
+        reportId: report.id,
+        result: { name: "patch", value: "manual-only" },
+      }),
     );
   }
 
   if (!report.chapter) {
-    redirect(`/projects/${projectId}/continuity?patch=missing-chapter`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId: report.id,
+        result: { name: "patch", value: "missing-chapter" },
+      }),
+    );
   }
 
   if (
@@ -234,7 +301,10 @@ export async function generateContinuityFixPatch(
     !chapterSourceMatches(report.sourceTextHash, report.chapter.finalText)
   ) {
     redirect(
-      `/projects/${projectId}/continuity?patch=stale-report#report-${report.id}`,
+      continuityActionHref(projectId, formData, {
+        reportId: report.id,
+        result: { name: "patch", value: "stale-report" },
+      }),
     );
   }
 
@@ -245,7 +315,12 @@ export async function generateContinuityFixPatch(
 
   if (activeTask) {
     revalidateContinuityPaths(projectId, report.chapter.id);
-    redirect(`/projects/${projectId}/continuity?patch=active#report-${report.id}`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId: report.id,
+        result: { name: "patch", value: "active" },
+      }),
+    );
   }
 
   let context: ReturnType<typeof buildContinuityFixPatchContext>;
@@ -266,7 +341,12 @@ export async function generateContinuityFixPatch(
       chapter: report.chapter,
     });
   } catch {
-    redirect(`/projects/${projectId}/continuity?patch=missing-text#report-${report.id}`);
+    redirect(
+      continuityActionHref(projectId, formData, {
+        reportId: report.id,
+        result: { name: "patch", value: "missing-text" },
+      }),
+    );
   }
 
   const template = await ensureDefaultPromptTemplate(
@@ -295,30 +375,39 @@ export async function generateContinuityFixPatch(
 
   revalidateContinuityPaths(projectId, report.chapter.id);
   revalidatePath(`/projects/${projectId}/ai`);
-  redirect(`/projects/${projectId}/continuity?patch=started#report-${report.id}`);
+  redirect(
+    continuityActionHref(projectId, formData, {
+      reportId: report.id,
+      result: { name: "patch", value: "started" },
+    }),
+  );
 }
 
 export async function markContinuityFixPatchOrganized(
   projectId: string,
   taskId: string,
+  formData: FormData,
 ) {
   await updateContinuityFixPatchTaskAdoptionStateAndRedirect(
     projectId,
     taskId,
     "adopted",
     "organized",
+    formData,
   );
 }
 
 export async function ignoreContinuityFixPatch(
   projectId: string,
   taskId: string,
+  formData: FormData,
 ) {
   await updateContinuityFixPatchTaskAdoptionStateAndRedirect(
     projectId,
     taskId,
     "rejected",
     "ignored",
+    formData,
   );
 }
 
@@ -327,6 +416,7 @@ async function updateContinuityFixPatchTaskAdoptionStateAndRedirect(
   taskId: string,
   adoptionState: "adopted" | "rejected",
   resultCode: "organized" | "ignored",
+  formData: FormData,
 ) {
   const result = await updateContinuityFixPatchTaskAdoptionState({
     adoptionState,
@@ -342,18 +432,49 @@ async function updateContinuityFixPatchTaskAdoptionStateAndRedirect(
     revalidateContinuityPaths(projectId, result.chapterId);
     revalidatePath(`/projects/${projectId}/ai`);
     redirect(
-      `/projects/${projectId}/continuity?patch=already-reviewed${
-        result.reportId ? `#report-${result.reportId}` : ""
-      }`,
+      continuityActionHref(projectId, formData, {
+        reportId: result.reportId ?? undefined,
+        result: { name: "patch", value: "already-reviewed" },
+      }),
     );
   }
 
   revalidateContinuityPaths(projectId, result.chapterId);
   revalidatePath(`/projects/${projectId}/ai`);
   redirect(
-    `/projects/${projectId}/continuity?patch=${resultCode}${
-      result.reportId ? `#report-${result.reportId}` : ""
-    }`,
+    continuityActionHref(projectId, formData, {
+      reportId: result.reportId ?? undefined,
+      result: { name: "patch", value: resultCode },
+    }),
+  );
+}
+
+function continuityActionHref(
+  projectId: string,
+  formData: FormData,
+  options: {
+    reportId?: string;
+    result?: {
+      name: "fix" | "patch";
+      value: string;
+    };
+    status?: ContinuityReviewStatus;
+  },
+) {
+  const returnContext = readContinuityReviewContext(formData, {
+    page: 1,
+    reportId: options.reportId,
+    status: "open",
+  });
+
+  return buildContinuityReviewHref(
+    projectId,
+    {
+      ...returnContext,
+      reportId: options.reportId ?? returnContext.reportId,
+      status: options.status ?? returnContext.status,
+    },
+    options.result,
   );
 }
 

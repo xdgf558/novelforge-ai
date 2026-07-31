@@ -1117,6 +1117,10 @@ summary:focus-visible {
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
   }
 
+  .nf-setting-savebar[hidden] {
+    display: none;
+  }
+
   .nf-setting-savebar p {
     color: var(--nf-text-faint);
     font-size: 10px;

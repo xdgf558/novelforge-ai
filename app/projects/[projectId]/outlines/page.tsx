@@ -412,6 +412,7 @@ export default async function OutlinesPage({
           },
           {
             id: "outline-library",
+            hashAliases: ["quick-create-outlines"],
             label: "正式大纲",
             meta: `${project.outlines.length} 条`,
             content: (

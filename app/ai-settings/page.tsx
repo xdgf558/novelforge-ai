@@ -867,6 +867,7 @@ export default async function AiSettingsPage({
           },
           {
             id: "local-data",
+            hashAliases: ["app-version", "local-backups"],
             label: "数据与版本",
             meta: `v${appVersion}`,
             content: (

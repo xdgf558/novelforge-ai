@@ -6452,3 +6452,25 @@ Verification:
 - `npm run build` passed.
 - Local browser checks passed for duplicate IDs, empty filtered review queues, out-of-range pages, chapter deep links, multiline change reasons, and horizontal overflow at 1272px and 390px widths.
 - `npm run responsive:smoke` could not start Electron in the current environment (`SIGABRT`); browser-based responsive checks were used for this review round.
+
+## 2026-07-31: UI/UX Workspace Completion Second Review Fixes
+
+Status: completed.
+
+What was done:
+
+- Preserved the continuity review queue context across report actions. Resolve, reopen, one-click repair, patch generation, and patch adoption now retain the current filter, page, and selected report; moving a report between open and resolved queues keeps its detail visible.
+- Added stable hash aliases to workspace tabs so nested deep links such as `#quick-create-outlines`, `#local-backups`, and `#app-version` activate their owning tab before scrolling to the requested section.
+- Added stable AI settings tab redirects. Saving the default model, writing model routes, Station Cat publishing, or TTS settings now returns to the originating tab with the result message intact.
+- Restored the native `hidden` behavior for the settings save bar so collapsed or inactive save controls are not forced visible by workspace CSS.
+- Added focused navigation tests for workspace hash aliases, AI settings redirects, continuity review return state, and report state transitions.
+
+Verification:
+
+- Targeted navigation and continuity action tests passed.
+- `npm run typecheck` passed.
+- `npm test` passed: 119 files and 695 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke`, `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+- Browser checks passed at desktop and 390px mobile widths for nested deep links, settings-tab return state, hidden save bars, continuity return fields, and horizontal overflow.
+- `npm run responsive:smoke` still exits while starting Electron with `SIGABRT` in the current environment; equivalent responsive interactions were verified in the browser.

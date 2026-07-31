@@ -40,6 +40,10 @@ import {
   getContinuityReplacements,
   parseContinuityReplacementFix,
 } from "@/lib/continuity-fixes";
+import {
+  buildContinuityReviewHref,
+  type ContinuityReviewStatus,
+} from "@/lib/continuity/review-navigation";
 import { formatDate, formatNumber } from "@/lib/format";
 import { chapterSourceMatches } from "@/lib/chapters/source-text";
 import { prisma } from "@/lib/prisma";
@@ -146,15 +150,12 @@ export default async function ContinuityPage({
     skip: (page - 1) * pageSize,
     take: pageSize,
   });
-  const requestedReportId = reports.some(
-    (report) => report.id === resolvedSearchParams?.reportId,
-  )
-    ? resolvedSearchParams?.reportId
-    : reports[0]?.id;
-  const selectedReport = requestedReportId
+  const requestedReportId = resolvedSearchParams?.reportId?.trim();
+  const selectedReportId = requestedReportId || reports[0]?.id;
+  let selectedReport = selectedReportId
     ? await prisma.continuityReport.findFirst({
         where: {
-          id: requestedReportId,
+          id: selectedReportId,
           projectId,
           status: statusFilter,
         },
@@ -179,6 +180,39 @@ export default async function ContinuityPage({
         },
       })
     : null;
+
+  if (
+    !selectedReport &&
+    reports[0] &&
+    selectedReportId !== reports[0].id
+  ) {
+    selectedReport = await prisma.continuityReport.findFirst({
+      where: {
+        id: reports[0].id,
+        projectId,
+        status: statusFilter,
+      },
+      include: {
+        chapter: {
+          select: {
+            id: true,
+            chapterNumber: true,
+            title: true,
+            finalText: true,
+          },
+        },
+        aiTask: {
+          select: {
+            id: true,
+            model: true,
+            inputContextSummary: true,
+            taskType: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+  }
   const patchTasksByReportId = new Map<string, typeof patchTasks>();
 
   patchTasks.forEach((task) => {
@@ -482,6 +516,11 @@ export default async function ContinuityPage({
                               )}
                               className="rounded-md border border-signal-600/20 bg-signal-600/10 p-3"
                             >
+                              <ContinuityReviewContextFields
+                                page={page}
+                                reportId={report.id}
+                                status={statusFilter}
+                              />
                               <p className="text-xs font-semibold text-signal-700">
                                 可一键修复定稿正文
                               </p>
@@ -530,6 +569,11 @@ export default async function ContinuityPage({
                             )}
                             className="space-y-2"
                           >
+                            <ContinuityReviewContextFields
+                              page={page}
+                              reportId={report.id}
+                              status={statusFilter}
+                            />
                             <textarea
                               className="min-h-20 w-full rounded-md border border-ink-950/10 bg-white px-3 py-2 text-sm outline-none transition focus:border-signal-500 focus:ring-2 focus:ring-signal-500/20"
                               maxLength={1000}
@@ -556,6 +600,11 @@ export default async function ContinuityPage({
                             report.id,
                           )}
                         >
+                          <ContinuityReviewContextFields
+                            page={page}
+                            reportId={report.id}
+                            status={statusFilter}
+                          />
                           <button
                             className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
                             type="submit"
@@ -592,6 +641,8 @@ export default async function ContinuityPage({
                         }
                         projectId={project.id}
                         reportId={report.id}
+                        returnPage={page}
+                        returnStatus={statusFilter}
                         tasks={patchTasksByReportId.get(report.id) ?? []}
                       />
                     )}
@@ -659,11 +710,15 @@ function ContinuityFixPatchPanel({
   canGenerate,
   projectId,
   reportId,
+  returnPage,
+  returnStatus,
   tasks,
 }: {
   canGenerate: boolean;
   projectId: string;
   reportId: string;
+  returnPage: number;
+  returnStatus: ContinuityReviewStatus;
   tasks: ContinuityFixPatchTask[];
 }) {
   const hasActiveTask = tasks.some((task) => isActiveAiTaskStatus(task.status));
@@ -689,6 +744,11 @@ function ContinuityFixPatchPanel({
           <form
             action={generateContinuityFixPatch.bind(null, projectId, reportId)}
           >
+            <ContinuityReviewContextFields
+              page={returnPage}
+              reportId={reportId}
+              status={returnStatus}
+            />
             <FormActionButton
               disabled={hasActiveTask}
               icon="play"
@@ -748,6 +808,11 @@ function ContinuityFixPatchPanel({
                       task.id,
                     )}
                   >
+                    <ContinuityReviewContextFields
+                      page={returnPage}
+                      reportId={reportId}
+                      status={returnStatus}
+                    />
                     <FormActionButton
                       icon="save"
                       idleLabel="标记已整理"
@@ -762,6 +827,11 @@ function ContinuityFixPatchPanel({
                       task.id,
                     )}
                   >
+                    <ContinuityReviewContextFields
+                      page={returnPage}
+                      reportId={reportId}
+                      status={returnStatus}
+                    />
                     <FormActionButton
                       icon="save"
                       idleLabel="忽略候选"
@@ -805,6 +875,24 @@ function DetailBlock({
         {value || "未提供"}
       </p>
     </div>
+  );
+}
+
+function ContinuityReviewContextFields({
+  page,
+  reportId,
+  status,
+}: {
+  page: number;
+  reportId: string;
+  status: ContinuityReviewStatus;
+}) {
+  return (
+    <>
+      <input name="returnPage" type="hidden" value={page} />
+      <input name="returnReportId" type="hidden" value={reportId} />
+      <input name="returnStatus" type="hidden" value={status} />
+    </>
   );
 }
 
@@ -972,20 +1060,15 @@ function continuityPatchAdoptionLabel(adoptionState?: string | null) {
 
 function continuityReportHref(
   projectId: string,
-  status: "open" | "resolved",
+  status: ContinuityReviewStatus,
   page = 1,
   reportId?: string,
 ) {
-  const query = new URLSearchParams({
-    page: String(page),
+  return buildContinuityReviewHref(projectId, {
+    page,
+    reportId,
     status,
   });
-
-  if (reportId) {
-    query.set("reportId", reportId);
-  }
-
-  return `/projects/${projectId}/continuity?${query.toString()}`;
 }
 
 function positiveInt(value?: string) {

@@ -3,6 +3,8 @@ import {
   generateContinuityFixPatch,
   ignoreContinuityFixPatch,
   markContinuityFixPatchOrganized,
+  reopenContinuityReport,
+  resolveContinuityReport,
 } from "./actions";
 
 const mocks = vi.hoisted(() => ({
@@ -115,9 +117,40 @@ describe("continuity fix patch actions", () => {
     mocks.prisma.continuityReport.findFirst.mockResolvedValue(reportWithChapter);
   });
 
+  it("switches a resolved report to the resolved queue while preserving its detail", async () => {
+    const formData = reviewFormData("open", 3);
+    formData.set("resolutionNote", "已手动修正。");
+
+    await expect(
+      resolveContinuityReport("project_1", "report_1", formData),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/continuity?status=resolved&page=3&reportId=report_1#report-report_1",
+    );
+  });
+
+  it("switches a reopened report back to the open queue", async () => {
+    await expect(
+      reopenContinuityReport(
+        "project_1",
+        "report_1",
+        reviewFormData("resolved", 2),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/continuity?status=open&page=2&reportId=report_1#report-report_1",
+    );
+  });
+
   it("starts a logged AI task for a candidate patch without editing chapter text", async () => {
     await expect(
-      generateContinuityFixPatch("project_1", "report_1"),
+      generateContinuityFixPatch(
+        "project_1",
+        "report_1",
+        reviewFormData("open", 3),
+      ),
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mocks.ensureDefaultPromptTemplate).toHaveBeenCalledWith(
@@ -145,13 +178,17 @@ describe("continuity fix patch actions", () => {
     expect(mocks.prisma.chapter.update).not.toHaveBeenCalled();
     expect(mocks.prisma.chapterVersion.create).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
-      "/projects/project_1/continuity?patch=started#report-report_1",
+      "/projects/project_1/continuity?patch=started&status=open&page=3&reportId=report_1#report-report_1",
     );
   });
 
   it("releases stale candidate patch tasks before checking active locks", async () => {
     await expect(
-      generateContinuityFixPatch("project_1", "report_1"),
+      generateContinuityFixPatch(
+        "project_1",
+        "report_1",
+        reviewFormData(),
+      ),
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
@@ -198,12 +235,16 @@ describe("continuity fix patch actions", () => {
     ]);
 
     await expect(
-      generateContinuityFixPatch("project_1", "report_1"),
+      generateContinuityFixPatch(
+        "project_1",
+        "report_1",
+        reviewFormData(),
+      ),
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mocks.startLoggedOpenAITextTask).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
-      "/projects/project_1/continuity?patch=active#report-report_1",
+      "/projects/project_1/continuity?patch=active&status=open&page=1&reportId=report_1#report-report_1",
     );
   });
 
@@ -219,7 +260,11 @@ describe("continuity fix patch actions", () => {
     });
 
     await expect(
-      markContinuityFixPatchOrganized("project_1", "task_patch_1"),
+      markContinuityFixPatchOrganized(
+        "project_1",
+        "task_patch_1",
+        reviewFormData("open", 4),
+      ),
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
@@ -237,7 +282,7 @@ describe("continuity fix patch actions", () => {
     expect(mocks.prisma.chapter.update).not.toHaveBeenCalled();
     expect(mocks.prisma.chapterVersion.create).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
-      "/projects/project_1/continuity?patch=organized#report-report_1",
+      "/projects/project_1/continuity?patch=organized&status=open&page=4&reportId=report_1#report-report_1",
     );
   });
 
@@ -256,11 +301,15 @@ describe("continuity fix patch actions", () => {
     });
 
     await expect(
-      markContinuityFixPatchOrganized("project_1", "task_patch_1"),
+      markContinuityFixPatchOrganized(
+        "project_1",
+        "task_patch_1",
+        reviewFormData(),
+      ),
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mocks.redirect).toHaveBeenCalledWith(
-      "/projects/project_1/continuity?patch=already-reviewed#report-report_1",
+      "/projects/project_1/continuity?patch=already-reviewed&status=open&page=1&reportId=report_1#report-report_1",
     );
   });
 
@@ -276,7 +325,11 @@ describe("continuity fix patch actions", () => {
     });
 
     await expect(
-      ignoreContinuityFixPatch("project_1", "task_patch_1"),
+      ignoreContinuityFixPatch(
+        "project_1",
+        "task_patch_1",
+        reviewFormData(),
+      ),
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(mocks.prisma.aiTask.updateMany).toHaveBeenCalledWith({
@@ -294,7 +347,18 @@ describe("continuity fix patch actions", () => {
     expect(mocks.prisma.chapter.update).not.toHaveBeenCalled();
     expect(mocks.prisma.chapterVersion.create).not.toHaveBeenCalled();
     expect(mocks.redirect).toHaveBeenCalledWith(
-      "/projects/project_1/continuity?patch=ignored#report-report_1",
+      "/projects/project_1/continuity?patch=ignored&status=open&page=1&reportId=report_1#report-report_1",
     );
   });
 });
+
+function reviewFormData(
+  status: "open" | "resolved" = "open",
+  page = 1,
+) {
+  const formData = new FormData();
+  formData.set("returnPage", String(page));
+  formData.set("returnReportId", "report_1");
+  formData.set("returnStatus", status);
+  return formData;
+}
