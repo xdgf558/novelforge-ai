@@ -480,6 +480,10 @@ Recommended implementation order:
   fields should share one grouped editing surface with a stable save action.
   A compatibility color treatment is not sufficient for a new multi-stage
   route; update the audit whenever a public `page.tsx` route is added.
+- Review detail layouts must respond to the detail pane's inline size rather
+  than the full viewport width. The navigation rail, review queue, and optional
+  AI run console can leave a desktop viewport with a narrow detail pane; stack
+  headings, actions, and evidence blocks before their text becomes compressed.
 - Keep the first screen as the usable project dashboard. Do not turn it into a marketing landing page.
 - Custom story-specific SVG illustration components live in `components/story-illustrations.tsx` and can be reused for future empty states or dashboard panels.
 - `components/app-shell.tsx` loads serializable shell data;
