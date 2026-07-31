@@ -6584,3 +6584,22 @@ Verification:
 - `npm run desktop:smoke`, `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
 - Browser checks passed at desktop and 390px mobile widths for nested deep links, settings-tab return state, hidden save bars, continuity return fields, and horizontal overflow.
 - `npm run responsive:smoke` still exits while starting Electron with `SIGABRT` in the current environment; equivalent responsive interactions were verified in the browser.
+
+## 2026-08-01: Continuity Report Detail Responsive Fix
+
+Status: completed.
+
+What was done:
+
+- Changed continuity report detail headers and evidence blocks to respond to the actual detail-pane width with CSS container queries.
+- Kept report titles and descriptions at a readable width when the navigation rail, report queue, and AI run console are visible together.
+- Stacked report actions and evidence blocks in narrow detail panes, while restoring a compact split header and multi-column evidence layout when enough inline space is available.
+- Preserved all continuity report actions, stale-source warnings, links, and AI fix-patch behavior.
+
+Verification:
+
+- `npm test` passed: 120 files and 698 tests.
+- `npm run typecheck` passed.
+- `npm run build` passed.
+- Browser verification against a temporary copy of the real desktop database passed at 1168px with the AI run console both open and closed, plus an 820px narrow viewport.
+- The affected states had no horizontal overflow; the long issue title remained normally wrapped instead of collapsing into a near-vertical column.
