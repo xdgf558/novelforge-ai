@@ -1,5 +1,51 @@
 # Development Log
 
+## 2026-07-31: 0.1.111 Full-Route Workspace Installer
+
+Status: completed.
+
+What was done:
+
+- Packaged the approved full-route workspace completion from PR #91, merged
+  into `main` at `b04c330`, and bumped the source app/package version from
+  `0.1.110` to `0.1.111`.
+- Updated the in-app release title and notes for completed child-page workspace
+  layouts, master-detail review queues, preserved review context, nested tab
+  deep links, and corrected settings navigation state.
+- Built the arm64 macOS application with hardened runtime and Developer ID
+  Application signing.
+- Built `release/desktop/NovelForge-AI-0.1.111-mac-arm64.pkg` with a payload at
+  `/Applications/NovelForge AI.app` and signed it with Developer ID Installer.
+- Did not upload the new artifact to Apple notarization because this rebuild did
+  not include new explicit authorization to upload it externally.
+- Removed the previous `0.1.110` installer and all Electron build intermediates
+  so `release/desktop/` contains only the `0.1.111` PKG.
+
+Verification:
+
+- `npm test` passed: 119 files and 695 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`,
+  source-tree and packaged-root `npm run work-types:acceptance`, and
+  `npx prisma validate` passed.
+- The production build inside `npm run desktop:pack:mac` passed.
+- Deep strict code-sign verification passed for the packaged app, the staging
+  copy, and the app expanded from the final PKG.
+- The final PKG reports identifier `com.novelforge.ai`, version `0.1.111`, and
+  payload path `/Applications/NovelForge AI.app`. The expanded app and packaged
+  `package.json` both report `0.1.111`, include all 26 migrations, use
+  `runDesktopMigrations`, read bundled `migration.sql`, and do not invoke
+  Prisma CLI `migrate deploy`.
+- An isolated launch from the final expanded payload returned HTTP 200, applied
+  all 26 migrations, and returned `ok` from SQLite `PRAGMA quick_check`.
+- Gatekeeper identifies the PKG as `Unnotarized Developer ID`, as expected for
+  a build that was not uploaded to Apple. On this macOS release,
+  `pkgutil --check-signature` reports `invalid signature` for both this package
+  and a freshly generated minimal unnotarized Developer ID control package;
+  the installer must not be described as notarized or Gatekeeper-trusted.
+- Final PKG size: 417,156,496 bytes.
+- Final PKG SHA-256:
+  `080f813e6f04c93f651690eb418d8ae4f0468d93b6e3c4923c38b468cb4834cb`.
+
 ## 2026-07-31: Full-Route Writing Workspace Completion
 
 Status: completed.

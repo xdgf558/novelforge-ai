@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.110 创作工作台界面重构";
+export const appReleaseTitle = "0.1.111 全路线工作区补全";
 
 export const appReleaseNotes = [
-  "长篇、短故事与系列统一使用紧凑的深色创作工作台，并按准备、写作、审校和发布阶段组织工具。",
-  "新增项目切换、命令搜索、项目级审核通知与只读 AI 运行台，移动端导航和运行台支持完整键盘焦点管理。",
-  "项目库、系列库、创作台和章节工作区已重新排布，AI 输出审批与正式故事记忆边界保持不变。",
+  "设定、章节、角色、短故事系列和历史快照等子页面已统一为紧凑的分阶段工作区。",
+  "待审核更新与连续性报告采用主从审查布局，并保留筛选、页码和当前记录的操作上下文。",
+  "修复嵌套页面锚点、设置保存返回标签和隐藏保存栏状态，桌面与移动端导航保持一致。",
 ];
