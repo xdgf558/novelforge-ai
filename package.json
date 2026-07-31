@@ -1,6 +1,6 @@
 {
   "name": "novelforge-ai",
-  "version": "0.1.112",
+  "version": "0.1.113",
   "description": "Local-first AI writing workbench for serialized novels and short stories.",
   "author": "NovelForge AI",
   "private": true,

@@ -1,5 +1,49 @@
 # Development Log
 
+## 2026-08-01: 0.1.113 Continuity Report Layout Fix Installer
+
+Status: completed.
+
+What was done:
+
+- Packaged the approved continuity-report layout fix from PR #94, merged into
+  `main` at `fa0af55`, and bumped the source app/package version from
+  `0.1.112` to `0.1.113`.
+- Updated the in-app release title and notes for the responsive continuity
+  report detail layout: long AI findings now preserve usable detail width when
+  the AI run console is open without changing report actions or repair flows.
+- Built the arm64 macOS application with hardened runtime and Developer ID
+  Application signing.
+- Built `release/desktop/NovelForge-AI-0.1.113-mac-arm64.pkg` with a payload at
+  `/Applications/NovelForge AI.app` and signed it with Developer ID Installer.
+- Did not upload this rebuild to Apple notarization because the request only
+  asked for a new installer package.
+- Removed the previous `0.1.112` installer and all Electron build intermediates
+  so `release/desktop/` contains only the `0.1.113` PKG.
+
+Verification:
+
+- `npm test` passed: 120 files and 698 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`,
+  `npm run work-types:acceptance`, and `npx prisma validate` passed.
+- The production build inside `npm run desktop:dist:mac` passed.
+- Deep strict code-sign verification passed for the packaged app and the app
+  expanded from the final PKG.
+- Host `pkgutil --check-signature` verified the final PKG's Developer ID
+  Installer certificate chain and trusted timestamp. The final PKG reports
+  identifier `com.novelforge.ai`, version `0.1.113`, and payload path
+  `/Applications/NovelForge AI.app`.
+- Packaged-root `npm run work-types:acceptance` passed against the final PKG's
+  `app.asar.unpacked` resources. An isolated launch of that payload returned
+  HTTP 200, applied all 26 bundled migrations, and returned `ok` from SQLite
+  `PRAGMA quick_check`.
+- Gatekeeper identifies the PKG as `Unnotarized Developer ID`, as expected for
+  a build that was not uploaded to Apple; this installer is not notarized or
+  stapled.
+- Final PKG size: 414,869,311 bytes.
+- Final PKG SHA-256:
+  `b14a48dd5a67868808eb244fdd851b82290777dabec168bde0470f7fbc0dd80f`.
+
 ## 2026-07-31: 0.1.112 Outline Draft Copy Fix Installer
 
 Status: completed.

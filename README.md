@@ -20,7 +20,7 @@ NovelForge AI is a local-first, author-controlled AI writing workbench for seria
 
 ## 当前状态
 
-当前版本为 `0.1.109`，仍处于本地单用户 MVP 阶段。团队协作、SaaS 多租户、云同步、支付、移动端和自动发布不在当前范围内。详细边界与设计决策见 [项目记忆](docs/project-memory.md) 和 [产品记忆设计](docs/product-memory-design.md)。
+当前版本为 `0.1.113`，仍处于本地单用户 MVP 阶段。团队协作、SaaS 多租户、云同步、支付、移动端和自动发布不在当前范围内。详细边界与设计决策见 [项目记忆](docs/project-memory.md) 和 [产品记忆设计](docs/product-memory-design.md)。
 
 ## 本地开发
 

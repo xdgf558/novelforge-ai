@@ -506,18 +506,17 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - Desktop startup must not run Prisma CLI commands from inside the packaged app bundle. DMG volumes are read-only, and Prisma CLI can try to mutate `node_modules/@prisma/engines` under `app.asar.unpacked`, causing `EROFS`. Use `runDesktopMigrations` in `desktop/runtime.cjs`, which reads bundled `prisma/migrations/*/migration.sql`, applies SQL through Prisma Client to the user data SQLite database, and records `_prisma_migrations`.
 - `npm run desktop:dist:mac` produces the signed local app payload plus DMG/ZIP artifacts and skips notarization; use the app payload to build the formal `/Applications` PKG handoff.
 - `npm run desktop:dist:mac:notarized` exists only for an explicit future public-distribution request; do not use it for normal personal-use rebuilds.
-- Current source app version is `0.1.112`; the latest personal-use macOS
+- Current source app version is `0.1.113`; the latest personal-use macOS
   installer is
-  `release/desktop/NovelForge-AI-0.1.112-mac-arm64.pkg`. This release has a
+  `release/desktop/NovelForge-AI-0.1.113-mac-arm64.pkg`. This release has a
   hardened-runtime Developer ID Application signed payload and a Developer ID
-  Installer signed PKG with a trusted timestamp. The user did not explicitly
-  authorize a new Apple upload for this rebuild, so `0.1.112` is not notarized
-  or stapled and Gatekeeper reports `Unnotarized Developer ID`. On the current
-  macOS release, `pkgutil --check-signature` reports `invalid signature` for
-  newly signed unnotarized PKGs, including a minimal control package, while
-  `spctl` still identifies the Developer ID source; do not represent this
-  artifact as notarized or Gatekeeper-trusted. The previous `0.1.111` artifact
-  was removed at the author's request. Future handoff should leave
+  Installer signed PKG with a trusted timestamp; host
+  `pkgutil --check-signature` verifies the certificate chain. The user did not
+  explicitly authorize a new Apple upload for this rebuild, so `0.1.113` is
+  not notarized or stapled and Gatekeeper reports `Unnotarized Developer ID`.
+  Do not represent this artifact as notarized or Gatekeeper-trusted. The
+  previous `0.1.112` artifact was removed at the author's request. Future
+  handoff should leave
   only the final `release/desktop/NovelForge-AI-<version>-mac-arm64.pkg` in the
   delivery folder unless the user explicitly asks for DMG/ZIP/update metadata.
 - Short-story development follows `docs/short-story-development-plan.md`.

@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.112 大纲草案复制修复";
+export const appReleaseTitle = "0.1.113 连续性报告布局修复";
 
 export const appReleaseNotes = [
-  "修复工作区标签重构后，大纲草案无法复制到正式大纲表单的问题。",
-  "复制草案会自动切换到正式大纲标签，并填入匹配的卷、剧情单元或章节表单。",
-  "复制仍然只填充表单，不会自动保存或修改正式故事记忆。",
+  "修复连续性报告在 AI 运行台打开时，长问题标题被过度挤压的问题。",
+  "报告详情会根据实际内容区宽度自动切换为纵向或双栏布局。",
+  "连续性报告的处理、定位和 AI 修复候选功能保持不变。",
 ];
