@@ -3,6 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {
   ensureSqliteDatabaseFile,
+  failInterruptedAiTasks,
+  interruptedAiTaskErrorMessage,
   parseDesktopEnv,
   runDesktopMigrations,
   splitSqlStatements,
@@ -46,6 +48,10 @@ async function main() {
   assert.equal(packageJson.build.asar, true);
   assert.ok(packageJson.build.asarUnpack.includes(".next/**/*"), ".next is unpacked");
   assert.ok(
+    packageJson.build.asarUnpack.includes("lib/**/*"),
+    "shared desktop runtime data is unpacked",
+  );
+  assert.ok(
     packageJson.build.asarUnpack.includes("node_modules/.prisma/**/*"),
     "generated prisma client is unpacked",
   );
@@ -74,6 +80,10 @@ async function main() {
   assert.equal(packageJson.build.afterPack, "scripts/after-pack.cjs");
   assert.equal(packageJson.build.afterSign, "scripts/notarize.cjs");
   assert.ok(packageJson.build.files.includes(".next/**/*"), ".next is packaged");
+  assert.ok(
+    packageJson.build.files.includes("lib/**/*"),
+    "shared desktop runtime data is packaged",
+  );
   assert.ok(
     packageJson.build.files.includes("node_modules/.prisma/**/*"),
     "generated prisma client is packaged",
@@ -110,6 +120,14 @@ async function main() {
   assert.ok(
     mainSource.includes("runDesktopMigrations"),
     "desktop startup uses bundled read-only-safe migration runner",
+  );
+  assert.ok(
+    mainSource.includes("failInterruptedAiTasks"),
+    "desktop startup fails AI tasks interrupted by an app restart",
+  );
+  assert.ok(
+    mainSource.includes("Failed to clean up interrupted AI tasks:"),
+    "interrupted task cleanup failure does not block desktop startup",
   );
   assert.ok(
     mainSource.includes("before-input-event") &&
@@ -214,6 +232,103 @@ async function assertDesktopMigrations() {
         .filter((entry) => entry.isDirectory()).length;
 
       assert.equal(Number(migrationRows[0].count), migrationCount);
+
+      const project = await prisma.project.create({
+        data: {
+          title: "Desktop interrupted-task smoke",
+        },
+      });
+      const completedAt = new Date("2026-08-01T12:00:00.000Z");
+
+      await prisma.aiTask.createMany({
+        data: [
+          {
+            id: "desktop-smoke-pending-task",
+            projectId: project.id,
+            taskType: "chapter_draft_generation",
+            model: "test-model",
+            status: "pending",
+            inputContextSummary: "pending task",
+          },
+          {
+            id: "desktop-smoke-running-task",
+            projectId: project.id,
+            taskType: "chapter_polish_generation",
+            model: "test-model",
+            status: "running",
+            inputContextSummary: "running task",
+            startedAt: new Date("2026-08-01T11:59:00.000Z"),
+          },
+          {
+            id: "desktop-smoke-completed-task",
+            projectId: project.id,
+            taskType: "chapter_beat_generation",
+            model: "test-model",
+            status: "completed",
+            inputContextSummary: "completed task",
+            outputText: "completed output",
+            completedAt: new Date("2026-08-01T11:58:00.000Z"),
+          },
+          {
+            id: "desktop-smoke-cancelled-task",
+            projectId: project.id,
+            taskType: "chapter_summary_extraction",
+            model: "test-model",
+            status: "cancelled",
+            inputContextSummary: "cancelled task",
+            errorMessage: "cancelled by author",
+            completedAt: new Date("2026-08-01T11:57:00.000Z"),
+          },
+        ],
+      });
+
+      const interruptedTasks = await failInterruptedAiTasks(
+        repoRoot,
+        databaseUrl,
+        completedAt,
+      );
+
+      assert.equal(interruptedTasks.count, 2);
+
+      const taskRows = await prisma.aiTask.findMany({
+        where: {
+          projectId: project.id,
+        },
+        orderBy: {
+          id: "asc",
+        },
+      });
+      const tasksById = new Map(taskRows.map((task) => [task.id, task]));
+
+      for (const taskId of [
+        "desktop-smoke-pending-task",
+        "desktop-smoke-running-task",
+      ]) {
+        const task = tasksById.get(taskId);
+
+        assert.equal(task?.status, "failed");
+        assert.equal(task?.errorMessage, interruptedAiTaskErrorMessage);
+        assert.equal(task?.completedAt?.getTime(), completedAt.getTime());
+      }
+
+      const completedTask = tasksById.get("desktop-smoke-completed-task");
+
+      assert.equal(completedTask?.status, "completed");
+      assert.equal(completedTask?.outputText, "completed output");
+      assert.equal(completedTask?.errorMessage, null);
+
+      const cancelledTask = tasksById.get("desktop-smoke-cancelled-task");
+
+      assert.equal(cancelledTask?.status, "cancelled");
+      assert.equal(cancelledTask?.errorMessage, "cancelled by author");
+
+      const noInterruptedTasks = await failInterruptedAiTasks(
+        repoRoot,
+        databaseUrl,
+        new Date("2026-08-01T12:01:00.000Z"),
+      );
+
+      assert.equal(noInterruptedTasks.count, 0);
     } finally {
       await prisma.$disconnect();
     }

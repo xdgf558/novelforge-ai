@@ -1,5 +1,38 @@
 # Development Log
 
+## 2026-08-01: Interrupted AI Task Restart Cleanup
+
+Status: completed.
+
+What was done:
+
+- Diagnosed a chapter polish task that continued to display as running after
+  NovelForge AI restarted. The Kimi K3 request had emitted stream heartbeats
+  until the old desktop process exited, but the replacement Next.js process
+  could not resume the in-memory request.
+- Added packaged desktop startup cleanup after migrations. Any `pending` or
+  `running` AI task left by the previous process is now marked failed
+  immediately with a restart-specific retry message instead of holding the UI
+  until the normal inactivity cutoff expires.
+- Made restart cleanup best effort: cleanup errors are logged but never prevent
+  the desktop app from opening, while the existing inactivity cleanup remains
+  available as a fallback.
+- Moved active AI task statuses into one JSON runtime source shared by the
+  desktop startup cleanup and Next.js task locking. The TypeScript facade keeps
+  the `pending | running` literal union, with a unit test that verifies the JSON
+  values remain both exact and supported.
+- Preserved completed AI tasks and their output.
+- Extended the desktop packaging smoke test with pending, running, and
+  completed task fixtures to cover restart cleanup behavior, and added zero
+  cleanup plus cancelled-task preservation coverage. The smoke test also
+  verifies that the shared `lib/**/*` runtime data is packaged and unpacked.
+
+Verification:
+
+- `npm test` passed: 122 files and 724 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+
 ## 2026-08-01: 0.1.114 Completion Archive and Luna Installer
 
 Status: completed.

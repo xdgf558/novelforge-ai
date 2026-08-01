@@ -6,6 +6,7 @@ const { app, BrowserWindow, Menu, dialog, shell } = require("electron");
 const {
   ensureDesktopEnvExample,
   ensureSqliteDatabaseFile,
+  failInterruptedAiTasks,
   readDesktopEnv,
   runDesktopMigrations,
   toPrismaSqliteUrl,
@@ -113,6 +114,12 @@ async function startBundledNext(paths) {
   };
 
   await runDesktopMigrations(paths.appRoot, databaseUrl);
+
+  try {
+    await failInterruptedAiTasks(paths.appRoot, databaseUrl);
+  } catch (error) {
+    console.error("Failed to clean up interrupted AI tasks:", error);
+  }
 
   const nextBin = require.resolve("next/dist/bin/next", {
     paths: [paths.appRoot],
