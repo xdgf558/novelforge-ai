@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createChapter } from "@/app/projects/[projectId]/chapters/actions";
 import { generateShortStoryUnitPlanDraft } from "@/app/projects/[projectId]/chapters/unit-plan-actions";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -52,6 +52,10 @@ export default async function NewChapterPage({
 
   if (!project) {
     notFound();
+  }
+
+  if (project.status !== "active") {
+    redirect(`/projects/${projectId}/edit?projectError=restore-required`);
   }
 
   const shortStoryProject = isShortStoryProject(project.workType);

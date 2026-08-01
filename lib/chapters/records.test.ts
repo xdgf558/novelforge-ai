@@ -8,6 +8,7 @@ import {
   findChapterForUpdate,
   updateChapterRecord,
 } from "./records";
+import { ProjectContentWriteBlockedError } from "@/lib/projects/content-write-guard";
 
 const mocks = vi.hoisted(() => ({
   prisma: {
@@ -18,8 +19,13 @@ const mocks = vi.hoisted(() => ({
     $transaction: vi.fn(),
   },
   tx: {
+    project: {
+      updateMany: vi.fn(),
+    },
     chapter: {
       create: vi.fn(),
+      delete: vi.fn(),
+      findFirst: vi.fn(),
       update: vi.fn(),
     },
     chapterVersion: {
@@ -73,7 +79,9 @@ describe("chapter record services", () => {
     mocks.tx.chapterVersion.count.mockResolvedValue(2);
     mocks.tx.chapterVersion.create.mockResolvedValue({});
     mocks.tx.aiTask.updateMany.mockResolvedValue({ count: 1 });
+    mocks.tx.project.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.chapter.update.mockResolvedValue({});
+    mocks.tx.chapter.delete.mockResolvedValue({});
     mocks.createMissingStorylineChapterRelationsForChapter.mockResolvedValue(
       undefined,
     );
@@ -214,7 +222,7 @@ describe("chapter record services", () => {
   });
 
   it("returns null instead of deleting a missing chapter", async () => {
-    mocks.prisma.chapter.findFirst.mockResolvedValue(null);
+    mocks.tx.chapter.findFirst.mockResolvedValue(null);
 
     await expect(
       deleteChapterRecord({
@@ -223,7 +231,20 @@ describe("chapter record services", () => {
       }),
     ).resolves.toBeNull();
 
-    expect(mocks.prisma.chapter.delete).not.toHaveBeenCalled();
+    expect(mocks.tx.chapter.delete).not.toHaveBeenCalled();
+  });
+
+  it("rejects chapter writes once a project is completed or archived", async () => {
+    mocks.tx.project.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      createChapterRecord({
+        projectId: "project_1",
+        values: baseValues,
+      }),
+    ).rejects.toBeInstanceOf(ProjectContentWriteBlockedError);
+
+    expect(mocks.tx.chapter.create).not.toHaveBeenCalled();
   });
 
   it("maps the database unique constraint to a chapter-number error", async () => {

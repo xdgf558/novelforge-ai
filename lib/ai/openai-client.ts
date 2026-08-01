@@ -1,6 +1,7 @@
 import {
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_MODEL,
+  GPT_5_6_LUNA_MODEL,
   getAiRuntimeEnv,
   getAiRuntimeEnvForTaskType,
   normalizeAiBaseUrl,
@@ -69,11 +70,15 @@ export function hasConfiguredOpenAIKey(env: EnvLike = getAiRuntimeEnv()) {
 }
 
 export function buildOpenAIResponsesPayload(request: OpenAITextRequest) {
+  const model = request.model?.trim() || getConfiguredOpenAIModel();
   const input = buildOpenAIInputMessages(request);
 
   return {
-    model: request.model?.trim() || getConfiguredOpenAIModel(),
+    model,
     input,
+    ...(isGpt56LunaModel(model)
+      ? { reasoning: { effort: "xhigh" as const } }
+      : {}),
   };
 }
 
@@ -112,11 +117,12 @@ export function buildOpenAIInputMessages(request: OpenAITextRequest) {
 
 export function buildOpenAIChatCompletionsPayload(request: OpenAITextRequest) {
   const model = request.model?.trim() || getConfiguredOpenAIModel();
+  const reasoningEffort = getChatCompletionsReasoningEffort(model);
 
   return {
     model,
     messages: buildOpenAIChatMessages(request),
-    ...(isKimiK3Model(model) ? { reasoning_effort: "max" as const } : {}),
+    ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
   };
 }
 
@@ -528,6 +534,27 @@ function isKimiK3Model(model: string) {
   const normalized = model.trim().toLowerCase();
 
   return normalized === "kimi-k3" || normalized.startsWith("kimi-k3-");
+}
+
+function isGpt56LunaModel(model: string) {
+  const normalized = model.trim().toLowerCase();
+
+  return (
+    normalized === GPT_5_6_LUNA_MODEL ||
+    normalized.startsWith(`${GPT_5_6_LUNA_MODEL}-`)
+  );
+}
+
+function getChatCompletionsReasoningEffort(model: string) {
+  if (isGpt56LunaModel(model)) {
+    return "xhigh" as const;
+  }
+
+  if (isKimiK3Model(model)) {
+    return "max" as const;
+  }
+
+  return null;
 }
 
 function isKimiModel(model: string) {

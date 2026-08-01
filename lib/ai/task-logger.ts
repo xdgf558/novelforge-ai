@@ -8,6 +8,7 @@ import {
   getAiRuntimeEnv,
   getAiRuntimeEnvForTaskType,
   readAiTaskModelRouteSecrets,
+  taskRouteConnectionsShareCredentials,
   type AiRuntimeEnv,
   type AiTaskModelRouteTaskType,
 } from "@/lib/ai/local-config";
@@ -241,6 +242,24 @@ export function resolveAiTaskExecutionEnv(task: {
 
   if (snapshot && snapshot.taskType === task.taskType) {
     const route = readAiTaskModelRouteSecrets(snapshot.taskType);
+
+    if (
+      !route.isActive ||
+      !taskRouteConnectionsShareCredentials(
+        {
+          model: snapshot.model,
+          baseUrl: snapshot.baseUrl,
+        },
+        route,
+      )
+    ) {
+      return {
+        ...getAiRuntimeEnv(),
+        OPENAI_API_KEY: "",
+        OPENAI_MODEL: snapshot.model,
+        OPENAI_BASE_URL: snapshot.baseUrl,
+      };
+    }
 
     return {
       ...getAiRuntimeEnv(),

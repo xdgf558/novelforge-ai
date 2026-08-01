@@ -8,6 +8,7 @@ import {
 } from "@/app/projects/actions";
 import { ProjectForm } from "@/components/project-form";
 import { prisma } from "@/lib/prisma";
+import { isProjectInArchiveDirectory } from "@/lib/projects/status";
 import { isShortStoryProject } from "@/lib/projects/work-types";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,12 @@ export default async function EditProjectPage({
         title={shortStory ? "编辑短故事项目" : "编辑长篇连载项目"}
       />
 
+      {resolvedSearchParams?.projectError === "restore-required" ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium leading-6 text-amber-950">
+          作品已完结或归档。请先点击下方“重新连载”，再继续新建、编辑或采用章节内容。
+        </p>
+      ) : null}
+
       <section className="rounded-lg border border-amber-300/70 bg-amber-50 p-5 shadow-panel">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -75,7 +82,7 @@ export default async function EditProjectPage({
             ) : null}
           </div>
 
-          {project.status === "archived" ? (
+          {isProjectInArchiveDirectory(project.status) ? (
             <form
               action={restoreProject.bind(null, project.id)}
               className="shrink-0"
@@ -84,7 +91,7 @@ export default async function EditProjectPage({
                 className="inline-flex min-h-10 items-center whitespace-nowrap rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
                 type="submit"
               >
-                恢复项目
+                {project.status === "completed" ? "重新连载" : "恢复项目"}
               </button>
             </form>
           ) : (

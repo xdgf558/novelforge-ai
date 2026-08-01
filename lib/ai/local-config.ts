@@ -96,6 +96,11 @@ export type AiTaskModelRouteSecrets = {
   isActive: boolean;
 };
 
+export type AiTaskRouteConnection = {
+  model: string;
+  baseUrl?: string | null;
+};
+
 export type SaveAiTaskModelRouteSettingsInput = {
   draftApiKey?: string | null;
   clearDraftApiKey?: boolean;
@@ -233,6 +238,7 @@ export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 export const DEFAULT_KIMI_API_BASE_URL = "https://api.moonshot.cn/v1";
 export const DEFAULT_KIMI_K2_6_MODEL = "kimi-k2.6";
 export const DEFAULT_KIMI_K3_MODEL = "kimi-k3";
+export const GPT_5_6_LUNA_MODEL = "gpt-5.6-luna";
 export const DEFAULT_IMAGE_API_BASE_URL = "https://api.ppq.ai/v1";
 export const DEFAULT_IMAGE_MODEL = "qwen-image-2";
 export const DEFAULT_IMAGE_SIZE = "default";
@@ -322,7 +328,8 @@ export function getAiRuntimeEnvForTaskType(
   taskType?: string | null,
   env: AiRuntimeEnv = process.env,
 ) {
-  const runtimeEnv = getAiRuntimeEnv(env);
+  const fileEnv = readLocalConfigFile(getAiConfigPath(env));
+  const runtimeEnv = mergeAiTaskRouteEnv(getAiRuntimeEnv(env), fileEnv);
 
   if (!isAiTaskModelRouteTaskType(taskType)) {
     return runtimeEnv;
@@ -436,33 +443,106 @@ export function saveAiTaskModelRouteSettings(
   const currentFileEnv = readLocalConfigFile(configPath);
   const draftApiKeyInput = input.draftApiKey?.trim() ?? "";
   const polishApiKeyInput = input.polishApiKey?.trim() ?? "";
-  const currentDraftApiKey =
-    currentFileEnv.CHAPTER_DRAFT_API_KEY?.trim() ||
-    env.CHAPTER_DRAFT_API_KEY?.trim() ||
-    "";
-  const currentPolishApiKey =
-    currentFileEnv.CHAPTER_POLISH_API_KEY?.trim() ||
-    env.CHAPTER_POLISH_API_KEY?.trim() ||
-    "";
+  const currentDraftApiKey = readAiTaskRouteConfigValue(
+    currentFileEnv,
+    env,
+    "CHAPTER_DRAFT_API_KEY",
+  );
+  const currentPolishApiKey = readAiTaskRouteConfigValue(
+    currentFileEnv,
+    env,
+    "CHAPTER_POLISH_API_KEY",
+  );
+  const draftModel = normalizeTaskRouteModel(input.draftModel);
+  const polishModel = normalizeTaskRouteModelForTaskType(
+    input.polishModel,
+    "chapter_polish_generation",
+  );
+  const currentDraftModel = normalizeTaskRouteModel(
+    readAiTaskRouteConfigValue(
+      currentFileEnv,
+      env,
+      "CHAPTER_DRAFT_MODEL",
+    ),
+  );
+  const currentPolishModel = normalizeTaskRouteModelForTaskType(
+    readAiTaskRouteConfigValue(
+      currentFileEnv,
+      env,
+      "CHAPTER_POLISH_MODEL",
+    ),
+    "chapter_polish_generation",
+  );
+  const draftBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    draftModel,
+    input.draftBaseUrl,
+  );
+  const polishBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    polishModel,
+    input.polishBaseUrl,
+  );
+  const currentDraftBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    currentDraftModel,
+    readAiTaskRouteConfigValue(
+      currentFileEnv,
+      env,
+      "CHAPTER_DRAFT_BASE_URL",
+    ),
+  );
+  const currentPolishBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    currentPolishModel,
+    readAiTaskRouteConfigValue(
+      currentFileEnv,
+      env,
+      "CHAPTER_POLISH_BASE_URL",
+    ),
+  );
+  const draftConnectionChanged = !taskRouteConnectionsShareCredentials(
+    {
+      model: currentDraftModel,
+      baseUrl: currentDraftBaseUrl,
+    },
+    {
+      model: draftModel,
+      baseUrl: draftBaseUrl,
+    },
+  );
+  const polishConnectionChanged = !taskRouteConnectionsShareCredentials(
+    {
+      model: currentPolishModel,
+      baseUrl: currentPolishBaseUrl,
+    },
+    {
+      model: polishModel,
+      baseUrl: polishBaseUrl,
+    },
+  );
   const nextDraftApiKey = input.clearDraftApiKey
     ? ""
-    : draftApiKeyInput || currentDraftApiKey;
+    : draftApiKeyInput || (draftConnectionChanged ? "" : currentDraftApiKey);
   const nextPolishApiKey = input.clearPolishApiKey
     ? ""
-    : polishApiKeyInput || currentPolishApiKey;
+    : polishApiKeyInput || (polishConnectionChanged ? "" : currentPolishApiKey);
+  const canReuseDraftConnection =
+    Boolean(input.polishUseDraftConnection) &&
+    taskRouteConnectionsCanReuseSharedConnection(
+      {
+        model: draftModel,
+        baseUrl: draftBaseUrl,
+      },
+      {
+        model: polishModel,
+        baseUrl: polishBaseUrl,
+      },
+    );
   const nextEnv: Partial<Record<AiTaskRouteConfigKey, string>> = {
     CHAPTER_DRAFT_API_KEY: nextDraftApiKey,
-    CHAPTER_DRAFT_MODEL: normalizeKimiModel(input.draftModel),
-    CHAPTER_DRAFT_BASE_URL: normalizeKimiBaseUrl(input.draftBaseUrl),
+    CHAPTER_DRAFT_MODEL: draftModel,
+    CHAPTER_DRAFT_BASE_URL: draftBaseUrl,
     CHAPTER_POLISH_API_KEY: nextPolishApiKey,
-    CHAPTER_POLISH_MODEL: normalizeKimiModelForTaskType(
-      input.polishModel,
-      "chapter_polish_generation",
-    ),
-    CHAPTER_POLISH_BASE_URL: normalizeKimiBaseUrl(input.polishBaseUrl),
-    CHAPTER_POLISH_USE_DRAFT_CONNECTION: input.polishUseDraftConnection
-      ? "1"
-      : "0",
+    CHAPTER_POLISH_MODEL: polishModel,
+    CHAPTER_POLISH_BASE_URL: polishBaseUrl,
+    CHAPTER_POLISH_USE_DRAFT_CONNECTION: canReuseDraftConnection ? "1" : "0",
   };
 
   writeLocalConfigFile(configPath, nextEnv, aiTaskRouteConfigKeys);
@@ -914,18 +994,18 @@ export function normalizeAiBaseUrl(baseUrl?: string | null) {
   return normalized;
 }
 
-export function normalizeKimiModel(model?: string | null) {
+export function normalizeTaskRouteModel(model?: string | null) {
   return model?.trim() || DEFAULT_KIMI_K2_6_MODEL;
 }
 
-export function normalizeKimiBaseUrl(baseUrl?: string | null) {
+export function normalizeTaskRouteBaseUrl(baseUrl?: string | null) {
   const normalized = (baseUrl?.trim() || DEFAULT_KIMI_API_BASE_URL).replace(
     /\/+$/,
     "",
   );
 
   if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
-    throw new Error("Kimi API Base URL 必须是 http 或 https URL。");
+    throw new Error("章节写作路由 API Base URL 必须是 http 或 https URL。");
   }
 
   return normalized;
@@ -1514,20 +1594,22 @@ function readAiTaskModelRouteSetting(
 ): AiTaskModelRouteSetting {
   const configPath = getAiConfigPath(env);
   const fileEnv = readLocalConfigFile(configPath);
-  const runtimeEnv = {
-    ...env,
-    ...compactAiTaskRouteEnv(fileEnv),
-  };
+  const runtimeEnv = mergeAiTaskRouteEnv(env, fileEnv);
   const keys = routeConfigKeysForTaskType(taskType);
   const connection = resolveAiTaskRouteConnection(taskType, runtimeEnv);
+
+  const model = normalizeTaskRouteModelForTaskType(
+    runtimeEnv[keys.model],
+    taskType,
+  );
 
   return {
     taskType,
     label: aiTaskModelRouteLabel(taskType),
     hasApiKey: Boolean(connection.apiKey),
     maskedApiKey: maskSecret(connection.apiKey),
-    model: normalizeKimiModelForTaskType(runtimeEnv[keys.model], taskType),
-    baseUrl: normalizeKimiBaseUrl(connection.baseUrl),
+    model,
+    baseUrl: connection.baseUrl,
     isActive: Boolean(connection.apiKey),
     useDraftConnection: connection.useDraftConnection,
     isUsingSharedConnection: connection.isUsingSharedConnection,
@@ -1541,12 +1623,47 @@ function readRouteApiKey(
 ) {
   const configPath = getAiConfigPath(env);
   const fileEnv = readLocalConfigFile(configPath);
-  const runtimeEnv = {
-    ...env,
-    ...compactAiTaskRouteEnv(fileEnv),
-  };
+  const runtimeEnv = mergeAiTaskRouteEnv(env, fileEnv);
 
   return resolveAiTaskRouteConnection(taskType, runtimeEnv).apiKey;
+}
+
+function mergeAiTaskRouteEnv(
+  env: AiRuntimeEnv,
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+) {
+  const runtimeEnv: AiRuntimeEnv = {
+    ...env,
+  };
+
+  for (const key of aiTaskRouteConfigKeys) {
+    if (!Object.prototype.hasOwnProperty.call(fileEnv, key)) {
+      continue;
+    }
+
+    const value = fileEnv[key]?.trim();
+
+    if (value) {
+      runtimeEnv[key] = value;
+    } else {
+      // An explicitly blank local value must clear a legacy environment key.
+      delete runtimeEnv[key];
+    }
+  }
+
+  return runtimeEnv;
+}
+
+function readAiTaskRouteConfigValue(
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+  env: AiRuntimeEnv,
+  key: AiTaskRouteConfigKey,
+) {
+  if (Object.prototype.hasOwnProperty.call(fileEnv, key)) {
+    return fileEnv[key]?.trim() ?? "";
+  }
+
+  return env[key]?.trim() ?? "";
 }
 
 function routeConfigKeysForTaskType(taskType: AiTaskModelRouteTaskType) {
@@ -1571,15 +1688,38 @@ function resolveAiTaskRouteConnection(
 ) {
   const keys = routeConfigKeysForTaskType(taskType);
   const dedicatedApiKey = runtimeEnv[keys.apiKey]?.trim() ?? "";
+  const model = normalizeTaskRouteModelForTaskType(
+    runtimeEnv[keys.model],
+    taskType,
+  );
+  const draftModel = normalizeTaskRouteModel(runtimeEnv.CHAPTER_DRAFT_MODEL);
+  const routeBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    model,
+    runtimeEnv[keys.baseUrl],
+  );
+  const draftBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    draftModel,
+    runtimeEnv.CHAPTER_DRAFT_BASE_URL,
+  );
   const useDraftConnection =
     isPolishRouteTaskType(taskType) &&
-    normalizeBooleanConfig(runtimeEnv.CHAPTER_POLISH_USE_DRAFT_CONNECTION);
+    normalizeBooleanConfig(runtimeEnv.CHAPTER_POLISH_USE_DRAFT_CONNECTION) &&
+    taskRouteConnectionsCanReuseSharedConnection(
+      {
+        model: draftModel,
+        baseUrl: draftBaseUrl,
+      },
+      {
+        model,
+        baseUrl: routeBaseUrl,
+      },
+    );
   const isUsingSharedConnection = useDraftConnection && !dedicatedApiKey;
 
   if (isUsingSharedConnection) {
     return {
       apiKey: runtimeEnv.CHAPTER_DRAFT_API_KEY?.trim() ?? "",
-      baseUrl: runtimeEnv.CHAPTER_DRAFT_BASE_URL,
+      baseUrl: draftBaseUrl,
       useDraftConnection,
       isUsingSharedConnection,
     };
@@ -1587,13 +1727,13 @@ function resolveAiTaskRouteConnection(
 
   return {
     apiKey: dedicatedApiKey,
-    baseUrl: runtimeEnv[keys.baseUrl],
+    baseUrl: routeBaseUrl,
     useDraftConnection,
     isUsingSharedConnection: false,
   };
 }
 
-function normalizeKimiModelForTaskType(
+function normalizeTaskRouteModelForTaskType(
   model: string | null | undefined,
   taskType: AiTaskModelRouteTaskType,
 ) {
@@ -1606,6 +1746,83 @@ function normalizeKimiModelForTaskType(
   return isPolishRouteTaskType(taskType)
     ? DEFAULT_KIMI_K3_MODEL
     : DEFAULT_KIMI_K2_6_MODEL;
+}
+
+function normalizeTaskRouteBaseUrlForModel(
+  model: string,
+  baseUrl?: string | null,
+) {
+  const normalizedBaseUrl = baseUrl?.trim().replace(/\/+$/, "") ?? "";
+  const provider = taskRouteModelProvider(model);
+
+  if (
+    provider === "openai" &&
+    (!normalizedBaseUrl || normalizedBaseUrl === DEFAULT_KIMI_API_BASE_URL)
+  ) {
+    return DEFAULT_OPENAI_BASE_URL;
+  }
+
+  if (
+    provider === "moonshot" &&
+    (!normalizedBaseUrl || normalizedBaseUrl === DEFAULT_OPENAI_BASE_URL)
+  ) {
+    return DEFAULT_KIMI_API_BASE_URL;
+  }
+
+  return normalizeTaskRouteBaseUrl(baseUrl);
+}
+
+export function taskRouteConnectionsShareCredentials(
+  first: AiTaskRouteConnection,
+  second: AiTaskRouteConnection,
+) {
+  return taskRouteConnectionIdentity(first) === taskRouteConnectionIdentity(second);
+}
+
+export function taskRouteConnectionsCanReuseSharedConnection(
+  draft: AiTaskRouteConnection,
+  polish: AiTaskRouteConnection,
+) {
+  const draftProvider = taskRouteModelProvider(draft.model);
+
+  return (
+    draftProvider !== "custom" &&
+    draftProvider === taskRouteModelProvider(polish.model) &&
+    taskRouteConnectionsShareCredentials(draft, polish)
+  );
+}
+
+function taskRouteConnectionIdentity(connection: AiTaskRouteConnection) {
+  const model = normalizeTaskRouteModel(connection.model);
+  const baseUrl = normalizeTaskRouteBaseUrlForModel(model, connection.baseUrl);
+  const provider = taskRouteModelProvider(model);
+
+  if (provider === "custom") {
+    return `${provider}:${model.trim().toLowerCase()}:${baseUrl}`;
+  }
+
+  return `${provider}:${baseUrl}`;
+}
+
+function taskRouteModelProvider(model: string) {
+  const normalized = model.trim().toLowerCase();
+
+  if (
+    normalized.startsWith("kimi-") ||
+    normalized.startsWith("moonshot-")
+  ) {
+    return "moonshot" as const;
+  }
+
+  if (
+    normalized.startsWith("gpt-") ||
+    normalized.startsWith("chatgpt-") ||
+    /^(o1|o3|o4)(?:[-_.]|$)/.test(normalized)
+  ) {
+    return "openai" as const;
+  }
+
+  return "custom" as const;
 }
 
 function isPolishRouteTaskType(taskType: AiTaskModelRouteTaskType) {

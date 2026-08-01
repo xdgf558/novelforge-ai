@@ -24,6 +24,7 @@ import {
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ProjectCompletionPanel } from "@/components/projects/project-completion-panel";
 import { WorkspaceTabs } from "@/components/workspace-tabs";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatNumber, formatWordRange } from "@/lib/format";
@@ -35,6 +36,8 @@ import {
   isShortStoryProject,
   projectWorkTypeLabel,
 } from "@/lib/projects/work-types";
+import { calculateProjectCompletionReadiness } from "@/lib/projects/completion";
+import { projectStatusLabel } from "@/lib/projects/status";
 
 export const dynamic = "force-dynamic";
 
@@ -42,10 +45,19 @@ type ProjectPageProps = {
   params: Promise<{
     projectId: string;
   }>;
+  searchParams?: Promise<{
+    completion?: string;
+  }>;
 };
 
-export default async function ProjectPage({ params }: ProjectPageProps) {
+type ProjectCompletionNotice = "already-finished" | "not-ready" | "unsupported";
+
+export default async function ProjectPage({
+  params,
+  searchParams,
+}: ProjectPageProps) {
   const { projectId } = await params;
+  const resolvedSearchParams = await searchParams;
   const [project, pendingUpdateGroups] = await Promise.all([
     prisma.project.findUnique({
       where: {
@@ -66,6 +78,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
                 status: true,
               },
             },
+          },
+        },
+        chapters: {
+          select: {
+            finalText: true,
+            status: true,
+            wordCount: true,
           },
         },
         _count: {
@@ -117,6 +136,14 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       />
     );
   }
+
+  const completionReadiness = calculateProjectCompletionReadiness({
+    chapters: project.chapters,
+    totalWordTarget: project.totalWordTarget,
+  });
+  const completionNotice = resolveProjectCompletionNotice(
+    resolvedSearchParams?.completion,
+  );
 
   const workspaceGroups = [
     {
@@ -272,7 +299,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
               {projectWorkTypeLabel(project.workType)}
             </span>
             <span className="inline-flex min-h-10 items-center rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm font-semibold text-signal-700">
-              {project.status === "active" ? "进行中" : "已归档"}
+              {projectStatusLabel(project.status)}
             </span>
             <Link
               className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
@@ -295,6 +322,13 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         />
       </section>
 
+      <ProjectCompletionPanel
+        notice={completionNotice}
+        projectId={project.id}
+        readiness={completionReadiness}
+        status={project.status}
+      />
+
       <WorkspaceTabs
         ariaLabel="长篇项目模块"
         tabs={workspaceGroups.map((group) => ({
@@ -316,7 +350,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
         <div className="nf-section-panel">
           <h2 className="text-base font-semibold text-ink-950">项目状态</h2>
           <dl className="mt-4 space-y-3 text-sm">
-            <Row label="状态" value={project.status === "active" ? "进行中" : "已归档"} />
+            <Row label="状态" value={projectStatusLabel(project.status)} />
             <Row label="更新频率" value={project.updateFrequency || "未设置"} />
             <Row label="项目创建" value={formatDate(activitySummary.projectCreatedAt)} />
             <Row
@@ -496,7 +530,7 @@ function ShortStoryProjectDashboard({
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex min-h-10 items-center rounded-md border border-signal-600/20 bg-signal-600/10 px-3 py-2 text-sm font-semibold text-signal-700">
-              {project.status === "active" ? "进行中" : "已归档"}
+              {projectStatusLabel(project.status)}
             </span>
             <Link
               className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
@@ -636,4 +670,14 @@ function Row({ label, value }: { label: string; value: string }) {
       <dd className="text-right font-medium text-ink-950">{value}</dd>
     </div>
   );
+}
+
+function resolveProjectCompletionNotice(
+  value?: string,
+): ProjectCompletionNotice | null {
+  return value === "already-finished" ||
+    value === "not-ready" ||
+    value === "unsupported"
+    ? value
+    : null;
 }

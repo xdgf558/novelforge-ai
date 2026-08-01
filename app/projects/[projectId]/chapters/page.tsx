@@ -27,6 +27,7 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
     select: {
       id: true,
       title: true,
+      status: true,
       workType: true,
       totalWordTarget: true,
       chapterWordMin: true,
@@ -67,6 +68,7 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
     ],
   });
   const shortStoryProject = isShortStoryProject(project.workType);
+  const canWriteChapters = project.status === "active";
   const unitRecommendation = recommendShortStoryWritingUnits({
     totalWordTarget: project.totalWordTarget,
     unitWordMin: project.chapterWordMin,
@@ -168,13 +170,22 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
           </p>
         </div>
 
-        <Link
-          className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-          href={`/projects/${project.id}/chapters/new`}
-        >
-          <Plus aria-hidden="true" className="h-4 w-4" />
-          新建{shortStoryProject ? "写作单元" : "章节"}
-        </Link>
+        {canWriteChapters ? (
+          <Link
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+            href={`/projects/${project.id}/chapters/new`}
+          >
+            <Plus aria-hidden="true" className="h-4 w-4" />
+            新建{shortStoryProject ? "写作单元" : "章节"}
+          </Link>
+        ) : (
+          <Link
+            className="inline-flex min-h-10 items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-100"
+            href={`/projects/${project.id}/edit`}
+          >
+            作品已完结，重新连载后可编辑
+          </Link>
+        )}
       </div>
 
       {shortStoryProject ? (
@@ -219,13 +230,15 @@ export default async function ChapterListPage({ params }: ChapterListPageProps) 
               ? "先创建第一个写作单元，确认目标、场景推进、冲突、转折和兑现任务。每次保存都会留下版本快照。"
               : "先创建第一章，手动记录章节目标、节拍和正文。每次保存都会留下章节版本快照。"}
           </p>
-          <Link
-            className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
-            href={`/projects/${project.id}/chapters/new`}
-          >
-            <Plus aria-hidden="true" className="h-4 w-4" />
-            {shortStoryProject ? "创建第一个写作单元" : "创建第一章"}
-          </Link>
+          {canWriteChapters ? (
+            <Link
+              className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
+              href={`/projects/${project.id}/chapters/new`}
+            >
+              <Plus aria-hidden="true" className="h-4 w-4" />
+              {shortStoryProject ? "创建第一个写作单元" : "创建第一章"}
+            </Link>
+          ) : null}
         </section>
       ) : (
         <section className="space-y-3">

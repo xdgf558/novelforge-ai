@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { updateChapter } from "@/app/projects/[projectId]/chapters/actions";
 import { ChapterForm } from "@/components/chapters/chapter-form";
 import { prisma } from "@/lib/prisma";
@@ -43,6 +43,10 @@ export default async function EditChapterPage({
 
   if (!chapter) {
     notFound();
+  }
+
+  if (chapter.project.status !== "active") {
+    redirect(`/projects/${projectId}/edit?projectError=restore-required`);
   }
 
   const shortStoryProject = isShortStoryProject(chapter.project.workType);

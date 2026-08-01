@@ -33,8 +33,12 @@ import {
   updateChapterRecord,
 } from "@/lib/chapters/records";
 import { prisma } from "@/lib/prisma";
+import {
+  acquireActiveProjectContentWriteLease,
+  ProjectContentWriteBlockedError,
+} from "@/lib/projects/content-write-guard";
 import { isShortStoryProject } from "@/lib/projects/work-types";
-import { assertProjectExists as assertProject } from "@/lib/server-actions/project-guards";
+import { assertProjectAllowsContentWrites } from "@/lib/server-actions/project-guards";
 
 const optionalChapterText = z
   .preprocess(
@@ -179,8 +183,27 @@ function finishChapterAiGenerationAction({
   redirect(`/projects/${projectId}/chapters/${chapterId}`);
 }
 
+async function assertWritableProject(projectId: string) {
+  try {
+    return await assertProjectAllowsContentWrites(projectId);
+  } catch (error) {
+    redirectProjectWriteBlockedError(error, projectId);
+  }
+}
+
+function redirectProjectWriteBlockedError(
+  error: unknown,
+  projectId: string,
+): never {
+  if (error instanceof ProjectContentWriteBlockedError) {
+    redirect(`/projects/${projectId}/edit?projectError=restore-required`);
+  }
+
+  throw error;
+}
+
 export async function createChapter(projectId: string, formData: FormData) {
-  const project = await assertProject(projectId);
+  const project = await assertWritableProject(projectId);
   const serialProject = !isShortStoryProject(project.workType);
 
   const { values, changeReason, sourceUnitPlanTaskId } =
@@ -209,7 +232,7 @@ export async function createChapter(projectId: string, formData: FormData) {
       );
     }
 
-    throw error;
+    redirectProjectWriteBlockedError(error, projectId);
   }
 
   const { chapter, chapterNumber } = createResult;
@@ -230,7 +253,7 @@ export async function updateChapter(
   chapterId: string,
   formData: FormData,
 ) {
-  const project = await assertProject(projectId);
+  const project = await assertWritableProject(projectId);
   const serialProject = !isShortStoryProject(project.workType);
   const chapter = await findChapterForUpdate({
     projectId,
@@ -270,7 +293,7 @@ export async function updateChapter(
       );
     }
 
-    throw error;
+    redirectProjectWriteBlockedError(error, projectId);
   }
 
   if (serialProject) {
@@ -290,12 +313,18 @@ export async function updateChapter(
 }
 
 export async function deleteChapter(projectId: string, chapterId: string) {
-  const project = await assertProject(projectId);
+  const project = await assertWritableProject(projectId);
   const serialProject = !isShortStoryProject(project.workType);
-  const deleteResult = await deleteChapterRecord({
-    projectId,
-    chapterId,
-  });
+  let deleteResult: Awaited<ReturnType<typeof deleteChapterRecord>>;
+
+  try {
+    deleteResult = await deleteChapterRecord({
+      projectId,
+      chapterId,
+    });
+  } catch (error) {
+    redirectProjectWriteBlockedError(error, projectId);
+  }
 
   if (!deleteResult) {
     notFound();
@@ -315,6 +344,7 @@ export async function deleteChapter(projectId: string, chapterId: string) {
 }
 
 export async function generateChapterBeats(projectId: string, chapterId: string) {
+  await assertWritableProject(projectId);
   const result = await loadChapterContextForAction(() =>
     startChapterBeatGeneration(projectId, chapterId),
   );
@@ -331,6 +361,7 @@ export async function generateChapterDraft(
   chapterId: string,
   formData?: FormData,
 ) {
+  await assertWritableProject(projectId);
   const result = await loadChapterContextForAction(() =>
     startChapterDraftGeneration(
       projectId,
@@ -351,6 +382,7 @@ export async function generateChapterPolish(
   chapterId: string,
   formData?: FormData,
 ) {
+  await assertWritableProject(projectId);
   const result = await loadChapterContextForAction(() =>
     startChapterPolishGeneration(
       projectId,
@@ -367,6 +399,7 @@ export async function generateChapterPolish(
 }
 
 export async function generateChapterSummary(projectId: string, chapterId: string) {
+  await assertWritableProject(projectId);
   const result = await loadChapterContextForAction(() =>
     startChapterSummaryGeneration(projectId, chapterId),
   );
@@ -383,6 +416,7 @@ export async function adoptChapterBeats(
   chapterId: string,
   taskId: string,
 ) {
+  await assertWritableProject(projectId);
   const [chapter, task] = await Promise.all([
     prisma.chapter.findFirst({
       where: {
@@ -416,40 +450,46 @@ export async function adoptChapterBeats(
     beats,
   });
 
-  await prisma.$transaction(async (tx) => {
-    await tx.chapter.update({
-      where: {
-        id: chapterId,
-      },
-      data: snapshot,
-    });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await acquireActiveProjectContentWriteLease(tx, projectId);
 
-    const versionCount = await tx.chapterVersion.count({
-      where: {
-        chapterId,
-      },
-    });
+      await tx.chapter.update({
+        where: {
+          id: chapterId,
+        },
+        data: snapshot,
+      });
 
-    await tx.chapterVersion.create({
-      data: {
-        projectId,
-        chapterId,
-        versionNumber: versionCount + 1,
-        snapshotJson: JSON.stringify(snapshot),
-        changeReason: `采用 AI 章节节拍任务 ${task.id}`,
-        sourceType: "ai_chapter_beats",
-      },
-    });
+      const versionCount = await tx.chapterVersion.count({
+        where: {
+          chapterId,
+        },
+      });
 
-    await tx.aiTask.update({
-      where: {
-        id: task.id,
-      },
-      data: {
-        adoptionState: "adopted",
-      },
+      await tx.chapterVersion.create({
+        data: {
+          projectId,
+          chapterId,
+          versionNumber: versionCount + 1,
+          snapshotJson: JSON.stringify(snapshot),
+          changeReason: `采用 AI 章节节拍任务 ${task.id}`,
+          sourceType: "ai_chapter_beats",
+        },
+      });
+
+      await tx.aiTask.update({
+        where: {
+          id: task.id,
+        },
+        data: {
+          adoptionState: "adopted",
+        },
+      });
     });
-  });
+  } catch (error) {
+    redirectProjectWriteBlockedError(error, projectId);
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/ai`);
@@ -464,6 +504,7 @@ export async function adoptChapterDraft(
   chapterId: string,
   taskId: string,
 ) {
+  await assertWritableProject(projectId);
   const [chapter, task] = await Promise.all([
     prisma.chapter.findFirst({
       where: {
@@ -497,40 +538,46 @@ export async function adoptChapterDraft(
     draftText,
   });
 
-  await prisma.$transaction(async (tx) => {
-    await tx.chapter.update({
-      where: {
-        id: chapterId,
-      },
-      data: snapshot,
-    });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await acquireActiveProjectContentWriteLease(tx, projectId);
 
-    const versionCount = await tx.chapterVersion.count({
-      where: {
-        chapterId,
-      },
-    });
+      await tx.chapter.update({
+        where: {
+          id: chapterId,
+        },
+        data: snapshot,
+      });
 
-    await tx.chapterVersion.create({
-      data: {
-        projectId,
-        chapterId,
-        versionNumber: versionCount + 1,
-        snapshotJson: JSON.stringify(snapshot),
-        changeReason: `采用 AI 章节草稿任务 ${task.id}`,
-        sourceType: "ai_chapter_draft",
-      },
-    });
+      const versionCount = await tx.chapterVersion.count({
+        where: {
+          chapterId,
+        },
+      });
 
-    await tx.aiTask.update({
-      where: {
-        id: task.id,
-      },
-      data: {
-        adoptionState: "adopted",
-      },
+      await tx.chapterVersion.create({
+        data: {
+          projectId,
+          chapterId,
+          versionNumber: versionCount + 1,
+          snapshotJson: JSON.stringify(snapshot),
+          changeReason: `采用 AI 章节草稿任务 ${task.id}`,
+          sourceType: "ai_chapter_draft",
+        },
+      });
+
+      await tx.aiTask.update({
+        where: {
+          id: task.id,
+        },
+        data: {
+          adoptionState: "adopted",
+        },
+      });
     });
-  });
+  } catch (error) {
+    redirectProjectWriteBlockedError(error, projectId);
+  }
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/ai`);
@@ -545,6 +592,7 @@ export async function adoptChapterPolish(
   chapterId: string,
   taskId: string,
 ) {
+  await assertWritableProject(projectId);
   const [chapter, task] = await Promise.all([
     prisma.chapter.findFirst({
       where: {
@@ -593,47 +641,55 @@ export async function adoptChapterPolish(
     status: chapter.status === "published" ? "published" : "revising",
   });
 
-  const adopted = await prisma.$transaction(async (tx) => {
-    const adoptedTask = await tx.aiTask.updateMany({
-      where: {
-        id: task.id,
-        adoptionState: "not_reviewed",
-      },
-      data: {
-        adoptionState: "adopted",
-      },
+  let adopted = false;
+
+  try {
+    adopted = await prisma.$transaction(async (tx) => {
+      await acquireActiveProjectContentWriteLease(tx, projectId);
+
+      const adoptedTask = await tx.aiTask.updateMany({
+        where: {
+          id: task.id,
+          adoptionState: "not_reviewed",
+        },
+        data: {
+          adoptionState: "adopted",
+        },
+      });
+
+      if (adoptedTask.count !== 1) {
+        return false;
+      }
+
+      await tx.chapter.update({
+        where: {
+          id: chapterId,
+        },
+        data: snapshot,
+      });
+
+      const versionCount = await tx.chapterVersion.count({
+        where: {
+          chapterId,
+        },
+      });
+
+      await tx.chapterVersion.create({
+        data: {
+          projectId,
+          chapterId,
+          versionNumber: versionCount + 1,
+          snapshotJson: JSON.stringify(snapshot),
+          changeReason: `采用 AI 正文精修任务 ${task.id}`,
+          sourceType: "ai_chapter_polish",
+        },
+      });
+
+      return true;
     });
-
-    if (adoptedTask.count !== 1) {
-      return false;
-    }
-
-    await tx.chapter.update({
-      where: {
-        id: chapterId,
-      },
-      data: snapshot,
-    });
-
-    const versionCount = await tx.chapterVersion.count({
-      where: {
-        chapterId,
-      },
-    });
-
-    await tx.chapterVersion.create({
-      data: {
-        projectId,
-        chapterId,
-        versionNumber: versionCount + 1,
-        snapshotJson: JSON.stringify(snapshot),
-        changeReason: `采用 AI 正文精修任务 ${task.id}`,
-        sourceType: "ai_chapter_polish",
-      },
-    });
-
-    return true;
-  });
+  } catch (error) {
+    redirectProjectWriteBlockedError(error, projectId);
+  }
 
   if (adopted) {
     await syncOutlineStatusesForChapterNumbers(projectId, [

@@ -6647,3 +6647,103 @@ Verification:
 - `npm run build` passed.
 - Browser verification against a temporary copy of the real desktop database passed at 1168px with the AI run console both open and closed, plus an 820px narrow viewport.
 - The affected states had no horizontal overflow; the long issue title remained normally wrapped instead of collapsing into a near-vertical column.
+
+## 2026-08-01: GPT-5.6 Luna Chapter Draft Route
+
+Status: completed.
+
+What was done:
+
+- Added `gpt-5.6-luna` to the chapter-draft route suggestions in local AI settings.
+- Generalized the task-route connection labels so a chapter draft can use either
+  Kimi or OpenAI credentials without implying that every route is Kimi-only.
+- When Luna is selected with the saved Moonshot default URL still present, the
+  local route saves `https://api.openai.com/v1`; custom OpenAI-compatible URLs
+  remain untouched.
+- Direct OpenAI Luna calls now use the Responses API with
+  `reasoning: { effort: "xhigh" }`, matching the UI's "极高" setting. The
+  compatibility Chat Completions payload also carries `reasoning_effort:
+  "xhigh"` for Luna; existing Kimi K3 `max` behavior is unchanged.
+- Kept API keys in the local route configuration only. Task logs continue to
+  record model and base URL snapshots, never the key.
+
+Verification:
+
+- Focused OpenAI-client, local-config, and completion-flow tests passed:
+  5 files, 65 tests.
+- `npm run typecheck` passed.
+- Full `npm test` passed: 122 files and 709 tests.
+- `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
+
+## 2026-08-01: Serial Completion and Archive Workflow
+
+Status: completed.
+
+What was done:
+
+- Added an explicit `completed` project status for long-form serials without a
+  schema migration; manually archived projects continue to use `archived`.
+- Added a project-dashboard completion panel that appears once confirmed final
+  text reaches the configured total-word target. It reports any chapters that
+  still need finalization or a formal final-text save.
+- Added an author-triggered “完结并归档” action. The server rechecks the work
+  type, active status, confirmed word count, chapter lifecycle, and final text
+  before changing the project status, so a stale page or direct request cannot
+  bypass the completion criteria.
+- Updated the project library archive directory to include both completed and
+  manually archived projects, with distinct labels. Completed serials retain
+  all existing chapters, settings, memory, and AI history, and can be reopened
+  as active serials from project editing.
+
+Verification:
+
+- Targeted completion/status/action tests passed.
+- `npm run typecheck` passed.
+- Full `npm test` passed: 122 files and 709 tests.
+- `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
+
+## 2026-08-01: PR #95 Provider and Completion Integrity Review Fixes
+
+Status: completed for review.
+
+What was done:
+
+- Made chapter-writing route credentials connection-scoped. Switching a blank
+  draft route between Kimi and GPT-5.6 Luna clears the prior saved route key,
+  including an identically named inherited environment value.
+- Limited draft-route reuse to compatible connection identities, so Kimi K3
+  polish and short-story whole review cannot send a Luna/OpenAI connection to
+  Moonshot or send `kimi-k3` to the OpenAI Responses endpoint.
+- Hardened queued task execution snapshots: after settings change, a task only
+  reuses the current route key when its stored model and endpoint retain the
+  same connection identity; incompatible snapshots fail with an empty key
+  instead of transmitting credentials across endpoints.
+- Made serial completion atomic with the chapter-content write lease. Chapter
+  create/edit/delete, AI generation/adoption, and continuity one-click final
+  prose repair all acquire that lease and direct completed/archived projects to
+  restore the serial before writing. Changes to a completed project's total
+  word target are also rejected until restoration.
+- PR #95 re-review correction: route safety now uses a connection identity,
+  not the previous Luna-versus-non-Luna model split. Recognized Moonshot and
+  OpenAI model families must retain the same normalized Base URL to keep a
+  route key or reuse a draft connection; custom models require an exact model
+  and URL match. This blocks `gpt-4.1`/K3 reuse, clears old Kimi keys when a
+  blank route switches to any recognized GPT model, and rejects queued-task
+  credentials after a route endpoint changes.
+- PR #95 final route correction: known default endpoints now normalize in both
+  directions. Switching a saved Luna/OpenAI route back to a Kimi/Moonshot
+  model restores the Moonshot default before a new key can be persisted or
+  used; custom endpoints remain author-controlled.
+
+Verification:
+
+- Focused local-config, task logger, chapter record/action, and project action
+  tests passed.
+- Re-review route isolation tests passed: `lib/ai/local-config.test.ts` and
+  `lib/ai/task-logger.test.ts`, 51 tests.
+- `npm run typecheck` passed.
+- Full `npm test` passed: 122 files and 723 tests.
+- `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.

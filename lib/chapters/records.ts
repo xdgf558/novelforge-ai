@@ -4,6 +4,7 @@ import {
   type ChapterValues,
 } from "@/lib/chapter-fields";
 import { prisma } from "@/lib/prisma";
+import { acquireActiveProjectContentWriteLease } from "@/lib/projects/content-write-guard";
 import { createMissingStorylineChapterRelationsForChapter } from "@/lib/storyline-auto-relations";
 
 type ExistingChapterForUpdate = {
@@ -58,6 +59,8 @@ export async function createChapterRecord({
 
   try {
     const chapter = await prisma.$transaction(async (tx) => {
+      await acquireActiveProjectContentWriteLease(tx, projectId);
+
       const createdChapter = await tx.chapter.create({
         data: {
           projectId,
@@ -132,6 +135,8 @@ export async function updateChapterRecord({
 
   try {
     await prisma.$transaction(async (tx) => {
+      await acquireActiveProjectContentWriteLease(tx, projectId);
+
       await tx.chapter.update({
         where: {
           id: chapter.id,
@@ -205,28 +210,32 @@ export async function deleteChapterRecord({
   chapterId: string;
   projectId: string;
 }) {
-  const chapter = await prisma.chapter.findFirst({
-    where: {
-      id: chapterId,
-      projectId,
-    },
-    select: {
-      id: true,
-      chapterNumber: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    await acquireActiveProjectContentWriteLease(tx, projectId);
+
+    const chapter = await tx.chapter.findFirst({
+      where: {
+        id: chapterId,
+        projectId,
+      },
+      select: {
+        id: true,
+        chapterNumber: true,
+      },
+    });
+
+    if (!chapter) {
+      return null;
+    }
+
+    await tx.chapter.delete({
+      where: {
+        id: chapterId,
+      },
+    });
+
+    return {
+      chapterNumber: chapter.chapterNumber,
+    };
   });
-
-  if (!chapter) {
-    return null;
-  }
-
-  await prisma.chapter.delete({
-    where: {
-      id: chapterId,
-    },
-  });
-
-  return {
-    chapterNumber: chapter.chapterNumber,
-  };
 }

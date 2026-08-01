@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createProject, deleteProject, updateProject } from "./actions";
+import {
+  completeAndArchiveProject,
+  createProject,
+  deleteProject,
+  updateProject,
+} from "./actions";
 
 const mocks = vi.hoisted(() => ({
+  notFound: vi.fn(),
   redirect: vi.fn(),
   revalidatePath: vi.fn(),
   deleteProjectAudioAssets: vi.fn(),
@@ -10,8 +16,11 @@ const mocks = vi.hoisted(() => ({
     project: {
       create: vi.fn(),
       delete: vi.fn(),
+      findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -20,6 +29,7 @@ vi.mock("next/cache", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  notFound: mocks.notFound,
   redirect: mocks.redirect,
 }));
 
@@ -73,6 +83,28 @@ describe("project actions", () => {
     mocks.prisma.project.update.mockResolvedValue({});
     mocks.prisma.project.create.mockResolvedValue({ id: "project_1" });
     mocks.prisma.project.delete.mockResolvedValue({});
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      status: "active",
+      totalWordTarget: 10_000,
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      workType: "serial_novel",
+      chapters: [
+        {
+          finalText: "甲".repeat(5_000),
+          status: "final",
+          wordCount: 5_000,
+        },
+        {
+          finalText: "乙".repeat(5_000),
+          status: "published",
+          wordCount: 5_000,
+        },
+      ],
+    });
+    mocks.prisma.project.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.$transaction.mockImplementation(async (callback) =>
+      callback(mocks.prisma),
+    );
     mocks.deleteProjectAudioAssets.mockResolvedValue(undefined);
     mocks.deleteProjectCoverAssets.mockResolvedValue(undefined);
   });
@@ -165,6 +197,38 @@ describe("project actions", () => {
     );
   });
 
+  it("requires restoring a completed project before changing its word target", async () => {
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      id: "project_1",
+      status: "completed",
+      totalWordTarget: 10_000,
+    });
+    mocks.prisma.project.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      updateProject(
+        "project_1",
+        buildProjectFormData({
+          totalWordTarget: 12_000,
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.project.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "project_1",
+        status: "active",
+      },
+      data: expect.objectContaining({
+        totalWordTarget: 12_000,
+      }),
+    });
+    expect(mocks.prisma.project.update).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/edit?projectError=restore-required",
+    );
+  });
+
   it("removes project-scoped cover and audio assets after hard deletion", async () => {
     const formData = new FormData();
     formData.set("deleteConfirmation", "DELETE");
@@ -181,5 +245,103 @@ describe("project actions", () => {
     });
     expect(mocks.deleteProjectCoverAssets).toHaveBeenCalledWith("project_1");
     expect(mocks.deleteProjectAudioAssets).toHaveBeenCalledWith("project_1");
+  });
+
+  it("completes and archives an eligible serial project after verifying it on the server", async () => {
+    await expect(completeAndArchiveProject("project_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.project.findUnique).toHaveBeenCalledWith({
+      where: {
+        id: "project_1",
+      },
+      select: expect.objectContaining({
+        chapters: {
+          select: {
+            finalText: true,
+            status: true,
+            wordCount: true,
+          },
+        },
+      }),
+    });
+    expect(mocks.prisma.project.updateMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        id: "project_1",
+        status: "active",
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      },
+      data: {
+        updatedAt: expect.any(Date),
+      },
+    });
+    expect(mocks.prisma.project.updateMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "project_1",
+        status: "active",
+        updatedAt: expect.any(Date),
+        workType: "serial_novel",
+      },
+      data: {
+        status: "completed",
+      },
+    });
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/?projectStatus=archived&projectCompleted=1",
+    );
+  });
+
+  it("does not archive a project when a chapter still needs author confirmation", async () => {
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      status: "active",
+      totalWordTarget: 10_000,
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      workType: "serial_novel",
+      chapters: [
+        {
+          finalText: "甲".repeat(5_000),
+          status: "final",
+          wordCount: 5_000,
+        },
+        {
+          finalText: "乙".repeat(5_000),
+          status: "draft",
+          wordCount: 5_000,
+        },
+      ],
+    });
+
+    await expect(completeAndArchiveProject("project_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.project.updateMany).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1?completion=not-ready",
+    );
+  });
+
+  it("does not complete a project when a concurrent content write claims the project lease", async () => {
+    mocks.prisma.project.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(completeAndArchiveProject("project_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.project.updateMany).toHaveBeenCalledTimes(1);
+    expect(mocks.prisma.project.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "project_1",
+        status: "active",
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      },
+      data: {
+        updatedAt: expect.any(Date),
+      },
+    });
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1?completion=not-ready",
+    );
   });
 });
