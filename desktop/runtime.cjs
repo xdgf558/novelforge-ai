@@ -1,6 +1,7 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
+const interruptedAiTaskStatuses = require("../lib/ai/active-task-statuses.json");
 
 const interruptedAiTaskErrorMessage =
   "应用在 AI 任务完成前重新启动，任务已中断。请重新生成。";
@@ -183,7 +184,7 @@ async function failInterruptedAiTasks(
     return await prisma.aiTask.updateMany({
       where: {
         status: {
-          in: ["pending", "running"],
+          in: interruptedAiTaskStatuses,
         },
       },
       data: {
@@ -281,6 +282,7 @@ module.exports = {
   ensureDesktopEnvExample,
   ensureSqliteDatabaseFile,
   failInterruptedAiTasks,
+  interruptedAiTaskStatuses,
   interruptedAiTaskErrorMessage,
   parseDesktopEnv,
   readDesktopEnv,

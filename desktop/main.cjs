@@ -114,7 +114,12 @@ async function startBundledNext(paths) {
   };
 
   await runDesktopMigrations(paths.appRoot, databaseUrl);
-  await failInterruptedAiTasks(paths.appRoot, databaseUrl);
+
+  try {
+    await failInterruptedAiTasks(paths.appRoot, databaseUrl);
+  } catch (error) {
+    console.error("Failed to clean up interrupted AI tasks:", error);
+  }
 
   const nextBin = require.resolve("next/dist/bin/next", {
     paths: [paths.appRoot],

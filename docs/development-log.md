@@ -14,9 +14,15 @@ What was done:
   `running` AI task left by the previous process is now marked failed
   immediately with a restart-specific retry message instead of holding the UI
   until the normal inactivity cutoff expires.
+- Made restart cleanup best effort: cleanup errors are logged but never prevent
+  the desktop app from opening, while the existing inactivity cleanup remains
+  available as a fallback.
+- Moved active AI task statuses into one JSON runtime source shared by the
+  desktop startup cleanup and Next.js task locking.
 - Preserved completed AI tasks and their output.
 - Extended the desktop packaging smoke test with pending, running, and
-  completed task fixtures to cover restart cleanup behavior.
+  completed task fixtures to cover restart cleanup behavior, and added zero
+  cleanup plus cancelled-task preservation coverage.
 
 Verification:
 

@@ -4,6 +4,7 @@ const path = require("node:path");
 const {
   ensureSqliteDatabaseFile,
   failInterruptedAiTasks,
+  interruptedAiTaskStatuses,
   interruptedAiTaskErrorMessage,
   parseDesktopEnv,
   runDesktopMigrations,
@@ -13,6 +14,7 @@ const {
 
 const repoRoot = path.resolve(__dirname, "..");
 const packageJson = require("../package.json");
+const activeAiTaskStatuses = require("../lib/ai/active-task-statuses.json");
 
 main().catch((error) => {
   console.error(error);
@@ -116,6 +118,15 @@ async function main() {
   assert.ok(
     mainSource.includes("failInterruptedAiTasks"),
     "desktop startup fails AI tasks interrupted by an app restart",
+  );
+  assert.ok(
+    mainSource.includes("Failed to clean up interrupted AI tasks:"),
+    "interrupted task cleanup failure does not block desktop startup",
+  );
+  assert.deepEqual(
+    interruptedAiTaskStatuses,
+    activeAiTaskStatuses,
+    "desktop cleanup and Next.js task locking share active statuses",
   );
   assert.ok(
     mainSource.includes("before-input-event") &&
@@ -257,6 +268,16 @@ async function assertDesktopMigrations() {
             outputText: "completed output",
             completedAt: new Date("2026-08-01T11:58:00.000Z"),
           },
+          {
+            id: "desktop-smoke-cancelled-task",
+            projectId: project.id,
+            taskType: "chapter_summary_extraction",
+            model: "test-model",
+            status: "cancelled",
+            inputContextSummary: "cancelled task",
+            errorMessage: "cancelled by author",
+            completedAt: new Date("2026-08-01T11:57:00.000Z"),
+          },
         ],
       });
 
@@ -294,6 +315,19 @@ async function assertDesktopMigrations() {
       assert.equal(completedTask?.status, "completed");
       assert.equal(completedTask?.outputText, "completed output");
       assert.equal(completedTask?.errorMessage, null);
+
+      const cancelledTask = tasksById.get("desktop-smoke-cancelled-task");
+
+      assert.equal(cancelledTask?.status, "cancelled");
+      assert.equal(cancelledTask?.errorMessage, "cancelled by author");
+
+      const noInterruptedTasks = await failInterruptedAiTasks(
+        repoRoot,
+        databaseUrl,
+        new Date("2026-08-01T12:01:00.000Z"),
+      );
+
+      assert.equal(noInterruptedTasks.count, 0);
     } finally {
       await prisma.$disconnect();
     }

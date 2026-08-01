@@ -1,3 +1,5 @@
+import activeAiTaskStatusValues from "./active-task-statuses.json";
+
 export const aiTaskStatusOptions = [
   { value: "pending", label: "待执行" },
   { value: "running", label: "执行中" },
@@ -6,7 +8,8 @@ export const aiTaskStatusOptions = [
   { value: "cancelled", label: "已取消" },
 ] as const;
 
-export const activeAiTaskStatuses = ["pending", "running"] as const;
+export const activeAiTaskStatuses: readonly string[] =
+  activeAiTaskStatusValues;
 
 export const aiTaskAdoptionOptions = [
   { value: "not_reviewed", label: "未审阅" },
