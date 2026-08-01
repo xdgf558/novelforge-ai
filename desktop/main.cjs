@@ -6,6 +6,7 @@ const { app, BrowserWindow, Menu, dialog, shell } = require("electron");
 const {
   ensureDesktopEnvExample,
   ensureSqliteDatabaseFile,
+  failInterruptedAiTasks,
   readDesktopEnv,
   runDesktopMigrations,
   toPrismaSqliteUrl,
@@ -113,6 +114,7 @@ async function startBundledNext(paths) {
   };
 
   await runDesktopMigrations(paths.appRoot, databaseUrl);
+  await failInterruptedAiTasks(paths.appRoot, databaseUrl);
 
   const nextBin = require.resolve("next/dist/bin/next", {
     paths: [paths.appRoot],

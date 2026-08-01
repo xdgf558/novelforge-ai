@@ -3,6 +3,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const {
   ensureSqliteDatabaseFile,
+  failInterruptedAiTasks,
+  interruptedAiTaskErrorMessage,
   parseDesktopEnv,
   runDesktopMigrations,
   splitSqlStatements,
@@ -112,6 +114,10 @@ async function main() {
     "desktop startup uses bundled read-only-safe migration runner",
   );
   assert.ok(
+    mainSource.includes("failInterruptedAiTasks"),
+    "desktop startup fails AI tasks interrupted by an app restart",
+  );
+  assert.ok(
     mainSource.includes("before-input-event") &&
       mainSource.includes("exitExpandedWindow") &&
       mainSource.includes("setFullScreen(false)") &&
@@ -214,6 +220,80 @@ async function assertDesktopMigrations() {
         .filter((entry) => entry.isDirectory()).length;
 
       assert.equal(Number(migrationRows[0].count), migrationCount);
+
+      const project = await prisma.project.create({
+        data: {
+          title: "Desktop interrupted-task smoke",
+        },
+      });
+      const completedAt = new Date("2026-08-01T12:00:00.000Z");
+
+      await prisma.aiTask.createMany({
+        data: [
+          {
+            id: "desktop-smoke-pending-task",
+            projectId: project.id,
+            taskType: "chapter_draft_generation",
+            model: "test-model",
+            status: "pending",
+            inputContextSummary: "pending task",
+          },
+          {
+            id: "desktop-smoke-running-task",
+            projectId: project.id,
+            taskType: "chapter_polish_generation",
+            model: "test-model",
+            status: "running",
+            inputContextSummary: "running task",
+            startedAt: new Date("2026-08-01T11:59:00.000Z"),
+          },
+          {
+            id: "desktop-smoke-completed-task",
+            projectId: project.id,
+            taskType: "chapter_beat_generation",
+            model: "test-model",
+            status: "completed",
+            inputContextSummary: "completed task",
+            outputText: "completed output",
+            completedAt: new Date("2026-08-01T11:58:00.000Z"),
+          },
+        ],
+      });
+
+      const interruptedTasks = await failInterruptedAiTasks(
+        repoRoot,
+        databaseUrl,
+        completedAt,
+      );
+
+      assert.equal(interruptedTasks.count, 2);
+
+      const taskRows = await prisma.aiTask.findMany({
+        where: {
+          projectId: project.id,
+        },
+        orderBy: {
+          id: "asc",
+        },
+      });
+      const tasksById = new Map(taskRows.map((task) => [task.id, task]));
+
+      for (const taskId of [
+        "desktop-smoke-pending-task",
+        "desktop-smoke-running-task",
+      ]) {
+        const task = tasksById.get(taskId);
+
+        assert.equal(task?.status, "failed");
+        assert.equal(task?.errorMessage, interruptedAiTaskErrorMessage);
+        assert.equal(task?.completedAt?.getTime(), completedAt.getTime());
+      }
+
+      const completedTask = tasksById.get("desktop-smoke-completed-task");
+
+      assert.equal(completedTask?.status, "completed");
+      assert.equal(completedTask?.outputText, "completed output");
+      assert.equal(completedTask?.errorMessage, null);
     } finally {
       await prisma.$disconnect();
     }

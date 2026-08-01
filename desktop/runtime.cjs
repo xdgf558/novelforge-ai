@@ -2,6 +2,9 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
+const interruptedAiTaskErrorMessage =
+  "应用在 AI 任务完成前重新启动，任务已中断。请重新生成。";
+
 const desktopEnvKeys = new Set([
   "OPENAI_API_KEY",
   "OPENAI_MODEL",
@@ -160,6 +163,41 @@ async function runDesktopMigrations(appRoot, databaseUrl, options = {}) {
   }
 }
 
+async function failInterruptedAiTasks(
+  appRoot,
+  databaseUrl,
+  completedAt = new Date(),
+) {
+  const { PrismaClient } = require(require.resolve("@prisma/client", {
+    paths: [appRoot],
+  }));
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    return await prisma.aiTask.updateMany({
+      where: {
+        status: {
+          in: ["pending", "running"],
+        },
+      },
+      data: {
+        status: "failed",
+        errorMessage: interruptedAiTaskErrorMessage,
+        completedAt,
+        updatedAt: completedAt,
+      },
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 async function ensurePrismaMigrationTable(prisma) {
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
@@ -242,6 +280,8 @@ function splitSqlStatements(sql) {
 module.exports = {
   ensureDesktopEnvExample,
   ensureSqliteDatabaseFile,
+  failInterruptedAiTasks,
+  interruptedAiTaskErrorMessage,
   parseDesktopEnv,
   readDesktopEnv,
   runDesktopMigrations,
