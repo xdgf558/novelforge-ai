@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.114 完结归档与 Luna 写作路由";
+export const appReleaseTitle = "0.1.115 AI 任务中断恢复";
 
 export const appReleaseNotes = [
-  "长篇作品达到目标字数且章节均已确认后，可一键完结并进入归档目录。",
-  "章节草稿新增 GPT-5.6 Luna 路由，使用 OpenAI API 和极高推理强度。",
-  "强化 Kimi 与 OpenAI 路由隔离，切换模型时会安全校正对应的默认接口地址。",
+  "桌面应用重启后，会立即结束上次未完成的 AI 任务，避免界面长期停留在运行中。",
+  "中断任务会显示明确的重新生成提示，已完成和已取消任务保持不变。",
+  "启动清理失败只记录日志，不会阻止应用打开；原有超时清理继续兜底。",
 ];
