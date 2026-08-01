@@ -4,7 +4,6 @@ const path = require("node:path");
 const {
   ensureSqliteDatabaseFile,
   failInterruptedAiTasks,
-  interruptedAiTaskStatuses,
   interruptedAiTaskErrorMessage,
   parseDesktopEnv,
   runDesktopMigrations,
@@ -14,7 +13,6 @@ const {
 
 const repoRoot = path.resolve(__dirname, "..");
 const packageJson = require("../package.json");
-const activeAiTaskStatuses = require("../lib/ai/active-task-statuses.json");
 
 main().catch((error) => {
   console.error(error);
@@ -50,6 +48,10 @@ async function main() {
   assert.equal(packageJson.build.asar, true);
   assert.ok(packageJson.build.asarUnpack.includes(".next/**/*"), ".next is unpacked");
   assert.ok(
+    packageJson.build.asarUnpack.includes("lib/**/*"),
+    "shared desktop runtime data is unpacked",
+  );
+  assert.ok(
     packageJson.build.asarUnpack.includes("node_modules/.prisma/**/*"),
     "generated prisma client is unpacked",
   );
@@ -78,6 +80,10 @@ async function main() {
   assert.equal(packageJson.build.afterPack, "scripts/after-pack.cjs");
   assert.equal(packageJson.build.afterSign, "scripts/notarize.cjs");
   assert.ok(packageJson.build.files.includes(".next/**/*"), ".next is packaged");
+  assert.ok(
+    packageJson.build.files.includes("lib/**/*"),
+    "shared desktop runtime data is packaged",
+  );
   assert.ok(
     packageJson.build.files.includes("node_modules/.prisma/**/*"),
     "generated prisma client is packaged",
@@ -122,11 +128,6 @@ async function main() {
   assert.ok(
     mainSource.includes("Failed to clean up interrupted AI tasks:"),
     "interrupted task cleanup failure does not block desktop startup",
-  );
-  assert.deepEqual(
-    interruptedAiTaskStatuses,
-    activeAiTaskStatuses,
-    "desktop cleanup and Next.js task locking share active statuses",
   );
   assert.ok(
     mainSource.includes("before-input-event") &&

@@ -18,15 +18,18 @@ What was done:
   the desktop app from opening, while the existing inactivity cleanup remains
   available as a fallback.
 - Moved active AI task statuses into one JSON runtime source shared by the
-  desktop startup cleanup and Next.js task locking.
+  desktop startup cleanup and Next.js task locking. The TypeScript facade keeps
+  the `pending | running` literal union, with a unit test that verifies the JSON
+  values remain both exact and supported.
 - Preserved completed AI tasks and their output.
 - Extended the desktop packaging smoke test with pending, running, and
   completed task fixtures to cover restart cleanup behavior, and added zero
-  cleanup plus cancelled-task preservation coverage.
+  cleanup plus cancelled-task preservation coverage. The smoke test also
+  verifies that the shared `lib/**/*` runtime data is packaged and unpacked.
 
 Verification:
 
-- `npm test` passed: 122 files and 723 tests.
+- `npm test` passed: 122 files and 724 tests.
 - `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
   `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
 

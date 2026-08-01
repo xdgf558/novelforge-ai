@@ -282,7 +282,6 @@ module.exports = {
   ensureDesktopEnvExample,
   ensureSqliteDatabaseFile,
   failInterruptedAiTasks,
-  interruptedAiTaskStatuses,
   interruptedAiTaskErrorMessage,
   parseDesktopEnv,
   readDesktopEnv,

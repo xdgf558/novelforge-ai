@@ -8,8 +8,14 @@ export const aiTaskStatusOptions = [
   { value: "cancelled", label: "已取消" },
 ] as const;
 
-export const activeAiTaskStatuses: readonly string[] =
-  activeAiTaskStatusValues;
+export type AiTaskStatus = (typeof aiTaskStatusOptions)[number]["value"];
+export type ActiveAiTaskStatus = Extract<
+  AiTaskStatus,
+  "pending" | "running"
+>;
+
+export const activeAiTaskStatuses =
+  activeAiTaskStatusValues as readonly ActiveAiTaskStatus[];
 
 export const aiTaskAdoptionOptions = [
   { value: "not_reviewed", label: "未审阅" },

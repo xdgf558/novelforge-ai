@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeAiTaskStatuses,
   aiTaskAdoptionLabel,
   aiTaskStatusLabel,
+  aiTaskStatusOptions,
   isActiveAiTaskStatus,
+  type ActiveAiTaskStatus,
 } from "./status";
 
 describe("AI task labels", () => {
@@ -18,6 +21,21 @@ describe("AI task labels", () => {
     expect(isActiveAiTaskStatus("running")).toBe(true);
     expect(isActiveAiTaskStatus("completed")).toBe(false);
     expect(isActiveAiTaskStatus(null)).toBe(false);
+  });
+
+  it("keeps shared active statuses literal and supported", () => {
+    const expectedStatuses = [
+      "pending",
+      "running",
+    ] satisfies readonly ActiveAiTaskStatus[];
+    const supportedStatuses = new Set<string>(
+      aiTaskStatusOptions.map((option) => option.value),
+    );
+
+    expect(activeAiTaskStatuses).toEqual(expectedStatuses);
+    expect(
+      activeAiTaskStatuses.every((status) => supportedStatuses.has(status)),
+    ).toBe(true);
   });
 
   it("labels known and unknown adoption states", () => {
