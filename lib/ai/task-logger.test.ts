@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
   pruneProjectAiTasks: vi.fn(),
   readAiTaskModelRouteSecrets: vi.fn(),
   recordAiTaskUsage: vi.fn(),
-  taskRouteModelsShareProvider: vi.fn(),
+  taskRouteConnectionsShareCredentials: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -45,7 +45,8 @@ vi.mock("@/lib/ai/local-config", () => ({
   getAiRuntimeEnv: mocks.getAiRuntimeEnv,
   getAiRuntimeEnvForTaskType: mocks.getAiRuntimeEnvForTaskType,
   readAiTaskModelRouteSecrets: mocks.readAiTaskModelRouteSecrets,
-  taskRouteModelsShareProvider: mocks.taskRouteModelsShareProvider,
+  taskRouteConnectionsShareCredentials:
+    mocks.taskRouteConnectionsShareCredentials,
 }));
 
 vi.mock("./task-retention", () => ({
@@ -77,7 +78,7 @@ describe("AI task logger", () => {
       baseUrl: "https://api.moonshot.cn/v1",
       isActive: false,
     });
-    mocks.taskRouteModelsShareProvider.mockReturnValue(true);
+    mocks.taskRouteConnectionsShareCredentials.mockReturnValue(true);
     mocks.recordAiTaskUsage.mockResolvedValue(undefined);
     mocks.aiTaskUpdateMany.mockResolvedValue({ count: 1 });
     mocks.aiTaskCreate.mockResolvedValue({
@@ -426,8 +427,8 @@ describe("AI task logger", () => {
     mocks.readAiTaskModelRouteSecrets.mockReturnValue({
       taskType: "chapter_polish_generation",
       apiKey: "new-kimi-key",
-      model: "kimi-k2.6-renamed",
-      baseUrl: "https://changed.example/v1",
+      model: "kimi-k3",
+      baseUrl: "https://api.moonshot.cn/v1",
       isActive: true,
     });
 
@@ -463,7 +464,7 @@ describe("AI task logger", () => {
       baseUrl: "https://api.openai.com/v1",
       isActive: true,
     });
-    mocks.taskRouteModelsShareProvider.mockReturnValue(false);
+    mocks.taskRouteConnectionsShareCredentials.mockReturnValue(false);
 
     expect(
       resolveAiTaskExecutionEnv({
@@ -484,6 +485,16 @@ describe("AI task logger", () => {
       OPENAI_MODEL: "kimi-k2.6",
       OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
     });
+    expect(mocks.taskRouteConnectionsShareCredentials).toHaveBeenCalledWith(
+      {
+        model: "kimi-k2.6",
+        baseUrl: "https://api.moonshot.cn/v1",
+      },
+      expect.objectContaining({
+        model: "gpt-5.6-luna",
+        baseUrl: "https://api.openai.com/v1",
+      }),
+    );
   });
 
   it("records short-story whole review against the K3 polish route", async () => {

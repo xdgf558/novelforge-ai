@@ -1087,7 +1087,7 @@ function AiTaskRouteFields({
                 复用章节草稿接入
               </span>
               <span className="mt-1 block leading-6">
-                仅当草稿与精修使用同一提供商时才可复用。Kimi 草稿可复用给 K3；若草稿改为 GPT-5.6 Luna，请为 K3 填写独立 Kimi 接入。下方若填入独立 Key，会优先使用独立接入。
+                仅当两边属于同一已识别提供商，且 API Base URL 完全一致时才可复用。Kimi 草稿可复用给 K3；GPT-5.6 Luna 与 K3 不会共享。自定义模型请分别填写各自的 Key。下方若填入独立 Key，会优先使用独立接入。
               </span>
             </span>
           </label>
@@ -1132,7 +1132,7 @@ function AiTaskRouteFields({
           <span className="block text-xs leading-5 text-ink-600">
             {allowDraftConnectionReuse
               ? "K3 适合整章精修、视角与文风校正、短故事整篇审校。"
-              : "K2.6 适合正文初稿与快速生成；GPT-5.6 Luna 使用 OpenAI API，固定为极高推理强度。选择 Luna 后，若仍保留 Moonshot 默认地址，保存时会自动切换到 OpenAI 地址。"}
+              : "K2.6 适合正文初稿与快速生成；GPT-5.6 Luna 使用 OpenAI API，固定为极高推理强度。选择 Luna 或其他 GPT 模型后，若仍保留 Moonshot 默认地址，保存时会自动切换到 OpenAI 地址。"}
           </span>
         </label>
 

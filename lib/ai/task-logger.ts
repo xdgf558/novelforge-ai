@@ -8,7 +8,7 @@ import {
   getAiRuntimeEnv,
   getAiRuntimeEnvForTaskType,
   readAiTaskModelRouteSecrets,
-  taskRouteModelsShareProvider,
+  taskRouteConnectionsShareCredentials,
   type AiRuntimeEnv,
   type AiTaskModelRouteTaskType,
 } from "@/lib/ai/local-config";
@@ -245,7 +245,13 @@ export function resolveAiTaskExecutionEnv(task: {
 
     if (
       !route.isActive ||
-      !taskRouteModelsShareProvider(snapshot.model, route.model)
+      !taskRouteConnectionsShareCredentials(
+        {
+          model: snapshot.model,
+          baseUrl: snapshot.baseUrl,
+        },
+        route,
+      )
     ) {
       return {
         ...getAiRuntimeEnv(),

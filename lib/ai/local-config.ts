@@ -96,6 +96,11 @@ export type AiTaskModelRouteSecrets = {
   isActive: boolean;
 };
 
+export type AiTaskRouteConnection = {
+  model: string;
+  baseUrl?: string | null;
+};
+
 export type SaveAiTaskModelRouteSettingsInput = {
   draftApiKey?: string | null;
   clearDraftApiKey?: boolean;
@@ -454,29 +459,89 @@ export function saveAiTaskModelRouteSettings(
     "chapter_polish_generation",
   );
   const currentDraftModel = normalizeTaskRouteModel(
-    currentFileEnv.CHAPTER_DRAFT_MODEL || env.CHAPTER_DRAFT_MODEL,
+    readAiTaskRouteConfigValue(
+      currentFileEnv,
+      env,
+      "CHAPTER_DRAFT_MODEL",
+    ),
   );
-  const draftProviderChanged =
-    isGpt56LunaModel(currentDraftModel) !== isGpt56LunaModel(draftModel);
+  const currentPolishModel = normalizeTaskRouteModelForTaskType(
+    readAiTaskRouteConfigValue(
+      currentFileEnv,
+      env,
+      "CHAPTER_POLISH_MODEL",
+    ),
+    "chapter_polish_generation",
+  );
+  const draftBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    draftModel,
+    input.draftBaseUrl,
+  );
+  const polishBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    polishModel,
+    input.polishBaseUrl,
+  );
+  const currentDraftBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    currentDraftModel,
+    readAiTaskRouteConfigValue(
+      currentFileEnv,
+      env,
+      "CHAPTER_DRAFT_BASE_URL",
+    ),
+  );
+  const currentPolishBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    currentPolishModel,
+    readAiTaskRouteConfigValue(
+      currentFileEnv,
+      env,
+      "CHAPTER_POLISH_BASE_URL",
+    ),
+  );
+  const draftConnectionChanged = !taskRouteConnectionsShareCredentials(
+    {
+      model: currentDraftModel,
+      baseUrl: currentDraftBaseUrl,
+    },
+    {
+      model: draftModel,
+      baseUrl: draftBaseUrl,
+    },
+  );
+  const polishConnectionChanged = !taskRouteConnectionsShareCredentials(
+    {
+      model: currentPolishModel,
+      baseUrl: currentPolishBaseUrl,
+    },
+    {
+      model: polishModel,
+      baseUrl: polishBaseUrl,
+    },
+  );
   const nextDraftApiKey = input.clearDraftApiKey
     ? ""
-    : draftApiKeyInput || (draftProviderChanged ? "" : currentDraftApiKey);
+    : draftApiKeyInput || (draftConnectionChanged ? "" : currentDraftApiKey);
   const nextPolishApiKey = input.clearPolishApiKey
     ? ""
-    : polishApiKeyInput || currentPolishApiKey;
+    : polishApiKeyInput || (polishConnectionChanged ? "" : currentPolishApiKey);
   const canReuseDraftConnection =
     Boolean(input.polishUseDraftConnection) &&
-    taskRouteModelsShareProvider(draftModel, polishModel);
+    taskRouteConnectionsCanReuseSharedConnection(
+      {
+        model: draftModel,
+        baseUrl: draftBaseUrl,
+      },
+      {
+        model: polishModel,
+        baseUrl: polishBaseUrl,
+      },
+    );
   const nextEnv: Partial<Record<AiTaskRouteConfigKey, string>> = {
     CHAPTER_DRAFT_API_KEY: nextDraftApiKey,
     CHAPTER_DRAFT_MODEL: draftModel,
-    CHAPTER_DRAFT_BASE_URL: normalizeDraftRouteBaseUrl(
-      draftModel,
-      input.draftBaseUrl,
-    ),
+    CHAPTER_DRAFT_BASE_URL: draftBaseUrl,
     CHAPTER_POLISH_API_KEY: nextPolishApiKey,
     CHAPTER_POLISH_MODEL: polishModel,
-    CHAPTER_POLISH_BASE_URL: normalizeTaskRouteBaseUrl(input.polishBaseUrl),
+    CHAPTER_POLISH_BASE_URL: polishBaseUrl,
     CHAPTER_POLISH_USE_DRAFT_CONNECTION: canReuseDraftConnection ? "1" : "0",
   };
 
@@ -1544,10 +1609,7 @@ function readAiTaskModelRouteSetting(
     hasApiKey: Boolean(connection.apiKey),
     maskedApiKey: maskSecret(connection.apiKey),
     model,
-    baseUrl:
-      taskType === "chapter_draft_generation"
-        ? normalizeDraftRouteBaseUrl(model, connection.baseUrl)
-        : normalizeTaskRouteBaseUrl(connection.baseUrl),
+    baseUrl: connection.baseUrl,
     isActive: Boolean(connection.apiKey),
     useDraftConnection: connection.useDraftConnection,
     isUsingSharedConnection: connection.isUsingSharedConnection,
@@ -1631,16 +1693,33 @@ function resolveAiTaskRouteConnection(
     taskType,
   );
   const draftModel = normalizeTaskRouteModel(runtimeEnv.CHAPTER_DRAFT_MODEL);
+  const routeBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    model,
+    runtimeEnv[keys.baseUrl],
+  );
+  const draftBaseUrl = normalizeTaskRouteBaseUrlForModel(
+    draftModel,
+    runtimeEnv.CHAPTER_DRAFT_BASE_URL,
+  );
   const useDraftConnection =
     isPolishRouteTaskType(taskType) &&
     normalizeBooleanConfig(runtimeEnv.CHAPTER_POLISH_USE_DRAFT_CONNECTION) &&
-    taskRouteModelsShareProvider(draftModel, model);
+    taskRouteConnectionsCanReuseSharedConnection(
+      {
+        model: draftModel,
+        baseUrl: draftBaseUrl,
+      },
+      {
+        model,
+        baseUrl: routeBaseUrl,
+      },
+    );
   const isUsingSharedConnection = useDraftConnection && !dedicatedApiKey;
 
   if (isUsingSharedConnection) {
     return {
       apiKey: runtimeEnv.CHAPTER_DRAFT_API_KEY?.trim() ?? "",
-      baseUrl: runtimeEnv.CHAPTER_DRAFT_BASE_URL,
+      baseUrl: draftBaseUrl,
       useDraftConnection,
       isUsingSharedConnection,
     };
@@ -1648,7 +1727,7 @@ function resolveAiTaskRouteConnection(
 
   return {
     apiKey: dedicatedApiKey,
-    baseUrl: runtimeEnv[keys.baseUrl],
+    baseUrl: routeBaseUrl,
     useDraftConnection,
     isUsingSharedConnection: false,
   };
@@ -1669,14 +1748,14 @@ function normalizeTaskRouteModelForTaskType(
     : DEFAULT_KIMI_K2_6_MODEL;
 }
 
-function normalizeDraftRouteBaseUrl(
+function normalizeTaskRouteBaseUrlForModel(
   model: string,
   baseUrl?: string | null,
 ) {
   const normalizedBaseUrl = baseUrl?.trim().replace(/\/+$/, "") ?? "";
 
   if (
-    isGpt56LunaModel(model) &&
+    taskRouteModelProvider(model) === "openai" &&
     (!normalizedBaseUrl || normalizedBaseUrl === DEFAULT_KIMI_API_BASE_URL)
   ) {
     return DEFAULT_OPENAI_BASE_URL;
@@ -1685,20 +1764,57 @@ function normalizeDraftRouteBaseUrl(
   return normalizeTaskRouteBaseUrl(baseUrl);
 }
 
-function isGpt56LunaModel(model: string) {
-  const normalized = model.trim().toLowerCase();
+export function taskRouteConnectionsShareCredentials(
+  first: AiTaskRouteConnection,
+  second: AiTaskRouteConnection,
+) {
+  return taskRouteConnectionIdentity(first) === taskRouteConnectionIdentity(second);
+}
+
+export function taskRouteConnectionsCanReuseSharedConnection(
+  draft: AiTaskRouteConnection,
+  polish: AiTaskRouteConnection,
+) {
+  const draftProvider = taskRouteModelProvider(draft.model);
 
   return (
-    normalized === GPT_5_6_LUNA_MODEL ||
-    normalized.startsWith(`${GPT_5_6_LUNA_MODEL}-`)
+    draftProvider !== "custom" &&
+    draftProvider === taskRouteModelProvider(polish.model) &&
+    taskRouteConnectionsShareCredentials(draft, polish)
   );
 }
 
-export function taskRouteModelsShareProvider(
-  draftModel: string,
-  polishModel: string,
-) {
-  return isGpt56LunaModel(draftModel) === isGpt56LunaModel(polishModel);
+function taskRouteConnectionIdentity(connection: AiTaskRouteConnection) {
+  const model = normalizeTaskRouteModel(connection.model);
+  const baseUrl = normalizeTaskRouteBaseUrlForModel(model, connection.baseUrl);
+  const provider = taskRouteModelProvider(model);
+
+  if (provider === "custom") {
+    return `${provider}:${model.trim().toLowerCase()}:${baseUrl}`;
+  }
+
+  return `${provider}:${baseUrl}`;
+}
+
+function taskRouteModelProvider(model: string) {
+  const normalized = model.trim().toLowerCase();
+
+  if (
+    normalized.startsWith("kimi-") ||
+    normalized.startsWith("moonshot-")
+  ) {
+    return "moonshot" as const;
+  }
+
+  if (
+    normalized.startsWith("gpt-") ||
+    normalized.startsWith("chatgpt-") ||
+    /^(o1|o3|o4)(?:[-_.]|$)/.test(normalized)
+  ) {
+    return "openai" as const;
+  }
+
+  return "custom" as const;
 }
 
 function isPolishRouteTaskType(taskType: AiTaskModelRouteTaskType) {
