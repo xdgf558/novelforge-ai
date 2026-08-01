@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
+import { ProjectContentWriteBlockedError } from "@/lib/projects/content-write-guard";
 
 export async function assertProjectExists(projectId: string) {
   const project = await prisma.project.findUnique({
@@ -9,12 +10,23 @@ export async function assertProjectExists(projectId: string) {
     },
     select: {
       id: true,
+      status: true,
       workType: true,
     },
   });
 
   if (!project) {
     notFound();
+  }
+
+  return project;
+}
+
+export async function assertProjectAllowsContentWrites(projectId: string) {
+  const project = await assertProjectExists(projectId);
+
+  if (project.status !== "active") {
+    throw new ProjectContentWriteBlockedError();
   }
 
   return project;

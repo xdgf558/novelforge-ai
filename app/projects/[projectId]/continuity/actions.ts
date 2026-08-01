@@ -34,6 +34,7 @@ import {
   readContinuityReviewContext,
   type ContinuityReviewStatus,
 } from "@/lib/continuity/review-navigation";
+import { ProjectContentWriteBlockedError } from "@/lib/projects/content-write-guard";
 
 const continuityTemplateKey = "continuity_check";
 
@@ -186,10 +187,20 @@ export async function applyContinuityReportFix(
   reportId: string,
   formData: FormData,
 ) {
-  const result = await applyContinuityReportReplacementFix({
-    projectId,
-    reportId,
-  });
+  let result: Awaited<ReturnType<typeof applyContinuityReportReplacementFix>>;
+
+  try {
+    result = await applyContinuityReportReplacementFix({
+      projectId,
+      reportId,
+    });
+  } catch (error) {
+    if (error instanceof ProjectContentWriteBlockedError) {
+      redirect(`/projects/${projectId}/edit?projectError=restore-required`);
+    }
+
+    throw error;
+  }
 
   if (result.status === "missing-report") {
     notFound();

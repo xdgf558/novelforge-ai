@@ -50,6 +50,12 @@ export default async function EditProjectPage({
         title={shortStory ? "编辑短故事项目" : "编辑长篇连载项目"}
       />
 
+      {resolvedSearchParams?.projectError === "restore-required" ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium leading-6 text-amber-950">
+          作品已完结或归档。请先点击下方“重新连载”，再继续新建、编辑或采用章节内容。
+        </p>
+      ) : null}
+
       <section className="rounded-lg border border-amber-300/70 bg-amber-50 p-5 shadow-panel">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>

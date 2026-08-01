@@ -452,6 +452,120 @@ describe("AI task model route config", () => {
     );
   });
 
+  it("does not retain a Kimi draft key when switching a blank route to Luna", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "CHAPTER_DRAFT_API_KEY=kimi-existing-key",
+        "CHAPTER_DRAFT_MODEL=kimi-k2.6",
+        `CHAPTER_DRAFT_BASE_URL=${DEFAULT_KIMI_API_BASE_URL}`,
+      ].join("\n"),
+    );
+
+    const routeInput = {
+      draftApiKey: "",
+      draftModel: GPT_5_6_LUNA_MODEL,
+      draftBaseUrl: DEFAULT_KIMI_API_BASE_URL,
+      polishApiKey: "",
+      polishModel: "",
+      polishBaseUrl: "",
+    };
+    const routeEnv = {
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+      CHAPTER_DRAFT_API_KEY: "kimi-from-environment",
+    };
+    const settings = saveAiTaskModelRouteSettings(routeInput, routeEnv);
+    const repeatedSettings = saveAiTaskModelRouteSettings(routeInput, routeEnv);
+    const draftEnv = getAiRuntimeEnvForTaskType(
+      "chapter_draft_generation",
+      routeEnv,
+    );
+
+    expect(settings.routes.chapterDraft).toMatchObject({
+      model: GPT_5_6_LUNA_MODEL,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
+      hasApiKey: false,
+      isActive: false,
+    });
+    expect(repeatedSettings.routes.chapterDraft).toMatchObject({
+      hasApiKey: false,
+      isActive: false,
+    });
+    expect(draftEnv.CHAPTER_DRAFT_API_KEY).toBeUndefined();
+    expect(draftEnv.OPENAI_API_KEY).toBeUndefined();
+    expect(fs.readFileSync(configPath, "utf8")).toContain(
+      "CHAPTER_DRAFT_API_KEY=",
+    );
+  });
+
+  it("does not let K3 polish reuse a Luna draft connection", () => {
+    const configPath = makeTempConfigPath();
+    const settings = saveAiTaskModelRouteSettings(
+      {
+        draftApiKey: "sk-luna-test",
+        draftModel: GPT_5_6_LUNA_MODEL,
+        draftBaseUrl: DEFAULT_OPENAI_BASE_URL,
+        polishApiKey: "",
+        polishModel: DEFAULT_KIMI_K3_MODEL,
+        polishBaseUrl: DEFAULT_KIMI_API_BASE_URL,
+        polishUseDraftConnection: true,
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const polishEnv = getAiRuntimeEnvForTaskType(
+      "chapter_polish_generation",
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+
+    expect(settings.routes.chapterPolish).toMatchObject({
+      model: DEFAULT_KIMI_K3_MODEL,
+      hasApiKey: false,
+      isActive: false,
+      useDraftConnection: false,
+      isUsingSharedConnection: false,
+    });
+    expect(polishEnv.OPENAI_API_KEY).toBeUndefined();
+    expect(fs.readFileSync(configPath, "utf8")).toContain(
+      'CHAPTER_POLISH_USE_DRAFT_CONNECTION="0"',
+    );
+  });
+
+  it("does not use a stale saved Luna connection for K3 polish", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "CHAPTER_DRAFT_API_KEY=sk-luna-test",
+        `CHAPTER_DRAFT_MODEL=${GPT_5_6_LUNA_MODEL}`,
+        `CHAPTER_DRAFT_BASE_URL=${DEFAULT_OPENAI_BASE_URL}`,
+        `CHAPTER_POLISH_MODEL=${DEFAULT_KIMI_K3_MODEL}`,
+        "CHAPTER_POLISH_USE_DRAFT_CONNECTION=1",
+      ].join("\n"),
+    );
+
+    const settings = readAiTaskModelRouteSettings({
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+    });
+    const polishEnv = getAiRuntimeEnvForTaskType(
+      "chapter_polish_generation",
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+
+    expect(settings.routes.chapterPolish).toMatchObject({
+      hasApiKey: false,
+      useDraftConnection: false,
+      isUsingSharedConnection: false,
+    });
+    expect(polishEnv.OPENAI_API_KEY).toBeUndefined();
+  });
+
   it("can clear one task route key without clearing the other route", () => {
     const configPath = makeTempConfigPath();
     fs.writeFileSync(

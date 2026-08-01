@@ -10,6 +10,9 @@ import {
 
 const mocks = vi.hoisted(() => {
   const tx = {
+    project: {
+      updateMany: vi.fn(),
+    },
     chapter: {
       create: vi.fn(),
       update: vi.fn(),
@@ -201,7 +204,10 @@ describe("chapter actions", () => {
     );
     mocks.prisma.project.findUnique.mockResolvedValue({
       id: "project_1",
+      status: "active",
+      workType: "serial_novel",
     });
+    mocks.tx.project.updateMany.mockResolvedValue({ count: 1 });
     mocks.tx.chapter.create.mockResolvedValue({
       ...baseChapter,
       id: "chapter_new",
@@ -300,6 +306,7 @@ describe("chapter actions", () => {
   it("keeps short-story writing units out of serial outlines and storylines", async () => {
     mocks.prisma.project.findUnique.mockResolvedValueOnce({
       id: "project_1",
+      status: "active",
       workType: "short_story",
     });
 
@@ -669,6 +676,41 @@ describe("chapter actions", () => {
     expect(taskMeta.inputContextSummary).toContain("平台模板：番茄小说");
     expect(request.input).toContain("目标平台：番茄小说长篇连载");
     expect(request.input).toContain("开篇 300 字内必须出现明确人物动作");
+  });
+
+  it("redirects completed projects to restore before starting a chapter draft task", async () => {
+    mocks.prisma.project.findUnique.mockResolvedValueOnce({
+      id: "project_1",
+      status: "completed",
+      workType: "serial_novel",
+    });
+
+    await expect(
+      generateChapterDraft("project_1", "chapter_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.taskLogger.startLoggedOpenAITextTask).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/edit?projectError=restore-required",
+    );
+  });
+
+  it("redirects completed projects to restore before adopting a polish task", async () => {
+    mocks.prisma.project.findUnique.mockResolvedValueOnce({
+      id: "project_1",
+      status: "completed",
+      workType: "serial_novel",
+    });
+
+    await expect(
+      adoptChapterPolish("project_1", "chapter_1", "task_1"),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.chapter.findFirst).not.toHaveBeenCalled();
+    expect(mocks.prisma.$transaction).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/edit?projectError=restore-required",
+    );
   });
 
   it("passes Fanqie platform template from polish form into task context", async () => {

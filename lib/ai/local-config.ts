@@ -323,7 +323,8 @@ export function getAiRuntimeEnvForTaskType(
   taskType?: string | null,
   env: AiRuntimeEnv = process.env,
 ) {
-  const runtimeEnv = getAiRuntimeEnv(env);
+  const fileEnv = readLocalConfigFile(getAiConfigPath(env));
+  const runtimeEnv = mergeAiTaskRouteEnv(getAiRuntimeEnv(env), fileEnv);
 
   if (!isAiTaskModelRouteTaskType(taskType)) {
     return runtimeEnv;
@@ -437,21 +438,35 @@ export function saveAiTaskModelRouteSettings(
   const currentFileEnv = readLocalConfigFile(configPath);
   const draftApiKeyInput = input.draftApiKey?.trim() ?? "";
   const polishApiKeyInput = input.polishApiKey?.trim() ?? "";
-  const currentDraftApiKey =
-    currentFileEnv.CHAPTER_DRAFT_API_KEY?.trim() ||
-    env.CHAPTER_DRAFT_API_KEY?.trim() ||
-    "";
-  const currentPolishApiKey =
-    currentFileEnv.CHAPTER_POLISH_API_KEY?.trim() ||
-    env.CHAPTER_POLISH_API_KEY?.trim() ||
-    "";
+  const currentDraftApiKey = readAiTaskRouteConfigValue(
+    currentFileEnv,
+    env,
+    "CHAPTER_DRAFT_API_KEY",
+  );
+  const currentPolishApiKey = readAiTaskRouteConfigValue(
+    currentFileEnv,
+    env,
+    "CHAPTER_POLISH_API_KEY",
+  );
+  const draftModel = normalizeTaskRouteModel(input.draftModel);
+  const polishModel = normalizeTaskRouteModelForTaskType(
+    input.polishModel,
+    "chapter_polish_generation",
+  );
+  const currentDraftModel = normalizeTaskRouteModel(
+    currentFileEnv.CHAPTER_DRAFT_MODEL || env.CHAPTER_DRAFT_MODEL,
+  );
+  const draftProviderChanged =
+    isGpt56LunaModel(currentDraftModel) !== isGpt56LunaModel(draftModel);
   const nextDraftApiKey = input.clearDraftApiKey
     ? ""
-    : draftApiKeyInput || currentDraftApiKey;
+    : draftApiKeyInput || (draftProviderChanged ? "" : currentDraftApiKey);
   const nextPolishApiKey = input.clearPolishApiKey
     ? ""
     : polishApiKeyInput || currentPolishApiKey;
-  const draftModel = normalizeTaskRouteModel(input.draftModel);
+  const canReuseDraftConnection =
+    Boolean(input.polishUseDraftConnection) &&
+    taskRouteModelsShareProvider(draftModel, polishModel);
   const nextEnv: Partial<Record<AiTaskRouteConfigKey, string>> = {
     CHAPTER_DRAFT_API_KEY: nextDraftApiKey,
     CHAPTER_DRAFT_MODEL: draftModel,
@@ -460,14 +475,9 @@ export function saveAiTaskModelRouteSettings(
       input.draftBaseUrl,
     ),
     CHAPTER_POLISH_API_KEY: nextPolishApiKey,
-    CHAPTER_POLISH_MODEL: normalizeTaskRouteModelForTaskType(
-      input.polishModel,
-      "chapter_polish_generation",
-    ),
+    CHAPTER_POLISH_MODEL: polishModel,
     CHAPTER_POLISH_BASE_URL: normalizeTaskRouteBaseUrl(input.polishBaseUrl),
-    CHAPTER_POLISH_USE_DRAFT_CONNECTION: input.polishUseDraftConnection
-      ? "1"
-      : "0",
+    CHAPTER_POLISH_USE_DRAFT_CONNECTION: canReuseDraftConnection ? "1" : "0",
   };
 
   writeLocalConfigFile(configPath, nextEnv, aiTaskRouteConfigKeys);
@@ -1519,10 +1529,7 @@ function readAiTaskModelRouteSetting(
 ): AiTaskModelRouteSetting {
   const configPath = getAiConfigPath(env);
   const fileEnv = readLocalConfigFile(configPath);
-  const runtimeEnv = {
-    ...env,
-    ...compactAiTaskRouteEnv(fileEnv),
-  };
+  const runtimeEnv = mergeAiTaskRouteEnv(env, fileEnv);
   const keys = routeConfigKeysForTaskType(taskType);
   const connection = resolveAiTaskRouteConnection(taskType, runtimeEnv);
 
@@ -1554,12 +1561,47 @@ function readRouteApiKey(
 ) {
   const configPath = getAiConfigPath(env);
   const fileEnv = readLocalConfigFile(configPath);
-  const runtimeEnv = {
-    ...env,
-    ...compactAiTaskRouteEnv(fileEnv),
-  };
+  const runtimeEnv = mergeAiTaskRouteEnv(env, fileEnv);
 
   return resolveAiTaskRouteConnection(taskType, runtimeEnv).apiKey;
+}
+
+function mergeAiTaskRouteEnv(
+  env: AiRuntimeEnv,
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+) {
+  const runtimeEnv: AiRuntimeEnv = {
+    ...env,
+  };
+
+  for (const key of aiTaskRouteConfigKeys) {
+    if (!Object.prototype.hasOwnProperty.call(fileEnv, key)) {
+      continue;
+    }
+
+    const value = fileEnv[key]?.trim();
+
+    if (value) {
+      runtimeEnv[key] = value;
+    } else {
+      // An explicitly blank local value must clear a legacy environment key.
+      delete runtimeEnv[key];
+    }
+  }
+
+  return runtimeEnv;
+}
+
+function readAiTaskRouteConfigValue(
+  fileEnv: Partial<Record<LocalConfigKey, string>>,
+  env: AiRuntimeEnv,
+  key: AiTaskRouteConfigKey,
+) {
+  if (Object.prototype.hasOwnProperty.call(fileEnv, key)) {
+    return fileEnv[key]?.trim() ?? "";
+  }
+
+  return env[key]?.trim() ?? "";
 }
 
 function routeConfigKeysForTaskType(taskType: AiTaskModelRouteTaskType) {
@@ -1584,9 +1626,15 @@ function resolveAiTaskRouteConnection(
 ) {
   const keys = routeConfigKeysForTaskType(taskType);
   const dedicatedApiKey = runtimeEnv[keys.apiKey]?.trim() ?? "";
+  const model = normalizeTaskRouteModelForTaskType(
+    runtimeEnv[keys.model],
+    taskType,
+  );
+  const draftModel = normalizeTaskRouteModel(runtimeEnv.CHAPTER_DRAFT_MODEL);
   const useDraftConnection =
     isPolishRouteTaskType(taskType) &&
-    normalizeBooleanConfig(runtimeEnv.CHAPTER_POLISH_USE_DRAFT_CONNECTION);
+    normalizeBooleanConfig(runtimeEnv.CHAPTER_POLISH_USE_DRAFT_CONNECTION) &&
+    taskRouteModelsShareProvider(draftModel, model);
   const isUsingSharedConnection = useDraftConnection && !dedicatedApiKey;
 
   if (isUsingSharedConnection) {
@@ -1644,6 +1692,13 @@ function isGpt56LunaModel(model: string) {
     normalized === GPT_5_6_LUNA_MODEL ||
     normalized.startsWith(`${GPT_5_6_LUNA_MODEL}-`)
   );
+}
+
+export function taskRouteModelsShareProvider(
+  draftModel: string,
+  polishModel: string,
+) {
+  return isGpt56LunaModel(draftModel) === isGpt56LunaModel(polishModel);
 }
 
 function isPolishRouteTaskType(taskType: AiTaskModelRouteTaskType) {

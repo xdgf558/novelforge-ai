@@ -8,6 +8,10 @@ import { prisma } from "@/lib/prisma";
 import { deleteProjectCoverAssets } from "@/lib/project-cover-assets";
 import { calculateProjectCompletionReadiness } from "@/lib/projects/completion";
 import {
+  acquireActiveProjectContentWriteLease,
+  ProjectContentWriteBlockedError,
+} from "@/lib/projects/content-write-guard";
+import {
   defaultProjectWorkType,
   projectWorkTypeValues,
 } from "@/lib/projects/work-types";
@@ -102,13 +106,44 @@ export async function createProject(formData: FormData) {
 
 export async function updateProject(projectId: string, formData: FormData) {
   const data = parseProjectUpdateForm(formData);
-
-  await prisma.project.update({
+  const existingProject = await prisma.project.findUnique({
     where: {
       id: projectId,
     },
-    data,
+    select: {
+      totalWordTarget: true,
+    },
   });
+
+  if (!existingProject) {
+    notFound();
+  }
+
+  const changesTotalWordTarget =
+    data.totalWordTarget !== undefined &&
+    data.totalWordTarget !== existingProject.totalWordTarget;
+
+  if (changesTotalWordTarget) {
+    const updateResult = await prisma.project.updateMany({
+      where: {
+        id: projectId,
+        status: "active",
+      },
+      data,
+    });
+
+    if (updateResult.count !== 1) {
+      revalidatePath(`/projects/${projectId}/edit`);
+      redirect(`/projects/${projectId}/edit?projectError=restore-required`);
+    }
+  } else {
+    await prisma.project.update({
+      where: {
+        id: projectId,
+      },
+      data,
+    });
+  }
 
   revalidatePath("/");
   revalidatePath(`/projects/${projectId}`);
@@ -132,58 +167,92 @@ export async function archiveProject(projectId: string) {
 }
 
 export async function completeAndArchiveProject(projectId: string) {
-  const project = await prisma.project.findUnique({
-    where: {
-      id: projectId,
-    },
-    select: {
-      status: true,
-      totalWordTarget: true,
-      workType: true,
-      chapters: {
-        select: {
-          finalText: true,
-          status: true,
-          wordCount: true,
+  const result = await prisma.$transaction(async (tx) => {
+    const project = await tx.project.findUnique({
+      where: {
+        id: projectId,
+      },
+      select: {
+        status: true,
+        totalWordTarget: true,
+        updatedAt: true,
+        workType: true,
+        chapters: {
+          select: {
+            finalText: true,
+            status: true,
+            wordCount: true,
+          },
         },
       },
-    },
+    });
+
+    if (!project) {
+      return "missing" as const;
+    }
+
+    if (project.workType !== "serial_novel") {
+      return "unsupported" as const;
+    }
+
+    if (project.status !== "active") {
+      return "already-finished" as const;
+    }
+
+    const readiness = calculateProjectCompletionReadiness({
+      chapters: project.chapters,
+      totalWordTarget: project.totalWordTarget,
+    });
+
+    if (!readiness.canCompleteAndArchive) {
+      return "not-ready" as const;
+    }
+
+    let completionLeaseUpdatedAt: Date;
+
+    try {
+      completionLeaseUpdatedAt = await acquireActiveProjectContentWriteLease(
+        tx,
+        projectId,
+        project.updatedAt,
+      );
+    } catch (error) {
+      if (error instanceof ProjectContentWriteBlockedError) {
+        return "changed" as const;
+      }
+
+      throw error;
+    }
+
+    const updateResult = await tx.project.updateMany({
+      where: {
+        id: projectId,
+        status: "active",
+        updatedAt: completionLeaseUpdatedAt,
+        workType: "serial_novel",
+      },
+      data: {
+        status: "completed",
+      },
+    });
+
+    return updateResult.count === 1 ? ("completed" as const) : ("changed" as const);
   });
 
-  if (!project) {
+  if (result === "missing") {
     notFound();
   }
 
-  if (project.workType !== "serial_novel") {
+  if (result === "unsupported") {
     redirect(`/projects/${projectId}?completion=unsupported`);
   }
 
-  if (project.status !== "active") {
+  if (result === "already-finished") {
     redirect(`/projects/${projectId}?completion=already-finished`);
   }
 
-  const readiness = calculateProjectCompletionReadiness({
-    chapters: project.chapters,
-    totalWordTarget: project.totalWordTarget,
-  });
-
-  if (!readiness.canCompleteAndArchive) {
+  if (result === "not-ready" || result === "changed") {
     redirect(`/projects/${projectId}?completion=not-ready`);
-  }
-
-  const updateResult = await prisma.project.updateMany({
-    where: {
-      id: projectId,
-      status: "active",
-      workType: "serial_novel",
-    },
-    data: {
-      status: "completed",
-    },
-  });
-
-  if (updateResult.count !== 1) {
-    redirect(`/projects/${projectId}?completion=already-finished`);
   }
 
   revalidatePath("/");

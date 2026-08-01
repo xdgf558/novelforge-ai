@@ -49,9 +49,14 @@ MVP includes:
   mutation. A serial can enter the `completed` project state and the archive
   directory only after its confirmed final/published chapters all contain
   formal final text and their confirmed word total reaches the configured
-  target. Completion retains all local records and can be reopened as an
-  active serial from project editing; manually archived projects remain a
-  separate `archived` state.
+  target. The qualification read and status update share one transaction and
+  an active-project write lease. `completed` and `archived` projects reject
+  chapter creation, editing, deletion, AI generation/adoption, and one-click
+  continuity prose repairs until the author explicitly restores the serial;
+  changing the configured total-word target likewise requires restoration.
+  Completion retains all local records and can be reopened as an active serial
+  from project editing; manually archived projects remain a separate
+  `archived` state.
 - Short-story blueprint workspace with ten formal planning fields, review-only
   AI generation, explicit adoption, and blueprint version history.
 - Short-story writing-unit planning can generate one review-only editable
@@ -241,6 +246,7 @@ Prioritize these tables early:
 - All AI calls go through backend routes/actions.
 - Store model name, prompt template version, input context summary, output, status, token usage when available, created time, and adoption state.
 - The default AI connection remains the structural/editorial model route, intended for planning, outlines, beats, summaries, continuity checks, and other management tasks. Chapter drafts may use a task-level OpenAI-compatible route such as Kimi K2.6 or `gpt-5.6-luna`; chapter polish and short-story whole review may use the polish route with Kimi K3. Luna is offered only on the chapter-draft route, requires an OpenAI API Key, and uses `https://api.openai.com/v1` when the author switches from the saved Moonshot default address. A blank polish model suggests `kimi-k3`, while explicitly saved K2.6 routes remain unchanged. Authors may explicitly let polish reuse the draft route's API Key and Base URL; sharing never activates silently, and a dedicated polish key takes precedence. Direct OpenAI Luna requests use the Responses API with `reasoning: { effort: "xhigh" }` (the UI calls this "极高"); Luna requests through an OpenAI-compatible Chat Completions route use top-level `reasoning_effort: "xhigh"`. K3 Chat Completions requests keep top-level `reasoning_effort: "max"`. When a task route has no effective saved API key, it safely falls back to the default AI connection. Routed tasks store a non-secret execution snapshot with route source, task type, model, and base URL in `ai_tasks.inputJson`, while API keys remain only in local config. Long-form writing and deep editorial tasks (`chapter_draft_generation`, `chapter_polish_generation`, and `short_story_whole_review`) use a 10-minute inactivity timeout. Chat Completions routes stream SSE, reset that timeout with each received chunk, and make output adoptable only after `data: [DONE]`; direct OpenAI Responses routes use the same request timeout without the Chat Completions stream. Planning, extraction, and continuity tasks stay non-streaming. Long planning or memory-audit tasks (`chapter_beat_generation`, `outline_generation`, `ending_planning_generation`, `pending_update_extraction`, and `foreshadow_recovery_audit`) use a 5 minute model request timeout because DeepSeek-style planning/JSON extraction responses can exceed 120 seconds even with compact inputs; shorter structural extraction/check tasks keep the default 120 second timeout. Timeout-aware direct `Agent` and proxy `ProxyAgent` dispatchers must set headers/body timeouts to the caller timeout plus a 30-second transport grace period, so Undici's roughly 300-second defaults cannot preempt longer AI tasks.
+- Task-route credentials are provider-scoped. Kimi routes may share a Kimi draft connection, but a Luna draft route and K3 polish route must never share credentials. Switching between the Kimi and Luna provider families with a blank key explicitly clears the prior local route key, including any matching environment fallback. A queued task may use its non-secret model/base-URL snapshot only when the currently configured route still belongs to the same provider family; otherwise it fails without sending a cross-provider key.
 - Structured tasks should use JSON Schema:
   - Project setting generation
   - Character generation

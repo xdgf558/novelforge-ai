@@ -167,6 +167,7 @@ export default async function ChapterPage({
   }
 
   const shortStoryProject = isShortStoryProject(chapter.project.workType);
+  const canWriteChapter = chapter.project.status === "active";
 
   const hasDefaultApiKey = hasConfiguredOpenAIKey();
   const hasDraftApiKey = hasConfiguredOpenAIKey(
@@ -254,24 +255,35 @@ export default async function ChapterPage({
               <History aria-hidden="true" className="h-4 w-4" />
               历史 {chapter._count.versions}
             </Link>
-            <Link
-              className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
-              href={`/projects/${chapter.project.id}/chapters/${chapter.id}/edit`}
-            >
-              <Pencil aria-hidden="true" className="h-4 w-4" />
-              编辑
-            </Link>
-            <form
-              action={deleteChapter.bind(null, chapter.project.id, chapter.id)}
-            >
-              <button
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
-                type="submit"
+            {canWriteChapter ? (
+              <>
+                <Link
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm font-semibold text-ink-800 transition hover:bg-paper-100"
+                  href={`/projects/${chapter.project.id}/chapters/${chapter.id}/edit`}
+                >
+                  <Pencil aria-hidden="true" className="h-4 w-4" />
+                  编辑
+                </Link>
+                <form
+                  action={deleteChapter.bind(null, chapter.project.id, chapter.id)}
+                >
+                  <button
+                    className="inline-flex min-h-10 items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+                    type="submit"
+                  >
+                    <Trash2 aria-hidden="true" className="h-4 w-4" />
+                    删除
+                  </button>
+                </form>
+              </>
+            ) : (
+              <Link
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-950 transition hover:bg-amber-100"
+                href={`/projects/${chapter.project.id}/edit`}
               >
-                <Trash2 aria-hidden="true" className="h-4 w-4" />
-                删除
-              </button>
-            </form>
+                作品已完结，重新连载后可编辑
+              </Link>
+            )}
           </div>
         </div>
       </header>

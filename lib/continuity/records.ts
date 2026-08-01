@@ -23,6 +23,7 @@ import {
   parseContinuityReplacementFix,
 } from "@/lib/continuity-fixes";
 import { prisma } from "@/lib/prisma";
+import { acquireActiveProjectContentWriteLease } from "@/lib/projects/content-write-guard";
 
 export const continuityCheckTaskType = "continuity_check";
 
@@ -336,6 +337,8 @@ export async function applyContinuityReportReplacementFix({
   });
 
   await prisma.$transaction(async (tx) => {
+    await acquireActiveProjectContentWriteLease(tx, projectId);
+
     await tx.chapter.update({
       where: {
         id: chapterId,

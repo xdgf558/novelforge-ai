@@ -6703,3 +6703,34 @@ Verification:
 - Full `npm test` passed: 122 files and 709 tests.
 - `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
   `npm run work-types:acceptance` passed.
+
+## 2026-08-01: PR #95 Provider and Completion Integrity Review Fixes
+
+Status: completed for review.
+
+What was done:
+
+- Made chapter-writing route credentials provider-scoped. Switching a blank
+  draft route between Kimi and GPT-5.6 Luna clears the prior saved route key,
+  including an identically named inherited environment value.
+- Limited draft-route reuse to compatible providers, so Kimi K3 polish and
+  short-story whole review cannot send a Luna/OpenAI connection to Moonshot or
+  send `kimi-k3` to the OpenAI Responses endpoint.
+- Hardened queued task execution snapshots: after settings change, a task only
+  reuses the current route key when its stored model belongs to the same
+  provider family; incompatible snapshots fail with an empty key instead of
+  transmitting credentials across providers.
+- Made serial completion atomic with the chapter-content write lease. Chapter
+  create/edit/delete, AI generation/adoption, and continuity one-click final
+  prose repair all acquire that lease and direct completed/archived projects to
+  restore the serial before writing. Changes to a completed project's total
+  word target are also rejected until restoration.
+
+Verification:
+
+- Focused local-config, task logger, chapter record/action, and project action
+  tests passed.
+- `npm run typecheck` passed.
+- Full `npm test` passed: 122 files and 718 tests.
+- `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.

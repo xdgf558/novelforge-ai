@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   pruneProjectAiTasks: vi.fn(),
   readAiTaskModelRouteSecrets: vi.fn(),
   recordAiTaskUsage: vi.fn(),
+  taskRouteModelsShareProvider: vi.fn(),
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -44,6 +45,7 @@ vi.mock("@/lib/ai/local-config", () => ({
   getAiRuntimeEnv: mocks.getAiRuntimeEnv,
   getAiRuntimeEnvForTaskType: mocks.getAiRuntimeEnvForTaskType,
   readAiTaskModelRouteSecrets: mocks.readAiTaskModelRouteSecrets,
+  taskRouteModelsShareProvider: mocks.taskRouteModelsShareProvider,
 }));
 
 vi.mock("./task-retention", () => ({
@@ -75,6 +77,7 @@ describe("AI task logger", () => {
       baseUrl: "https://api.moonshot.cn/v1",
       isActive: false,
     });
+    mocks.taskRouteModelsShareProvider.mockReturnValue(true);
     mocks.recordAiTaskUsage.mockResolvedValue(undefined);
     mocks.aiTaskUpdateMany.mockResolvedValue({ count: 1 });
     mocks.aiTaskCreate.mockResolvedValue({
@@ -447,6 +450,37 @@ describe("AI task logger", () => {
       }),
     ).toMatchObject({
       OPENAI_API_KEY: "new-kimi-key",
+      OPENAI_MODEL: "kimi-k2.6",
+      OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
+    });
+  });
+
+  it("does not send a new provider key through an older task route snapshot", () => {
+    mocks.readAiTaskModelRouteSecrets.mockReturnValue({
+      taskType: "chapter_draft_generation",
+      apiKey: "new-luna-key",
+      model: "gpt-5.6-luna",
+      baseUrl: "https://api.openai.com/v1",
+      isActive: true,
+    });
+    mocks.taskRouteModelsShareProvider.mockReturnValue(false);
+
+    expect(
+      resolveAiTaskExecutionEnv({
+        taskType: "chapter_draft_generation",
+        model: "kimi-k2.6",
+        inputJson: JSON.stringify({
+          aiExecutionRoute: {
+            kind: "task_model_route",
+            routeSource: "task_route",
+            taskType: "chapter_draft_generation",
+            model: "kimi-k2.6",
+            baseUrl: "https://api.moonshot.cn/v1",
+          },
+        }),
+      }),
+    ).toMatchObject({
+      OPENAI_API_KEY: "",
       OPENAI_MODEL: "kimi-k2.6",
       OPENAI_BASE_URL: "https://api.moonshot.cn/v1",
     });

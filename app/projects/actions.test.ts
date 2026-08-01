@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
       update: vi.fn(),
       updateMany: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
 }));
 
@@ -85,6 +86,7 @@ describe("project actions", () => {
     mocks.prisma.project.findUnique.mockResolvedValue({
       status: "active",
       totalWordTarget: 10_000,
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
       workType: "serial_novel",
       chapters: [
         {
@@ -100,6 +102,9 @@ describe("project actions", () => {
       ],
     });
     mocks.prisma.project.updateMany.mockResolvedValue({ count: 1 });
+    mocks.prisma.$transaction.mockImplementation(async (callback) =>
+      callback(mocks.prisma),
+    );
     mocks.deleteProjectAudioAssets.mockResolvedValue(undefined);
     mocks.deleteProjectCoverAssets.mockResolvedValue(undefined);
   });
@@ -192,6 +197,38 @@ describe("project actions", () => {
     );
   });
 
+  it("requires restoring a completed project before changing its word target", async () => {
+    mocks.prisma.project.findUnique.mockResolvedValue({
+      id: "project_1",
+      status: "completed",
+      totalWordTarget: 10_000,
+    });
+    mocks.prisma.project.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      updateProject(
+        "project_1",
+        buildProjectFormData({
+          totalWordTarget: 12_000,
+        }),
+      ),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(mocks.prisma.project.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "project_1",
+        status: "active",
+      },
+      data: expect.objectContaining({
+        totalWordTarget: 12_000,
+      }),
+    });
+    expect(mocks.prisma.project.update).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1/edit?projectError=restore-required",
+    );
+  });
+
   it("removes project-scoped cover and audio assets after hard deletion", async () => {
     const formData = new FormData();
     formData.set("deleteConfirmation", "DELETE");
@@ -229,10 +266,21 @@ describe("project actions", () => {
         },
       }),
     });
-    expect(mocks.prisma.project.updateMany).toHaveBeenCalledWith({
+    expect(mocks.prisma.project.updateMany).toHaveBeenNthCalledWith(1, {
       where: {
         id: "project_1",
         status: "active",
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      },
+      data: {
+        updatedAt: expect.any(Date),
+      },
+    });
+    expect(mocks.prisma.project.updateMany).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "project_1",
+        status: "active",
+        updatedAt: expect.any(Date),
         workType: "serial_novel",
       },
       data: {
@@ -248,6 +296,7 @@ describe("project actions", () => {
     mocks.prisma.project.findUnique.mockResolvedValue({
       status: "active",
       totalWordTarget: 10_000,
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
       workType: "serial_novel",
       chapters: [
         {
@@ -268,6 +317,29 @@ describe("project actions", () => {
     );
 
     expect(mocks.prisma.project.updateMany).not.toHaveBeenCalled();
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/projects/project_1?completion=not-ready",
+    );
+  });
+
+  it("does not complete a project when a concurrent content write claims the project lease", async () => {
+    mocks.prisma.project.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(completeAndArchiveProject("project_1")).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+
+    expect(mocks.prisma.project.updateMany).toHaveBeenCalledTimes(1);
+    expect(mocks.prisma.project.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "project_1",
+        status: "active",
+        updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+      },
+      data: {
+        updatedAt: expect.any(Date),
+      },
+    });
     expect(mocks.redirect).toHaveBeenCalledWith(
       "/projects/project_1?completion=not-ready",
     );

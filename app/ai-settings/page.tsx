@@ -223,7 +223,7 @@ export default async function AiSettingsPage({
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
                       章节草稿默认使用 Kimi K2.6，也可切换为 GPT-5.6
                       Luna。Luna 使用 OpenAI API 接入，并固定为极高推理强度；正文精修与短故事整篇审校默认使用 Kimi
-                      K3。两条路由可共享同一套草稿 API Key 和 Base URL，也可为精修单独配置。大纲、节拍和普通连续性检查保持默认模型。
+                      K3。仅当草稿与精修使用同一提供商时才可共享 API Key 和 Base URL；也可为精修单独配置。大纲、节拍和普通连续性检查保持默认模型。
                     </p>
                   </div>
                 </div>
@@ -1087,7 +1087,7 @@ function AiTaskRouteFields({
                 复用章节草稿接入
               </span>
               <span className="mt-1 block leading-6">
-                使用同一 API Key 和 Base URL；下方若填入独立 Key，会优先使用独立接入。
+                仅当草稿与精修使用同一提供商时才可复用。Kimi 草稿可复用给 K3；若草稿改为 GPT-5.6 Luna，请为 K3 填写独立 Kimi 接入。下方若填入独立 Key，会优先使用独立接入。
               </span>
             </span>
           </label>

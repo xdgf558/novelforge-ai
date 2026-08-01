@@ -39,6 +39,12 @@ export function ProjectCompletionPanel({
           <Archive aria-hidden="true" className="h-3.5 w-3.5" />
           查看归档目录
         </Link>
+        <Link
+          className="nf-secondary-button"
+          href={`/projects/${projectId}/edit`}
+        >
+          重新连载
+        </Link>
       </section>
     );
   }
