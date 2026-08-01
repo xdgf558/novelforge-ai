@@ -8,6 +8,7 @@ import {
 } from "@/app/projects/actions";
 import { ProjectForm } from "@/components/project-form";
 import { prisma } from "@/lib/prisma";
+import { isProjectInArchiveDirectory } from "@/lib/projects/status";
 import { isShortStoryProject } from "@/lib/projects/work-types";
 
 export const dynamic = "force-dynamic";
@@ -75,7 +76,7 @@ export default async function EditProjectPage({
             ) : null}
           </div>
 
-          {project.status === "archived" ? (
+          {isProjectInArchiveDirectory(project.status) ? (
             <form
               action={restoreProject.bind(null, project.id)}
               className="shrink-0"
@@ -84,7 +85,7 @@ export default async function EditProjectPage({
                 className="inline-flex min-h-10 items-center whitespace-nowrap rounded-md bg-ink-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-ink-800"
                 type="submit"
               >
-                恢复项目
+                {project.status === "completed" ? "重新连载" : "恢复项目"}
               </button>
             </form>
           ) : (

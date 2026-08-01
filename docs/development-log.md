@@ -6647,3 +6647,59 @@ Verification:
 - `npm run build` passed.
 - Browser verification against a temporary copy of the real desktop database passed at 1168px with the AI run console both open and closed, plus an 820px narrow viewport.
 - The affected states had no horizontal overflow; the long issue title remained normally wrapped instead of collapsing into a near-vertical column.
+
+## 2026-08-01: GPT-5.6 Luna Chapter Draft Route
+
+Status: completed.
+
+What was done:
+
+- Added `gpt-5.6-luna` to the chapter-draft route suggestions in local AI settings.
+- Generalized the task-route connection labels so a chapter draft can use either
+  Kimi or OpenAI credentials without implying that every route is Kimi-only.
+- When Luna is selected with the saved Moonshot default URL still present, the
+  local route saves `https://api.openai.com/v1`; custom OpenAI-compatible URLs
+  remain untouched.
+- Direct OpenAI Luna calls now use the Responses API with
+  `reasoning: { effort: "xhigh" }`, matching the UI's "极高" setting. The
+  compatibility Chat Completions payload also carries `reasoning_effort:
+  "xhigh"` for Luna; existing Kimi K3 `max` behavior is unchanged.
+- Kept API keys in the local route configuration only. Task logs continue to
+  record model and base URL snapshots, never the key.
+
+Verification:
+
+- Focused OpenAI-client, local-config, and completion-flow tests passed:
+  5 files, 65 tests.
+- `npm run typecheck` passed.
+- Full `npm test` passed: 122 files and 709 tests.
+- `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
+
+## 2026-08-01: Serial Completion and Archive Workflow
+
+Status: completed.
+
+What was done:
+
+- Added an explicit `completed` project status for long-form serials without a
+  schema migration; manually archived projects continue to use `archived`.
+- Added a project-dashboard completion panel that appears once confirmed final
+  text reaches the configured total-word target. It reports any chapters that
+  still need finalization or a formal final-text save.
+- Added an author-triggered “完结并归档” action. The server rechecks the work
+  type, active status, confirmed word count, chapter lifecycle, and final text
+  before changing the project status, so a stale page or direct request cannot
+  bypass the completion criteria.
+- Updated the project library archive directory to include both completed and
+  manually archived projects, with distinct labels. Completed serials retain
+  all existing chapters, settings, memory, and AI history, and can be reopened
+  as active serials from project editing.
+
+Verification:
+
+- Targeted completion/status/action tests passed.
+- `npm run typecheck` passed.
+- Full `npm test` passed: 122 files and 709 tests.
+- `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.

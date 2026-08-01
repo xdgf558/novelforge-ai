@@ -233,6 +233,7 @@ export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 export const DEFAULT_KIMI_API_BASE_URL = "https://api.moonshot.cn/v1";
 export const DEFAULT_KIMI_K2_6_MODEL = "kimi-k2.6";
 export const DEFAULT_KIMI_K3_MODEL = "kimi-k3";
+export const GPT_5_6_LUNA_MODEL = "gpt-5.6-luna";
 export const DEFAULT_IMAGE_API_BASE_URL = "https://api.ppq.ai/v1";
 export const DEFAULT_IMAGE_MODEL = "qwen-image-2";
 export const DEFAULT_IMAGE_SIZE = "default";
@@ -450,16 +451,20 @@ export function saveAiTaskModelRouteSettings(
   const nextPolishApiKey = input.clearPolishApiKey
     ? ""
     : polishApiKeyInput || currentPolishApiKey;
+  const draftModel = normalizeTaskRouteModel(input.draftModel);
   const nextEnv: Partial<Record<AiTaskRouteConfigKey, string>> = {
     CHAPTER_DRAFT_API_KEY: nextDraftApiKey,
-    CHAPTER_DRAFT_MODEL: normalizeKimiModel(input.draftModel),
-    CHAPTER_DRAFT_BASE_URL: normalizeKimiBaseUrl(input.draftBaseUrl),
+    CHAPTER_DRAFT_MODEL: draftModel,
+    CHAPTER_DRAFT_BASE_URL: normalizeDraftRouteBaseUrl(
+      draftModel,
+      input.draftBaseUrl,
+    ),
     CHAPTER_POLISH_API_KEY: nextPolishApiKey,
-    CHAPTER_POLISH_MODEL: normalizeKimiModelForTaskType(
+    CHAPTER_POLISH_MODEL: normalizeTaskRouteModelForTaskType(
       input.polishModel,
       "chapter_polish_generation",
     ),
-    CHAPTER_POLISH_BASE_URL: normalizeKimiBaseUrl(input.polishBaseUrl),
+    CHAPTER_POLISH_BASE_URL: normalizeTaskRouteBaseUrl(input.polishBaseUrl),
     CHAPTER_POLISH_USE_DRAFT_CONNECTION: input.polishUseDraftConnection
       ? "1"
       : "0",
@@ -914,18 +919,18 @@ export function normalizeAiBaseUrl(baseUrl?: string | null) {
   return normalized;
 }
 
-export function normalizeKimiModel(model?: string | null) {
+export function normalizeTaskRouteModel(model?: string | null) {
   return model?.trim() || DEFAULT_KIMI_K2_6_MODEL;
 }
 
-export function normalizeKimiBaseUrl(baseUrl?: string | null) {
+export function normalizeTaskRouteBaseUrl(baseUrl?: string | null) {
   const normalized = (baseUrl?.trim() || DEFAULT_KIMI_API_BASE_URL).replace(
     /\/+$/,
     "",
   );
 
   if (!/^https?:\/\/[^\s]+$/i.test(normalized)) {
-    throw new Error("Kimi API Base URL 必须是 http 或 https URL。");
+    throw new Error("章节写作路由 API Base URL 必须是 http 或 https URL。");
   }
 
   return normalized;
@@ -1521,13 +1526,21 @@ function readAiTaskModelRouteSetting(
   const keys = routeConfigKeysForTaskType(taskType);
   const connection = resolveAiTaskRouteConnection(taskType, runtimeEnv);
 
+  const model = normalizeTaskRouteModelForTaskType(
+    runtimeEnv[keys.model],
+    taskType,
+  );
+
   return {
     taskType,
     label: aiTaskModelRouteLabel(taskType),
     hasApiKey: Boolean(connection.apiKey),
     maskedApiKey: maskSecret(connection.apiKey),
-    model: normalizeKimiModelForTaskType(runtimeEnv[keys.model], taskType),
-    baseUrl: normalizeKimiBaseUrl(connection.baseUrl),
+    model,
+    baseUrl:
+      taskType === "chapter_draft_generation"
+        ? normalizeDraftRouteBaseUrl(model, connection.baseUrl)
+        : normalizeTaskRouteBaseUrl(connection.baseUrl),
     isActive: Boolean(connection.apiKey),
     useDraftConnection: connection.useDraftConnection,
     isUsingSharedConnection: connection.isUsingSharedConnection,
@@ -1593,7 +1606,7 @@ function resolveAiTaskRouteConnection(
   };
 }
 
-function normalizeKimiModelForTaskType(
+function normalizeTaskRouteModelForTaskType(
   model: string | null | undefined,
   taskType: AiTaskModelRouteTaskType,
 ) {
@@ -1606,6 +1619,31 @@ function normalizeKimiModelForTaskType(
   return isPolishRouteTaskType(taskType)
     ? DEFAULT_KIMI_K3_MODEL
     : DEFAULT_KIMI_K2_6_MODEL;
+}
+
+function normalizeDraftRouteBaseUrl(
+  model: string,
+  baseUrl?: string | null,
+) {
+  const normalizedBaseUrl = baseUrl?.trim().replace(/\/+$/, "") ?? "";
+
+  if (
+    isGpt56LunaModel(model) &&
+    (!normalizedBaseUrl || normalizedBaseUrl === DEFAULT_KIMI_API_BASE_URL)
+  ) {
+    return DEFAULT_OPENAI_BASE_URL;
+  }
+
+  return normalizeTaskRouteBaseUrl(baseUrl);
+}
+
+function isGpt56LunaModel(model: string) {
+  const normalized = model.trim().toLowerCase();
+
+  return (
+    normalized === GPT_5_6_LUNA_MODEL ||
+    normalized.startsWith(`${GPT_5_6_LUNA_MODEL}-`)
+  );
 }
 
 function isPolishRouteTaskType(taskType: AiTaskModelRouteTaskType) {

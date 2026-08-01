@@ -28,6 +28,7 @@ import { WorkspaceTabs } from "@/components/workspace-tabs";
 import {
   readAiConnectionSettings,
   readAiTaskModelRouteSettings,
+  GPT_5_6_LUNA_MODEL,
   type AiTaskModelRouteSetting,
   type TtsGenerationSettings,
   readNetworkProxySettings,
@@ -220,10 +221,9 @@ export default async function AiSettingsPage({
                       章节写作模型路由
                     </h2>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
-                      章节草稿默认使用 Kimi
-                      K2.6，正文精修与短故事整篇审校默认使用 Kimi
-                      K3。两条路由可共享同一套 Kimi API Key 和 Base
-                      URL，也可为精修单独配置。大纲、节拍和普通连续性检查保持默认模型。
+                      章节草稿默认使用 Kimi K2.6，也可切换为 GPT-5.6
+                      Luna。Luna 使用 OpenAI API 接入，并固定为极高推理强度；正文精修与短故事整篇审校默认使用 Kimi
+                      K3。两条路由可共享同一套草稿 API Key 和 Base URL，也可为精修单独配置。大纲、节拍和普通连续性检查保持默认模型。
                     </p>
                   </div>
                 </div>
@@ -239,6 +239,7 @@ export default async function AiSettingsPage({
                       clearKeyName="clearDraftApiKey"
                       modelName="draftModel"
                       route={writingModelRouteSettings.routes.chapterDraft}
+                      supportsGpt56Luna
                     />
                     <AiTaskRouteFields
                       apiKeyName="polishApiKey"
@@ -1041,6 +1042,7 @@ function AiTaskRouteFields({
   clearKeyName,
   modelName,
   allowDraftConnectionReuse = false,
+  supportsGpt56Luna = false,
 }: {
   route: AiTaskModelRouteSetting;
   apiKeyName: string;
@@ -1048,13 +1050,14 @@ function AiTaskRouteFields({
   clearKeyName: string;
   modelName: string;
   allowDraftConnectionReuse?: boolean;
+  supportsGpt56Luna?: boolean;
 }) {
   const routeStatus = route.isUsingSharedConnection
-    ? `已复用草稿 Kimi 接入 · ${route.model}`
+    ? `已复用草稿接入 · ${route.model}`
     : route.isActive
       ? `已启用 ${route.model}`
       : route.useDraftConnection
-        ? `等待草稿 Kimi Key · ${route.model}`
+        ? `等待草稿 API Key · ${route.model}`
         : `未配置 Key，暂用默认模型`;
   const modelListId = `${modelName}-options`;
 
@@ -1081,11 +1084,10 @@ function AiTaskRouteFields({
             />
             <span>
               <span className="block font-semibold text-ink-950">
-                复用章节草稿的 Kimi 接入
+                复用章节草稿接入
               </span>
               <span className="mt-1 block leading-6">
-                使用同一 API Key 和 Base URL，只把精修模型切换为
-                K3。下方若填入独立 Key，会优先使用独立接入。
+                使用同一 API Key 和 Base URL；下方若填入独立 Key，会优先使用独立接入。
               </span>
             </span>
           </label>
@@ -1094,8 +1096,8 @@ function AiTaskRouteFields({
         <label className="block space-y-2">
           <span className="text-sm font-semibold text-ink-800">
             {allowDraftConnectionReuse
-              ? "独立 Kimi API Key（可选）"
-              : "Kimi API Key"}
+              ? "独立 API Key（可选）"
+              : "API Key"}
           </span>
           <input
             autoComplete="off"
@@ -1106,7 +1108,7 @@ function AiTaskRouteFields({
                 ? "留空则继续复用草稿 Key"
                 : route.hasApiKey
                   ? "留空则保留当前 Key"
-                  : "输入 Kimi API Key"
+                  : "输入该路由的 API Key"
             }
             type="password"
           />
@@ -1125,11 +1127,12 @@ function AiTaskRouteFields({
           <datalist id={modelListId}>
             <option value="kimi-k2.6" />
             <option value="kimi-k3" />
+            {supportsGpt56Luna ? <option value={GPT_5_6_LUNA_MODEL} /> : null}
           </datalist>
           <span className="block text-xs leading-5 text-ink-600">
             {allowDraftConnectionReuse
               ? "K3 适合整章精修、视角与文风校正、短故事整篇审校。"
-              : "K2.6 适合正文初稿与快速生成。"}
+              : "K2.6 适合正文初稿与快速生成；GPT-5.6 Luna 使用 OpenAI API，固定为极高推理强度。选择 Luna 后，若仍保留 Moonshot 默认地址，保存时会自动切换到 OpenAI 地址。"}
           </span>
         </label>
 
@@ -1141,7 +1144,11 @@ function AiTaskRouteFields({
             className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
             defaultValue={route.baseUrl}
             name={baseUrlName}
-            placeholder="https://api.moonshot.cn/v1"
+            placeholder={
+              supportsGpt56Luna
+                ? "https://api.moonshot.cn/v1 或 https://api.openai.com/v1"
+                : "https://api.moonshot.cn/v1"
+            }
             type="url"
           />
         </label>
@@ -1154,7 +1161,7 @@ function AiTaskRouteFields({
           />
           <span>
             <span className="block font-semibold text-ink-950">
-              清除已保存的 Kimi API Key
+              清除已保存的 API Key
             </span>
             <span className="mt-1 block leading-6">
               {allowDraftConnectionReuse

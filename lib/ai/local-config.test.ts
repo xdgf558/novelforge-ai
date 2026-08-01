@@ -15,6 +15,7 @@ import {
   DEFAULT_KIMI_K3_MODEL,
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_MODEL,
+  GPT_5_6_LUNA_MODEL,
   DEFAULT_STATION_CAT_API_BASE_URL,
   DEFAULT_STATION_CAT_DEFAULT_MODE,
   DEFAULT_TTS_API_BASE_URL,
@@ -412,6 +413,43 @@ describe("AI task model route config", () => {
       'CHAPTER_DRAFT_API_KEY="kimi-draft-existing"',
     );
     expect(savedContent).toContain('CHAPTER_POLISH_API_KEY="kimi-polish-new"');
+  });
+
+  it("routes GPT-5.6 Luna chapter drafts through the OpenAI endpoint", () => {
+    const configPath = makeTempConfigPath();
+    const settings = saveAiTaskModelRouteSettings(
+      {
+        draftApiKey: "sk-luna-test",
+        draftModel: GPT_5_6_LUNA_MODEL,
+        // Mirrors changing only the model in the settings form, which initially
+        // contains the Kimi default address.
+        draftBaseUrl: DEFAULT_KIMI_API_BASE_URL,
+        polishApiKey: "",
+        polishModel: "",
+        polishBaseUrl: "",
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const draftEnv = getAiRuntimeEnvForTaskType("chapter_draft_generation", {
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+    });
+
+    expect(settings.routes.chapterDraft).toMatchObject({
+      model: GPT_5_6_LUNA_MODEL,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
+      hasApiKey: true,
+      isActive: true,
+    });
+    expect(draftEnv).toMatchObject({
+      OPENAI_API_KEY: "sk-luna-test",
+      OPENAI_MODEL: GPT_5_6_LUNA_MODEL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+    });
+    expect(fs.readFileSync(configPath, "utf8")).toContain(
+      `CHAPTER_DRAFT_MODEL="${GPT_5_6_LUNA_MODEL}"`,
+    );
   });
 
   it("can clear one task route key without clearing the other route", () => {

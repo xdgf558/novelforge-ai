@@ -1,11 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { deleteProjectAudioAssets } from "@/lib/audio/audio-assets";
 import { prisma } from "@/lib/prisma";
 import { deleteProjectCoverAssets } from "@/lib/project-cover-assets";
+import { calculateProjectCompletionReadiness } from "@/lib/projects/completion";
 import {
   defaultProjectWorkType,
   projectWorkTypeValues,
@@ -128,6 +129,67 @@ export async function archiveProject(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/projects/${projectId}/edit`);
   redirect(`/projects/${projectId}`);
+}
+
+export async function completeAndArchiveProject(projectId: string) {
+  const project = await prisma.project.findUnique({
+    where: {
+      id: projectId,
+    },
+    select: {
+      status: true,
+      totalWordTarget: true,
+      workType: true,
+      chapters: {
+        select: {
+          finalText: true,
+          status: true,
+          wordCount: true,
+        },
+      },
+    },
+  });
+
+  if (!project) {
+    notFound();
+  }
+
+  if (project.workType !== "serial_novel") {
+    redirect(`/projects/${projectId}?completion=unsupported`);
+  }
+
+  if (project.status !== "active") {
+    redirect(`/projects/${projectId}?completion=already-finished`);
+  }
+
+  const readiness = calculateProjectCompletionReadiness({
+    chapters: project.chapters,
+    totalWordTarget: project.totalWordTarget,
+  });
+
+  if (!readiness.canCompleteAndArchive) {
+    redirect(`/projects/${projectId}?completion=not-ready`);
+  }
+
+  const updateResult = await prisma.project.updateMany({
+    where: {
+      id: projectId,
+      status: "active",
+      workType: "serial_novel",
+    },
+    data: {
+      status: "completed",
+    },
+  });
+
+  if (updateResult.count !== 1) {
+    redirect(`/projects/${projectId}?completion=already-finished`);
+  }
+
+  revalidatePath("/");
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/edit`);
+  redirect("/?projectStatus=archived&projectCompleted=1");
 }
 
 export async function restoreProject(projectId: string) {

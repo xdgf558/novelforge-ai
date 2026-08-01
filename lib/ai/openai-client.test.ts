@@ -81,6 +81,24 @@ describe("OpenAI client helpers", () => {
     });
   });
 
+  it("uses xhigh reasoning for GPT-5.6 Luna Responses requests", () => {
+    expect(
+      buildOpenAIResponsesPayload({
+        model: "gpt-5.6-luna",
+        input: "编写章节草稿",
+      }),
+    ).toEqual({
+      model: "gpt-5.6-luna",
+      input: [
+        {
+          role: "user",
+          content: [{ type: "input_text", text: "编写章节草稿" }],
+        },
+      ],
+      reasoning: { effort: "xhigh" },
+    });
+  });
+
   it("builds a Chat Completions payload for OpenAI-compatible providers", () => {
     expect(
       buildOpenAIChatCompletionsPayload({
@@ -104,7 +122,7 @@ describe("OpenAI client helpers", () => {
     });
   });
 
-  it("adds K3 max reasoning effort without changing K2.6 payloads", () => {
+  it("adds model-specific reasoning effort without changing K2.6 payloads", () => {
     expect(
       buildOpenAIChatCompletionsPayload({
         model: "kimi-k3",
@@ -114,6 +132,16 @@ describe("OpenAI client helpers", () => {
       model: "kimi-k3",
       messages: [{ role: "user", content: "深度精修章节" }],
       reasoning_effort: "max",
+    });
+    expect(
+      buildOpenAIChatCompletionsPayload({
+        model: "gpt-5.6-luna",
+        input: "编写章节草稿",
+      }),
+    ).toEqual({
+      model: "gpt-5.6-luna",
+      messages: [{ role: "user", content: "编写章节草稿" }],
+      reasoning_effort: "xhigh",
     });
     expect(
       buildOpenAIChatCompletionsPayload({
@@ -257,6 +285,67 @@ describe("OpenAI client helpers", () => {
       inputTokens: 1,
       outputTokens: 2,
       totalTokens: 3,
+    });
+  });
+
+  it("uses the Responses API with xhigh reasoning for GPT-5.6 Luna", async () => {
+    const fetchImpl = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          output_text: "章节草稿结果",
+          usage: {
+            input_tokens: 12,
+            output_tokens: 34,
+            total_tokens: 46,
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    });
+
+    const result = await createOpenAITextResponse(
+      {
+        model: "gpt-5.6-luna",
+        input: "编写章节草稿",
+      },
+      {
+        env: {
+          OPENAI_API_KEY: "sk-test",
+          OPENAI_MODEL: "gpt-5.6-luna",
+          OPENAI_BASE_URL: "https://api.openai.com/v1",
+        },
+        fetchImpl,
+      },
+    );
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/responses",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    const requestInit = (fetchImpl.mock.calls as unknown as [string, RequestInit][])[0][1];
+
+    expect(JSON.parse(String(requestInit.body))).toEqual({
+      model: "gpt-5.6-luna",
+      input: [
+        {
+          role: "user",
+          content: [{ type: "input_text", text: "编写章节草稿" }],
+        },
+      ],
+      reasoning: { effort: "xhigh" },
+    });
+    expect(result.outputText).toBe("章节草稿结果");
+    expect(result.usage).toEqual({
+      inputTokens: 12,
+      outputTokens: 34,
+      totalTokens: 46,
     });
   });
 

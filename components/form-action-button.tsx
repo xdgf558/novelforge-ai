@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Archive,
   FolderOpen,
   Loader2,
   Play,
@@ -12,15 +13,17 @@ import {
 import { useFormStatus } from "react-dom";
 
 type FormActionButtonIcon =
+  | "archive"
   | "folder"
   | "play"
   | "refresh"
   | "save"
   | "trash"
   | "volume";
-type FormActionButtonVariant = "danger" | "dark" | "outline";
+type FormActionButtonVariant = "danger" | "dark" | "outline" | "primary";
 
 type FormActionButtonProps = {
+  className?: string;
   disabled?: boolean;
   formAction?: (formData: FormData) => void | Promise<void>;
   icon: FormActionButtonIcon;
@@ -33,6 +36,7 @@ type FormActionButtonProps = {
 };
 
 const iconMap = {
+  archive: Archive,
   folder: FolderOpen,
   play: Play,
   refresh: RefreshCw,
@@ -42,6 +46,7 @@ const iconMap = {
 } satisfies Record<FormActionButtonIcon, typeof Play>;
 
 export function FormActionButton({
+  className,
   disabled = false,
   formAction,
   icon,
@@ -63,11 +68,11 @@ export function FormActionButton({
     <div className="space-y-2">
       <button
         aria-busy={isOwnSubmission}
-        className={buttonClassName({
+        className={`${buttonClassName({
           isDisabled,
           isPending: isOwnSubmission,
           variant,
-        })}
+        })}${className ? ` ${className}` : ""}`}
         disabled={isDisabled}
         formAction={formAction}
         name={name}
@@ -115,6 +120,14 @@ function buttonClassName({
       isDisabled
         ? `${disabledClass} bg-red-50 text-red-700`
         : "bg-red-50 text-red-700 hover:bg-red-100"
+    }`;
+  }
+
+  if (variant === "primary") {
+    return `${base} border border-[rgba(241,168,76,0.38)] ${
+      isDisabled
+        ? `${disabledClass} bg-[rgba(241,168,76,0.09)] text-[var(--nf-amber-light)]`
+        : "bg-[rgba(241,168,76,0.16)] text-[var(--nf-amber-light)] hover:bg-[rgba(241,168,76,0.24)]"
     }`;
   }
 

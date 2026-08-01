@@ -17,11 +17,13 @@ import {
   isShortStoryProject,
   projectWorkTypeLabel,
 } from "@/lib/projects/work-types";
+import { projectStatusLabel } from "@/lib/projects/status";
 
 export const dynamic = "force-dynamic";
 
 type HomePageProps = {
   searchParams?: Promise<{
+    projectCompleted?: string;
     projectStatus?: string;
   }>;
 };
@@ -41,9 +43,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       where:
         activeFilter === "all"
           ? undefined
-          : {
-              status: activeFilter,
-            },
+          : activeFilter === "archived"
+            ? {
+                status: {
+                  in: ["archived", "completed"],
+                },
+              }
+            : {
+                status: "active",
+              },
       orderBy: {
         updatedAt: "desc",
       },
@@ -103,6 +111,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </Link>
       </header>
 
+      {resolvedSearchParams?.projectCompleted === "1" ? (
+        <section className="nf-project-library-notice" role="status">
+          <BookOpenText aria-hidden="true" className="h-4 w-4" />
+          <p>
+            作品已标记为完结，并已收录到归档目录。全部章节、设定、记忆与任务记录均已保留。
+          </p>
+        </section>
+      ) : null}
+
       <section className="nf-summary-strip" aria-label="项目概览">
         <SummaryMetric
           icon={BookOpenText}
@@ -138,7 +155,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 active={activeFilter === "archived"}
                 href="/?projectStatus=archived"
               >
-                已归档
+                归档目录
               </ProjectFilterLink>
               <ProjectFilterLink
                 active={activeFilter === "all"}
@@ -227,7 +244,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                         {formatDate(latestActivity)}
                       </span>
                       <span className="mt-1 block text-[9px] text-[var(--nf-text-faint)]">
-                        {project.status === "active" ? "进行中" : "已归档"}
+                        {projectStatusLabel(project.status)}
                       </span>
                     </span>
                     <ArrowUpRight
