@@ -1753,12 +1753,20 @@ function normalizeTaskRouteBaseUrlForModel(
   baseUrl?: string | null,
 ) {
   const normalizedBaseUrl = baseUrl?.trim().replace(/\/+$/, "") ?? "";
+  const provider = taskRouteModelProvider(model);
 
   if (
-    taskRouteModelProvider(model) === "openai" &&
+    provider === "openai" &&
     (!normalizedBaseUrl || normalizedBaseUrl === DEFAULT_KIMI_API_BASE_URL)
   ) {
     return DEFAULT_OPENAI_BASE_URL;
+  }
+
+  if (
+    provider === "moonshot" &&
+    (!normalizedBaseUrl || normalizedBaseUrl === DEFAULT_OPENAI_BASE_URL)
+  ) {
+    return DEFAULT_KIMI_API_BASE_URL;
   }
 
   return normalizeTaskRouteBaseUrl(baseUrl);

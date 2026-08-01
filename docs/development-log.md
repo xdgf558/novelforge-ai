@@ -6732,14 +6732,18 @@ What was done:
   and URL match. This blocks `gpt-4.1`/K3 reuse, clears old Kimi keys when a
   blank route switches to any recognized GPT model, and rejects queued-task
   credentials after a route endpoint changes.
+- PR #95 final route correction: known default endpoints now normalize in both
+  directions. Switching a saved Luna/OpenAI route back to a Kimi/Moonshot
+  model restores the Moonshot default before a new key can be persisted or
+  used; custom endpoints remain author-controlled.
 
 Verification:
 
 - Focused local-config, task logger, chapter record/action, and project action
   tests passed.
 - Re-review route isolation tests passed: `lib/ai/local-config.test.ts` and
-  `lib/ai/task-logger.test.ts`, 50 tests.
+  `lib/ai/task-logger.test.ts`, 51 tests.
 - `npm run typecheck` passed.
-- Full `npm test` passed: 122 files and 722 tests.
+- Full `npm test` passed: 122 files and 723 tests.
 - `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
   `npm run work-types:acceptance` passed.

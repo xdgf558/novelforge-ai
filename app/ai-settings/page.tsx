@@ -1132,7 +1132,7 @@ function AiTaskRouteFields({
           <span className="block text-xs leading-5 text-ink-600">
             {allowDraftConnectionReuse
               ? "K3 适合整章精修、视角与文风校正、短故事整篇审校。"
-              : "K2.6 适合正文初稿与快速生成；GPT-5.6 Luna 使用 OpenAI API，固定为极高推理强度。选择 Luna 或其他 GPT 模型后，若仍保留 Moonshot 默认地址，保存时会自动切换到 OpenAI 地址。"}
+              : "K2.6 适合正文初稿与快速生成；GPT-5.6 Luna 使用 OpenAI API，固定为极高推理强度。切换 GPT 或 Kimi 模型时，若仍保留另一方的默认地址，保存时会自动切换到对应默认地址；手动填写的自定义地址不会变。"}
           </span>
         </label>
 

@@ -480,6 +480,52 @@ describe("AI task model route config", () => {
     );
   });
 
+  it("switches a saved Luna draft route back to Moonshot for Kimi", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "CHAPTER_DRAFT_API_KEY=sk-luna-existing-key",
+        `CHAPTER_DRAFT_MODEL=${GPT_5_6_LUNA_MODEL}`,
+        `CHAPTER_DRAFT_BASE_URL=${DEFAULT_OPENAI_BASE_URL}`,
+      ].join("\n"),
+    );
+
+    const settings = saveAiTaskModelRouteSettings(
+      {
+        draftApiKey: "moonshot-new-key",
+        draftModel: DEFAULT_KIMI_K2_6_MODEL,
+        // Mirrors changing the model back to Kimi without first editing the
+        // OpenAI default address retained by the settings form.
+        draftBaseUrl: DEFAULT_OPENAI_BASE_URL,
+        polishApiKey: "",
+        polishModel: "",
+        polishBaseUrl: "",
+      },
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+    const draftEnv = getAiRuntimeEnvForTaskType("chapter_draft_generation", {
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+    });
+
+    expect(settings.routes.chapterDraft).toMatchObject({
+      model: DEFAULT_KIMI_K2_6_MODEL,
+      baseUrl: DEFAULT_KIMI_API_BASE_URL,
+      hasApiKey: true,
+      isActive: true,
+    });
+    expect(draftEnv).toMatchObject({
+      OPENAI_API_KEY: "moonshot-new-key",
+      OPENAI_MODEL: DEFAULT_KIMI_K2_6_MODEL,
+      OPENAI_BASE_URL: DEFAULT_KIMI_API_BASE_URL,
+    });
+    expect(fs.readFileSync(configPath, "utf8")).toContain(
+      `CHAPTER_DRAFT_BASE_URL="${DEFAULT_KIMI_API_BASE_URL}"`,
+    );
+  });
+
   it("does not retain a Kimi draft key when switching a blank route to Luna", () => {
     const configPath = makeTempConfigPath();
     fs.writeFileSync(
