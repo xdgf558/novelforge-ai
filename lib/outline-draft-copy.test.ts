@@ -75,6 +75,7 @@ describe("outline draft copy helpers", () => {
 
 **剧情单元标题：** 培训班破局
 **所属卷号：** 1
+**单元号：** 2
 **章节范围：** 第3章-第8章
 **剧情单元目标：** 让陈远通过培训班打开第一批客户入口。
 `,
@@ -87,6 +88,61 @@ describe("outline draft copy helpers", () => {
       startChapter: 3,
       endChapter: 8,
       volumeNumber: 1,
+      unitNumber: 2,
+    });
+  });
+
+  it("selects the requested next unit from a mixed-level model response", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary:
+        "《离线未来》剧情单元大纲生成；已有大纲 10 条；角色 12 个；已有章节 5 个；建议起始第 11 章",
+      outputText: `
+# 卷大纲：县城打拼
+**目标：** 重述第一卷整体目标。
+**章节范围：** 第1章-第30章
+
+# 剧情单元大纲：第一单元「第一桶金」
+**目标：** 重述已经完成的第一单元。
+**章节范围：** 第3章-第15章
+
+# 剧情单元大纲：子单元「查分决战」
+**目标：** 承接第10章结尾，在查分服务上线前完成最后部署并击退罗文斌的干扰。
+**章节范围：** 第11章-第15章
+
+# 第11章《查分首日》章节大纲
+**目标：** 展开单章事件。
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "unit",
+      title: "查分决战",
+      goal:
+        "承接第10章结尾，在查分服务上线前完成最后部署并击退罗文斌的干扰。",
+      startChapter: 11,
+      endChapter: 15,
+    });
+  });
+
+  it("uses the task summary to carry the suggested next unit number", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary:
+        "《离线未来》剧情单元大纲生成；建议第 2 单元从第 11 章开始",
+      outputText: `
+# 剧情单元大纲：查分决战
+**所属卷号：** 1
+**目标：** 完成查分服务决战。
+**章节范围：** 第11章-第15章
+`,
+    });
+
+    expect(suggestion).toMatchObject({
+      level: "unit",
+      title: "查分决战",
+      startChapter: 11,
+      endChapter: 15,
+      volumeNumber: 1,
+      unitNumber: 2,
     });
   });
 

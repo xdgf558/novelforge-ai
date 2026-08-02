@@ -382,6 +382,25 @@ describe("outline generation context builder", () => {
   it("anchors a requested next story unit to its starting chapter", () => {
     const context = buildOutlineGenerationContext({
       ...baseInput,
+      outlines: [
+        {
+          level: "volume",
+          status: "active",
+          title: "县城打拼",
+          volumeNumber: 1,
+          startChapter: 1,
+          endChapter: 30,
+        },
+        {
+          level: "unit",
+          status: "completed",
+          title: "第一桶金",
+          unitNumber: 1,
+          volumeNumber: 1,
+          startChapter: 3,
+          endChapter: 10,
+        },
+      ],
       request: {
         targetLevel: "unit",
         targetChapterNumber: 17,
@@ -398,15 +417,37 @@ describe("outline generation context builder", () => {
       chapterCount: null,
       targetChapterNumber: 17,
     });
-    expect(context.inputText).toContain("从第 17 章开始的下一剧情单元");
+    expect(context.inputJson.nextUnitPlanning).toEqual({
+      unitNumber: 2,
+      startChapter: 17,
+      volumeNumber: 1,
+      volumeTitle: "县城打拼",
+      volumeEndChapter: 30,
+    });
+    expect(context.inputText).toContain("第 2 单元这一条新的剧情单元大纲");
+    expect(context.inputText).toContain("起始章节固定为第 17 章");
+    expect(context.inputText).toContain(
+      "禁止重写旧单元，禁止输出卷大纲、子单元或逐章大纲",
+    );
     expect(context.inputText).toContain("不与已有单元重叠的建议结束章节");
+    expect(context.inputText).not.toContain("保持三层结构清晰");
     expect(context.inputText).toContain("铁匣开启，完整密信重见天日");
     expect(buildOutlineGenerationContextSummary({
       ...baseInput,
+      outlines: [
+        ...baseInput.outlines,
+        {
+          level: "unit",
+          title: "第一桶金",
+          unitNumber: 1,
+          startChapter: 3,
+          endChapter: 16,
+        },
+      ],
       request: {
         targetLevel: "unit",
         targetChapterNumber: 17,
       },
-    })).toContain("建议起始第 17 章");
+    })).toContain("建议第 2 单元从第 17 章开始");
   });
 });

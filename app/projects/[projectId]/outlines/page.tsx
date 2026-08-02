@@ -1039,15 +1039,26 @@ function QuickCreateOutlineForm({
           )}
         </div>
         {isUnit ? (
-          <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
-            所属卷号
-            <input
-              className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
-              min={1}
-              name="volumeNumber"
-              type="number"
-            />
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+              所属卷号
+              <input
+                className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
+                min={1}
+                name="volumeNumber"
+                type="number"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
+              单元号
+              <input
+                className="min-h-9 rounded-md border border-ink-950/15 bg-white px-3 py-1.5 text-sm text-ink-950 outline-none"
+                min={1}
+                name="unitNumber"
+                type="number"
+              />
+            </label>
+          </div>
         ) : null}
         <label className="flex flex-col gap-1 text-xs font-medium text-ink-700">
           目标

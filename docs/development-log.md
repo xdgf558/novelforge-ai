@@ -6869,3 +6869,31 @@ Verification:
 - Full `npm test` passed: 122 files and 723 tests.
 - `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
   `npm run work-types:acceptance` passed.
+
+## 2026-08-02: Next Story-Unit Outline Continuation Fix
+
+Status: completed.
+
+What was done:
+
+- Changed outline generation prompt v5 to emit exactly one requested outline
+  level. A next-unit request now names the next formal unit number, fixes its
+  starting chapter, identifies the containing volume when available, and
+  explicitly forbids regenerating the volume, earlier units, nested sub-units,
+  or chapter-by-chapter outlines.
+- Added auditable next-unit planning metadata to AI task input and summaries,
+  such as “第 2 单元从第 11 章开始”.
+- Hardened “复制到表单” for mixed historical model responses. The parser now
+  selects the story-unit block whose range starts at the task's suggested
+  chapter instead of copying the first volume or old-unit fields it encounters.
+- Added `unitNumber` to the copy handoff and quick-create story-unit form so
+  the generated sequence survives the tab transition and remains author
+  reviewable before saving.
+
+Verification:
+
+- Focused outline generation, prompt-template, copy parser, handoff, and server
+  action tests passed: 6 files and 66 tests.
+- `npm run typecheck` passed.
+- Full `npm test` passed: 122 files and 727 tests.
+- `npm run build` passed.

@@ -101,6 +101,10 @@ export function buildOutlineGenerationContext(
       ? 1
       : null;
   const targetChapterNumber = input.request.targetChapterNumber ?? null;
+  const nextUnitPlanning =
+    input.request.targetLevel === "unit" && targetChapterNumber
+      ? resolveNextUnitPlanning(input.outlines, targetChapterNumber)
+      : null;
   const previousChapter =
     input.request.targetLevel !== "volume" && input.previousChapter
       ? {
@@ -211,6 +215,7 @@ export function buildOutlineGenerationContext(
       chapterCount,
       targetChapterNumber,
     },
+    nextUnitPlanning,
     setting: Object.fromEntries(settingItems),
     existingOutlines: outlineItems,
     characters: characterItems,
@@ -241,8 +246,15 @@ export function buildOutlineGenerationContext(
       ? targetChapterNumber
         ? `本次只生成第 ${targetChapterNumber} 章的一条章节大纲，不要生成其他章节。`
         : "本次只生成下一章的一条章节大纲，不要生成连续多章。"
-      : input.request.targetLevel === "unit" && targetChapterNumber
-        ? `本次只规划一个从第 ${targetChapterNumber} 章开始的下一剧情单元。请根据总目标、已有卷大纲和最近章节建议合理的结束章节，不要覆盖已有剧情单元。`
+      : nextUnitPlanning
+        ? [
+            `本次只输出第 ${nextUnitPlanning.unitNumber} 单元这一条新的剧情单元大纲，起始章节固定为第 ${targetChapterNumber} 章。`,
+            nextUnitPlanning.volumeNumber
+              ? `它属于第 ${nextUnitPlanning.volumeNumber} 卷《${nextUnitPlanning.volumeTitle || "未命名"}》${nextUnitPlanning.volumeEndChapter ? `，建议结束章节不得超过第 ${nextUnitPlanning.volumeEndChapter} 章` : ""}。`
+              : "请根据已有卷大纲判断所属卷号。",
+            "它必须直接接在已完成的上一剧情单元之后。禁止重写旧单元，禁止输出卷大纲、子单元或逐章大纲。",
+            "请根据总目标、已有卷大纲和最近章节建议合理的结束章节，且不得与任何已有剧情单元重叠。",
+          ].join("\n")
       : "",
     "",
     "# 项目基础信息",
@@ -281,11 +293,26 @@ export function buildOutlineGenerationContext(
     "",
     "# 输出要求",
     "- 使用 Markdown 输出。",
-    "- 保持三层结构清晰：卷大纲、剧情单元大纲、章节大纲。",
     "- 不要直接修改正式设定、角色、世界规则、时间线或伏笔。",
-    "- 如果任务是章节大纲，只输出目标章节这一章，不要输出连续章节列表。",
-    "- 如果任务是章节大纲，开篇必须承接上一章最后事件和章末钩子；新增人物只能服务这个承接，不要替换主线衔接。",
-    "- 如果任务是下一剧情单元，必须从指定起始章节承接最近正文，并给出不与已有单元重叠的建议结束章节。",
+    ...(input.request.targetLevel === "volume"
+      ? [
+          "- 只输出一条目标卷大纲，不要同时展开剧情单元或章节大纲。",
+          "- 可复制字段必须包含：标题、目标、章节范围、主线推进、核心冲突、主要对手、关键转折和高潮。",
+        ]
+      : input.request.targetLevel === "unit"
+        ? [
+            `- 只输出第 ${nextUnitPlanning?.unitNumber ?? "下一"} 单元这一条剧情单元大纲，不得复述卷大纲、旧单元、子单元或逐章大纲。`,
+            targetChapterNumber
+              ? `- 章节范围的起始章节必须严格写为第 ${targetChapterNumber} 章，并给出不与已有单元重叠的建议结束章节。`
+              : "- 给出不与已有单元重叠的起止章节。",
+            "- 开篇必须承接上一章最后事件和章末钩子，延续当前人物状态与压力。",
+            `- 可复制字段必须使用独立行式标签：\`**标题：**\`、\`**所属卷号：**\`、\`**单元号：** ${nextUnitPlanning?.unitNumber ?? "..."}\`、\`**目标：**\`、\`**章节范围：** 第${targetChapterNumber ?? "..."}章-第N章\`、\`**核心事件：**\`、\`**角色变化：**\`、\`**爽点设计：**\`、\`**悬念设计：**\`。`,
+          ]
+        : [
+            "- 只输出目标章节这一章，不要输出连续章节列表。",
+            "- 开篇必须承接上一章最后事件和章末钩子；新增人物只能服务这个承接，不要替换主线衔接。",
+            "- 可复制字段必须包含：标题、目标、章节号、预计字数、章节冲突、章节爽点、伏笔、出场角色、地点和章末钩子。",
+          ]),
     ...(endingPlan
       ? [
           "- 必须参考已提供的终局规划，让本次大纲服务于剩余篇幅、核心伏笔回收、角色终点和最终结局；不得无故新增会妨碍收束的大型支线。",
@@ -303,8 +330,7 @@ export function buildOutlineGenerationContext(
           "- 大纲中的信息揭示、场景安排和悬念设计必须服从已确认叙事视角；不得依靠当前视角人物无法得知的幕后事实推进。",
         ]
       : []),
-    "- 给出可复制到大纲表单的字段：标题、目标、章节范围、核心事件、冲突、爽点、伏笔和章末钩子。",
-    "- 可复制字段必须使用独立行式标签，例如 `**标题：** ...`、`**目标：** ...`、`**章节范围：** 第1章-第10章`；不要只把关键字段放进 Markdown 表格。",
+    "- 除上面指定的字段外，其余可保留为简洁规划说明；不要只把关键字段放进 Markdown 表格。",
   ]
     .filter((item) => item !== "")
     .join("\n");
@@ -340,7 +366,7 @@ function formatOutlineGenerationContextSummary(
         : "；固定 1 条章节大纲"
       : input.request.targetLevel === "unit" &&
           input.request.targetChapterNumber
-        ? `；建议起始第 ${input.request.targetChapterNumber} 章`
+        ? `；建议第 ${resolveNextUnitPlanning(input.outlines, input.request.targetChapterNumber).unitNumber} 单元从第 ${input.request.targetChapterNumber} 章开始`
         : "";
 
   const endingPlanSummary =
@@ -367,6 +393,61 @@ function formatOutlineGenerationContextSummary(
     ...(endingPlanSummary ? [endingPlanSummary] : []),
     ...(wordBudgetSummary ? [wordBudgetSummary] : []),
   ].join("；");
+}
+
+type NextUnitPlanning = {
+  unitNumber: number;
+  startChapter: number;
+  volumeNumber: number | null;
+  volumeTitle: string | null;
+  volumeEndChapter: number | null;
+};
+
+function resolveNextUnitPlanning(
+  outlines: readonly OutlineLike[],
+  startChapter: number,
+): NextUnitPlanning {
+  const unitOutlines = outlines.filter((outline) => outline.level === "unit");
+  const unitNumber =
+    Math.max(
+      unitOutlines.length,
+      0,
+      ...unitOutlines.map((outline) =>
+        positiveInteger(outline.unitNumber) ?? 0,
+      ),
+    ) + 1;
+  const containingVolume = outlines
+    .filter(
+      (outline) =>
+        outline.level === "volume" &&
+        outline.status !== "archived" &&
+        (!positiveInteger(outline.startChapter) ||
+          startChapter >= (outline.startChapter ?? 0)) &&
+        (!positiveInteger(outline.endChapter) ||
+          startChapter <= (outline.endChapter ?? Number.MAX_SAFE_INTEGER)),
+    )
+    .sort((left, right) => outlineRangeSpan(left) - outlineRangeSpan(right))[0];
+
+  return {
+    unitNumber,
+    startChapter,
+    volumeNumber: positiveInteger(containingVolume?.volumeNumber) ?? null,
+    volumeTitle: clean(containingVolume?.title) || null,
+    volumeEndChapter: positiveInteger(containingVolume?.endChapter) ?? null,
+  };
+}
+
+function outlineRangeSpan(outline: OutlineLike) {
+  const start = positiveInteger(outline.startChapter);
+  const end = positiveInteger(outline.endChapter);
+
+  return start && end ? Math.max(0, end - start) : Number.MAX_SAFE_INTEGER;
+}
+
+function positiveInteger(value?: number | null) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : null;
 }
 
 type EndingPlanDecisionStatus =

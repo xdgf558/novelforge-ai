@@ -602,6 +602,26 @@ describe("outline actions", () => {
     const formData = new FormData();
     formData.set("targetLevel", "unit");
     formData.set("targetChapterNumber", "17");
+    mocks.prisma.outline.findMany.mockResolvedValue([
+      {
+        level: "volume",
+        status: "active",
+        title: "县城打拼",
+        volumeNumber: 1,
+        unitNumber: null,
+        startChapter: 1,
+        endChapter: 30,
+      },
+      {
+        level: "unit",
+        status: "completed",
+        title: "第一桶金",
+        volumeNumber: 1,
+        unitNumber: 1,
+        startChapter: 3,
+        endChapter: 16,
+      },
+    ]);
     mocks.prisma.chapter.findFirst.mockResolvedValue({
       chapterNumber: 16,
       title: "炭图藏锋",
@@ -630,15 +650,22 @@ describe("outline actions", () => {
             chapterCount: null,
             targetChapterNumber: 17,
           },
+          nextUnitPlanning: expect.objectContaining({
+            unitNumber: 2,
+            startChapter: 17,
+            volumeNumber: 1,
+            volumeTitle: "县城打拼",
+            volumeEndChapter: 30,
+          }),
           previousChapter: expect.objectContaining({
             chapterNumber: 16,
           }),
         }),
         inputContextSummary:
-          "《离线未来》剧情单元大纲生成；已有大纲 0 条；角色 0 个；已有章节 0 个；建议起始第 17 章",
+          "《离线未来》剧情单元大纲生成；已有大纲 2 条；角色 0 个；已有章节 0 个；建议第 2 单元从第 17 章开始",
       }),
       expect.objectContaining({
-        input: expect.stringContaining("从第 17 章开始的下一剧情单元"),
+        input: expect.stringContaining("第 2 单元这一条新的剧情单元大纲"),
       }),
     );
     expect(mocks.prisma.outline.create).not.toHaveBeenCalled();

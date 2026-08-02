@@ -9,6 +9,7 @@ export type OutlineDraftCopySuggestion = {
   chapterNumber?: number;
   expectedWords?: number;
   volumeNumber?: number;
+  unitNumber?: number;
 };
 
 type OutlineDraftCopyRange = Pick<
@@ -17,7 +18,7 @@ type OutlineDraftCopyRange = Pick<
 >;
 
 const labelStopPattern =
-  /^(\s*[-*]?\s*)?(卷标题|单元标题|剧情单元标题|章节标题|标题|卷目标|单元目标|剧情单元目标|章节目标|目标|章节范围|范围|核心事件|核心冲突|主线推进|爽点设计|悬念设计|角色变化|章末钩子|章节号|预计字数|预计章节数|所属卷号)\s*[：:]/;
+  /^(\s*[-*]?\s*)?(卷标题|单元标题|剧情单元标题|章节标题|标题|卷目标|单元目标|剧情单元目标|章节目标|目标|章节范围|范围|核心事件|核心冲突|主线推进|爽点设计|悬念设计|角色变化|章末钩子|章节号|预计字数|预计章节数|所属卷号|单元号|剧情单元号)\s*[：:]/;
 
 export function parseOutlineDraftCopySuggestion({
   inputContextSummary,
@@ -39,10 +40,14 @@ export function parseOutlineDraftCopySuggestion({
   }
 
   if (level === "unit") {
-    return parseRangeSuggestion(text, "unit");
+    return parseRangeSuggestion(
+      selectUnitSuggestionBlock(text, inputContextSummary),
+      "unit",
+      inputContextSummary,
+    );
   }
 
-  return parseRangeSuggestion(text, "volume");
+  return parseRangeSuggestion(text, "volume", inputContextSummary);
 }
 
 export function inferOutlineDraftLevel(
@@ -83,6 +88,7 @@ export function inferOutlineDraftLevel(
 function parseRangeSuggestion(
   text: string,
   level: "volume" | "unit",
+  inputContextSummary?: string | null,
 ): OutlineDraftCopySuggestion | null {
   const titleLabels =
     level === "volume"
@@ -128,6 +134,14 @@ function parseRangeSuggestion(
             "",
         )
       : undefined;
+  const unitNumber =
+    level === "unit"
+      ? firstPositiveInteger(
+          firstBlockLabel(text, ["剧情单元号", "单元号"]) ||
+            firstTableLabel(text, ["剧情单元号", "单元号"]) ||
+            "",
+        ) || targetUnitNumberFromSummary(inputContextSummary)
+      : undefined;
 
   if (!title && !goal && !range.startChapter && !range.endChapter) {
     return null;
@@ -139,7 +153,67 @@ function parseRangeSuggestion(
     goal,
     ...range,
     ...(volumeNumber ? { volumeNumber } : {}),
+    ...(unitNumber ? { unitNumber } : {}),
   };
+}
+
+function selectUnitSuggestionBlock(
+  text: string,
+  inputContextSummary?: string | null,
+) {
+  const blocks = unitOutlineBlocks(text);
+
+  if (blocks.length === 0) {
+    return text;
+  }
+
+  const targetStartChapter = targetUnitStartChapterFromSummary(
+    inputContextSummary,
+  );
+
+  if (!targetStartChapter) {
+    return blocks[0] ?? text;
+  }
+
+  const exactBlock = blocks.find((block) => {
+    const rangeText =
+      firstBlockLabel(block, ["章节范围", "章范围", "范围"]) ||
+      firstTableLabel(block, ["章节范围", "章范围", "范围"]);
+
+    return chapterRangeFromText(rangeText)?.startChapter === targetStartChapter;
+  });
+
+  return exactBlock ?? (blocks.length === 1 ? blocks[0] : "");
+}
+
+function unitOutlineBlocks(text: string) {
+  const headings = [...text.matchAll(/^(#{1,6})\s+(.+)$/gm)];
+  const blocks: string[] = [];
+
+  headings.forEach((heading, index) => {
+    const headingText = cleanInlineText(heading[2] ?? "");
+
+    if (!isUnitOutlineHeading(headingText)) {
+      return;
+    }
+
+    const depth = heading[1]?.length ?? 1;
+    const nextHeading = headings
+      .slice(index + 1)
+      .find((candidate) => (candidate[1]?.length ?? 1) <= depth);
+    const start = heading.index ?? 0;
+    const end = nextHeading?.index ?? text.length;
+
+    blocks.push(text.slice(start, end).trim());
+  });
+
+  return blocks;
+}
+
+function isUnitOutlineHeading(heading: string) {
+  return /剧情单元大纲|单元大纲|(?:第?[一二三四五六七八九十百\d]+|子)单元/.test(
+    heading,
+  );
 }
 
 function parseChapterSuggestion(
@@ -370,7 +444,17 @@ function firstHeadingSection(
 }
 
 function headingTitle(text: string, level: "volume" | "unit") {
-  const heading = text.match(/^##\s+(.+)$/m)?.[1] ?? "";
+  const heading = text.match(/^#{1,6}\s+(.+)$/m)?.[1] ?? "";
+  const quotedTitles = [...heading.matchAll(/[「《]([^」》]+)[」》]/g)];
+  const quotedTitle =
+    level === "unit" || /第[一二三四五六七八九十百\d]+卷/.test(heading)
+      ? quotedTitles.at(-1)?.[1]?.trim()
+      : undefined;
+
+  if (quotedTitle) {
+    return cleanInlineText(quotedTitle);
+  }
+
   const titleFromColon = heading.match(/[：:]\s*([^（(]+)$/)?.[1]?.trim();
 
   if (titleFromColon) {
@@ -418,6 +502,24 @@ function arabicChapterNumberFromHeading(text: string) {
 function targetChapterNumberFromSummary(inputContextSummary?: string | null) {
   return firstPositiveInteger(
     inputContextSummary?.match(/目标第\s*(\d+)\s*章/)?.[1] ?? "",
+  );
+}
+
+function targetUnitStartChapterFromSummary(
+  inputContextSummary?: string | null,
+) {
+  const summary = inputContextSummary ?? "";
+
+  return firstPositiveInteger(
+    summary.match(/建议起始第\s*(\d+)\s*章/)?.[1] ??
+      summary.match(/建议第\s*\d+\s*单元从第\s*(\d+)\s*章/)?.[1] ??
+      "",
+  );
+}
+
+function targetUnitNumberFromSummary(inputContextSummary?: string | null) {
+  return firstPositiveInteger(
+    inputContextSummary?.match(/建议第\s*(\d+)\s*单元/)?.[1] ?? "",
   );
 }
 
