@@ -50,6 +50,32 @@ describe("outline draft copy handoff", () => {
     ).toBeNull();
   });
 
+  it("keeps the story-unit number in the handoff payload", () => {
+    const storage = createSessionStorage();
+    const suggestion = {
+      endChapter: 15,
+      goal: "完成查分服务决战。",
+      level: "unit" as const,
+      startChapter: 11,
+      title: "查分决战",
+      unitNumber: 2,
+      volumeNumber: 1,
+    };
+
+    storeOutlineDraftCopySuggestion(
+      storage,
+      "/projects/project_1/outlines",
+      suggestion,
+    );
+
+    expect(
+      consumeOutlineDraftCopySuggestion(
+        storage,
+        "/projects/project_1/outlines",
+      ),
+    ).toEqual(suggestion);
+  });
+
   it("does not leak a suggestion into another project", () => {
     const storage = createSessionStorage();
 

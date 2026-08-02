@@ -656,6 +656,20 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
 - Project outlines live in the `outlines` table with `level` values `volume`, `unit`, and `chapter`. The `/projects/[projectId]/outlines` page handles manual creation/editing/deletion, while `outline_generation` AI tasks are draft-only and must not auto-write formal outline rows. Chapter beat and draft generation should load the matching volume/unit/chapter outline for the current chapter number.
 - Multi-storyline planning lives in `storylines` plus project-scoped relation tables for characters, foreshadows, chapters, and outlines. `/projects/[projectId]/storylines` is the author-controlled management surface for mainlines, subplots, character arcs, business lines, antagonist lines, foreshadow lines, world lines, and other narrative threads. `storyline_generation` AI tasks may suggest candidate storylines and prefill the same form, but those candidates remain draft-only `ai_tasks` output until the author explicitly saves a candidate into formal memory. AI must not silently create or mutate formal storylines; range-derived chapter relation rows are allowed only from author-confirmed `startChapter` / `endChapter` metadata and are additive.
 - Completed outline AI tasks may offer a "复制到表单" convenience action that parses the draft and fills the matching quick-create form. Because inactive `WorkspaceTabs` panels are not mounted, this action uses a one-shot, project-path-scoped `sessionStorage` handoff before activating the formal-outline tab; do not restore direct cross-tab DOM queries. This remains only a client-side form-fill helper: the author must still review and click the form's save button before a formal outline row is written.
+- Next story-unit generation is a single-level operation. Story-unit numbers
+  restart inside each numbered volume; only legacy volumes without a usable
+  volume number fall back to project-wide unit numbering. Generation must keep
+  the suggested start chapter fixed, continue the previous chapter inside the
+  matching volume, and output only that one unit. Do not let a unit request
+  regenerate the volume, repeat earlier units, invent nested sub-units, or
+  append chapter outlines. All copyable outline fields must use independent
+  line labels. Unit copy parsing must prefer the block whose range begins at
+  the task's audited start chapter, preserve both `volumeNumber` and
+  `unitNumber` when available, and show an explicit manual-copy message instead
+  of silently selecting the wrong block when the audited unit cannot be found.
+  This fail-closed range check also applies to a single returned unit: a model
+  response whose start chapter differs from the audited task anchor must not
+  prefill the formal form.
 - Outline generation follows the same background-task hardening as chapter AI tasks: stale `outline_generation` pending/running records older than 15 minutes are marked failed before locking the generate button, and the outline page auto-refreshes while a task is active.
 - Outline matching for chapter generation is specificity-first, not first-created-first-used. Closed start/end ranges beat open ranges, shorter ranges beat wider ranges, active status is preferred after specificity, and matching output may include one volume outline, up to two story-unit outlines, and one exact chapter outline.
 - Formal outline saves must reject invalid ranges where `endChapter < startChapter`, and chapter-level outlines must have `chapterNumber` before they can be saved into the outline table.

@@ -1,4 +1,9 @@
-import { normalizeOutlineLevel, type OutlineLevel } from "./outline-fields";
+import {
+  normalizeOutlineLevel,
+  outlineNumberFields,
+  outlineTextFields,
+  type OutlineLevel,
+} from "./outline-fields";
 
 export type OutlineDraftCopySuggestion = {
   level: OutlineLevel;
@@ -9,6 +14,7 @@ export type OutlineDraftCopySuggestion = {
   chapterNumber?: number;
   expectedWords?: number;
   volumeNumber?: number;
+  unitNumber?: number;
 };
 
 type OutlineDraftCopyRange = Pick<
@@ -16,33 +22,100 @@ type OutlineDraftCopyRange = Pick<
   "startChapter" | "endChapter"
 >;
 
-const labelStopPattern =
-  /^(\s*[-*]?\s*)?(卷标题|单元标题|剧情单元标题|章节标题|标题|卷目标|单元目标|剧情单元目标|章节目标|目标|章节范围|范围|核心事件|核心冲突|主线推进|爽点设计|悬念设计|角色变化|章末钩子|章节号|预计字数|预计章节数|所属卷号)\s*[：:]/;
-
-export function parseOutlineDraftCopySuggestion({
-  inputContextSummary,
-  outputText,
-}: {
+type OutlineDraftCopyInput = {
   inputContextSummary?: string | null;
   outputText?: string | null;
-}): OutlineDraftCopySuggestion | null {
+};
+
+export type OutlineDraftCopyParseResult = {
+  suggestion: OutlineDraftCopySuggestion | null;
+  errorMessage: string;
+};
+
+const labelStopLabels = [
+  ...outlineTextFields.map((field) => field.label),
+  ...outlineNumberFields.map((field) => field.label),
+  "卷标题",
+  "单元标题",
+  "剧情单元标题",
+  "章节标题",
+  "标题",
+  "卷目标",
+  "单元目标",
+  "剧情单元目标",
+  "章节目标",
+  "目标",
+  "章节范围",
+  "章范围",
+  "范围",
+  "伏笔",
+  "所属卷号",
+  "剧情单元号",
+] as const;
+const labelStopPattern = new RegExp(
+  `^(\\s*[-*]?\\s*)?(?:${[
+    ...new Set(labelStopLabels),
+  ].map(escapeRegExp).join("|")})\\s*[：:]`,
+);
+
+export function parseOutlineDraftCopySuggestion(
+  input: OutlineDraftCopyInput,
+): OutlineDraftCopySuggestion | null {
+  return parseOutlineDraftCopyResult(input).suggestion;
+}
+
+export function parseOutlineDraftCopyResult({
+  inputContextSummary,
+  outputText,
+}: OutlineDraftCopyInput): OutlineDraftCopyParseResult {
   const text = outputText?.trim() ?? "";
 
   if (!text) {
-    return null;
+    return {
+      suggestion: null,
+      errorMessage: "草稿还没有可复制的输出。",
+    };
   }
 
   const level = inferOutlineDraftLevel(inputContextSummary, text);
 
   if (level === "chapter") {
-    return parseChapterSuggestion(text, inputContextSummary);
+    return copyParseResult(
+      parseChapterSuggestion(text, inputContextSummary),
+    );
   }
 
   if (level === "unit") {
-    return parseRangeSuggestion(text, "unit");
+    const selection = selectUnitSuggestionBlock(text, inputContextSummary);
+
+    if (selection.errorMessage) {
+      return {
+        suggestion: null,
+        errorMessage: selection.errorMessage,
+      };
+    }
+
+    return copyParseResult(
+      parseRangeSuggestion(
+        selection.text,
+        "unit",
+        inputContextSummary,
+      ),
+    );
   }
 
-  return parseRangeSuggestion(text, "volume");
+  return copyParseResult(
+    parseRangeSuggestion(text, "volume", inputContextSummary),
+  );
+}
+
+function copyParseResult(
+  suggestion: OutlineDraftCopySuggestion | null,
+): OutlineDraftCopyParseResult {
+  return {
+    suggestion,
+    errorMessage: suggestion ? "" : "没有识别到可填入大纲表单的字段。",
+  };
 }
 
 export function inferOutlineDraftLevel(
@@ -83,6 +156,7 @@ export function inferOutlineDraftLevel(
 function parseRangeSuggestion(
   text: string,
   level: "volume" | "unit",
+  inputContextSummary?: string | null,
 ): OutlineDraftCopySuggestion | null {
   const titleLabels =
     level === "volume"
@@ -128,6 +202,14 @@ function parseRangeSuggestion(
             "",
         )
       : undefined;
+  const unitNumber =
+    level === "unit"
+      ? firstPositiveInteger(
+          firstBlockLabel(text, ["剧情单元号", "单元号"]) ||
+            firstTableLabel(text, ["剧情单元号", "单元号"]) ||
+            "",
+        ) || targetUnitNumberFromSummary(inputContextSummary)
+      : undefined;
 
   if (!title && !goal && !range.startChapter && !range.endChapter) {
     return null;
@@ -139,7 +221,135 @@ function parseRangeSuggestion(
     goal,
     ...range,
     ...(volumeNumber ? { volumeNumber } : {}),
+    ...(unitNumber ? { unitNumber } : {}),
   };
+}
+
+function selectUnitSuggestionBlock(
+  text: string,
+  inputContextSummary?: string | null,
+) {
+  const blocks = unitOutlineBlocks(text);
+
+  if (blocks.length === 0) {
+    return {
+      text,
+      errorMessage: "",
+    };
+  }
+
+  const targetStartChapter = targetUnitStartChapterFromSummary(
+    inputContextSummary,
+  );
+
+  if (!targetStartChapter) {
+    return blocks.length === 1
+      ? {
+          text: blocks[0] ?? text,
+          errorMessage: "",
+        }
+      : {
+          text: "",
+          errorMessage:
+            "草稿包含多个剧情单元，但任务没有记录建议起始章，请手动整理或重新生成。",
+        };
+  }
+
+  const exactBlock = blocks.find((block) => {
+    const rangeText =
+      firstBlockLabel(block, ["章节范围", "章范围", "范围"]) ||
+      firstTableLabel(block, ["章节范围", "章范围", "范围"]);
+
+    return chapterRangeFromText(rangeText)?.startChapter === targetStartChapter;
+  });
+
+  return exactBlock
+    ? {
+        text: exactBlock,
+        errorMessage: "",
+      }
+    : {
+        text: "",
+        errorMessage: `未能在草稿中定位到从第 ${targetStartChapter} 章开始的剧情单元，请手动整理或重新生成。`,
+      };
+}
+
+function unitOutlineBlocks(text: string) {
+  const headings = [...text.matchAll(/^(#{1,6})\s+(.+)$/gm)];
+  const headingBlocks: string[] = [];
+
+  headings.forEach((heading, index) => {
+    const headingText = cleanInlineText(heading[2] ?? "");
+
+    if (!isUnitOutlineHeading(headingText)) {
+      return;
+    }
+
+    const depth = heading[1]?.length ?? 1;
+    const nextHeading = headings
+      .slice(index + 1)
+      .find((candidate) => (candidate[1]?.length ?? 1) <= depth);
+    const start = heading.index ?? 0;
+    const end = nextHeading?.index ?? text.length;
+
+    headingBlocks.push(text.slice(start, end).trim());
+  });
+
+  if (headingBlocks.length > 0) {
+    return headingBlocks;
+  }
+
+  // Prompt-v5 single-unit output normally reaches this label-based path.
+  // Heading blocks above are compatibility recovery for older mixed responses.
+  return labelBasedUnitOutlineBlocks(text);
+}
+
+function labelBasedUnitOutlineBlocks(text: string) {
+  const lines = text.split(/\r?\n/);
+  const titleLineIndexes = lines.flatMap((line, index) =>
+    unitTitleLabelPattern.test(line) ? [index] : [],
+  );
+  const blockStartIndexes = titleLineIndexes.map((titleLineIndex, index) => {
+    const previousTitleLineIndex = titleLineIndexes[index - 1] ?? -1;
+    let blockStartIndex = titleLineIndex;
+
+    for (
+      let lineIndex = titleLineIndex - 1;
+      lineIndex > previousTitleLineIndex;
+      lineIndex -= 1
+    ) {
+      const line = lines[lineIndex] ?? "";
+
+      if (!line.trim()) {
+        continue;
+      }
+
+      if (!unitPreambleLabelPattern.test(line)) {
+        break;
+      }
+
+      blockStartIndex = lineIndex;
+    }
+
+    return blockStartIndex;
+  });
+
+  return blockStartIndexes.map((blockStartIndex, index) => {
+    const blockEndIndex = blockStartIndexes[index + 1] ?? lines.length;
+
+    return lines.slice(blockStartIndex, blockEndIndex).join("\n").trim();
+  });
+}
+
+const unitTitleLabelPattern =
+  /^\s*(?:[-*]\s*)?\*{0,2}(?:剧情单元标题|单元标题|标题)\*{0,2}\s*[：:]/;
+const unitPreambleLabelPattern =
+  /^\s*(?:[-*]\s*)?\*{0,2}(?:所属卷号|剧情单元号|单元号)\*{0,2}\s*[：:]/;
+
+function isUnitOutlineHeading(heading: string) {
+  return /剧情单元大纲|单元大纲|(?:第?[一二三四五六七八九十百\d]+|子)单元/.test(
+    heading,
+  );
 }
 
 function parseChapterSuggestion(
@@ -370,7 +580,17 @@ function firstHeadingSection(
 }
 
 function headingTitle(text: string, level: "volume" | "unit") {
-  const heading = text.match(/^##\s+(.+)$/m)?.[1] ?? "";
+  const heading = text.match(/^#{1,6}\s+(.+)$/m)?.[1] ?? "";
+  const quotedTitles = [...heading.matchAll(/[「《]([^」》]+)[」》]/g)];
+  const quotedTitle =
+    level === "unit" || /第[一二三四五六七八九十百\d]+卷/.test(heading)
+      ? quotedTitles.at(-1)?.[1]?.trim()
+      : undefined;
+
+  if (quotedTitle) {
+    return cleanInlineText(quotedTitle);
+  }
+
   const titleFromColon = heading.match(/[：:]\s*([^（(]+)$/)?.[1]?.trim();
 
   if (titleFromColon) {
@@ -418,6 +638,24 @@ function arabicChapterNumberFromHeading(text: string) {
 function targetChapterNumberFromSummary(inputContextSummary?: string | null) {
   return firstPositiveInteger(
     inputContextSummary?.match(/目标第\s*(\d+)\s*章/)?.[1] ?? "",
+  );
+}
+
+function targetUnitStartChapterFromSummary(
+  inputContextSummary?: string | null,
+) {
+  const summary = inputContextSummary ?? "";
+
+  return firstPositiveInteger(
+    summary.match(/建议起始第\s*(\d+)\s*章/)?.[1] ??
+      summary.match(/建议第\s*\d+\s*单元从第\s*(\d+)\s*章/)?.[1] ??
+      "",
+  );
+}
+
+function targetUnitNumberFromSummary(inputContextSummary?: string | null) {
+  return firstPositiveInteger(
+    inputContextSummary?.match(/建议第\s*(\d+)\s*单元/)?.[1] ?? "",
   );
 }
 

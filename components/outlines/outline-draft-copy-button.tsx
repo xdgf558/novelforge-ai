@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ClipboardPenLine } from "lucide-react";
-import { parseOutlineDraftCopySuggestion } from "@/lib/outline-draft-copy";
+import { parseOutlineDraftCopyResult } from "@/lib/outline-draft-copy";
 import { storeOutlineDraftCopySuggestion } from "@/lib/outline-draft-copy-handoff";
 
 type OutlineDraftCopyButtonProps = {
@@ -15,14 +15,15 @@ export function OutlineDraftCopyButton({
   outputText,
 }: OutlineDraftCopyButtonProps) {
   const [feedback, setFeedback] = useState("");
-  const suggestion = useMemo(
+  const parseResult = useMemo(
     () =>
-      parseOutlineDraftCopySuggestion({
+      parseOutlineDraftCopyResult({
         inputContextSummary,
         outputText,
       }),
     [inputContextSummary, outputText],
   );
+  const suggestion = parseResult.suggestion;
 
   const handleCopyToForm = () => {
     if (!suggestion) {
@@ -60,6 +61,10 @@ export function OutlineDraftCopyButton({
       </button>
       {feedback ? (
         <p className="max-w-48 text-xs leading-5 text-ink-700">{feedback}</p>
+      ) : parseResult.errorMessage ? (
+        <p className="max-w-64 text-xs leading-5 text-amber-800">
+          {parseResult.errorMessage}
+        </p>
       ) : null}
     </div>
   );

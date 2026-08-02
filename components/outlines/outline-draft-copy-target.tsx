@@ -66,6 +66,7 @@ function fillOutlineForm(
   setFieldValue(form, "chapterNumber", suggestion.chapterNumber);
   setFieldValue(form, "expectedWords", suggestion.expectedWords);
   setFieldValue(form, "volumeNumber", suggestion.volumeNumber);
+  setFieldValue(form, "unitNumber", suggestion.unitNumber);
 }
 
 function setFieldValue(

@@ -6869,3 +6869,50 @@ Verification:
 - Full `npm test` passed: 122 files and 723 tests.
 - `npm run build`, `npm run desktop:smoke`, `npm run mvp:acceptance`, and
   `npm run work-types:acceptance` passed.
+
+## 2026-08-02: Next Story-Unit Outline Continuation Fix
+
+Status: completed.
+
+What was done:
+
+- Changed outline generation prompt v5 to emit exactly one requested outline
+  level. A next-unit request now names the next formal unit number, fixes its
+  starting chapter, identifies the containing volume when available, and
+  explicitly forbids regenerating the volume, earlier units, nested sub-units,
+  or chapter-by-chapter outlines.
+- Added auditable next-unit planning metadata to AI task input and summaries,
+  such as “第 2 单元从第 11 章开始”.
+- Hardened “复制到表单” for mixed historical model responses. The parser now
+  selects the story-unit block whose range starts at the task's suggested
+  chapter instead of copying the first volume or old-unit fields it encounters.
+- Added `unitNumber` to the copy handoff and quick-create story-unit form so
+  the generated sequence survives the tab transition and remains author
+  reviewable before saving.
+- Follow-up review fixes make unit numbering restart inside each numbered
+  volume, while retaining project-wide numbering only as a legacy fallback
+  when the containing volume has no usable number.
+- Aligned prompt v5 and the copy parser around independent line labels for all
+  volume, unit, and chapter fields. Field-boundary detection is now derived
+  from the formal outline field definitions so later labels such as `主要对手`,
+  `章节冲突`, and `地点` cannot be swallowed into a preceding goal.
+- Added a line-label block fallback for compliant single-unit responses and a
+  visible explanation when a historical multi-unit response cannot be matched
+  to the task's audited starting chapter.
+- Confirmed the stricter range check is intentional for single-block responses
+  too: if the model shifts the audited start chapter, copy-to-form fails closed
+  with a visible explanation instead of silently prefilling incorrect data.
+- Removed the duplicate Markdown-format instruction and taught label-based
+  recovery to retain leading `所属卷号` / `单元号` fields when they appear before
+  each unit title in a multi-unit response.
+
+Verification:
+
+- Focused review regression tests passed: 2 files and 36 tests, including
+  per-volume unit numbering, prompt-v5 field boundaries, line-label parsing,
+  and explicit unmatched-unit diagnostics.
+- `npm run typecheck` passed.
+- Full `npm test` passed: 122 files and 735 tests.
+- `npm run build` passed.
+- `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.

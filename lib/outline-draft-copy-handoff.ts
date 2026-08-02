@@ -58,7 +58,8 @@ function isOutlineDraftCopySuggestion(
     optionalPositiveNumber(suggestion.endChapter) &&
     optionalPositiveNumber(suggestion.chapterNumber) &&
     optionalPositiveNumber(suggestion.expectedWords) &&
-    optionalPositiveNumber(suggestion.volumeNumber)
+    optionalPositiveNumber(suggestion.volumeNumber) &&
+    optionalPositiveNumber(suggestion.unitNumber)
   );
 }
 

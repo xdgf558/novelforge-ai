@@ -36,14 +36,16 @@ describe("default AI prompt templates", () => {
     );
   });
 
-  it("versions outline generation for live word-budget closure", () => {
+  it("versions outline generation for single-target planning and live word-budget closure", () => {
     const template = DEFAULT_AI_PROMPT_TEMPLATES.find(
       (item) => item.key === "outline_generation",
     );
 
-    expect(template?.version).toBe(4);
+    expect(template?.version).toBe(5);
     expect(template?.userPrompt).toContain("实时字数预算");
     expect(template?.userPrompt).toContain("终局规划参考");
+    expect(template?.userPrompt).toContain("只生成输入指定目标层级的一条");
+    expect(template?.contextNotes).toContain("不得重写卷大纲、旧单元");
     expect(template?.contextNotes).toContain("下一章必须完结");
     expect(template?.contextNotes).toContain("作者本次跳过");
   });
