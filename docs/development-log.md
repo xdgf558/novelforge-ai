@@ -1,5 +1,50 @@
 # Development Log
 
+## 2026-08-02: 0.1.116 Next Story-Unit Continuation Installer
+
+Status: completed.
+
+What was done:
+
+- Packaged the approved next-story-unit outline continuation fixes from PR #98,
+  merged into `main` at `8b7b143`, and bumped the source app/package version
+  from `0.1.115` to `0.1.116`.
+- Updated the in-app release notes for single-unit continuation, per-volume unit
+  numbering, audited start-chapter copy matching, and explicit copy failures.
+- Built the arm64 macOS application with hardened runtime and Developer ID
+  Application signing.
+- Built `release/desktop/NovelForge-AI-0.1.116-mac-arm64.pkg` with a payload at
+  `/Applications/NovelForge AI.app` and signed it with Developer ID Installer.
+- Did not upload this rebuild to Apple notarization because the request only
+  asked for a new installer package.
+- Removed the previous `0.1.115` installer, Electron build output, builder
+  metadata, and isolated validation files so `release/desktop/` contains only
+  the `0.1.116` PKG.
+
+Verification:
+
+- `npm test` passed: 122 files and 735 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`,
+  source-tree and packaged-root `npm run work-types:acceptance`, and
+  `npx prisma validate` passed.
+- The production build inside `npm run desktop:pack:mac` passed.
+- Deep strict code-sign verification passed for the built app, an ordinary
+  staging copy, and the app expanded from the final PKG.
+- `pkgutil --check-signature` verified the final PKG's Developer ID Installer
+  certificate chain and trusted timestamp. The package reports identifier
+  `com.novelforge.ai`, version `0.1.116`, and payload path
+  `/Applications/NovelForge AI.app`.
+- The expanded package contains all 26 migrations and the shared
+  `lib/ai/active-task-statuses.json` runtime data. An isolated first launch
+  returned HTTP 200, applied all 26 migrations, and returned `ok` from SQLite
+  `PRAGMA quick_check`.
+- Gatekeeper identifies the PKG as `Unnotarized Developer ID`, as expected for
+  a build that was not uploaded to Apple; this installer is not notarized or
+  stapled.
+- Final PKG size: 413,592,371 bytes.
+- Final PKG SHA-256:
+  `b75631b2738f68a15e51e56494a5528db84dc26a0aab08058b7636c7781d6673`.
+
 ## 2026-08-01: 0.1.115 Interrupted AI Task Recovery Installer
 
 Status: completed.

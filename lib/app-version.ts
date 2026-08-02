@@ -2,10 +2,10 @@ import packageJson from "@/package.json";
 
 export const appVersion = packageJson.version;
 
-export const appReleaseTitle = "0.1.115 AI 任务中断恢复";
+export const appReleaseTitle = "0.1.116 剧情单元续写修复";
 
 export const appReleaseNotes = [
-  "桌面应用重启后，会立即结束上次未完成的 AI 任务，避免界面长期停留在运行中。",
-  "中断任务会显示明确的重新生成提示，已完成和已取消任务保持不变。",
-  "启动清理失败只记录日志，不会阻止应用打开；原有超时清理继续兜底。",
+  "下一剧情单元会从审计到的目标章节继续，只生成当前需要的新单元，不再重复卷大纲或旧单元。",
+  "剧情单元编号按所属卷递增，复制到表单会优先匹配任务记录中的起始章节。",
+  "大纲字段解析更稳定；模型输出章号不符时会明确提示，不再静默填入错误内容。",
 ];
