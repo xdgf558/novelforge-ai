@@ -73,6 +73,9 @@ describe("outline generation context builder", () => {
     expect(context.inputText).toContain("只生成第 3 章的一条章节大纲");
     expect(context.inputText).toContain("每个场景只保留一个认知中心");
     expect(context.inputText).toContain("必须服从已确认叙事视角");
+    expect(context.inputText).toContain(
+      "所有可复制字段都必须使用独立行式标签",
+    );
     expect(context.inputText).not.toContain("3 个章节级条目");
     expect(context.inputJson.request).toMatchObject({
       targetLevel: "chapter",
@@ -359,6 +362,9 @@ describe("outline generation context builder", () => {
       targetChapterNumber: null,
     });
     expect(context.inputJson.previousChapter).toBeNull();
+    expect(context.inputText).toContain(
+      "所有可复制字段都必须使用独立行式标签",
+    );
   });
 
   it("does not include chapter item counts for story-unit outline requests", () => {
@@ -377,6 +383,9 @@ describe("outline generation context builder", () => {
       chapterCount: null,
       targetChapterNumber: null,
     });
+    expect(context.inputText).toContain(
+      "所有可复制字段都必须使用独立行式标签",
+    );
   });
 
   it("anchors a requested next story unit to its starting chapter", () => {
@@ -449,5 +458,72 @@ describe("outline generation context builder", () => {
         targetChapterNumber: 17,
       },
     })).toContain("建议第 2 单元从第 17 章开始");
+  });
+
+  it("increments story-unit numbers inside the containing volume", () => {
+    const context = buildOutlineGenerationContext({
+      ...baseInput,
+      outlines: [
+        {
+          level: "volume",
+          status: "completed",
+          title: "县城起势",
+          volumeNumber: 1,
+          startChapter: 1,
+          endChapter: 30,
+        },
+        ...Array.from({ length: 5 }, (_, index) => ({
+          level: "unit",
+          status: "completed",
+          title: `第一卷单元 ${index + 1}`,
+          volumeNumber: 1,
+          unitNumber: index + 1,
+          startChapter: index * 5 + 1,
+          endChapter: index * 5 + 5,
+        })),
+        {
+          level: "volume",
+          status: "active",
+          title: "省城扩张",
+          volumeNumber: 2,
+          startChapter: 31,
+          endChapter: 60,
+        },
+        ...Array.from({ length: 3 }, (_, index) => ({
+          level: "unit",
+          status: "completed",
+          title: `第二卷单元 ${index + 1}`,
+          volumeNumber: 2,
+          unitNumber: index + 1,
+          startChapter: index * 5 + 31,
+          endChapter: index * 5 + 35,
+        })),
+        {
+          level: "unit",
+          status: "archived",
+          title: "已归档旧单元",
+          volumeNumber: 2,
+          unitNumber: 9,
+          startChapter: 46,
+          endChapter: 49,
+        },
+      ],
+      request: {
+        targetLevel: "unit",
+        targetChapterNumber: 50,
+      },
+    });
+
+    expect(context.inputJson.nextUnitPlanning).toEqual({
+      unitNumber: 4,
+      startChapter: 50,
+      volumeNumber: 2,
+      volumeTitle: "省城扩张",
+      volumeEndChapter: 60,
+    });
+    expect(context.inputContextSummary).toContain(
+      "建议第 4 单元从第 50 章开始",
+    );
+    expect(context.inputText).toContain("第 4 单元这一条新的剧情单元大纲");
   });
 });

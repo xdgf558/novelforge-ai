@@ -313,6 +313,7 @@ export function buildOutlineGenerationContext(
             "- 开篇必须承接上一章最后事件和章末钩子；新增人物只能服务这个承接，不要替换主线衔接。",
             "- 可复制字段必须包含：标题、目标、章节号、预计字数、章节冲突、章节爽点、伏笔、出场角色、地点和章末钩子。",
           ]),
+    "- 所有可复制字段都必须使用独立行式标签，例如 `**标题：** ...`、`**目标：** ...`、`**章节范围：** 第1章-第10章`；不要只把关键字段放进 Markdown 标题或表格。",
     ...(endingPlan
       ? [
           "- 必须参考已提供的终局规划，让本次大纲服务于剩余篇幅、核心伏笔回收、角色终点和最终结局；不得无故新增会妨碍收束的大型支线。",
@@ -341,6 +342,7 @@ export function buildOutlineGenerationContext(
     inputContextSummary: formatOutlineGenerationContextSummary(
       input,
       endingPlanDecision,
+      nextUnitPlanning,
     ),
   };
 }
@@ -348,15 +350,25 @@ export function buildOutlineGenerationContext(
 export function buildOutlineGenerationContextSummary(
   input: OutlineGenerationContextInput,
 ) {
+  const nextUnitPlanning =
+    input.request.targetLevel === "unit" && input.request.targetChapterNumber
+      ? resolveNextUnitPlanning(
+          input.outlines,
+          input.request.targetChapterNumber,
+        )
+      : null;
+
   return formatOutlineGenerationContextSummary(
     input,
     resolveEndingPlanReference(input),
+    nextUnitPlanning,
   );
 }
 
 function formatOutlineGenerationContextSummary(
   input: OutlineGenerationContextInput,
   endingPlanDecision: EndingPlanDecision,
+  nextUnitPlanning: NextUnitPlanning | null,
 ) {
   const targetLabel = outlineLevelLabel(input.request.targetLevel);
   const count =
@@ -365,8 +377,9 @@ function formatOutlineGenerationContextSummary(
         ? `；目标第 ${input.request.targetChapterNumber} 章；固定 1 条章节大纲`
         : "；固定 1 条章节大纲"
       : input.request.targetLevel === "unit" &&
-          input.request.targetChapterNumber
-        ? `；建议第 ${resolveNextUnitPlanning(input.outlines, input.request.targetChapterNumber).unitNumber} 单元从第 ${input.request.targetChapterNumber} 章开始`
+          input.request.targetChapterNumber &&
+          nextUnitPlanning
+        ? `；建议第 ${nextUnitPlanning.unitNumber} 单元从第 ${input.request.targetChapterNumber} 章开始`
         : "";
 
   const endingPlanSummary =
@@ -407,15 +420,6 @@ function resolveNextUnitPlanning(
   outlines: readonly OutlineLike[],
   startChapter: number,
 ): NextUnitPlanning {
-  const unitOutlines = outlines.filter((outline) => outline.level === "unit");
-  const unitNumber =
-    Math.max(
-      unitOutlines.length,
-      0,
-      ...unitOutlines.map((outline) =>
-        positiveInteger(outline.unitNumber) ?? 0,
-      ),
-    ) + 1;
   const containingVolume = outlines
     .filter(
       (outline) =>
@@ -427,11 +431,30 @@ function resolveNextUnitPlanning(
           startChapter <= (outline.endChapter ?? Number.MAX_SAFE_INTEGER)),
     )
     .sort((left, right) => outlineRangeSpan(left) - outlineRangeSpan(right))[0];
+  const containingVolumeNumber = positiveInteger(
+    containingVolume?.volumeNumber,
+  );
+  const allUnitOutlines = outlines.filter(
+    (outline) => outline.level === "unit" && outline.status !== "archived",
+  );
+  const unitOutlines = containingVolumeNumber
+    ? allUnitOutlines.filter(
+        (outline) =>
+          positiveInteger(outline.volumeNumber) === containingVolumeNumber,
+      )
+    : allUnitOutlines;
+  const unitNumber =
+    Math.max(
+      unitOutlines.length,
+      ...unitOutlines.map((outline) =>
+        positiveInteger(outline.unitNumber) ?? 0,
+      ),
+    ) + 1;
 
   return {
     unitNumber,
     startChapter,
-    volumeNumber: positiveInteger(containingVolume?.volumeNumber) ?? null,
+    volumeNumber: containingVolumeNumber,
     volumeTitle: clean(containingVolume?.title) || null,
     volumeEndChapter: positiveInteger(containingVolume?.endChapter) ?? null,
   };

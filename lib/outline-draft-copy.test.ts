@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   inferOutlineDraftLevel,
+  parseOutlineDraftCopyResult,
   parseOutlineDraftCopySuggestion,
 } from "./outline-draft-copy";
 
@@ -92,6 +93,31 @@ describe("outline draft copy helpers", () => {
     });
   });
 
+  it("parses prompt-v5 story-unit fields without markdown headings", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary:
+        "《离线未来》剧情单元大纲生成；建议第 2 单元从第 11 章开始",
+      outputText: `
+**标题：** 查分决战
+**所属卷号：** 1
+**单元号：** 2
+**目标：** 完成查分服务决战。
+**章节范围：** 第11章-第15章
+**核心事件：** 陈远处理首日查分高峰。
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "unit",
+      title: "查分决战",
+      goal: "完成查分服务决战。",
+      startChapter: 11,
+      endChapter: 15,
+      volumeNumber: 1,
+      unitNumber: 2,
+    });
+  });
+
   it("selects the requested next unit from a mixed-level model response", () => {
     const suggestion = parseOutlineDraftCopySuggestion({
       inputContextSummary:
@@ -144,6 +170,43 @@ describe("outline draft copy helpers", () => {
       volumeNumber: 1,
       unitNumber: 2,
     });
+  });
+
+  it("reports when multiple unit blocks have no audited start chapter", () => {
+    const result = parseOutlineDraftCopyResult({
+      inputContextSummary: "《离线未来》剧情单元大纲生成",
+      outputText: `
+# 第一单元「第一桶金」
+**目标：** 已完成的旧单元。
+**章节范围：** 第3章-第10章
+
+# 第二单元「查分决战」
+**目标：** 下一剧情单元。
+**章节范围：** 第11章-第15章
+`,
+    });
+
+    expect(result.suggestion).toBeNull();
+    expect(result.errorMessage).toContain("任务没有记录建议起始章");
+  });
+
+  it("reports when no unit block matches the audited start chapter", () => {
+    const result = parseOutlineDraftCopyResult({
+      inputContextSummary:
+        "《离线未来》剧情单元大纲生成；建议第 2 单元从第 11 章开始",
+      outputText: `
+# 第一单元「第一桶金」
+**目标：** 已完成的旧单元。
+**章节范围：** 第3章-第10章
+
+# 第三单元「省城采购」
+**目标：** 更晚的剧情单元。
+**章节范围：** 第16章-第20章
+`,
+    });
+
+    expect(result.suggestion).toBeNull();
+    expect(result.errorMessage).toContain("从第 11 章开始");
   });
 
   it("parses markdown table story-unit drafts", () => {
@@ -322,6 +385,44 @@ describe("outline draft copy helpers", () => {
       goal: "承接第6章后的断供危机。",
       chapterNumber: 7,
     });
+  });
+
+  it("stops volume goals at every prompt-v5 volume field label", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary: "《离线未来》卷大纲生成",
+      outputText: `
+**标题：** 省城扩张
+**目标：** 完成省城立足。
+**主线推进：** 建立供应链。
+**核心冲突：** 与渠道商争夺代理权。
+**主要对手：** 罗文斌。
+**关键转折：** 核心成员倒戈。
+**高潮：** 省城发布会反击。
+**章节范围：** 第31章-第60章
+`,
+    });
+
+    expect(suggestion?.goal).toBe("完成省城立足。");
+  });
+
+  it("stops chapter goals at every prompt-v5 chapter field label", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary: "《离线未来》章节大纲生成；目标第 11 章",
+      outputText: `
+**标题：** 查分首日
+**目标：** 扛住第一波查分高峰。
+**章节号：** 11
+**预计字数：** 5000
+**章节冲突：** 线路突然中断。
+**章节爽点：** 陈远启用备用线路。
+**伏笔：** 白衬衫在门外记下时间。
+**出场角色：** 陈远、方老板。
+**地点：** 新世纪电脑培训班。
+**章末钩子：** 罗文斌亲自出现。
+`,
+    });
+
+    expect(suggestion?.goal).toBe("扛住第一波查分高峰。");
   });
 
   it("infers the target level from the task summary before scanning draft text", () => {

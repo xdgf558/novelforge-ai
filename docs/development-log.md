@@ -6889,11 +6889,24 @@ What was done:
 - Added `unitNumber` to the copy handoff and quick-create story-unit form so
   the generated sequence survives the tab transition and remains author
   reviewable before saving.
+- Follow-up review fixes make unit numbering restart inside each numbered
+  volume, while retaining project-wide numbering only as a legacy fallback
+  when the containing volume has no usable number.
+- Aligned prompt v5 and the copy parser around independent line labels for all
+  volume, unit, and chapter fields. Field-boundary detection is now derived
+  from the formal outline field definitions so later labels such as `主要对手`,
+  `章节冲突`, and `地点` cannot be swallowed into a preceding goal.
+- Added a line-label block fallback for compliant single-unit responses and a
+  visible explanation when a historical multi-unit response cannot be matched
+  to the task's audited starting chapter.
 
 Verification:
 
-- Focused outline generation, prompt-template, copy parser, handoff, and server
-  action tests passed: 6 files and 66 tests.
+- Focused review regression tests passed: 2 files and 34 tests, including
+  per-volume unit numbering, prompt-v5 field boundaries, line-label parsing,
+  and explicit unmatched-unit diagnostics.
 - `npm run typecheck` passed.
-- Full `npm test` passed: 122 files and 727 tests.
+- Full `npm test` passed: 122 files and 733 tests.
 - `npm run build` passed.
+- `npm run desktop:smoke`, `npm run mvp:acceptance`, and
+  `npm run work-types:acceptance` passed.
