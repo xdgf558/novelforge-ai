@@ -667,6 +667,9 @@ The local MVP feature set, acceptance hardening pass, macOS packaging prototype,
   the task's audited start chapter, preserve both `volumeNumber` and
   `unitNumber` when available, and show an explicit manual-copy message instead
   of silently selecting the wrong block when the audited unit cannot be found.
+  This fail-closed range check also applies to a single returned unit: a model
+  response whose start chapter differs from the audited task anchor must not
+  prefill the formal form.
 - Outline generation follows the same background-task hardening as chapter AI tasks: stale `outline_generation` pending/running records older than 15 minutes are marked failed before locking the generate button, and the outline page auto-refreshes while a task is active.
 - Outline matching for chapter generation is specificity-first, not first-created-first-used. Closed start/end ranges beat open ranges, shorter ranges beat wider ranges, active status is preferred after specificity, and matching output may include one volume outline, up to two story-unit outlines, and one exact chapter outline.
 - Formal outline saves must reject invalid ranges where `endChapter < startChapter`, and chapter-level outlines must have `chapterNumber` before they can be saved into the outline table.

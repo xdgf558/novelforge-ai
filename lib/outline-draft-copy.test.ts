@@ -209,6 +209,53 @@ describe("outline draft copy helpers", () => {
     expect(result.errorMessage).toContain("从第 11 章开始");
   });
 
+  it("rejects a single unit block whose start chapter misses the audit anchor", () => {
+    const result = parseOutlineDraftCopyResult({
+      inputContextSummary:
+        "《离线未来》剧情单元大纲生成；建议第 2 单元从第 11 章开始",
+      outputText: `
+**标题：** 查分决战
+**所属卷号：** 1
+**单元号：** 2
+**目标：** 完成查分服务决战。
+**章节范围：** 第12章-第15章
+`,
+    });
+
+    expect(result.suggestion).toBeNull();
+    expect(result.errorMessage).toContain("从第 11 章开始");
+  });
+
+  it("keeps leading unit metadata with label-based blocks", () => {
+    const suggestion = parseOutlineDraftCopySuggestion({
+      inputContextSummary:
+        "《离线未来》剧情单元大纲生成；建议第 2 单元从第 11 章开始",
+      outputText: `
+**所属卷号：** 1
+**单元号：** 1
+**标题：** 第一桶金
+**目标：** 已完成的旧单元。
+**章节范围：** 第3章-第10章
+
+**所属卷号：** 1
+**单元号：** 2
+**标题：** 查分决战
+**目标：** 完成查分服务决战。
+**章节范围：** 第11章-第15章
+`,
+    });
+
+    expect(suggestion).toEqual({
+      level: "unit",
+      title: "查分决战",
+      goal: "完成查分服务决战。",
+      startChapter: 11,
+      endChapter: 15,
+      volumeNumber: 1,
+      unitNumber: 2,
+    });
+  });
+
   it("parses markdown table story-unit drafts", () => {
     const suggestion = parseOutlineDraftCopySuggestion({
       inputContextSummary: "《照夜寒舟录》剧情单元大纲生成",

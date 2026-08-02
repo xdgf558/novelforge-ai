@@ -6899,14 +6899,20 @@ What was done:
 - Added a line-label block fallback for compliant single-unit responses and a
   visible explanation when a historical multi-unit response cannot be matched
   to the task's audited starting chapter.
+- Confirmed the stricter range check is intentional for single-block responses
+  too: if the model shifts the audited start chapter, copy-to-form fails closed
+  with a visible explanation instead of silently prefilling incorrect data.
+- Removed the duplicate Markdown-format instruction and taught label-based
+  recovery to retain leading `所属卷号` / `单元号` fields when they appear before
+  each unit title in a multi-unit response.
 
 Verification:
 
-- Focused review regression tests passed: 2 files and 34 tests, including
+- Focused review regression tests passed: 2 files and 36 tests, including
   per-volume unit numbering, prompt-v5 field boundaries, line-label parsing,
   and explicit unmatched-unit diagnostics.
 - `npm run typecheck` passed.
-- Full `npm test` passed: 122 files and 733 tests.
+- Full `npm test` passed: 122 files and 735 tests.
 - `npm run build` passed.
 - `npm run desktop:smoke`, `npm run mvp:acceptance`, and
   `npm run work-types:acceptance` passed.

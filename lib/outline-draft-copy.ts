@@ -301,19 +301,50 @@ function unitOutlineBlocks(text: string) {
 
   // Prompt-v5 single-unit output normally reaches this label-based path.
   // Heading blocks above are compatibility recovery for older mixed responses.
-  const fieldStarts = [
-    ...text.matchAll(
-      /^\s*(?:[-*]\s*)?\*{0,2}(?:剧情单元标题|单元标题|标题)\*{0,2}\s*[：:]/gm,
-    ),
-  ];
+  return labelBasedUnitOutlineBlocks(text);
+}
 
-  return fieldStarts.map((start, index) => {
-    const blockStart = start.index ?? 0;
-    const blockEnd = fieldStarts[index + 1]?.index ?? text.length;
+function labelBasedUnitOutlineBlocks(text: string) {
+  const lines = text.split(/\r?\n/);
+  const titleLineIndexes = lines.flatMap((line, index) =>
+    unitTitleLabelPattern.test(line) ? [index] : [],
+  );
+  const blockStartIndexes = titleLineIndexes.map((titleLineIndex, index) => {
+    const previousTitleLineIndex = titleLineIndexes[index - 1] ?? -1;
+    let blockStartIndex = titleLineIndex;
 
-    return text.slice(blockStart, blockEnd).trim();
+    for (
+      let lineIndex = titleLineIndex - 1;
+      lineIndex > previousTitleLineIndex;
+      lineIndex -= 1
+    ) {
+      const line = lines[lineIndex] ?? "";
+
+      if (!line.trim()) {
+        continue;
+      }
+
+      if (!unitPreambleLabelPattern.test(line)) {
+        break;
+      }
+
+      blockStartIndex = lineIndex;
+    }
+
+    return blockStartIndex;
+  });
+
+  return blockStartIndexes.map((blockStartIndex, index) => {
+    const blockEndIndex = blockStartIndexes[index + 1] ?? lines.length;
+
+    return lines.slice(blockStartIndex, blockEndIndex).join("\n").trim();
   });
 }
+
+const unitTitleLabelPattern =
+  /^\s*(?:[-*]\s*)?\*{0,2}(?:剧情单元标题|单元标题|标题)\*{0,2}\s*[：:]/;
+const unitPreambleLabelPattern =
+  /^\s*(?:[-*]\s*)?\*{0,2}(?:所属卷号|剧情单元号|单元号)\*{0,2}\s*[：:]/;
 
 function isUnitOutlineHeading(heading: string) {
   return /剧情单元大纲|单元大纲|(?:第?[一二三四五六七八九十百\d]+|子)单元/.test(
