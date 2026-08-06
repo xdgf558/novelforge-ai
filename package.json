@@ -28,7 +28,7 @@
     "mammoth": "^1.12.0",
     "next": "^15.5.22",
     "node-html-parser": "^9.0.0",
-    "prisma": "^6.19.3",
+    "prisma": "^7.9.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "undici": "^7.29.0",
