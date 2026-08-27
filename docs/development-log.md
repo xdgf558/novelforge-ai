@@ -30,6 +30,10 @@ What was done:
   chapter-draft and polish routes remain independently configurable.
 - Removed the fixed model and Base URL from desktop and repository environment
   examples; only the OpenAI API Key remains configurable for this route.
+- Restored the high-severity production dependency audit after new upstream
+  advisories by pinning patched transitive releases of `deepmerge-ts` and
+  `nanoid`; Prisma generation, tests, build, desktop smoke, and acceptance
+  checks remain the compatibility gate for these overrides.
 
 Verification:
 
