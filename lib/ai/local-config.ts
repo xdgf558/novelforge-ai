@@ -42,6 +42,7 @@ export type AiRuntimeEnv = {
   no_proxy?: string;
   NOVELFORGE_AI_CONFIG_PATH?: string;
   NOVELFORGE_DESKTOP_DATA_DIR?: string;
+  NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION?: "deepseek" | "custom";
 };
 
 export type AiConnectionSettings = {
@@ -360,7 +361,7 @@ export function readAiConnectionSettings(
     ...compactAiEnv(fileEnv),
   });
   const apiKey = runtimeEnv.OPENAI_API_KEY?.trim() ?? "";
-  const model = normalizeAiModel(runtimeEnv.OPENAI_MODEL);
+  const model = normalizeDefaultAiModel(runtimeEnv.OPENAI_MODEL);
   const baseUrl = normalizeAiBaseUrl(runtimeEnv.OPENAI_BASE_URL);
 
   return {
@@ -999,10 +1000,8 @@ function parseLocalConfigEnv(content: string) {
   return env;
 }
 
-export function normalizeAiModel(model?: string | null) {
-  const normalized = model?.trim() || DEFAULT_OPENAI_MODEL;
-
-  return isDeepSeekModel(normalized) ? GPT_5_6_TERRA_MODEL : normalized;
+function normalizeDefaultAiModel(model?: string | null) {
+  return model?.trim() || DEFAULT_OPENAI_MODEL;
 }
 
 export function normalizeAiBaseUrl(baseUrl?: string | null) {
@@ -1019,23 +1018,53 @@ function normalizeDefaultAiRuntimeEnv(env: AiRuntimeEnv): AiRuntimeEnv {
   const configuredModel = env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
   const configuredBaseUrl =
     env.OPENAI_BASE_URL?.trim() || DEFAULT_OPENAI_BASE_URL;
+  const configuredIdentity = defaultAiConnectionIdentity(
+    configuredModel,
+    configuredBaseUrl,
+  );
+  const targetIdentity = defaultAiConnectionIdentity(
+    GPT_5_6_TERRA_MODEL,
+    DEFAULT_OPENAI_BASE_URL,
+  );
   const canReuseApiKey =
-    defaultAiConnectionIdentity(configuredModel, configuredBaseUrl) ===
-    defaultAiConnectionIdentity(
-      GPT_5_6_TERRA_MODEL,
-      DEFAULT_OPENAI_BASE_URL,
-    );
+    configuredIdentity === targetIdentity;
+  const cleanApiKey = env.OPENAI_API_KEY?.trim() ?? "";
+  const { OPENAI_API_KEY: _retiredApiKey, ...safeEnv } = env;
+  const retiredConnection = canReuseApiKey
+    ? undefined
+    : configuredIdentity.startsWith("deepseek:")
+      ? "deepseek"
+      : "custom";
 
   return {
-    ...env,
+    ...safeEnv,
     // The default route is fixed to Terra. Only an existing official OpenAI
     // connection may retain its credential during the model migration.
-    OPENAI_API_KEY: canReuseApiKey
-      ? env.OPENAI_API_KEY?.trim() || undefined
-      : undefined,
+    ...(canReuseApiKey && cleanApiKey ? { OPENAI_API_KEY: cleanApiKey } : {}),
+    ...(retiredConnection
+      ? { NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION: retiredConnection }
+      : {}),
     OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
     OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
   };
+}
+
+export function defaultAiApiKeyRequiredMessage(env: AiRuntimeEnv) {
+  if (env.NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION === "deepseek") {
+    return "原 DeepSeek 默认连接已停用，请前往“设置 → Terra 接入”填写 OpenAI API Key。";
+  }
+
+  if (env.NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION === "custom") {
+    return "原自定义默认连接已停用，请前往“设置 → Terra 接入”填写 OpenAI API Key。";
+  }
+
+  return "尚未配置 OpenAI API Key，请前往“设置 → Terra 接入”完成配置。";
+}
+
+export function readDefaultAiApiKeyRequiredMessage(
+  env: AiRuntimeEnv = process.env,
+) {
+  return defaultAiApiKeyRequiredMessage(getAiRuntimeEnv(env));
 }
 
 function defaultAiConnectionIdentity(model: string, baseUrl: string) {
@@ -1073,7 +1102,7 @@ function isOpenAiModel(model: string) {
   return (
     normalized.startsWith("gpt-") ||
     normalized.startsWith("chatgpt-") ||
-    /^(o1|o3|o4)(?:[-_.]|$)/.test(normalized)
+    /^o\d+(?:[-_.]|$)/.test(normalized)
   );
 }
 
@@ -1900,7 +1929,7 @@ function taskRouteModelProvider(model: string) {
   if (
     normalized.startsWith("gpt-") ||
     normalized.startsWith("chatgpt-") ||
-    /^(o1|o3|o4)(?:[-_.]|$)/.test(normalized)
+    /^o\d+(?:[-_.]|$)/.test(normalized)
   ) {
     return "openai" as const;
   }

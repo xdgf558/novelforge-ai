@@ -3,6 +3,7 @@ import {
   DEFAULT_OPENAI_MODEL,
   GPT_5_6_LUNA_MODEL,
   GPT_5_6_TERRA_MODEL,
+  defaultAiApiKeyRequiredMessage,
   getAiRuntimeEnv,
   getAiRuntimeEnvForTaskType,
   normalizeAiBaseUrl,
@@ -165,7 +166,7 @@ export async function createOpenAITextResponse(
   const apiKey = env.OPENAI_API_KEY?.trim();
 
   if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
+    throw new Error(defaultAiApiKeyRequiredMessage(env));
   }
 
   const baseUrl = getConfiguredOpenAIBaseUrl(env);

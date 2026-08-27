@@ -48,7 +48,10 @@ import {
   aiTaskStatusLabel,
   isActiveAiTaskStatus,
 } from "@/lib/ai/status";
-import { readAiConnectionSettings } from "@/lib/ai/local-config";
+import {
+  readAiConnectionSettings,
+  readDefaultAiApiKeyRequiredMessage,
+} from "@/lib/ai/local-config";
 import { formatDate, formatNumber } from "@/lib/format";
 import {
   outlineLevelLabel,
@@ -225,6 +228,9 @@ export default async function OutlinesPage({
   }
 
   const aiSettings = readAiConnectionSettings();
+  const missingApiKeyMessage = aiSettings.hasApiKey
+    ? null
+    : readDefaultAiApiKeyRequiredMessage();
   const outlineErrorMessage =
     outlineValidationErrorMessages[
       query.outlineError as OutlineValidationErrorCode
@@ -374,6 +380,7 @@ export default async function OutlinesPage({
                   hasActiveTask={hasActiveOutlineTask}
                   hasApiKey={aiSettings.hasApiKey}
                   initialTargetLevel={defaultOutlineTargetLevel}
+                  missingApiKeyMessage={missingApiKeyMessage}
                   mustFinishNextChapter={
                     endingReadiness.shouldFinishNextChapter
                   }
@@ -387,6 +394,7 @@ export default async function OutlinesPage({
                     )}
                     hasActiveTask={hasActiveOutlineTask}
                     hasApiKey={aiSettings.hasApiKey}
+                    missingApiKeyMessage={missingApiKeyMessage}
                     reminder={nextUnitReminder}
                   />
                 ) : null}
@@ -404,6 +412,7 @@ export default async function OutlinesPage({
                 generateAction={generateEndingPlanDraft.bind(null, project.id)}
                 hasActiveTask={hasActiveEndingPlanTask}
                 hasApiKey={aiSettings.hasApiKey}
+                missingApiKeyMessage={missingApiKeyMessage}
                 nextTargetChapterNumber={defaultTargetChapterNumber}
                 projectId={project.id}
                 readiness={endingReadiness}
@@ -491,6 +500,7 @@ function OutlineAiPanel({
   hasActiveTask,
   hasApiKey,
   initialTargetLevel,
+  missingApiKeyMessage,
   mustFinishNextChapter,
   tasks,
 }: {
@@ -499,6 +509,7 @@ function OutlineAiPanel({
   hasActiveTask: boolean;
   hasApiKey: boolean;
   initialTargetLevel: OutlineLevel;
+  missingApiKeyMessage: string | null;
   mustFinishNextChapter: boolean;
   tasks: readonly {
     id: string;
@@ -545,7 +556,7 @@ function OutlineAiPanel({
 
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          未配置 API Key，暂不能调用模型；已有大纲草案任务仍可查看。
+          {missingApiKeyMessage} 已有大纲草案任务仍可查看。
         </p>
       ) : null}
 
@@ -636,11 +647,13 @@ function NextUnitPlanningPanel({
   generateAction,
   hasActiveTask,
   hasApiKey,
+  missingApiKeyMessage,
   reminder,
 }: {
   generateAction: (formData: FormData) => Promise<void>;
   hasActiveTask: boolean;
   hasApiKey: boolean;
+  missingApiKeyMessage: string | null;
   reminder: NextUnitPlanningReminder;
 }) {
   const canGenerate = hasApiKey && !hasActiveTask;
@@ -699,7 +712,7 @@ function NextUnitPlanningPanel({
 
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          未配置 API Key，仍可使用上方入口手动新增剧情单元。
+          {missingApiKeyMessage} 仍可使用上方入口手动新增剧情单元。
         </p>
       ) : null}
 
@@ -717,6 +730,7 @@ function EndingPlanningPanel({
   generateAction,
   hasActiveTask,
   hasApiKey,
+  missingApiKeyMessage,
   nextTargetChapterNumber,
   projectId,
   readiness,
@@ -729,6 +743,7 @@ function EndingPlanningPanel({
   generateAction: () => Promise<void>;
   hasActiveTask: boolean;
   hasApiKey: boolean;
+  missingApiKeyMessage: string | null;
   nextTargetChapterNumber: number;
   projectId: string;
   readiness: EndingReadinessSnapshot;
@@ -866,7 +881,7 @@ function EndingPlanningPanel({
 
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          未配置 API Key，暂不能生成终局规划草案；本地收尾信号仍可参考。
+          {missingApiKeyMessage} 暂不能生成终局规划草案；本地收尾信号仍可参考。
         </p>
       ) : null}
 

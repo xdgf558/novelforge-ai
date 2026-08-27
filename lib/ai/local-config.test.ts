@@ -33,6 +33,7 @@ import {
   parseTtsGenerationEnv,
   readAiConnectionSettings,
   readAiTaskModelRouteSettings,
+  readDefaultAiApiKeyRequiredMessage,
   readImageGenerationSettings,
   readNetworkProxySettings,
   readStationCatPublishSettings,
@@ -158,18 +159,19 @@ describe("AI local connection config", () => {
       ].join("\n"),
     );
 
-    expect(
-      getAiRuntimeEnv({
+    const runtimeEnv = getAiRuntimeEnv({
         NOVELFORGE_AI_CONFIG_PATH: configPath,
         OPENAI_API_KEY: "env-key",
         OPENAI_MODEL: "env-model",
         OPENAI_BASE_URL: "https://env.example/v1",
-      }),
-    ).toMatchObject({
-      OPENAI_API_KEY: undefined,
+      });
+
+    expect(runtimeEnv).toMatchObject({
       OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
       OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+      NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION: "custom",
     });
+    expect(runtimeEnv).not.toHaveProperty("OPENAI_API_KEY");
   });
 
   it("retires a custom default connection without reusing its API key", () => {
@@ -250,6 +252,29 @@ describe("AI local connection config", () => {
     });
   });
 
+  it("retires an OpenAI-family model on a third-party base URL", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "OPENAI_API_KEY=third-party-openai-shaped-key",
+        "OPENAI_MODEL=gpt-4.1-mini",
+        "OPENAI_BASE_URL=https://oneapi.example.com/v1",
+      ].join("\n"),
+    );
+
+    const runtimeEnv = getAiRuntimeEnv({
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+    });
+
+    expect(runtimeEnv).toMatchObject({
+      OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+      NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION: "custom",
+    });
+    expect(runtimeEnv).not.toHaveProperty("OPENAI_API_KEY");
+  });
+
   it("retires a saved DeepSeek connection without reusing its API key", () => {
     const configPath = makeTempConfigPath();
     fs.writeFileSync(
@@ -261,22 +286,33 @@ describe("AI local connection config", () => {
       ].join("\n"),
     );
 
-    expect(
-      getAiRuntimeEnv({ NOVELFORGE_AI_CONFIG_PATH: configPath }),
-    ).toMatchObject({
-      OPENAI_API_KEY: undefined,
+    const runtimeEnv = getAiRuntimeEnv({
+      NOVELFORGE_AI_CONFIG_PATH: configPath,
+    });
+    const outlineRuntimeEnv = getAiRuntimeEnvForTaskType(
+      "outline_generation",
+      {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      },
+    );
+
+    expect(runtimeEnv).toMatchObject({
       OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
       OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+      NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION: "deepseek",
     });
+    expect(runtimeEnv).not.toHaveProperty("OPENAI_API_KEY");
+    expect(outlineRuntimeEnv).toMatchObject({
+      OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+      NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION: "deepseek",
+    });
+    expect(outlineRuntimeEnv).not.toHaveProperty("OPENAI_API_KEY");
     expect(
-      getAiRuntimeEnvForTaskType("outline_generation", {
+      readDefaultAiApiKeyRequiredMessage({
         NOVELFORGE_AI_CONFIG_PATH: configPath,
       }),
-    ).toMatchObject({
-      OPENAI_API_KEY: undefined,
-      OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
-      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
-    });
+    ).toContain("原 DeepSeek 默认连接已停用");
     expect(
       readAiConnectionSettings({ NOVELFORGE_AI_CONFIG_PATH: configPath }),
     ).toMatchObject({
@@ -403,6 +439,24 @@ describe("AI task model route config", () => {
       useDraftConnection: false,
       isUsingSharedConnection: false,
       source: "default",
+    });
+  });
+
+  it("falls back from an inactive Kimi writing route to the complete Terra connection", () => {
+    const runtimeEnv = getAiRuntimeEnvForTaskType(
+      "chapter_draft_generation",
+      {
+        NOVELFORGE_AI_CONFIG_PATH: makeTempConfigPath(),
+        OPENAI_API_KEY: "sk-openai-default",
+        OPENAI_MODEL: "gpt-4.1-mini",
+        OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+      },
+    );
+
+    expect(runtimeEnv).toMatchObject({
+      OPENAI_API_KEY: "sk-openai-default",
+      OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
     });
   });
 

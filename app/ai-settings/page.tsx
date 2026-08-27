@@ -669,35 +669,27 @@ export default async function AiSettingsPage({
                       />
                     </label>
 
-                    <label className="space-y-2">
+                    <div className="space-y-2">
                       <span className="text-sm font-semibold text-ink-800">
                         模型
                       </span>
-                      <input
-                        className="min-h-11 w-full rounded-md border border-ink-950/10 bg-paper-100 px-3 py-2 text-sm font-semibold text-ink-950"
-                        name="model"
-                        readOnly
-                        type="text"
-                        value={GPT_5_6_TERRA_MODEL}
-                      />
+                      <p className="flex min-h-11 items-center rounded-md border border-ink-950/10 bg-paper-100 px-3 py-2 text-sm font-semibold text-ink-950">
+                        {GPT_5_6_TERRA_MODEL}
+                      </p>
                       <span className="block text-xs leading-5 text-ink-600">
                         推理强度固定为极高（xhigh）。
                       </span>
-                    </label>
+                    </div>
                   </div>
 
-                  <label className="block space-y-2">
+                  <div className="block space-y-2">
                     <span className="text-sm font-semibold text-ink-800">
                       OpenAI API Base URL
                     </span>
-                    <input
-                      className="min-h-11 w-full rounded-md border border-ink-950/10 bg-paper-100 px-3 py-2 text-sm text-ink-950"
-                      name="baseUrl"
-                      readOnly
-                      type="url"
-                      value={DEFAULT_OPENAI_BASE_URL}
-                    />
-                  </label>
+                    <p className="flex min-h-11 items-center rounded-md border border-ink-950/10 bg-paper-100 px-3 py-2 text-sm text-ink-950">
+                      {DEFAULT_OPENAI_BASE_URL}
+                    </p>
+                  </div>
 
                   <div className="grid gap-5 lg:grid-cols-2">
                     <label className="space-y-2">

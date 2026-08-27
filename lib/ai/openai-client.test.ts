@@ -41,6 +41,23 @@ describe("OpenAI client helpers", () => {
     );
   });
 
+  it("explains when a retired DeepSeek default connection needs an OpenAI key", async () => {
+    await expect(
+      createOpenAITextResponse(
+        { input: "生成大纲" },
+        {
+          env: {
+            OPENAI_MODEL: "gpt-5.6-terra",
+            OPENAI_BASE_URL: "https://api.openai.com/v1",
+            NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION: "deepseek",
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "原 DeepSeek 默认连接已停用，请前往“设置 → Terra 接入”填写 OpenAI API Key。",
+    );
+  });
+
   it("builds Responses API text input messages", () => {
     expect(
       buildOpenAIInputMessages({

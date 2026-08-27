@@ -55,7 +55,10 @@ import {
 import { chapterStatusLabel, formatChapterWordCount } from "@/lib/chapter-fields";
 import { aiTaskFinalTextIsStale } from "@/lib/chapters/source-text";
 import { hasConfiguredOpenAIKey } from "@/lib/ai/openai-client";
-import { getAiRuntimeEnvForTaskType } from "@/lib/ai/local-config";
+import {
+  getAiRuntimeEnvForTaskType,
+  readDefaultAiApiKeyRequiredMessage,
+} from "@/lib/ai/local-config";
 import {
   findForeshadowRecoveryReminders,
   foreshadowRecoveryReason,
@@ -170,6 +173,9 @@ export default async function ChapterPage({
   const canWriteChapter = chapter.project.status === "active";
 
   const hasDefaultApiKey = hasConfiguredOpenAIKey();
+  const missingDefaultApiKeyMessage = hasDefaultApiKey
+    ? null
+    : readDefaultAiApiKeyRequiredMessage();
   const hasDraftApiKey = hasConfiguredOpenAIKey(
     getAiRuntimeEnvForTaskType("chapter_draft_generation"),
   );
@@ -324,6 +330,7 @@ export default async function ChapterPage({
                 currentChapterNumber={chapter.chapterNumber}
                 foreshadowReminders={foreshadowReminders}
                 hasApiKey={hasDefaultApiKey}
+                missingApiKeyMessage={missingDefaultApiKeyMessage}
                 projectId={chapter.project.id}
                 tasks={beatTasks}
                 unitMode={shortStoryProject}
@@ -371,6 +378,7 @@ export default async function ChapterPage({
                 finalText={chapter.finalText}
                 hasApiKey={hasDefaultApiKey}
                 hasConfirmedText={hasConfirmedText}
+                missingApiKeyMessage={missingDefaultApiKeyMessage}
                 projectId={chapter.project.id}
                 tasks={summaryTasks}
                 unitMode={shortStoryProject}
@@ -390,6 +398,7 @@ export default async function ChapterPage({
                 finalText={chapter.finalText}
                 hasApiKey={hasDefaultApiKey}
                 hasConfirmedText={hasConfirmedText}
+                missingApiKeyMessage={missingDefaultApiKeyMessage}
                 pendingUpdateCount={pendingUpdateReviewCount}
                 projectId={chapter.project.id}
                 tasks={pendingUpdateTasks}
@@ -411,6 +420,7 @@ export default async function ChapterPage({
                 finalText={chapter.finalText}
                 hasApiKey={hasDefaultApiKey}
                 hasConfirmedText={hasConfirmedText}
+                missingApiKeyMessage={missingDefaultApiKeyMessage}
                 projectId={chapter.project.id}
                 tasks={continuityTasks}
                 unitMode={shortStoryProject}
@@ -557,6 +567,7 @@ function ChapterBeatAiPanel({
   currentChapterNumber,
   foreshadowReminders,
   hasApiKey,
+  missingApiKeyMessage,
   projectId,
   tasks,
   unitMode,
@@ -565,6 +576,7 @@ function ChapterBeatAiPanel({
   currentChapterNumber: number;
   foreshadowReminders: readonly ForeshadowRecoveryReminder[];
   hasApiKey: boolean;
+  missingApiKeyMessage: string | null;
   projectId: string;
   tasks: readonly ChapterAiTask[];
   unitMode: boolean;
@@ -616,7 +628,7 @@ function ChapterBeatAiPanel({
 
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          未配置 API Key，暂不能调用模型；已有任务记录仍可查看和采用。
+          {missingApiKeyMessage} 已有任务记录仍可查看和采用。
         </p>
       ) : null}
 
@@ -1200,6 +1212,7 @@ function ChapterSummaryAiPanel({
   finalText,
   hasApiKey,
   hasConfirmedText,
+  missingApiKeyMessage,
   projectId,
   tasks,
   unitMode,
@@ -1208,6 +1221,7 @@ function ChapterSummaryAiPanel({
   finalText?: string | null;
   hasApiKey: boolean;
   hasConfirmedText: boolean;
+  missingApiKeyMessage: string | null;
   projectId: string;
   tasks: readonly ChapterAiTask[];
   unitMode: boolean;
@@ -1264,7 +1278,7 @@ function ChapterSummaryAiPanel({
 
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          未配置 API Key，暂不能调用模型；已有摘要任务仍可查看。
+          {missingApiKeyMessage} 已有摘要任务仍可查看。
         </p>
       ) : null}
 
@@ -1392,6 +1406,7 @@ function ChapterPendingUpdatePanel({
   finalText,
   hasApiKey,
   hasConfirmedText,
+  missingApiKeyMessage,
   pendingUpdateCount,
   projectId,
   tasks,
@@ -1401,6 +1416,7 @@ function ChapterPendingUpdatePanel({
   finalText?: string | null;
   hasApiKey: boolean;
   hasConfirmedText: boolean;
+  missingApiKeyMessage: string | null;
   pendingUpdateCount: number;
   projectId: string;
   tasks: readonly ChapterAiTask[];
@@ -1462,7 +1478,7 @@ function ChapterPendingUpdatePanel({
 
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          未配置 API Key，暂不能调用模型；已有待审核更新仍可在列表页查看。
+          {missingApiKeyMessage} 已有待审核更新仍可在列表页查看。
         </p>
       ) : null}
 
@@ -1530,6 +1546,7 @@ function ChapterContinuityPanel({
   finalText,
   hasApiKey,
   hasConfirmedText,
+  missingApiKeyMessage,
   projectId,
   tasks,
   unitMode,
@@ -1539,6 +1556,7 @@ function ChapterContinuityPanel({
   finalText?: string | null;
   hasApiKey: boolean;
   hasConfirmedText: boolean;
+  missingApiKeyMessage: string | null;
   projectId: string;
   tasks: readonly ChapterAiTask[];
   unitMode: boolean;
@@ -1595,7 +1613,7 @@ function ChapterContinuityPanel({
 
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          未配置 API Key，暂不能调用模型；已有连续性报告仍可在报告页查看。
+          {missingApiKeyMessage} 已有连续性报告仍可在报告页查看。
         </p>
       ) : null}
 
