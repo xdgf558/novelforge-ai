@@ -2,6 +2,7 @@ import {
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_MODEL,
   GPT_5_6_LUNA_MODEL,
+  GPT_5_6_TERRA_MODEL,
   getAiRuntimeEnv,
   getAiRuntimeEnvForTaskType,
   normalizeAiBaseUrl,
@@ -76,7 +77,7 @@ export function buildOpenAIResponsesPayload(request: OpenAITextRequest) {
   return {
     model,
     input,
-    ...(isGpt56LunaModel(model)
+    ...(isGpt56XhighModel(model)
       ? { reasoning: { effort: "xhigh" as const } }
       : {}),
   };
@@ -536,17 +537,19 @@ function isKimiK3Model(model: string) {
   return normalized === "kimi-k3" || normalized.startsWith("kimi-k3-");
 }
 
-function isGpt56LunaModel(model: string) {
+function isGpt56XhighModel(model: string) {
   const normalized = model.trim().toLowerCase();
 
   return (
     normalized === GPT_5_6_LUNA_MODEL ||
-    normalized.startsWith(`${GPT_5_6_LUNA_MODEL}-`)
+    normalized.startsWith(`${GPT_5_6_LUNA_MODEL}-`) ||
+    normalized === GPT_5_6_TERRA_MODEL ||
+    normalized.startsWith(`${GPT_5_6_TERRA_MODEL}-`)
   );
 }
 
 function getChatCompletionsReasoningEffort(model: string) {
-  if (isGpt56LunaModel(model)) {
+  if (isGpt56XhighModel(model)) {
     return "xhigh" as const;
   }
 

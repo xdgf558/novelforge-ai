@@ -16,6 +16,7 @@ import {
   DEFAULT_OPENAI_BASE_URL,
   DEFAULT_OPENAI_MODEL,
   GPT_5_6_LUNA_MODEL,
+  GPT_5_6_TERRA_MODEL,
   DEFAULT_STATION_CAT_API_BASE_URL,
   DEFAULT_STATION_CAT_DEFAULT_MODE,
   DEFAULT_TTS_API_BASE_URL,
@@ -146,7 +147,7 @@ describe("AI local connection config", () => {
     });
   });
 
-  it("reads file config before environment fallbacks", () => {
+  it("retires a file-level custom default connection before environment fallbacks", () => {
     const configPath = makeTempConfigPath();
     fs.writeFileSync(
       configPath,
@@ -165,24 +166,29 @@ describe("AI local connection config", () => {
         OPENAI_BASE_URL: "https://env.example/v1",
       }),
     ).toMatchObject({
-      OPENAI_API_KEY: "file-key",
-      OPENAI_MODEL: "file-model",
-      OPENAI_BASE_URL: "https://file.example/v1",
+      OPENAI_API_KEY: undefined,
+      OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
     });
   });
 
-  it("saves custom model and base URL while keeping the current API key", () => {
+  it("retires a custom default connection without reusing its API key", () => {
     const configPath = makeTempConfigPath();
     fs.writeFileSync(
       configPath,
-      ["DATABASE_URL=file:dev.db", "OPENAI_API_KEY=\"sk-existing\""].join("\n"),
+      [
+        "DATABASE_URL=file:dev.db",
+        "OPENAI_API_KEY=\"sk-existing\"",
+        "OPENAI_MODEL=custom-editor-v1",
+        "OPENAI_BASE_URL=https://ai.example.com/v1",
+      ].join("\n"),
     );
 
     const settings = saveAiConnectionSettings(
       {
         apiKey: "",
-        model: "deepseek-v4-pro",
-        baseUrl: "https://api.deepseek.example/v1/",
+        model: "custom-editor-v1",
+        baseUrl: "https://ai.example.com/v1/",
       },
       {
         NOVELFORGE_AI_CONFIG_PATH: configPath,
@@ -191,18 +197,117 @@ describe("AI local connection config", () => {
     const savedContent = fs.readFileSync(configPath, "utf8");
 
     expect(settings).toMatchObject({
-      hasApiKey: true,
-      maskedApiKey: "sk-exi...ting",
-      model: "deepseek-v4-pro",
-      baseUrl: "https://api.deepseek.example/v1",
+      hasApiKey: false,
+      maskedApiKey: "未配置",
+      model: GPT_5_6_TERRA_MODEL,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
       source: "file",
     });
     expect(savedContent).toContain("DATABASE_URL=file:dev.db");
-    expect(savedContent).toContain('OPENAI_API_KEY="sk-existing"');
-    expect(savedContent).toContain('OPENAI_MODEL="deepseek-v4-pro"');
+    expect(savedContent).toContain("OPENAI_API_KEY=");
+    expect(savedContent).not.toContain("sk-existing");
     expect(savedContent).toContain(
-      'OPENAI_BASE_URL="https://api.deepseek.example/v1"',
+      `OPENAI_MODEL="${GPT_5_6_TERRA_MODEL}"`,
     );
+    expect(savedContent).toContain(
+      `OPENAI_BASE_URL="${DEFAULT_OPENAI_BASE_URL}"`,
+    );
+  });
+
+  it("upgrades an official OpenAI default connection to Terra while retaining its key", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "OPENAI_API_KEY=sk-openai-existing",
+        "OPENAI_MODEL=gpt-4.1-mini",
+        `OPENAI_BASE_URL=${DEFAULT_OPENAI_BASE_URL}`,
+      ].join("\n"),
+    );
+
+    expect(
+      getAiRuntimeEnv({ NOVELFORGE_AI_CONFIG_PATH: configPath }),
+    ).toMatchObject({
+      OPENAI_API_KEY: "sk-openai-existing",
+      OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+    });
+
+    const settings = saveAiConnectionSettings(
+      {
+        apiKey: "",
+        model: "gpt-4.1-mini",
+        baseUrl: DEFAULT_OPENAI_BASE_URL,
+      },
+      { NOVELFORGE_AI_CONFIG_PATH: configPath },
+    );
+
+    expect(settings).toMatchObject({
+      hasApiKey: true,
+      maskedApiKey: "sk-ope...ting",
+      model: GPT_5_6_TERRA_MODEL,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
+    });
+  });
+
+  it("retires a saved DeepSeek connection without reusing its API key", () => {
+    const configPath = makeTempConfigPath();
+    fs.writeFileSync(
+      configPath,
+      [
+        "OPENAI_API_KEY=deepseek-existing-key",
+        "OPENAI_MODEL=deepseek-v4-pro",
+        "OPENAI_BASE_URL=https://api.deepseek.com",
+      ].join("\n"),
+    );
+
+    expect(
+      getAiRuntimeEnv({ NOVELFORGE_AI_CONFIG_PATH: configPath }),
+    ).toMatchObject({
+      OPENAI_API_KEY: undefined,
+      OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+    });
+    expect(
+      getAiRuntimeEnvForTaskType("outline_generation", {
+        NOVELFORGE_AI_CONFIG_PATH: configPath,
+      }),
+    ).toMatchObject({
+      OPENAI_API_KEY: undefined,
+      OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
+      OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+    });
+    expect(
+      readAiConnectionSettings({ NOVELFORGE_AI_CONFIG_PATH: configPath }),
+    ).toMatchObject({
+      hasApiKey: false,
+      model: GPT_5_6_TERRA_MODEL,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
+    });
+
+    const settings = saveAiConnectionSettings(
+      {
+        apiKey: "",
+        model: GPT_5_6_TERRA_MODEL,
+        baseUrl: DEFAULT_OPENAI_BASE_URL,
+      },
+      { NOVELFORGE_AI_CONFIG_PATH: configPath },
+    );
+    const savedContent = fs.readFileSync(configPath, "utf8");
+
+    expect(settings).toMatchObject({
+      hasApiKey: false,
+      model: GPT_5_6_TERRA_MODEL,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
+    });
+    expect(savedContent).toContain("OPENAI_API_KEY=");
+    expect(savedContent).toContain(
+      `OPENAI_MODEL="${GPT_5_6_TERRA_MODEL}"`,
+    );
+    expect(savedContent).toContain(
+      `OPENAI_BASE_URL="${DEFAULT_OPENAI_BASE_URL}"`,
+    );
+    expect(savedContent).not.toContain("deepseek-existing-key");
   });
 
   it("can clear the saved API key without losing defaults", () => {
@@ -233,7 +338,7 @@ describe("AI local connection config", () => {
     expect(maskApiKey("")).toBe("未配置");
   });
 
-  it("reports environment config when no file config exists", () => {
+  it("retires an environment-level custom default connection", () => {
     const settings = readAiConnectionSettings({
       NOVELFORGE_AI_CONFIG_PATH: makeTempConfigPath(),
       OPENAI_API_KEY: "env-key",
@@ -242,9 +347,9 @@ describe("AI local connection config", () => {
     });
 
     expect(settings).toMatchObject({
-      hasApiKey: true,
-      model: "env-model",
-      baseUrl: "https://env.example/v1",
+      hasApiKey: false,
+      model: GPT_5_6_TERRA_MODEL,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
       source: "environment",
     });
   });

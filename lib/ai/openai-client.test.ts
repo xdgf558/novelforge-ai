@@ -18,7 +18,7 @@ describe("OpenAI client helpers", () => {
       "gpt-test",
     );
     expect(getConfiguredOpenAIModel({ OPENAI_MODEL: "", OPENAI_API_KEY: "" })).toBe(
-      "gpt-4.1-mini",
+      "gpt-5.6-terra",
     );
   });
 
@@ -99,6 +99,24 @@ describe("OpenAI client helpers", () => {
     });
   });
 
+  it("uses xhigh reasoning for GPT-5.6 Terra Responses requests", () => {
+    expect(
+      buildOpenAIResponsesPayload({
+        model: "gpt-5.6-terra",
+        input: "生成章节大纲",
+      }),
+    ).toEqual({
+      model: "gpt-5.6-terra",
+      input: [
+        {
+          role: "user",
+          content: [{ type: "input_text", text: "生成章节大纲" }],
+        },
+      ],
+      reasoning: { effort: "xhigh" },
+    });
+  });
+
   it("builds a Chat Completions payload for OpenAI-compatible providers", () => {
     expect(
       buildOpenAIChatCompletionsPayload({
@@ -141,6 +159,16 @@ describe("OpenAI client helpers", () => {
     ).toEqual({
       model: "gpt-5.6-luna",
       messages: [{ role: "user", content: "编写章节草稿" }],
+      reasoning_effort: "xhigh",
+    });
+    expect(
+      buildOpenAIChatCompletionsPayload({
+        model: "gpt-5.6-terra",
+        input: "生成章节大纲",
+      }),
+    ).toEqual({
+      model: "gpt-5.6-terra",
+      messages: [{ role: "user", content: "生成章节大纲" }],
       reasoning_effort: "xhigh",
     });
     expect(

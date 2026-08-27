@@ -234,7 +234,8 @@ type LocalConfigKey =
   | NetworkProxyConfigKey;
 
 export const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
-export const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+export const GPT_5_6_TERRA_MODEL = "gpt-5.6-terra";
+export const DEFAULT_OPENAI_MODEL = GPT_5_6_TERRA_MODEL;
 export const DEFAULT_KIMI_API_BASE_URL = "https://api.moonshot.cn/v1";
 export const DEFAULT_KIMI_K2_6_MODEL = "kimi-k2.6";
 export const DEFAULT_KIMI_K3_MODEL = "kimi-k3";
@@ -317,11 +318,11 @@ const localConfigKeySet = new Set<string>([
 export function getAiRuntimeEnv(env: AiRuntimeEnv = process.env) {
   const fileEnv = readLocalConfigFile(getAiConfigPath(env));
 
-  return {
+  return normalizeDefaultAiRuntimeEnv({
     ...env,
     ...compactNetworkProxyEnv(fileEnv),
     ...compactAiEnv(fileEnv),
-  };
+  });
 }
 
 export function getAiRuntimeEnvForTaskType(
@@ -354,10 +355,10 @@ export function readAiConnectionSettings(
 ): AiConnectionSettings {
   const configPath = getAiConfigPath(env);
   const fileEnv = readLocalConfigFile(configPath);
-  const runtimeEnv = {
+  const runtimeEnv = normalizeDefaultAiRuntimeEnv({
     ...env,
     ...compactAiEnv(fileEnv),
-  };
+  });
   const apiKey = runtimeEnv.OPENAI_API_KEY?.trim() ?? "";
   const model = normalizeAiModel(runtimeEnv.OPENAI_MODEL);
   const baseUrl = normalizeAiBaseUrl(runtimeEnv.OPENAI_BASE_URL);
@@ -380,14 +381,32 @@ export function saveAiConnectionSettings(
   const configPath = getAiConfigPath(env);
   const currentFileEnv = readLocalConfigFile(configPath);
   const apiKeyInput = input.apiKey?.trim() ?? "";
-  const currentFileApiKey = currentFileEnv.OPENAI_API_KEY?.trim() ?? "";
+  const currentApiKey = Object.prototype.hasOwnProperty.call(
+    currentFileEnv,
+    "OPENAI_API_KEY",
+  )
+    ? currentFileEnv.OPENAI_API_KEY?.trim() ?? ""
+    : env.OPENAI_API_KEY?.trim() ?? "";
+  const currentModel =
+    currentFileEnv.OPENAI_MODEL?.trim() ||
+    env.OPENAI_MODEL?.trim() ||
+    DEFAULT_OPENAI_MODEL;
+  const currentBaseUrl =
+    currentFileEnv.OPENAI_BASE_URL?.trim() ||
+    env.OPENAI_BASE_URL?.trim() ||
+    DEFAULT_OPENAI_BASE_URL;
+  const nextModel = GPT_5_6_TERRA_MODEL;
+  const nextBaseUrl = DEFAULT_OPENAI_BASE_URL;
+  const connectionChanged =
+    defaultAiConnectionIdentity(currentModel, currentBaseUrl) !==
+    defaultAiConnectionIdentity(nextModel, nextBaseUrl);
   const nextApiKey = input.clearApiKey
     ? ""
-    : apiKeyInput || currentFileApiKey;
+    : apiKeyInput || (connectionChanged ? "" : currentApiKey);
   const nextEnv: Partial<Record<AiConfigKey, string>> = {
     OPENAI_API_KEY: nextApiKey,
-    OPENAI_MODEL: normalizeAiModel(input.model),
-    OPENAI_BASE_URL: normalizeAiBaseUrl(input.baseUrl),
+    OPENAI_MODEL: nextModel,
+    OPENAI_BASE_URL: nextBaseUrl,
   };
 
   writeLocalConfigFile(configPath, nextEnv, aiConfigKeys);
@@ -981,7 +1000,9 @@ function parseLocalConfigEnv(content: string) {
 }
 
 export function normalizeAiModel(model?: string | null) {
-  return model?.trim() || DEFAULT_OPENAI_MODEL;
+  const normalized = model?.trim() || DEFAULT_OPENAI_MODEL;
+
+  return isDeepSeekModel(normalized) ? GPT_5_6_TERRA_MODEL : normalized;
 }
 
 export function normalizeAiBaseUrl(baseUrl?: string | null) {
@@ -992,6 +1013,68 @@ export function normalizeAiBaseUrl(baseUrl?: string | null) {
   }
 
   return normalized;
+}
+
+function normalizeDefaultAiRuntimeEnv(env: AiRuntimeEnv): AiRuntimeEnv {
+  const configuredModel = env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
+  const configuredBaseUrl =
+    env.OPENAI_BASE_URL?.trim() || DEFAULT_OPENAI_BASE_URL;
+  const canReuseApiKey =
+    defaultAiConnectionIdentity(configuredModel, configuredBaseUrl) ===
+    defaultAiConnectionIdentity(
+      GPT_5_6_TERRA_MODEL,
+      DEFAULT_OPENAI_BASE_URL,
+    );
+
+  return {
+    ...env,
+    // The default route is fixed to Terra. Only an existing official OpenAI
+    // connection may retain its credential during the model migration.
+    OPENAI_API_KEY: canReuseApiKey
+      ? env.OPENAI_API_KEY?.trim() || undefined
+      : undefined,
+    OPENAI_MODEL: GPT_5_6_TERRA_MODEL,
+    OPENAI_BASE_URL: DEFAULT_OPENAI_BASE_URL,
+  };
+}
+
+function defaultAiConnectionIdentity(model: string, baseUrl: string) {
+  const normalizedModel = model.trim().toLowerCase();
+  const normalizedBaseUrl = normalizeAiBaseUrl(baseUrl);
+
+  if (isDeepSeekModel(normalizedModel) || isDeepSeekBaseUrl(normalizedBaseUrl)) {
+    return `deepseek:${normalizedBaseUrl}`;
+  }
+
+  if (isOpenAiModel(normalizedModel)) {
+    return `openai:${normalizedBaseUrl}`;
+  }
+
+  return `custom:${normalizedModel}:${normalizedBaseUrl}`;
+}
+
+function isDeepSeekModel(model: string) {
+  return model.trim().toLowerCase().startsWith("deepseek-");
+}
+
+function isDeepSeekBaseUrl(baseUrl: string) {
+  try {
+    const hostname = new URL(baseUrl).hostname.toLowerCase();
+
+    return hostname === "deepseek.com" || hostname.endsWith(".deepseek.com");
+  } catch {
+    return false;
+  }
+}
+
+function isOpenAiModel(model: string) {
+  const normalized = model.trim().toLowerCase();
+
+  return (
+    normalized.startsWith("gpt-") ||
+    normalized.startsWith("chatgpt-") ||
+    /^(o1|o3|o4)(?:[-_.]|$)/.test(normalized)
+  );
 }
 
 export function normalizeTaskRouteModel(model?: string | null) {

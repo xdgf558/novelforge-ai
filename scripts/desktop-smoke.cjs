@@ -157,8 +157,8 @@ async function main() {
       [
         "# desktop config",
         "OPENAI_API_KEY=\"sk-test\"",
-        "OPENAI_MODEL=gpt-4.1-mini",
-        "OPENAI_BASE_URL=https://api.deepseek.example/v1",
+        "OPENAI_MODEL=gpt-5.6-terra",
+        "OPENAI_BASE_URL=https://api.openai.com/v1",
         "IMAGE_API_KEY=ppq-test",
         "IMAGE_API_BASE_URL=https://api.ppq.ai/v1",
         "IMAGE_MODEL=qwen-image-2",
@@ -173,8 +173,8 @@ async function main() {
     ),
     {
       OPENAI_API_KEY: "sk-test",
-      OPENAI_MODEL: "gpt-4.1-mini",
-      OPENAI_BASE_URL: "https://api.deepseek.example/v1",
+      OPENAI_MODEL: "gpt-5.6-terra",
+      OPENAI_BASE_URL: "https://api.openai.com/v1",
       IMAGE_API_KEY: "ppq-test",
       IMAGE_API_BASE_URL: "https://api.ppq.ai/v1",
       IMAGE_MODEL: "qwen-image-2",

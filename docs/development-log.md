@@ -1,5 +1,33 @@
 # Development Log
 
+## 2026-08-27: GPT-5.6 Terra Default Structural Route
+
+Status: completed.
+
+What was done:
+
+- Replaced the default structural/editorial AI model with `gpt-5.6-terra` at
+  `https://api.openai.com/v1`. Project settings, outlines, chapter beats,
+  summaries, memory extraction, continuity checks, and other tasks without a
+  dedicated writing route now use Terra.
+- Added Terra to the GPT-5.6 high-reasoning policy so direct Responses requests
+  send `reasoning: { effort: "xhigh" }`; compatible Chat Completions requests
+  use `reasoning_effort: "xhigh"`.
+- Retired saved DeepSeek default connections. A legacy DeepSeek model id or
+  official endpoint is converted to Terra/OpenAI at runtime while its effective
+  API key is cleared, preventing a provider credential from crossing into an
+  OpenAI request. Saving the settings persists the new connection.
+- Updated the settings UI to present a fixed Terra/OpenAI default route and
+  explain that the author must enter an OpenAI API Key after migration. Kimi
+  chapter-draft and polish routes remain independently configurable.
+- Updated desktop and repository environment examples to use Terra.
+
+Verification:
+
+- `npm test` passed: 122 files and 738 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+
 ## 2026-08-02: 0.1.116 Next Story-Unit Continuation Installer
 
 Status: completed.
