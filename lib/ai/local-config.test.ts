@@ -319,6 +319,7 @@ describe("AI local connection config", () => {
       hasApiKey: false,
       model: GPT_5_6_TERRA_MODEL,
       baseUrl: DEFAULT_OPENAI_BASE_URL,
+      retiredDefaultConnection: "deepseek",
     });
 
     const settings = saveAiConnectionSettings(
@@ -386,6 +387,7 @@ describe("AI local connection config", () => {
       hasApiKey: false,
       model: GPT_5_6_TERRA_MODEL,
       baseUrl: DEFAULT_OPENAI_BASE_URL,
+      retiredDefaultConnection: "custom",
       source: "environment",
     });
   });

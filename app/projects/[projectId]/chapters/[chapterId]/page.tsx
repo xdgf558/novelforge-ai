@@ -628,7 +628,7 @@ function ChapterBeatAiPanel({
 
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          {missingApiKeyMessage} 已有任务记录仍可查看和采用。
+          {missingApiKeyMessage}已有任务记录仍可查看和采用。
         </p>
       ) : null}
 
@@ -1278,7 +1278,7 @@ function ChapterSummaryAiPanel({
 
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          {missingApiKeyMessage} 已有摘要任务仍可查看。
+          {missingApiKeyMessage}已有摘要任务仍可查看。
         </p>
       ) : null}
 
@@ -1478,7 +1478,7 @@ function ChapterPendingUpdatePanel({
 
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          {missingApiKeyMessage} 已有待审核更新仍可在列表页查看。
+          {missingApiKeyMessage}已有待审核更新仍可在列表页查看。
         </p>
       ) : null}
 
@@ -1613,7 +1613,7 @@ function ChapterContinuityPanel({
 
       {!hasApiKey ? (
         <p className="mt-4 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          {missingApiKeyMessage} 已有连续性报告仍可在报告页查看。
+          {missingApiKeyMessage}已有连续性报告仍可在报告页查看。
         </p>
       ) : null}
 

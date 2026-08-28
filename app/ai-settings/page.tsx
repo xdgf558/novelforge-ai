@@ -643,8 +643,14 @@ export default async function AiSettingsPage({
                 </div>
                 <p className="mb-5 max-w-3xl text-sm leading-6 text-ink-700">
                   设定生成、大纲、章节节拍、摘要、记忆提取、连续性检查等默认 AI
-                  任务统一使用 GPT-5.6 Terra，并固定为极高推理强度。旧 DeepSeek
-                  凭据不会发送给 OpenAI；首次切换后请在这里填写 OpenAI API Key。
+                  任务统一使用 GPT-5.6 Terra，并固定为极高推理强度。
+                  {settings.retiredDefaultConnection === "deepseek"
+                    ? "检测到旧 DeepSeek 默认连接；其凭据不会发送给 OpenAI，请在这里填写 OpenAI API Key。"
+                    : settings.retiredDefaultConnection === "custom"
+                      ? "检测到旧自定义默认连接；其凭据不会发送给 OpenAI，请在这里填写 OpenAI API Key。"
+                      : !settings.hasApiKey
+                        ? "请在这里填写 OpenAI API Key。"
+                        : null}
                 </p>
 
                 <form

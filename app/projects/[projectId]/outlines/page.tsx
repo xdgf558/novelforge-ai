@@ -556,7 +556,7 @@ function OutlineAiPanel({
 
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          {missingApiKeyMessage} 已有大纲草案任务仍可查看。
+          {missingApiKeyMessage}已有大纲草案任务仍可查看。
         </p>
       ) : null}
 
@@ -712,7 +712,7 @@ function NextUnitPlanningPanel({
 
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          {missingApiKeyMessage} 仍可使用上方入口手动新增剧情单元。
+          {missingApiKeyMessage}仍可使用上方入口手动新增剧情单元。
         </p>
       ) : null}
 
@@ -881,7 +881,7 @@ function EndingPlanningPanel({
 
       {!hasApiKey ? (
         <p className="mt-3 rounded-md bg-paper-50 px-3 py-2 text-sm text-ink-700">
-          {missingApiKeyMessage} 暂不能生成终局规划草案；本地收尾信号仍可参考。
+          {missingApiKeyMessage}暂不能生成终局规划草案；本地收尾信号仍可参考。
         </p>
       ) : null}
 

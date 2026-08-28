@@ -26,8 +26,10 @@ What was done:
   planning, and chapter structural workflows so the required OpenAI setup is
   visible where the author encounters the disabled task.
 - Updated the settings UI to present a fixed Terra/OpenAI default route and
-  explain that the author must enter an OpenAI API Key after migration. Kimi
-  chapter-draft and polish routes remain independently configurable.
+  show legacy-provider migration guidance only when a retired DeepSeek or
+  custom connection is actually detected. Fresh installs receive a neutral
+  OpenAI API Key prompt. Kimi chapter-draft and polish routes remain
+  independently configurable.
 - Removed the fixed model and Base URL from desktop and repository environment
   examples; only the OpenAI API Key remains configurable for this route.
 - Restored the high-severity production dependency audit after new upstream

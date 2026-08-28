@@ -42,8 +42,10 @@ export type AiRuntimeEnv = {
   no_proxy?: string;
   NOVELFORGE_AI_CONFIG_PATH?: string;
   NOVELFORGE_DESKTOP_DATA_DIR?: string;
-  NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION?: "deepseek" | "custom";
+  NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION?: RetiredDefaultAiConnection;
 };
+
+export type RetiredDefaultAiConnection = "deepseek" | "custom";
 
 export type AiConnectionSettings = {
   configPath: string;
@@ -52,6 +54,7 @@ export type AiConnectionSettings = {
   maskedApiKey: string;
   model: string;
   baseUrl: string;
+  retiredDefaultConnection: RetiredDefaultAiConnection | null;
   source: "file" | "environment" | "default";
 };
 
@@ -371,6 +374,8 @@ export function readAiConnectionSettings(
     maskedApiKey: maskApiKey(apiKey),
     model,
     baseUrl,
+    retiredDefaultConnection:
+      runtimeEnv.NOVELFORGE_RETIRED_DEFAULT_AI_CONNECTION ?? null,
     source: detectConfigSource(fileEnv, env),
   };
 }
