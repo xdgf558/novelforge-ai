@@ -1,5 +1,49 @@
 # Development Log
 
+## 2026-08-28: 0.1.117 Terra Structural Route Installer
+
+Status: completed.
+
+What was done:
+
+- Packaged the approved GPT-5.6 Terra structural/editorial route from PR #105,
+  merged into `main` at `4037172`, and bumped the source app/package version
+  from `0.1.116` to `0.1.117`.
+- Updated the in-app release notes for the fixed Terra/OpenAI route, `xhigh`
+  reasoning, retired DeepSeek/custom default connections, and the independent
+  Kimi/Luna writing routes.
+- Built the arm64 macOS application with hardened runtime and Developer ID
+  Application signing.
+- Built `release/desktop/NovelForge-AI-0.1.117-mac-arm64.pkg` with a payload at
+  `/Applications/NovelForge AI.app` and signed it with Developer ID Installer.
+- Did not upload this rebuild to Apple notarization because the request only
+  asked for a new installer package.
+- Removed the previous `0.1.116` installer, the unsigned intermediate PKG,
+  Electron build output, builder metadata, and isolated validation files so
+  `release/desktop/` contains only the `0.1.117` PKG.
+
+Verification:
+
+- `npm test` passed: 122 files and 741 tests.
+- `npm run typecheck`, `npm run desktop:smoke`, `npm run mvp:acceptance`,
+  source-tree and packaged-root `npm run work-types:acceptance`, and the
+  production `npm run build` passed.
+- Deep strict code-sign verification passed for the built app and the app
+  expanded from the final PKG.
+- `pkgutil --check-signature` verified the final PKG's Developer ID Installer
+  certificate chain and trusted timestamp. The package reports identifier
+  `com.novelforge.ai`, version `0.1.117`, and install location `/Applications`.
+- The expanded package contains all 26 migrations and the shared
+  `lib/ai/active-task-statuses.json` runtime data. An isolated first launch
+  returned HTTP 200, applied all 26 migrations, and returned `ok` from SQLite
+  `PRAGMA quick_check`.
+- Gatekeeper identifies the PKG as `Unnotarized Developer ID`, as expected for
+  a build that was not uploaded to Apple; this installer is not notarized or
+  stapled.
+- Final PKG size: 456,182,365 bytes.
+- Final PKG SHA-256:
+  `f638544b0aa3602495b60f7e66cfce992293621316f14bc85f2c24118a49bc02`.
+
 ## 2026-08-27: GPT-5.6 Terra Default Structural Route
 
 Status: completed.
