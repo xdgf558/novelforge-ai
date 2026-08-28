@@ -1,5 +1,48 @@
 # Development Log
 
+## 2026-08-27: GPT-5.6 Terra Default Structural Route
+
+Status: completed.
+
+What was done:
+
+- Breaking change: the structural/editorial route no longer accepts a custom
+  model or Base URL. Authors upgrading from DeepSeek or another gateway must
+  enter an OpenAI API Key under `Settings -> Terra Access` before settings,
+  outlines, beats, summaries, memory extraction, or continuity tasks can run.
+- Replaced the default structural/editorial AI model with `gpt-5.6-terra` at
+  `https://api.openai.com/v1`. Project settings, outlines, chapter beats,
+  summaries, memory extraction, continuity checks, and other tasks without a
+  dedicated writing route now use Terra.
+- Added Terra to the GPT-5.6 high-reasoning policy so direct Responses requests
+  send `reasoning: { effort: "xhigh" }`; compatible Chat Completions requests
+  use `reasoning_effort: "xhigh"`.
+- Stopped using saved DeepSeek default connections. A legacy DeepSeek model id
+  or official endpoint is converted to Terra/OpenAI at runtime while its
+  effective API key is omitted, preventing a provider credential from crossing
+  into an OpenAI request. The legacy value remains in the author's local file
+  until Terra settings are saved, which then removes it from disk.
+- Added a migration-specific missing-key message to model failures, outline
+  planning, and chapter structural workflows so the required OpenAI setup is
+  visible where the author encounters the disabled task.
+- Updated the settings UI to present a fixed Terra/OpenAI default route and
+  show legacy-provider migration guidance only when a retired DeepSeek or
+  custom connection is actually detected. Fresh installs receive a neutral
+  OpenAI API Key prompt. Kimi chapter-draft and polish routes remain
+  independently configurable.
+- Removed the fixed model and Base URL from desktop and repository environment
+  examples; only the OpenAI API Key remains configurable for this route.
+- Restored the high-severity production dependency audit after new upstream
+  advisories by pinning patched transitive releases of `deepmerge-ts` and
+  `nanoid`; Prisma generation, tests, build, desktop smoke, and acceptance
+  checks remain the compatibility gate for these overrides.
+
+Verification:
+
+- `npm test` passed: 122 files and 741 tests.
+- `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, and `npm run work-types:acceptance` passed.
+
 ## 2026-08-02: 0.1.116 Next Story-Unit Continuation Installer
 
 Status: completed.

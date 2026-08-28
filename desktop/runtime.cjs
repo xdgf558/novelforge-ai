@@ -81,8 +81,6 @@ function ensureDesktopEnvExample(dataRoot) {
       [
         "# Copy this file to .env in the same folder when launching the desktop app.",
         "OPENAI_API_KEY=your_api_key_here",
-        "OPENAI_MODEL=gpt-4.1-mini",
-        "OPENAI_BASE_URL=https://api.openai.com/v1",
         "IMAGE_API_KEY=your_image_api_key_here",
         "IMAGE_API_BASE_URL=https://api.ppq.ai/v1",
         "IMAGE_MODEL=qwen-image-2",

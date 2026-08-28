@@ -6,6 +6,8 @@ import { promisify } from "node:util";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  DEFAULT_OPENAI_BASE_URL,
+  GPT_5_6_TERRA_MODEL,
   normalizeTtsApiBaseUrlForProvider,
   isGenericTtsLanguageCode,
   normalizeTtsLanguageCode,
@@ -43,8 +45,8 @@ export async function saveAiConnectionSettingsAction(formData: FormData) {
     saveAiConnectionSettings({
       apiKey: formData.get("apiKey")?.toString(),
       clearApiKey: formData.get("clearApiKey") === "on",
-      model: formData.get("model")?.toString(),
-      baseUrl: formData.get("baseUrl")?.toString(),
+      model: GPT_5_6_TERRA_MODEL,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
     });
     saveNetworkProxySettings({
       noProxy: formData.get("networkNoProxy")?.toString(),

@@ -29,6 +29,8 @@ import {
   readAiConnectionSettings,
   readAiTaskModelRouteSettings,
   GPT_5_6_LUNA_MODEL,
+  GPT_5_6_TERRA_MODEL,
+  DEFAULT_OPENAI_BASE_URL,
   type AiTaskModelRouteSetting,
   type TtsGenerationSettings,
   readNetworkProxySettings,
@@ -157,7 +159,7 @@ export default async function AiSettingsPage({
           label="AI API Key"
           value={settings.hasApiKey ? settings.maskedApiKey : "未配置"}
         />
-        <InfoTile icon={Bot} label="模型" value={settings.model} />
+        <InfoTile icon={Bot} label="默认 AI 模型" value={settings.model} />
         <InfoTile icon={ServerCog} label="接口地址" value={settings.baseUrl} />
         <InfoTile
           icon={ServerCog}
@@ -223,7 +225,7 @@ export default async function AiSettingsPage({
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">
                       章节草稿默认使用 Kimi K2.6，也可切换为 GPT-5.6
                       Luna。Luna 使用 OpenAI API 接入，并固定为极高推理强度；正文精修与短故事整篇审校默认使用 Kimi
-                      K3。仅当草稿与精修使用同一提供商时才可共享 API Key 和 Base URL；也可为精修单独配置。大纲、节拍和普通连续性检查保持默认模型。
+                      K3。仅当草稿与精修使用同一提供商时才可共享 API Key 和 Base URL；也可为精修单独配置。设定、大纲、节拍、摘要、记忆提取和连续性检查统一使用 GPT-5.6 Terra，并固定为极高推理强度。
                     </p>
                   </div>
                 </div>
@@ -628,7 +630,7 @@ export default async function AiSettingsPage({
           },
           {
             id: "default-ai-connection",
-            label: "默认接入",
+            label: "Terra 接入",
             meta: settings.hasApiKey ? "已配置" : "未配置",
             content: (
               <section className="rounded-lg border border-ink-950/10 bg-white p-5 shadow-panel">
@@ -637,8 +639,19 @@ export default async function AiSettingsPage({
                     aria-hidden="true"
                     className="h-5 w-5 text-signal-600"
                   />
-                  接入参数
+                  GPT-5.6 Terra 接入
                 </div>
+                <p className="mb-5 max-w-3xl text-sm leading-6 text-ink-700">
+                  设定生成、大纲、章节节拍、摘要、记忆提取、连续性检查等默认 AI
+                  任务统一使用 GPT-5.6 Terra，并固定为极高推理强度。
+                  {settings.retiredDefaultConnection === "deepseek"
+                    ? "检测到旧 DeepSeek 默认连接；其凭据不会发送给 OpenAI，请在这里填写 OpenAI API Key。"
+                    : settings.retiredDefaultConnection === "custom"
+                      ? "检测到旧自定义默认连接；其凭据不会发送给 OpenAI，请在这里填写 OpenAI API Key。"
+                      : !settings.hasApiKey
+                        ? "请在这里填写 OpenAI API Key。"
+                        : null}
+                </p>
 
                 <form
                   action={saveAiConnectionSettingsAction}
@@ -662,32 +675,27 @@ export default async function AiSettingsPage({
                       />
                     </label>
 
-                    <label className="space-y-2">
+                    <div className="space-y-2">
                       <span className="text-sm font-semibold text-ink-800">
-                        模型名称
+                        模型
                       </span>
-                      <input
-                        className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
-                        defaultValue={settings.model}
-                        name="model"
-                        placeholder="自定义模型 id"
-                        type="text"
-                      />
-                    </label>
+                      <p className="flex min-h-11 items-center rounded-md border border-ink-950/10 bg-paper-100 px-3 py-2 text-sm font-semibold text-ink-950">
+                        {GPT_5_6_TERRA_MODEL}
+                      </p>
+                      <span className="block text-xs leading-5 text-ink-600">
+                        推理强度固定为极高（xhigh）。
+                      </span>
+                    </div>
                   </div>
 
-                  <label className="block space-y-2">
+                  <div className="block space-y-2">
                     <span className="text-sm font-semibold text-ink-800">
-                      OpenAI-compatible 接口地址
+                      OpenAI API Base URL
                     </span>
-                    <input
-                      className="min-h-11 w-full rounded-md border border-ink-950/15 bg-white px-3 py-2 text-sm text-ink-950 outline-none transition focus:border-signal-600 focus:ring-2 focus:ring-signal-600/20"
-                      defaultValue={settings.baseUrl}
-                      name="baseUrl"
-                      placeholder="https://api.example.com/v1"
-                      type="url"
-                    />
-                  </label>
+                    <p className="flex min-h-11 items-center rounded-md border border-ink-950/10 bg-paper-100 px-3 py-2 text-sm text-ink-950">
+                      {DEFAULT_OPENAI_BASE_URL}
+                    </p>
+                  </div>
 
                   <div className="grid gap-5 lg:grid-cols-2">
                     <label className="space-y-2">
@@ -733,7 +741,7 @@ export default async function AiSettingsPage({
                       </span>
                       <span className="mt-1 block leading-6">
                         勾选后保存会移除本机配置文件中的
-                        key，模型名称和接口地址仍会保存。
+                        key，Terra 模型和 OpenAI 接口地址保持不变。
                       </span>
                     </span>
                   </label>
@@ -1234,8 +1242,9 @@ function settingsSavedMessage(
   if (saved === "ai") {
     return {
       kind: "success",
-      title: "AI 接入参数已保存",
-      description: "新的模型、接口地址和 API Key 设置会用于后续模型调用。",
+      title: "GPT-5.6 Terra 接入已保存",
+      description:
+        "后续默认 AI 任务会通过 OpenAI Responses API 使用 Terra，并固定为极高推理强度。",
     };
   }
 
