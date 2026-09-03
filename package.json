@@ -3,6 +3,15 @@
   "version": "0.1.117",
   "description": "Local-first AI writing workbench for serialized novels and short stories.",
   "author": "NovelForge AI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xdgf558/novelforge-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xdgf558/novelforge-ai/issues"
+  },
+  "homepage": "https://github.com/xdgf558/novelforge-ai#readme",
   "private": true,
   "main": "desktop/main.cjs",
   "scripts": {

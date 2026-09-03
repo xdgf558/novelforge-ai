@@ -1,5 +1,37 @@
 # Development Log
 
+## 2026-09-03: MIT Open-Source Release Preparation
+
+Status: completed.
+
+What was done:
+
+- Replaced the former source-visible, all-rights-reserved terms with the
+  standard MIT License and declared MIT in the package metadata.
+- Reworked the public README around the current `0.1.117` product, including
+  setup, supported writing modes, AI route behavior, privacy boundaries, local
+  data locations, quality checks, desktop packaging, contribution guidance,
+  and the MIT grant.
+- Updated the contribution terms and project memory so repository policy,
+  inbound contributions, and the root license all use the same MIT terms.
+- Refreshed compatible transitive dependency locks, including
+  `@xmldom/xmldom`, `js-yaml`, `brace-expansion`, `browserslist`, `fast-uri`,
+  and the Electron 42 patch line, to clear all published npm audit findings.
+- Prepared the canonical public GitHub repository for license detection and
+  discoverability while retaining protected-branch and security controls.
+
+Verification:
+
+- Audited current tracked files and the full Git history for common API key,
+  private-key, `.env`, database, backup, manuscript, and packaged-artifact
+  leaks; no committed secrets or private author data were found.
+- Confirmed GitHub secret scanning, push protection, dependency security
+  updates, and private vulnerability reporting are enabled, with no open
+  secret-scanning alerts at the time of release preparation.
+- `npm test`, `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
+  `npm run mvp:acceptance`, `npm run work-types:acceptance`, the full npm
+  dependency audit, and `git diff --check` passed.
+
 ## 2026-08-28: 0.1.117 Terra Structural Route Installer
 
 Status: completed.

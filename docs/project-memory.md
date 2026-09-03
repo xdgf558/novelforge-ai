@@ -11,9 +11,9 @@ The product is not just a text generator. Its core value is helping authors main
 ## Repository Policy
 
 - The canonical repository is `https://github.com/xdgf558/novelforge-ai`.
-- The repository is publicly visible for transparency, evaluation, and
-  collaboration, but it is not currently open source. Source use remains
-  governed by the source-visible, all-rights-reserved `LICENSE`.
+- The repository is open source under the MIT License. Use, modification, and
+  distribution are governed by the root `LICENSE`, and intentionally submitted
+  contributions use the same license.
 - Public repository automation must keep production dependency auditing,
   tests, type checking, builds, desktop smoke checks, and both acceptance
   suites green.

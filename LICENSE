@@ -1,19 +1,21 @@
-NovelForge AI Source-Visible License
+MIT License
 
-Copyright (c) 2026 xdgf558. All rights reserved.
+Copyright (c) 2026 xdgf558
 
-The source code and documentation in this repository are made publicly
-viewable for transparency, evaluation, and collaboration. This public
-visibility does not grant a license to use, copy, modify, distribute,
-sublicense, sell, commercially exploit, host as a service, or create
-derivative works from the contents of this repository.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-Rights required for ordinary viewing and for GitHub platform functionality
-remain governed by GitHub's Terms of Service. Any additional use requires
-prior written permission from the copyright holder.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Contributions intentionally submitted to this repository are governed by the
-terms in CONTRIBUTING.md.
-
-This is a source-visible, all-rights-reserved license. It is not an
-open-source license approved by the Open Source Initiative.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
