@@ -34,12 +34,12 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "lucide-react": "^0.468.0",
-    "mammoth": "^1.12.0",
+    "mammoth": "^1.12.2",
     "next": "^15.5.22",
-    "node-html-parser": "^9.0.0",
+    "node-html-parser": "^9.0.2",
     "prisma": "^6.19.3",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "undici": "^7.29.0",
     "zod": "^3.24.0"
   },
@@ -52,15 +52,15 @@
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
     "@types/node": "^24.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "autoprefixer": "^10.4.20",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "autoprefixer": "^10.5.4",
     "electron": "^42.4.1",
     "electron-builder": "^26.15.3",
     "postcss": "^8.5.25",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.11"
   },
   "build": {
     "appId": "com.novelforge.ai",
