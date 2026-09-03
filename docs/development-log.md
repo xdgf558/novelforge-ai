@@ -14,9 +14,9 @@ What was done:
   and the MIT grant.
 - Updated the contribution terms and project memory so repository policy,
   inbound contributions, and the root license all use the same MIT terms.
-- Refreshed the compatible `@xmldom/xmldom` transitive dependency lock from
-  `0.8.13` to `0.8.15`, clearing its published XML serialization advisory from
-  the production dependency audit.
+- Refreshed compatible transitive dependency locks, including
+  `@xmldom/xmldom`, `js-yaml`, `brace-expansion`, `browserslist`, `fast-uri`,
+  and the Electron 42 patch line, to clear all published npm audit findings.
 - Prepared the canonical public GitHub repository for license detection and
   discoverability while retaining protected-branch and security controls.
 
@@ -29,7 +29,7 @@ Verification:
   updates, and private vulnerability reporting are enabled, with no open
   secret-scanning alerts at the time of release preparation.
 - `npm test`, `npm run typecheck`, `npm run build`, `npm run desktop:smoke`,
-  `npm run mvp:acceptance`, `npm run work-types:acceptance`, production
+  `npm run mvp:acceptance`, `npm run work-types:acceptance`, the full npm
   dependency audit, and `git diff --check` passed.
 
 ## 2026-08-28: 0.1.117 Terra Structural Route Installer
