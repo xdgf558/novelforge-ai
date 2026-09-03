@@ -55,11 +55,6 @@ foreshadows change only after explicit author approval.
 
 ## Contribution terms
 
-The repository is source-visible and all rights are reserved. By intentionally
-submitting a contribution, you represent that you have the right to submit it
-and grant the repository owner a perpetual, worldwide, non-exclusive,
-royalty-free, irrevocable license to use, reproduce, modify, distribute,
-sublicense, and relicense that contribution as part of NovelForge AI.
-
-Opening a pull request does not grant contributors a license to the rest of the
-repository beyond the terms in `LICENSE`.
+NovelForge AI is licensed under the MIT License. By intentionally submitting a
+contribution, you represent that you have the right to submit it and agree that
+your contribution is provided under the same MIT License in `LICENSE`.
