@@ -41,7 +41,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "undici": "^7.29.0",
-    "zod": "^3.24.0"
+    "zod": "^4.6.6"
   },
   "overrides": {
     "deepmerge-ts": "^8.0.2",
